@@ -16,6 +16,7 @@
 | A USB stick | at least 64 GB; everything on it is erased |
 | An internet connection | for Apple's and the project's files, each checked by size and sha256 |
 | A Mac to make the stick on | any Mac; it can be the Intel Mac itself |
+| Xcode Command Line Tools | for their Python 3, which runs `hao`: `xcode-select --install` |
 
 Not built yet: writing the stick. `create-installer` asks its questions, downloads and checks the files, then
 stops before it touches the stick and says so.
