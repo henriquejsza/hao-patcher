@@ -16,6 +16,8 @@ against `anchor apple` refuses it. Programs that hao-runtime runs through a stub
 pristine 27.x System (`golden_gate_userspace`'s `filesystem.dmg`, read-only) and runs `src/native_identities.py
 install` with two source roots in order: that System and the Tahoe native donors (`TAHOE_NATIVE_ARTIFACT/payload/
 system`, set by `pipeline/stages/golden-image.py`).
+The row is declared in `src/read-from-share.txt`: the assembly leaves it where it is staged and the hook reads it
+through a link, as golden-gate-userspace does with the same row.
 
 `native_identities.py` walks the System for executables (MH_EXECUTE) whose x86_64 slice is signed ad hoc. For each it
 takes the first source root that has, at the same path, the program's original:
@@ -87,6 +89,7 @@ Earlier: Host tests pass and a host simulation of the 26B131 WindowServer and `c
 their rows. No image has been built with this recipe.
 
 ## Revisions
+- r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `filesystem.dmg` read-only, so the assembly reads the row where it is staged instead of copying its 22 GB into the work folder a second time (golden-gate-userspace already declares it). The hook and what it installs are unchanged.
 - r5 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r4 2026-11-13 `native_identities.py` reads each executable's headers and code signature only, and a slice's bytes only for the 90% comparison (172 MB instead of 7.4 GB on 26B131); same rows, skips and list. Logs the walk's time and counts.
 - r3 2026-11-12 Declare that its files are made on the target after every overlay file is installed (`"after": ["overlays"]`): the list is keyed on the CDHashes of the files as installed; the hook is unchanged. Keeps r1's validation: what it installs is unchanged (validated_digest).

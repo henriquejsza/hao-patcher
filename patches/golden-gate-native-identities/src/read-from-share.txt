@@ -1,0 +1,2 @@
+# Attached read-only by kc-hook.sh (the pristine 27.x System, filesystem.dmg); nothing in it is written.
+golden_gate_userspace

@@ -4,12 +4,12 @@ Puts what macOS makes in a new user's Library during the first login into `/Libr
 which macOS copies into every new home when the account is created: every app and widget container (folders with
 their containermanager xattrs and data-container personality, metadata plist, widget placeholders), chronod's widget
 descriptor cache and plist, and remindd's local stores. They exist from the account's first second, so the first
-login does not create, sandbox-profile, personalize and fill them while the desktop starts. This is mac-image's
-user-template (r5) for Golden Gate, with the archive BETA7 rule (`data.user-seed` C1-C3) applied in full.
+login does not create, sandbox-profile, personalize and fill them while the desktop starts. This is the
+Tahoe images' user-template rule applied to Golden Gate in full.
 
 The per-user caches that cannot live in the template (they sit in the account's `DARWIN_USER_CACHE_DIR`, whose name
 is per account) stay with `golden-gate-user-seed`'s seed.zsh: icon index, Metal trees, font registry. The two
-mechanisms are mac-image's pair (`user-template` + `user-seed`).
+mechanisms are a pair (`user-template` + `user-seed`), as on the Tahoe images.
 
 ## Why (the first-login storm, 26B131)
 Image 4d1c48c (hao-patcher adfd15a0, golden-gate-user-seed r4 with icon, Metal and font seeds), owner's Setup,
@@ -42,7 +42,7 @@ CPU-s for uid 501). BETA7's template fixed it on 25G241: secinitd icon requests 
 | `Group Containers/group.com.apple.chronod/` | metadata plist, `chronod/chrono.sql` | schema 0; only `ExtensionMetadata` and `Descriptors` rows, PeopleViewService rows removed; WAL folded in, replicator dropped |
 | `Group Containers/group.com.apple.reminders/` | metadata plist, `Container_v1/Stores/*.sqlite` | schema 0 |
 | `Preferences/com.apple.chronod.plist` | `migrationState` and the rest | `lastKnownTimes`, `NetworkEnabledAfterBootNotification.lastLaunchBootSessionUUID`, `extensionsPendingDescriptorRefetch` removed |
-Why each change (mac-image user-template README, archive NOTES-C):
+Why each change:
 - **No symlinks.** Account creation ditto-copies the template, then `touch`es every path; a link whose target does
   not exist yet (`~/Library/Keychains`, Mail, Calendars) becomes an empty file and contactsd loops ("Not a
   directory"; Tahoe 07g hung Setup).
@@ -104,7 +104,8 @@ the 26B131 sets; not built into an image or booted yet. Before that: the rule is
 cpio). Not built into an image or booted.
 
 ## Revisions
+- r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh unchanged.
 - r4 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r3 2026-11-13 26B131 input row user_template_golden_gate (harvest of benchtest's first login on image 3b2291a: 336 containers, 31 chronod descriptors, 3 Reminders stores) and status experiment; in golden-gate-26B131, dev-bs-test and dev-metal27 after golden-gate-user-seed. apply.sh unchanged.
 - r2 2026-11-11 Back for 26B131 with BETA7's full rule (personality flag on every container, no sandbox profile cache, chronod reduced to its descriptor cache without PeopleWidget), made on the host by cache/seeds/template from a collect-template.sh harvest and checked by apply.sh. Root cause of the 4d1c48c login storm: a54ec244 removed the template, so the first login made 328 containers and secinitd retried each personality (this commit).
-- r1 2026-11-06 From user-template r5's rule without its container list, for a 27.0 first-login harvest (mac27 dea52005; removed by a54ec244).
+- r1 2026-11-06 From user-template r5's rule without its container list, for a 27.0 first-login harvest (removed again before r2).

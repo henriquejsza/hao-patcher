@@ -13,7 +13,7 @@ apply.sh refuses an artifact for another build, one that fails its `SHA256SUMS`,
 an `auth.db`.
 
 ## Why
-The 26B131 image 8f5ddce's true first boot (bench `bench-mbp92-26B131-tested-20261112-204015`, boot EA2861D2; times
+First boot of image 8f5ddce (26B131), laptop test 2026-11-12 (times
 after mach zero, `tools/first-boot-seeds/bootcost`): lsd finds no store at 38.2 s and builds it until 122.6 s (CoreTypes
 and extension points 15.8 s, 486 system plugins 39.2 s, 218 apps 29.1 s). loginwindow, tccd, secinitd and
 backgroundtaskmanagementd block on it until 94.4 s; fskitd waits for "seeding complete" until 122.6 s, and the Setup
@@ -50,4 +50,5 @@ lsd keeps a store that a QEMU boot of the same image wrote when the laptop numbe
 re-reads each volume's ID at start: "Updating state of volume ... to mounted with volume ID ...").
 
 ## Revisions
+- r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing installed changes.
 - r1 2026-11-12 New: install root's LaunchServices store and auth.db from a builder boot of the same image (row root_launchservices_golden_gate, tools/first-boot-seeds/rootls).

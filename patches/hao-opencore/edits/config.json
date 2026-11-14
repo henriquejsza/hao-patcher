@@ -35,7 +35,7 @@
     ],
     "value": 0
    },
-   "reason": "an end-user image writes no OpenCore log and shows no OpenCore text (Target 0: logging off; it also saves the file writes at every boot); bench images get the file log from dev-diagnostics (pack dev)"
+   "reason": "an end-user image writes no OpenCore log and shows no OpenCore text (Target 0: logging off; it also saves the file writes at every boot); dev sets get the file log from dev-diagnostics (pack dev)"
   },
   {
    "id": "boot-args",
@@ -50,7 +50,7 @@
     ],
     "value": "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 hao_crash=1 auxKCAtBoot=false"
    },
-   "reason": "the Intel Mac boots Darwin 27 with its Lilu-based drivers loading, PCID off, hao's arm64-only programs allowed to start and hao's crash lines on the console, the Intel commpage reporting Apple-internal CSR so OCLP's on-disk Metal loads, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection"
+   "reason": "the Intel Mac boots Darwin 27 with its Lilu-based drivers loading, PCID off, hao's arm64-only programs allowed to start and hao's crash lines on the console, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection"
   },
   {
    "id": "clear-boot-logging-overrides",

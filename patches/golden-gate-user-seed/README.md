@@ -19,7 +19,7 @@ nothing; the payloads come from the patches listed after it.
 | `metal/<bundle>/` | `DARWIN_USER_CACHE_DIR/<bundle>/`, never over a tree the app already made, without any `com.apple.metalfe` (path-bound module caches) | golden-gate-shader-caches |
 | `fonts/fontregistry.user` | `DARWIN_USER_CACHE_DIR/com.apple.FontRegistry/`, with `<home>/Library/Fonts` written into it | golden-gate-font-registry |
 The account's own Library (containers, chronod, Reminders) is not seeded here: macOS copies it from the User
-Template at account creation (`golden-gate-user-template`), mac-image's other half of the same method.
+Template at account creation (`golden-gate-user-template`), the other half of the same method.
 The LaunchServices store (`ls/`), the wallpaper, the passd kick and the efilogin re-enable are seed.zsh steps that
 are skipped when their payload or flag is absent; this patch ships none of them (the LaunchServices store names the
 harvest user's home; the wallpaper was Tahoe's; the efilogin deferral is a separate decision).
@@ -52,6 +52,7 @@ placed trees (owner sessions 2026-11-06), not re-checked on 26B131.
 r5 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r4's, so the result above stands.
 
 ## Revisions
+- r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged.
 - r8 2026-11-13 Tests and README only: the seed chain includes golden-gate-user-template; README names it. seed.zsh unchanged.
 - r7 2026-11-12 Declare the installed files in patch.json `files` (generated at install); the hook is unchanged.
 - r6 2026-11-12 seed.zsh never places `com.apple.metalfe`: an older seed's clang module cache (Preview's `.pcm`) records the harvest account's cache folder, so in a new account the Metal front end refused it ("PCH was compiled with module cache path ...") and SceneKit in Preview drew magenta. Test runs `place_chunk` itself.

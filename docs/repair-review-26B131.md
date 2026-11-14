@@ -2,7 +2,7 @@
 
 This review separates observed binary compatibility from hardware and application
 acceptance. Matching code patterns establish that a recipe applies; they do not
-by themselves prove that a repaired path is exercised on the laptop.
+by themselves prove that a repaired path is exercised on the MacBookPro9,2.
 
 | Repair | Current evidence | Decision |
 |---|---|---|
@@ -29,38 +29,3 @@ extension manifests match the prior selection. The minimal extraction also omits
 the unused Haswell DriverKit cache. The archived donor payload fell from
 1,942,322,740 to 1,476,002,843 bytes (about 24%). These are extraction savings,
 not removal of an active compatibility repair.
-
-## Initial hardware boot: Setup Assistant hang
-
-The first 26B131 image reached Setup Assistant on the MBP9,2, then stopped
-responding. Its main thread waited in `CPHasActivationRecord` through
-ApplePushService's synchronous XPC call. `apsd` restarted over 100 times;
-the kernel rejected its profile with an operation-count mismatch, 204 versus
-200. The earlier CPU saturation subsided to about 85% idle while this wait
-persisted. Reaching SSH therefore did not establish a usable installation.
-
-The existing operation adapter refused filter 110 in the target profile.
-That node is an isolated root of `asr-parser-enter`, an operation absent from
-the Tahoe provider. Kernel-foundation r41 removes such roots only after proving
-that no retained operation or node references them; profiles with auxiliary
-root tables remain unsupported by this pruning step. Shared unsupported filters
-still fail. This preserves the existing donor policy rather than inventing a
-decision for a filter the donor cannot implement.
-
-The laptop's compiled `apsd` profile reproduces the refusal in the old adapter.
-The corrected profile retains identical graphs for all 200 remaining operations
-and identical data. In separate short-lived probes on the same laptop, the
-original profiles for `apsd`, `nfcd`, and `seld` return `EINVAL`; all three
-converted profiles apply successfully. No system profile was replaced by those
-probes. Host tests pass, including retained-decision equivalence and refusal
-without partial writes. A new full-image boot is still required to establish
-that Setup Assistant progresses.
-
-## Runtime contracts
-
-The initial 26B131 payload uses hao-runtime commit 128fcc0 with 1,895 regenerated
-interface units and 50,655 records. It lacks the async provider and Optional<Data>
-setter adapter. Both are being prepared as versioned release inputs. Their
-research generation and native ARM comparisons belong to the hao release process;
-end users consume versioned packages. An end-user image builder must not require
-the private research repository or rerun contract discovery.
