@@ -241,6 +241,20 @@ def no_release(path):
                    untouched='nothing was downloaded or written')
 
 
+def origin_of(row):
+    """The origin tag of a download row (the mockups' Apple / Tahoe / OCLP / hao), '' for other sources (Python). Our assets are hao's."""
+    name, url = row.get('name', ''), row.get('url', '')
+    if '25G' in name or row.get('row') in ('installer', 'kdk'):
+        return 'tahoe'
+    if 'apple.com' in url:
+        return 'apple'
+    if 'PatcherSupportPkg' in url or 'OpenCore' in url:
+        return 'oclp'
+    if row.get('kind') == 'asset' or 'hao-assets' in url:
+        return 'hao'
+    return ''
+
+
 def download(c, release_path, cache, acquire, dry_run):
     """Step 1: every file release.json pins, into the cache, each checked by size and sha256."""
     try:
@@ -257,6 +271,7 @@ def download(c, release_path, cache, acquire, dry_run):
             len(rows), human_size(total), ', %d already downloaded' % len(have) if have else ''))
         return rows
     done = {}
+    by_name = {r['name']: r for r in rows}
     tty = hasattr(c.out, 'isatty') and c.out.isatty() and c.level == 'steps'
 
     def on(ev):
@@ -264,14 +279,15 @@ def download(c, release_path, cache, acquire, dry_run):
         if k == 'progress':
             done[ev['name']] = ev['done']
             if tty:
-                print('\r  %3d%%  %s of %s ' % (100 * sum(done.values()) // max(total, 1),
-                                               human_size(sum(done.values())), human_size(total)),
+                print('\r  ' + c.paint('bar', '%3d%%  %s of %s ' % (100 * sum(done.values()) // max(total, 1),
+                                                                 human_size(sum(done.values())), human_size(total))),
                       end='', file=c.out, flush=True)
             return
         c.event('fetch.' + k, **{x: y for x, y in ev.items() if x != 'ev'})
         if k in ('ok', 'reused'):
             done[ev['name']] = next(r['size'] for r in rows if r['name'] == ev['name'])
-            c.item('%-44s %s' % (ev['name'], 'already here' if k == 'reused' else 'sha256'), 'files', ok=True)
+            c.item('%s %-44s %s' % (c.paint.origin(origin_of(by_name.get(ev['name'], {})), 6), ev['name'],
+                                    'already here' if k == 'reused' else 'sha256'), 'files', ok=True)
         elif k == 'mirror-failed':
             c.item('%-44s %s: %s' % (ev['name'], ev['url'], ev['error']), 'files')
     try:
@@ -339,7 +355,7 @@ def create_installer(a, c, host, acquire=None):
     c.item('%d packs, %d recipes chosen for %s' % (len(profile['packs']), sum(len(v) for v in groups.values()),
                                              profile['model']), ok=not a.dry_run, ev='packs', packs=profile['packs'])
     for pack, names in groups.items():
-        c.item('%-22s %d recipes' % (pack, len(names)), 'files')
+        c.item('%s %d recipes' % (c.paint('bold', '%-22s' % pack), len(names)), 'files')
     if a.dry_run:
         c.step(STEPS[2], plan=True)
         c.item('erase %s; partition 1: OpenCore and the Recovery; partition 2: hao, the kit and the install command'
@@ -424,12 +440,12 @@ def prepare_kit(a, c, path, run=subprocess.call):
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit',
                '--work', str(work / 'stage'), '--record', str(work / 'record')]
         c.event('command', argv=cmd)
-        c.item('prepare the kit  ' + str(work / 'stage' / 'share'), 'files')
+        c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
         if run(cmd):
             raise Stopped('preparing the kit failed', options=['the record is in %s' % (work / 'record'), REPORT],
                           untouched='the stick was not touched')
         kit = work / 'stage' / 'share'
     if not (kit / 'kit.json').is_file():
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
-    c.item('kit  %s' % kit, 'files', ok=True)
+    c.item('kit  %s' % c.paint('dim', str(kit)), 'files', ok=True)
     return kit

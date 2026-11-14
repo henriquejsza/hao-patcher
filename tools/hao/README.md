@@ -35,6 +35,18 @@ question), default (one line per step with its check), `--show` (one line per fi
 and reason of each change), `--log json` (every event as a JSON line). A failed check stops the command with what
 happened, why it matters, what was left untouched and what to do next (exit 1).
 
+On a terminal the output has the mockups' colours: green check marks and `sha256 ✓`, cyan progress, bold step
+headers, pack names and the banner, dim notes and paths, yellow warnings, notes and "will be erased", red `✗` and
+`STOPPED`, and origin tags (Apple grey, Tahoe orange, OCLP purple, hao teal). The colours are 256-colour values that
+read on the Recovery's white Terminal as well as a dark one; a terminal without 256 colours gets the 8 basic ones.
+There is no colour when the output is not a terminal (a pipe, a file, the stick's log), when `NO_COLOR` is set to
+anything, when `TERM=dumb`, or with `--log json`, and the events kept for a record never hold colour codes.
+
+`create-installer` has three steps, not the mockups' four (Download, Unpack, Prepare packs, Write the USB stick):
+nothing is unpacked on the user's Mac yet. The kit comes from `--kit` or from this checkout's store, so the
+mockups' Unpack step (decoding the installers, extracting the Tahoe donors) is not there. It comes back when the
+kit is made from the downloads on the user's Mac (plan steps 12/13).
+
 ### The builder and installer commands
 
 ```sh

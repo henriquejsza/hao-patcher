@@ -101,7 +101,7 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit',
                '--work', str(work / 'stage'), '--record', str(record)]
         c.event('command', argv=cmd)
-        c.item('prepare the kit  ' + str(work / 'stage' / 'share'), 'files')
+        c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
         if run(cmd):
             raise Stopped('preparing the kit failed', untouched='nothing was written to the disk',
                           options=['the record is in %s' % record])
@@ -192,9 +192,10 @@ def resolve(a, c, command):
              command=command, assembly=path.stem, model=profile['model'], packs=profile['packs'])
     DETECT.show(c, profile)
     c.print('Recipes  %d in %d packs, set %s, donors %s' % (sum(len(v) for v in groups.values()), len(groups),
-                                                            asm['patch_set'], asm['donor_build']), 'files')
+                                                            asm['patch_set'], c.paint('tahoe', 'Tahoe ' + asm['donor_build'])),
+            'files')
     for pack, names in groups.items():
-        c.print('  %-22s %s' % (pack, ', '.join(names) or '-'), 'edits')
+        c.print('  %s %s' % (c.paint('bold', '%-22s' % pack), ', '.join(names) or '-'), 'edits')
     return profile, path, asm, groups
 
 
@@ -219,7 +220,8 @@ def show_steps(c, command, groups):
         c.step(title, plan=True)
         if title == 'Prepare packs':
             for pack, names in groups.items():
-                c.item('%-22s %d recipes' % (pack, len(names)), 'steps', pack=pack, recipes=names)
+                c.item('%s %d recipes' % (c.paint('bold', '%-22s' % pack), len(names)), 'steps', pack=pack,
+                       recipes=names)
         elif title in DISK_DETAIL:
             c.item(DISK_DETAIL[title], 'files')
 
@@ -247,7 +249,7 @@ def use_assets(a, c, path):
                           options=['use a fresh clone', 'or leave out --assets to build from the existing store'])
     else:
         store.symlink_to(folder)
-        c.item('store  -> %s' % folder, 'files')
+        c.item('store  -> %s' % c.paint('dim', str(folder)), 'files')
     problems = ASSETS.check(path, folder, here=bool(getattr(a, 'here', False)))
     for p in problems:
         c.item(p, 'quiet', ev='asset.problem', problem=p)
