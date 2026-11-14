@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import half2_load
 import null_compare
+import toolchain
 
 
 PASSES = 'always-inline,function(sroa,mem2reg),globaldce'
@@ -114,8 +115,8 @@ def rewrite(text):
         source = Path(directory) / 'marked.ll'
         output = Path(directory) / 'inlined.ll'
         source.write_text('\n'.join(lines))
-        result = subprocess.run(['xcrun', 'metal-opt', '-S', '-passes=' + PASSES,
-                                 str(source), '-o', str(output)], capture_output=True, text=True, timeout=90)
+        result = subprocess.run(toolchain.resolve(['xcrun', 'metal-opt', '-S', '-passes=' + PASSES,
+                                 str(source), '-o', str(output)]), capture_output=True, text=True, timeout=90)
         if result.returncode:
             raise ValueError('private helper LLVM pass refused: ' + result.stderr[:1200])
         if output.stat().st_size > MAX_OUTPUT:

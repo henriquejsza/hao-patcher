@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import collective_runtime
 import compiler_mask
+import toolchain
 
 UNIT = Path(__file__).resolve().parents[1]
 SOURCES = UNIT / 'quad-shuffle'
@@ -26,7 +27,15 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def build(source, llvm, output, revision, compiler=None):
+def build_assembler(path, run):
+    """assemble.c -> an x86_64 tool that assembles IR with the legacy compiler's own libLLVM (Xcode's clang)."""
+    # With HAO_METAL_LLVM set (no Xcode) this refuses: pass --assembler instead.
+    run(toolchain.resolve(['xcrun', 'clang', '-arch', 'x86_64', '-O2', '-Wall', '-Wextra', '-Werror', BASE / 'assemble.c', '-o', path]))
+    run(['codesign', '-s', '-', path])
+    return path
+
+
+def build(source, llvm, output, revision, compiler=None, assembler=None):
     source, llvm, output = (Path(p).resolve() for p in (source, llvm, output))
     output.mkdir(parents=True)
     work = output / 'build'
@@ -41,10 +50,11 @@ def build(source, llvm, output, revision, compiler=None):
         (work / 'commands.json').write_text(json.dumps(commands, indent=2) + '\n')
         result.check_returncode()
 
-    assembler = work / 'assemble'
-    run(['xcrun', 'clang', '-arch', 'x86_64', '-O2', '-Wall', '-Wextra', '-Werror',
-         BASE / 'assemble.c', '-o', assembler])
-    run(['codesign', '-s', '-', assembler])
+    if assembler:
+        # Prebuilt by `make assembler` (a Mac without Xcode has no clang); same source, same bitcode.
+        assembler = Path(assembler).resolve()
+    else:
+        assembler = build_assembler(work / 'assemble', run)
     additions = {}
 
     def assemble(symbol, text):
@@ -78,14 +88,13 @@ def build(source, llvm, output, revision, compiler=None):
         binary.chmod(0o755)
         run(['codesign', '-f', '-s', '-', binary])
         outputs.append(binary)
-    git = lambda *args: subprocess.check_output(['git', '-C', str(UNIT), *args], text=True).strip()
-    inputs = [source, llvm, BASE / 'assemble.c', BASE / 'build.py', Path(__file__),
+    inputs = [source, llvm, assembler, BASE / 'assemble.c', BASE / 'build.py', Path(__file__),
               Path(collective_runtime.__file__),
               *sorted(SOURCES.glob('*.ll'))]
     if compiler:
         inputs += [compiler, Path(compiler_mask.__file__)]
     report = dict(schema=1, unit='cache/metallib', revision=revision,
-                  commit=git('rev-parse', 'HEAD'), dirty=bool(git('status', '--porcelain', '--', str(UNIT))),
+                  **toolchain.source(UNIT),
                   date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   inputs=[dict(path=str(p), sha256=sha(p)) for p in inputs],
                   preserved_symbols=len(original), added_symbols=sorted(additions),

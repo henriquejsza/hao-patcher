@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import importlib
 import json
+import os
 from pathlib import Path
 import plistlib
 import re
@@ -166,8 +167,21 @@ def main():
         parser.add_argument('--llvm', type=Path, required=True)
         parser.add_argument('--compiler', type=Path,
                             help='include collective helpers and repair this Intel iCBE active-mask emitter')
+        parser.add_argument('--assembler', type=Path,
+                            help='prebuilt assembler from `make assembler` (no Xcode needed); default: build it with xcrun clang')
         args = parser.parse_args(sys.argv[2:])
-        print(json.dumps(quad_runtime.build(args.input, args.llvm, args.output, revision(), args.compiler), indent=2))
+        print(json.dumps(quad_runtime.build(args.input, args.llvm, args.output, revision(), args.compiler,
+                                            args.assembler), indent=2))
+        return
+    if len(sys.argv)>1 and sys.argv[1]=='assembler':
+        sys.path.insert(0, str(HERE/'lib'))
+        import quad_runtime
+        parser = argparse.ArgumentParser(description='Build the x86_64 helper assembler runtime-build uses (needs Xcode clang); ship it for Macs without Xcode')
+        parser.add_argument('output', type=Path)
+        args = parser.parse_args(sys.argv[2:])
+        def run(command):
+            subprocess.run(list(map(str, command)), check=True)
+        print(quad_runtime.build_assembler(args.output.resolve(), run))
         return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('system', type=Path)
@@ -177,7 +191,13 @@ def main():
     parser.add_argument('--air-lowerer', type=Path, help='preserved MetallibSupportPkg fork, for AIR version lowering first')
     parser.add_argument('--overlay', type=Path, action='append', default=[],
                         help='a System-rooted artifact whose copy of a library is the source instead of SYSTEM; the last overlay holding the path wins')
+    parser.add_argument('--llvm-bin', type=Path,
+                        help='folder with LLVM 15.0.7 llvm-as and llvm-dis: used instead of xcrun metal-as/metal-objdump (no Xcode needed; recipes needing metal -c or metallib are refused)')
     args = parser.parse_args()
+    sys.path.insert(0, str(HERE/'lib'))
+    import toolchain
+    if args.llvm_bin:
+        os.environ[toolchain.ENV] = str(args.llvm_bin.resolve())
     args.work.mkdir(parents=True)
     args.output.mkdir(parents=True)
     converter = lowerer(args.air_lowerer.resolve()) if args.air_lowerer else None
@@ -192,6 +212,8 @@ def main():
             raise ValueError('unknown recipe: ' + line)
         if len([step for step in steps if step != 'lower']) > 1:
             raise ValueError('one rewrite step per library: ' + line)
+        if args.llvm_bin and 'rewrite' in steps:
+            sys.exit('rewrite needs Xcode (metal -c, metallib); with --llvm-bin use golden-gate (profile line %d)' % (number + 1))
         relative = Path(path.lstrip('/'))
         if '..' in relative.parts:
             raise ValueError('library path escapes System: ' + line)
@@ -222,10 +244,12 @@ def main():
     (args.output / 'SOURCES').write_text(''.join('%s  %s\n' % entry for entry in originals))
     version = args.system / 'System/Library/CoreServices/SystemVersion.plist'
     system_build = plistlib.loads(version.read_bytes())['ProductBuildVersion'] if version.is_file() else None
-    git = lambda *a: subprocess.run(['git', '-C', str(HERE), *a], capture_output=True, text=True).stdout.strip()
+    record = dict(schema=1, unit='cache/metallib', revision=revision(), system_build=system_build, inputs=inputs,
+                  **toolchain.source(HERE))
+    if toolchain.identity():
+        record['llvm'] = toolchain.identity()
     (args.output / 'build.json').write_text(json.dumps(dict(
-        schema=1, unit='cache/metallib', revision=revision(), commit=git('rev-parse', 'HEAD'), system_build=system_build,
-        dirty=bool(git('status', '--porcelain', '--', str(HERE))), inputs=inputs,
+        **record,
         air_lowerer=str(args.air_lowerer.resolve()) if args.air_lowerer else None,
         date=datetime.datetime.now(datetime.timezone.utc).isoformat()), indent=1, sort_keys=True) + '\n')
     print(args.output.resolve())
