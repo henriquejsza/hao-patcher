@@ -11,15 +11,19 @@ instead of doing something else:
   shasum -a 256 FILE...                            "<hex>  <file>" lines, as shasum prints them
   cmp -s A B                                       exit 0 when the bytes are equal, 1 when not, 2 on an error
   readlink PATH                                    the link's target; exit 1 when PATH is not a link
+  awake PID                                        hold sleep assertions (as caffeinate -dims -w PID) until PID exits;
+                                                   golden-assemble.sh uses it where the Mac has no caffeinate
 
 Owners and groups are names (root, wheel) or numbers. Python 3.9+, standard library only.
 """
+import ctypes
 import grp
 import hashlib
 import os
 import pwd
 import shutil
 import sys
+import time
 
 USAGE = 64
 
@@ -134,7 +138,58 @@ def readlink(args):
         return 1
 
 
-TOOLS = {'install': install, 'shasum': shasum, 'cmp': cmp, 'readlink': readlink}
+# What caffeinate -dims asserts: no idle display/disk/system sleep, no system sleep on AC power. A Recovery idle-sleeps
+# after about ten minutes without input (bench2 2355: the QEMU install stopped 10.5 min in), so the whole install
+# holds them.
+AWAKE_TYPES = ('PreventUserIdleDisplaySleep', 'PreventDiskIdle', 'PreventUserIdleSystemSleep', 'PreventSystemSleep')
+
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def awake(args, poll=2.0):
+    if len(args) != 1 or not args[0].isdigit():
+        return die('awake', 'only "awake PID" is supported here')
+    pid = int(args[0])
+    try:
+        cf = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+        iokit = ctypes.CDLL('/System/Library/Frameworks/IOKit.framework/IOKit')
+    except OSError as e:
+        return die('awake', 'no IOKit here (%s): the Mac may sleep during the install' % e, 1)
+    cf.CFStringCreateWithCString.restype = ctypes.c_void_p
+    cf.CFStringCreateWithCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint32]
+    iokit.IOPMAssertionCreateWithName.restype = ctypes.c_int
+    iokit.IOPMAssertionCreateWithName.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p,
+                                                  ctypes.POINTER(ctypes.c_uint32)]
+    iokit.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
+    cfstr = lambda s: cf.CFStringCreateWithCString(None, s.encode(), 0x08000100)   # kCFStringEncodingUTF8
+    name = cfstr('hao install: assembling the macOS image')
+    held = []
+    for kind in AWAKE_TYPES:
+        aid = ctypes.c_uint32(0)
+        if iokit.IOPMAssertionCreateWithName(cfstr(kind), 255, name, ctypes.byref(aid)) == 0:   # kIOPMAssertionLevelOn
+            held.append(aid.value)
+        else:
+            print('awake (hao recovery-tools): %s not granted' % kind, file=sys.stderr)
+    if not held:
+        return die('awake', 'no sleep assertion granted: the Mac may sleep during the install', 1)
+    try:
+        while alive(pid):
+            time.sleep(poll)
+    finally:
+        for aid in held:
+            iokit.IOPMAssertionRelease(aid)
+    return 0
+
+
+TOOLS = {'awake': awake, 'install': install, 'shasum': shasum, 'cmp': cmp, 'readlink': readlink}
 
 
 def main(argv):
