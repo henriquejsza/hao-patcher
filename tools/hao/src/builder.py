@@ -101,7 +101,7 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit',
                '--work', str(work / 'stage'), '--record', str(record)]
         c.event('command', argv=cmd)
-        c.item('prepare the kit  ' + str(work / 'stage' / 'share'), 'files')
+        c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
         if run(cmd):
             raise Stopped('preparing the kit failed', untouched='nothing was written to the disk',
                           options=['the record is in %s' % record])
@@ -109,20 +109,50 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
     if not (kit / 'kit.json').is_file():
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='nothing was written to the disk')
     local = Path(getattr(a, 'local', None) or work / 'local').resolve()
+    prior = resumed_work(a)
     cmd = ['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), str(local), '--disk', name,
-           '--confirm-disk', name] + (['--external'] if policy == 'external' else [])
+           '--confirm-disk', name] + (['--external'] if policy == 'external' else []) + (
+           ['--resume', str(prior)] if prior else [])
     c.event('command', argv=cmd)
     c.item('assemble onto /dev/%s  %s' % (name, DISKS.label(info)), 'steps')
     rc = run(cmd)
     if rc:
-        raise Stopped('the build onto /dev/%s failed (exit %d)' % (name, rc),
-                      why='the disk is erased and incomplete; it will not start',
-                      options=['the assembler\'s record and logs: %s' % (local / 'work'),
-                               'run the command again: it starts from an empty disk'])
+        options = ['the assembler\'s record and logs: %s' % (local / 'work'),
+                   'run the command again: it starts from an empty disk']
+        step = failed_step(local / 'work')
+        if step in RESUMABLE:
+            options.append('or continue at %s once its cause is fixed: the same command with --resume %s'
+                           % (step, work))
+        raise Stopped('the build onto /dev/%s failed (exit %d)%s' % (name, rc, ' in step ' + step if step else ''),
+                      why='the disk is erased and incomplete; it will not start', options=options)
     if record is not None and run([sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), '--collect-kit',
                                    str(record)]):
         c.warning('the sealed cryptex images were not kept for reuse; the next build makes them again')
     return work
+
+
+# golden-image.py's RESUMABLE: the steps a failed install can continue at (the steps before them completed)
+RESUMABLE = ('boot-and-esp', 'hardware')
+
+
+def failed_step(work):
+    """The step a failed assembly (its work folder) stopped in, or None."""
+    try:
+        steps = json.loads((Path(work) / 'build.json').read_text()).get('steps', [])
+    except (OSError, ValueError):
+        return None
+    left = [row['name'] for row in steps if not row.get('complete')]
+    return left[0] if left else None
+
+
+def resumed_work(a):
+    """--resume WORK: the failed run's assembler work folder (WORK/local/work, or WORK itself), or None."""
+    if not getattr(a, 'resume', None):
+        return None
+    for folder in (Path(a.resume) / 'local' / 'work', Path(a.resume)):
+        if (folder / 'build.json').is_file():
+            return folder.resolve()
+    raise Stopped('%s holds no failed install (no local/work/build.json)' % a.resume, untouched='nothing was written')
 
 
 def _quiet(fn, *args, **kw):
@@ -192,9 +222,10 @@ def resolve(a, c, command):
              command=command, assembly=path.stem, model=profile['model'], packs=profile['packs'])
     DETECT.show(c, profile)
     c.print('Recipes  %d in %d packs, set %s, donors %s' % (sum(len(v) for v in groups.values()), len(groups),
-                                                            asm['patch_set'], asm['donor_build']), 'files')
+                                                            asm['patch_set'], c.paint('tahoe', 'Tahoe ' + asm['donor_build'])),
+            'files')
     for pack, names in groups.items():
-        c.print('  %-22s %s' % (pack, ', '.join(names) or '-'), 'edits')
+        c.print('  %s %s' % (c.paint('bold', '%-22s' % pack), ', '.join(names) or '-'), 'edits')
     return profile, path, asm, groups
 
 
@@ -219,7 +250,8 @@ def show_steps(c, command, groups):
         c.step(title, plan=True)
         if title == 'Prepare packs':
             for pack, names in groups.items():
-                c.item('%-22s %d recipes' % (pack, len(names)), 'steps', pack=pack, recipes=names)
+                c.item('%s %d recipes' % (c.paint('bold', '%-22s' % pack), len(names)), 'steps', pack=pack,
+                       recipes=names)
         elif title in DISK_DETAIL:
             c.item(DISK_DETAIL[title], 'files')
 
@@ -247,7 +279,7 @@ def use_assets(a, c, path):
                           options=['use a fresh clone', 'or leave out --assets to build from the existing store'])
     else:
         store.symlink_to(folder)
-        c.item('store  -> %s' % folder, 'files')
+        c.item('store  -> %s' % c.paint('dim', str(folder)), 'files')
     problems = ASSETS.check(path, folder, here=bool(getattr(a, 'here', False)))
     for p in problems:
         c.item(p, 'quiet', ev='asset.problem', problem=p)
@@ -399,7 +431,16 @@ def install(a, c, host, run=subprocess.call):
         import installer
         a.disk = installer.ask_internal_disk(a, c, host, asm['size_bytes'], getattr(a, 'sources', []))
     info = gate(c, host, a, 'internal', asm['size_bytes'])
-    c.print('Disk   %s  will be erased' % DISKS.label(info))
+    prior = resumed_work(a)
+    if prior:
+        step = failed_step(prior)
+        if step not in RESUMABLE:
+            raise Stopped('the install in %s cannot be continued (it stopped in %s)' % (a.resume, step or 'no step'),
+                          why='only %s can run again over what a failed attempt left' % ' and '.join(RESUMABLE),
+                          options=['run it without --resume: it starts from an empty disk'], untouched='nothing was written')
+        c.print('Disk   %s  continues the install in %s at %s' % (DISKS.label(info), a.resume, step))
+    else:
+        c.print('Disk   %s  will be erased' % DISKS.label(info))
     show_steps(c, 'install', groups)
     if a.dry_run:
         c.done('dry run: the disk passed every check; nothing was written')
@@ -407,8 +448,10 @@ def install(a, c, host, run=subprocess.call):
     if not getattr(a, 'kit', None):
         raise Stopped('no kit named', why='install assembles the kit the installer stick carries',
                       options=['name it: hao install /dev/diskN --kit /Volumes/HAO/kit'], untouched='nothing was written')
-    if not c.confirm('Install macOS 27 on %s? Everything on it will be erased.' % DISKS.label(info), 'ERASE',
-                     a.confirm):
+    question, word = (('Continue the install on %s? The steps it completed are kept.' % DISKS.label(info), 'RESUME')
+                      if prior else
+                      ('Install macOS 27 on %s? Everything on it will be erased.' % DISKS.label(info), 'ERASE'))
+    if not c.confirm(question, word, a.confirm):
         raise Stopped('not confirmed', untouched='nothing was written')
     if not getattr(a, 'local', None) and not getattr(a, 'work', None):
         a.work = str(Path(a.kit).resolve().parent / ('hao-install-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))

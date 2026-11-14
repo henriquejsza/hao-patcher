@@ -34,8 +34,9 @@ fi
     --row-bound "$ROW_BOUND" \
     --out "$REPAIR_WORK/bound" \
     --record "${PATCH_OUTPUT_DIR:-$P}/kc-binder.json"
-ditto "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext" "$ESP/EFI/OC/Kexts/IntelCommpage.kext"
-ditto "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EFI/OC/Kexts/HaoExec.kext"
+# Data only onto the FAT ESP: a Recovery has no doubleagentd to store xattrs/ACLs there (ditto's default copies them).
+ditto --norsrc --noextattr --noacl "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext" "$ESP/EFI/OC/Kexts/IntelCommpage.kext"
+ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EFI/OC/Kexts/HaoExec.kext"
 # Bind HaoExec to the kernel collection this image boots (it stays inactive on any other kernel).
 "$PY" -I "$P/inputs/hao_runtime/stamp_identity.py" \
     "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" "$ESP/EFI/OC/Kexts/HaoExec.kext"

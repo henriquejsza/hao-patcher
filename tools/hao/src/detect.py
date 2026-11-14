@@ -175,10 +175,10 @@ def show(c, p):
     gpu = ', '.join(d.get('name') or d['device'] for d in p['gpu']) or p.get('gpu_name') or 'GPU unknown'
     c.print('Mac    %s  %s  board %s' % (p['model'], gpu,
                                          p.get('board_id')))
-    c.print('Packs  %s' % ' · '.join(p['packs']))
+    c.print('Packs  %s' % ' · '.join(c.paint('bold', x) for x in p['packs']))
     for m in p.get('matched', []):
-        c.print('  %-6s %-10s -> %-34s -> %s' % (m['role'], m['device'], m['family'], ', '.join(m['patchsets'])),
-                'edits')
-    c.print('  patch sets from %s' % p['patchsets_source'], 'files')
+        c.print('  %-6s %-10s -> %-34s -> %s' % (m['role'], m['device'], m['family'],
+                                               c.paint('oclp', ', '.join(m['patchsets']))), 'edits')
+    c.print('  ' + c.paint('dim', 'patch sets from %s' % p['patchsets_source']), 'files')
     for n in p['notes']:
         c.note(n)

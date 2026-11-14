@@ -53,6 +53,33 @@ python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json --repo /
 The [assembly](../pipeline/assemblies/mbp92-26B131.json) selects target, OS and donor
 builds, image sizes, donor rows and the patch set.
 
+`golden-run` (also with `--stage-kit`, which the stick's kit comes from) and `release-cut --write` refuse to start
+while a live swap proven on a laptop has no resolution. The swapper records the proof when a bench pass or the owner
+shows the swap works: `python3.14 -I pipeline/swaps.py proven LAPTOP-PATH --evidence "bench ITEM"` (or
+`"owner: THEIR WORDS"`), which adds a `proven` line to the swap ledger. The refusal names each path, its sha256, who
+swapped it and who proved it. It is resolved by a line in `pipeline/live-swaps.tsv` (`recipe NAME`, `row NAME`, or
+`dropped: WHY`); there is no override. `swaps.py status` lists every swap (`OPEN`, `PROVEN-OPEN`, `resolved`).
+
+The VM runs the same `pipeline/stages/golden-assemble.sh` that `hao install` runs in the target's Recovery.
+That Recovery (Tahoe 25G342) has fewer commands than a full macOS. The ones it has are listed in
+`pipeline/stages/recovery-commands-25G342.txt`. `install`, `shasum`, `cmp` and `readlink` are missing, and the
+kit's `recovery-tools.py` stands in for them. `rsync` is missing too, so the assembly uses `ditto`.
+`pipeline/tests/test_recovery_commands.py` checks every command the install path runs against that list.
+`golden-run --recovery-commands` builds in the VM with only those commands on PATH, as the stick's install does.
+The assembly also holds a sleep assertion for its whole run (`caffeinate`, or `recovery-tools.py awake`).
+Copies onto the FAT ESP carry data only (`FAT_COPY` in `golden-image.py`: `ditto --norsrc --noextattr --noacl`):
+the Recovery runs no `doubleagentd`, which keeps a FAT volume's extended attributes, so a copy with attributes fails
+there. `pipeline/tests/test_fat_esp.py` runs those copies on a real FAT32 disk image, with only the Recovery's
+commands on PATH (`HAO_TEST_KIT=KIT` adds a staged kit's ESP).
+
+A failed assembly can continue at its failed step, on the same disk, when that step can run again over what the
+failed attempt left (`RESUMABLE` in `golden-image.py`: `boot-and-esp` and `hardware`):
+`golden-image.py CONFIG --resume WORK`, `golden-assemble.sh ... --resume WORK`, or
+`hao install /dev/diskN --resume /Volumes/HAO/hao-install-DATE` (confirmed with RESUME, not ERASE). It finds the
+volumes again by their UUIDs, refuses a kit whose configuration differs (set, target, inputs; the files a
+kit carries are not compared), and skips nothing that did not complete. The record's `resumed`
+names the run it continued.
+
 ### Layer order
 
 Defined by `LAYERS` in [`golden-image.py`](../pipeline/stages/golden-image.py). Each layer goes

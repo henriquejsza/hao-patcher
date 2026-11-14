@@ -247,7 +247,7 @@ def prepare_overlays(recipe, share, work, record, source, options):
                 store_results=dict(before=before,new=results()-before),hooks=sorted(options.get('hooks',())))
 
 
-def job_script(local, share=GUEST, owner='root:wheel', workspace=None):
+def job_script(local, share=GUEST, owner='root:wheel', workspace=None, recovery_commands=False):
     """Execute source locally, retain logs even on failure, and publish completion last."""
     workspace_script=''
     if workspace:
@@ -273,7 +273,7 @@ echo "Maintenance storage before assembly:"
 df -k "$W"
 # The same assembly an Intel Mac or the target's Recovery runs from a kit (hao build-disk, hao install).
 if [ "$rc" = 0 ]; then
-    sh "$G/assembly-source/golden-assemble.sh" "$G" "$W" --owner %s
+    %ssh "$G/assembly-source/golden-assemble.sh" "$G" "$W" --owner %s
     rc=$?
 fi
 # Never infer completion from nested pristine/hook RESULT lines.
@@ -288,7 +288,9 @@ sync
 printf 'RESULT rc=%%s\\n' "$rc"
 printf '%%s\\n' "$rc" > "$G/out-golden/result.new"
 mv "$G/out-golden/result.new" "$G/out-golden/result"
-''' % (q(share),q(local),workspace_script or ':',q(owner),'workspace' if workspace else 'legacy')
+''' % (q(share),q(local),workspace_script or ':',
+       'HAO_RECOVERY_COMMANDS="$G/assembly-source/recovery-commands.txt" ' if recovery_commands else '',
+       q(owner),'workspace' if workspace else 'legacy')
 
 
 def wait_job(output, timeout, poll=5):
@@ -325,7 +327,7 @@ def skipped_groups(recipe, skip_optional=()):
 
 
 def run(recipe_path, repository, work=None, record=None, base=None, timeout=14400, skip_optional=(), overlays=None,
-        cryptex_cache=True, kit_only=False):
+        cryptex_cache=True, kit_only=False, recovery_commands=False):
     """Stage the kit (WORK/share) and assemble it in a builder VM clone; KIT_ONLY stops after staging (no VM, no
     builder lock, no repository): the kit is then assembled by pipeline/stages/golden-assemble.sh elsewhere."""
     recipe_path = Path(recipe_path).resolve(); recipe=json.loads(recipe_path.read_text())
@@ -399,6 +401,10 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
                 shutil.copy2(pipeline/'stages'/name,source/name)
             shutil.copy2(pipeline/'stages/copy-hooks.py',source/'copy-hooks.py')
             shutil.copy2(pipeline/'stages/golden-assemble.sh',source/'golden-assemble.sh')
+            # The Recovery's command list of the donor build (HAO_RECOVERY_COMMANDS, --recovery-commands)
+            commands=pipeline/'stages'/('recovery-commands-%s.txt'%recipe['donor_build'])
+            if commands.is_file():shutil.copy2(commands,source/'recovery-commands.txt')
+            elif recovery_commands:raise SystemExit('golden-run: --recovery-commands: no %s'%commands.relative_to(TOP))
             shutil.copy2(pipeline/'kit.py',source/'kit.py')
             shutil.copy2(share/'oclp/opencore_legacy_patcher/sys_patch/utilities/kdk_intel_payload.py',source/'kdk_intel_payload.py')
             shutil.copy2(share/'pristine/fl',source/'fl')
@@ -435,7 +441,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             create_workspace_image(workspace_image,workspace['size_bytes'])
             started=True
             command([sys.executable,'-I',pipeline/'vm/clones.py','start',vm,share,'--usb',workspace_image])
-            script=job_script(local,workspace=workspace)
+            script=job_script(local,workspace=workspace,recovery_commands=recovery_commands)
             (record/'guest-job.sh').write_text(script)
             submission='(\n'+script+'\n) >/dev/null 2>&1 </dev/null & echo started'
             reply=command([pipeline/'vm/vmctl',vm,'exec',submission],capture_output=True,text=True)
@@ -618,6 +624,9 @@ def main():
     parser.add_argument('--no-cryptex-cache',action='store_true',
                         help='build golden-gate-userspace\'s sealed cryptex images even when store/cache/cryptex has '
                              'them for the same inputs, code and builder tools (and store nothing)')
+    parser.add_argument('--recovery-commands',action='store_true',
+                        help='assemble with only the commands of the donor build\'s Recovery on PATH '
+                             '(pipeline/stages/recovery-commands-BUILD.txt), as the stick\'s install runs')
     args=parser.parse_args()
     overlays=None
     if args.from_overlays:
@@ -638,8 +647,12 @@ def main():
         if args.stage_kit:
             if not args.recipe or args.repo:parser.error('--stage-kit takes a recipe and no --repo')
         elif not args.recipe or not args.repo:parser.error('recipe and --repo are required')
+        # No candidate build while a fix proven on the laptop exists only there (pipeline/swaps.py; no override).
+        refusal=runpy.run_path(str(Path(__file__).resolve().parent/'swaps.py'))['gate']()
+        if refusal:
+            print('golden-run: refused: '+'\n'.join(refusal),file=sys.stderr);sys.exit(3)
         run(args.recipe,args.repo,args.work,args.record,args.base,args.timeout,args.skip_optional,overlays,
-            cryptex_cache=not args.no_cryptex_cache,kit_only=args.stage_kit)
+            cryptex_cache=not args.no_cryptex_cache,kit_only=args.stage_kit,recovery_commands=args.recovery_commands)
 
 
 if __name__=='__main__':main()

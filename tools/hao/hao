@@ -84,13 +84,17 @@ def _snap(s):
 
 
 def printer(level):
+    s = CON.Style(level != 'json' and CON.colour_for(sys.stdout))      # the console palette (src/console.py)
+    ok = s('ok', '✓' if 'utf' in (getattr(sys.stdout, 'encoding', None) or 'utf-8').lower() else 'ok')
+
     def emit(ev):
         k = ev['ev']
         if level == 'json':
             print(json.dumps(ev), flush=True)
             return
         if k == 'warning':
-            print('warning: %s' % ev['text'], file=sys.stderr, flush=True)
+            print(CON.Style(CON.colour_for(sys.stderr))('warn', 'warning:') + ' ' + ev['text'], file=sys.stderr,
+                  flush=True)
             return
         if level == 'quiet' and k not in ('done', 'reverted'):
             return
@@ -100,9 +104,10 @@ def printer(level):
             if ev.get('folders'):
                 print('%d folders to create' % ev['folders'])
             if ev['needs_recovery']:
-                print('needs Recovery (installer-only packs, not applied live): %s' % ', '.join(ev['needs_recovery']))
+                print('%s (installer-only packs, not applied live): %s' % (
+                    s('warn', 'needs Recovery'), ', '.join(s('bold', x) for x in ev['needs_recovery'])))
             for f in ev.get('needs_recovery_files', []):
-                print('  %-6s %-22s %s  (%s)' % ('later', f['pack'], f['path'], f['reason']))
+                print('  %-6s %s %s  %s' % ('later', s('bold', '%-22s' % f['pack']), f['path'], s('dim', '(%s)' % f['reason'])))
         elif k == 'live':
             print('live: System %s, Data %s, booted %s (sealed: %s)' % (ev['system'], ev['data'], ev['booted'],
                                                                          ev['sealed']))
@@ -112,16 +117,17 @@ def printer(level):
             print({'pre': 'named snapshot %s taken before writing', 'boot': 'next boot: new snapshot %s',
                    'root-to': 'next boot: snapshot %s'}[ev['kind']] % ev['name'])
         elif k == 'file.write':
-            print('  %-6s %-22s %s' % ('new' if ev['new'] else 'write', ev['pack'], ev['path']))
+            print('  %-6s %s %s' % ('new' if ev['new'] else 'write', s('bold', '%-22s' % ev['pack']), ev['path']))
             if level == 'show':
-                print('         %s -> %s' % ((ev['old_sha256'] or 'none')[:16], ev['sha256'][:16]))
+                print('         ' + s('dim', '%s -> %s' % ((ev['old_sha256'] or 'none')[:16], ev['sha256'][:16])))
         elif k == 'file.attrs':
-            print('  %-6s %-22s %s  (%s)' % ('attrs', ev['pack'], ev['path'], ', '.join(ev['keys'])))
+            print('  %-6s %s %s  %s' % ('attrs', s('bold', '%-22s' % ev['pack']), ev['path'],
+                                        s('dim', '(%s)' % ', '.join(ev['keys']))))
         elif k == 'file.revert':
             print('  %-6s %s' % ('remove' if ev['removed'] else 'attrs' if ev.get('attrs_only') else 'restore',
                                  ev['path']))
         elif k == 'rolled-back':
-            print('rolled back %s: %d files put back (%s)' % (ev['id'], ev['files'], ev['error']))
+            print('%s %s: %d files put back (%s)' % (s('bad', 'rolled back'), ev['id'], ev['files'], ev['error']))
         elif k == 'restart':
             who = 'pid %s %s' % (ev['pid'], ev['command']) if ev['kind'] == 'process' else \
                   'launchd %s/%s' % (ev['domain'], ev['label'])
@@ -132,19 +138,20 @@ def printer(level):
                                               ' stale: made from the installed files' if ev['stale'] else ''))
         elif k == 'done':
             if ev['id'] is None:
-                print('nothing to do: %d files already current' % ev['same'])
+                print('%s nothing to do: %d files already current' % (ok, ev['same']))
                 return
-            print('applied %s: %d written, %d attributes set, %d unchanged%s' % (
-                ev['id'], ev['written'], ev.get('attrs', 0), ev['same'],
+            print('%s applied %s: %d written, %d attributes set, %d unchanged%s' % (
+                ok, s('bold', ev['id']), ev['written'], ev.get('attrs', 0), ev['same'],
                 ', snapshot ' + _snap(ev['snapshot']) if _snap(ev['snapshot']) else ''))
             if ev.get('not_set'):
-                print('not root: owners and system flags of %d files were not set (see the record)' % ev['not_set'])
+                print(s('warn', 'not root:') + ' owners and system flags of %d files were not set (see the record)'
+                      % ev['not_set'])
             if ev.get('reboot'):
-                print('reboot to run it; undo: sudo hao patch --revert --live --i-have-a-backup')
+                print('reboot to run it; undo: ' + s('bold', 'sudo hao patch --revert --live --i-have-a-backup'))
             else:
-                print('undo: hao patch --revert --root ROOT --id %s' % ev['id'])
+                print('undo: ' + s('bold', 'hao patch --revert --root ROOT --id %s' % ev['id']))
         elif k == 'reverted':
-            print('reverted %s: %d files%s' % (ev['id'], ev['files'],
+            print('%s reverted %s: %d files%s' % (ok, s('bold', ev['id']), ev['files'],
                                                '; reboot to run snapshot %s' % ev['snapshot'] if ev.get('reboot') else ''))
     return emit
 
@@ -454,6 +461,8 @@ def main():
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
     q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(a, c, MAC.SystemHost()), log='create-installer'))
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
+    q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
+                   'continue at its failed step instead of erasing the disk again')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost()), log='install'))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
     q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')

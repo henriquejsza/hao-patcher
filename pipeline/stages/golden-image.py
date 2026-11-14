@@ -38,6 +38,18 @@ import subprocess
 import sys
 import time
 
+# Copies onto the FAT ESP carry data only. A Recovery runs no doubleagentd, the daemon that stores a FAT volume's
+# extended attributes and ACLs, so ditto's --rsrc/--extattr/--acl (and its defaults) fail there with "Attribute not
+# found" (bench2 rerun3: boot-and-esp, 90 min into a QEMU install). A full macOS writes them as ._ files instead.
+FAT_COPY = ('ditto', '--norsrc', '--noextattr', '--noacl')
+# The steps a failed run can be resumed at (golden-image.py --resume), and why running them again over what the
+# failed attempt left is safe. The steps before one must all have completed. Every other step edits files in place
+# (the recipes, the snapshot, the posts) or makes the volumes (layout, group-volumes): those start from an empty disk.
+RESUMABLE = {
+    'boot-and-esp': 'install-role writes into a group folder removed first; the ESP copy writes the same files again',
+    'hardware': 'OCLP\'s install_new_file replaces each destination; RSRRepair and the record plist are rewritten',
+}
+
 
 class Commands:
     def __init__(self, work):
@@ -81,6 +93,10 @@ class Target:
         return self.mount_root/key
 
     def prepare(self, run, plist):
+        raise NotImplementedError
+
+    def adopt(self, run, plist):
+        """Take the disk a failed run left, without erasing it (golden-image.py --resume)."""
         raise NotImplementedError
 
     def partition(self, run, name):
@@ -127,6 +143,11 @@ class ImageTarget(Target):
         self.image.parent.mkdir(parents=True, exist_ok=True)
         with self.image.open('xb') as stream:
             stream.truncate(self.size_bytes)
+        self.adopt(run, plist)
+
+    def adopt(self, run, plist):
+        if not self.image.is_file():
+            raise FileNotFoundError('no image to resume: '+str(self.image))
         attached = plist('hdiutil','attach','-imagekey','diskimage-class=CRawDiskImage','-nomount','-plist',self.image)
         self.whole = next(row['dev-entry'] for row in attached['system-entities']
                           if re.fullmatch(r'/dev/disk[0-9]+',row.get('dev-entry','')))
@@ -236,6 +257,10 @@ class DiskTarget(Target):
             if self.on(device,names):
                 raise ValueError('%s is still mounted at %s' % (device, rest.rsplit(' (',1)[0]))
         self.whole = '/dev/'+self.name
+
+    def adopt(self, run, plist):
+        # The same checks and unmounting as prepare; the erase is partition's, which a resumed run skips.
+        self.prepare(run, plist)
 
     @property
     def binding(self):
@@ -394,6 +419,35 @@ class Assembler:
         values['NAME']=c['name']
         (self.work/'uuids.env').write_text(''.join(key+'='+shlex.quote(value)+'\n' for key,value in values.items()))
 
+    def adopt(self, prior):
+        """Instead of layout and group-volumes (golden-image.py --resume): the failed run's disk, its container and
+        volumes found again by their VolumeUUIDs (device numbers change across restarts), mounted as group_volumes
+        leaves them, and the environment the later steps read."""
+        values = {key:value for key, _, value in (shlex.split(line)[0].partition('=') for line in
+                  (Path(prior['work'])/'uuids.env').read_text().splitlines() if line.strip())}
+        self.target.adopt(self.run, self.plist)
+        info = self.container_info()
+        self.container = info['ContainerReference']
+        volumes = {row['DeviceIdentifier']:row for row in info['Volumes']}
+        for key, variable in dict(system='SYSU',data='DATU',preboot='PBU',recovery='RCU').items():
+            try:
+                device = self.plist('diskutil','info','-plist',values[variable])['DeviceIdentifier']
+            except subprocess.CalledProcessError:
+                device = None    # no volume with that UUID on this Mac
+            if device not in volumes:
+                raise ValueError('%s volume %s is not in the container of %s: not the failed run\'s disk'
+                                 % (key, values[variable], self.target.whole))
+            self.devices[key] = device
+            self.environment[variable] = values[variable]
+        vm = [d for d, row in volumes.items() if 'VM' in row.get('Roles',[])]
+        if vm:
+            self.devices['vm'] = vm[0]
+        self.devices['esp'] = self.target.esp_device()
+        self.group = self.environment['GRP'] = values['GRP']
+        for key in ('system','data','preboot','recovery','esp'):
+            self.mount(key)
+        (self.work/'uuids.env').write_text((Path(prior['work'])/'uuids.env').read_text())
+
     def finalize(self):
         c = self.config
         self.run('sh',c['pristine_script'],'finalize','--system',self.mounts['system'],
@@ -406,10 +460,12 @@ class Assembler:
         for role in ('preboot','recovery'):
             artifact = Path(c['donors']['boot' if role=='preboot' else 'recovery'])
             destination = self.mounts[role]/self.group
+            if destination.exists():    # a resumed run (RESUMABLE): what the failed attempt wrote goes first
+                self.run('rm','-rf',destination)
             destination.mkdir(mode=0o755)
             self.run(c['python'],'-I',c['donor_tool'],'install-role','--artifact',artifact,
                      '--role',role,'--destination',destination)
-        self.run('ditto','--rsrc','--extattr','--acl',c['esp'],self.mounts['esp'])
+        self.run(*FAT_COPY,c['esp'],self.mounts['esp'])
 
     def hardware(self):
         c = self.config
@@ -494,7 +550,7 @@ class Assembler:
         """Deliver the final ESP separately for installation after OS restoration."""
         destination = self.work/'boot-efi'
         destination.mkdir(mode=0o755)
-        self.run('ditto',self.mounts['esp'],destination/'payload')
+        self.run(*FAT_COPY,self.mounts['esp'],destination/'payload')
         config = plistlib.loads((destination/'payload/EFI/OC/config.plist').read_bytes())
         system = self.mounts['system']
         version = plistlib.loads((system/'System/Library/CoreServices/SystemVersion.plist').read_bytes())
@@ -550,7 +606,36 @@ LAYERS = [
 ]
 
 
-def _assemble(config, commands=None, target=None):
+def resume_point(config, prior):
+    """The step a failed run (its build.json PRIOR) resumes at, or ValueError: the configuration must be the same
+    (paths compared below the LOCAL folder each run has), every step before it complete, the step in RESUMABLE."""
+    if prior.get('status') != 'failed':
+        raise ValueError('the run to resume did not fail (status %s)' % prior.get('status'))
+    old, new = str(Path(prior['configuration']['work']).parent), str(Path(config['work']).parent)
+
+    def same(value):
+        return json.loads(json.dumps(value).replace(json.dumps(old)[1:-1], json.dumps(new)[1:-1]))
+    keys = set(config)|set(prior['configuration'])
+    # Not compared: the work folder, the image (the failed run's is used) and the disk's name, which can change
+    # between starts (bench 0745: disk0 in the failed run, disk1 after a restart). adopt() finds the failed run's
+    # volumes by UUID in the named disk's container, and refuses a disk that does not hold them.
+    differ = sorted(k for k in keys - {'work','image','disk','confirm_disk'}
+                    if same(prior['configuration'].get(k)) != config.get(k))
+    if differ:
+        raise ValueError('the kit\'s configuration differs from the failed run\'s (%s): start from an empty disk' % ', '.join(differ))
+    done = {row['name'] for row in prior.get('steps',[]) if row.get('complete')}
+    start = next(i for i, (name, _, _) in enumerate(LAYERS) if name not in done)
+    name = LAYERS[start][0]
+    if name not in RESUMABLE:
+        raise ValueError('the failed run stopped in step %s, which cannot be run again over its own partial work; '
+                         'resumable: %s' % (name, ', '.join(RESUMABLE)))
+    return start
+
+
+def _assemble(config, commands=None, target=None, prior=None):
+    start = resume_point(config, prior) if prior else 0
+    if prior and 'image' in config:
+        config = dict(config, image=prior['configuration']['image'])
     target = target or target_for(config)
     work = Path(config['work']); work.mkdir(parents=True, exist_ok=False, mode=0o755)
     commands = commands or Commands(work)
@@ -560,9 +645,16 @@ def _assemble(config, commands=None, target=None):
                   configuration_sha256=hashlib.sha256(json.dumps(config,sort_keys=True).encode()).hexdigest(),
                   source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   status='building',validation='BUILD ONLY; boot and complete product acceptance remain untested')
+    if prior:
+        record['resumed'] = dict(work=prior['work'],step=LAYERS[start][0],why=RESUMABLE[LAYERS[start][0]])
     error = None
     try:
-        for name, method, _ in LAYERS:
+        if prior:
+            print('RESUME at %s: the steps before it completed in %s' % (LAYERS[start][0], prior['work']), flush=True)
+            image.steps += [dict(row, reused=True) for row in prior['steps']
+                            if row['name'] in {n for n, _, _ in LAYERS[:start]}]
+            image.adopt(prior)
+        for name, method, _ in LAYERS[start:]:
             image.step(name,getattr(image,method))
         record['status'] = 'assembled'
     except BaseException as caught:
@@ -579,10 +671,10 @@ def _assemble(config, commands=None, target=None):
     return record
 
 
-def assemble(config, commands=None, target=None):
+def assemble(config, commands=None, target=None, prior=None):
     old_umask=os.umask(0o022)
     try:
-        return _assemble(config,commands,target)
+        return _assemble(config,commands,target,prior)
     finally:
         os.umask(old_umask)
 
@@ -590,11 +682,20 @@ def assemble(config, commands=None, target=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('config',type=Path)
+    parser.add_argument('--resume',type=Path,metavar='WORK',
+                        help='the work folder of a failed run on the same disk: continue at its failed step (RESUMABLE)')
     args = parser.parse_args()
     try:
         config = json.loads(args.config.read_text())
+        prior = None
+        if args.resume:
+            prior = json.loads((args.resume/'build.json').read_text())
+            prior['work'] = str(args.resume)
+            resume_point(config, prior)
+            if 'image' in config:
+                config['image'] = prior['configuration']['image']
         target = target_for(config)
-        result = assemble(config,target=target)
+        result = assemble(config,target=target,prior=prior)
     except BaseException as error:
         traceback.print_exc()
         code=getattr(error,'returncode',1)

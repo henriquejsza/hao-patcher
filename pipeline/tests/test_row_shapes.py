@@ -15,7 +15,8 @@ def rows_read_as_folders():
     patches = os.path.join(TOP, 'patches')
     for name in sorted(os.listdir(patches)):
         for d, _, files in os.walk(os.path.join(patches, name)):
-            if os.sep + 'tests' in d or os.sep + 'build' in d:
+            rel = os.sep + os.path.relpath(d, patches) + os.sep   # not the checkout's own path (~/.../builder-...)
+            if os.sep + 'tests' + os.sep in rel or os.sep + 'build' + os.sep in rel:
                 continue
             for f in files:
                 if not f.endswith(('.sh', '.zsh')):

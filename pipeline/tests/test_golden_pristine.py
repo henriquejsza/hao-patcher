@@ -61,13 +61,11 @@ if name == 'hdiutil':
         shutil.rmtree(args[1]);pathlib.Path(args[1]).mkdir()
 elif name == 'ditto':
     source,target=map(pathlib.Path,args[-2:])
+    if source.name == 'kdk-intel': assert source.with_suffix('.prepared').is_file(), 'KDK must be prepared before its copy'
     if source.is_dir(): shutil.copytree(source,target,dirs_exist_ok=True,symlinks=True)
     else: shutil.copy2(source,target,follow_symlinks=False)
 elif name == 'rsync':
-    source,target=map(pathlib.Path,args[-2:])
-    assert source.with_suffix('.prepared').is_file(), 'KDK must be prepared before rsync'
-    assert args[:4]==['-r','-i','-a','--checksum']
-    shutil.copytree(source,target,dirs_exist_ok=True,symlinks=True)
+    raise SystemExit('rsync: a Recovery has none (golden-pristine.sh must not call it)')
 elif name == 'install':
     if args[0]=='-d':
         for value in args[3:]: pathlib.Path(value).mkdir(parents=True,exist_ok=True)
@@ -164,6 +162,10 @@ def prepare(source,destination):
         owners=[row for row in commands if row[0]=='chown']
         self.assertEqual(owners,[['chown','-R','root:wheel',prepared[6]]])
         self.assertFalse(any(row[0]=='ditto' and row[-2]==prepared[5] for row in commands))
+        # the prepared KDK is merged into Extensions with ditto (a Recovery has no rsync)
+        self.assertIn(['ditto','--rsrc','--extattr','--acl',prepared[6],str(self.system/'System/Library/Extensions')],
+                      commands)
+        self.assertFalse(any(row[0]=='rsync' for row in commands))
         self.assertIn('selected_preparer',completed.stdout)
         self.assertEqual((self.kdk/'System/Library/Extensions/Common.kext/binary').read_text(),'KDK implementation')
         links=[row for row in commands if row[0]=='fl']
@@ -188,12 +190,12 @@ def prepare(source,destination):
         self.assertFalse(any('install-extensions' in row for row in self.commands()))
         self.assertFalse((self.system/'System/Library/Kernels/kernel').exists())
 
-    def test_kdk_preparation_failure_stops_before_rsync_or_kernel(self):
+    def test_kdk_preparation_failure_stops_before_its_copy_or_kernel(self):
         shutil.copytree(self.source,self.system,dirs_exist_ok=True,symlinks=True)
         completed=self.run_stage(environment=dict(self.env,KDK_PREPARE_FAIL='1'))
         self.assertNotEqual(completed.returncode,0)
         self.assertIn('fixture preparation refusal',completed.stderr)
-        self.assertFalse(any(row[0]=='rsync' for row in self.commands()))
+        self.assertFalse(any(row[0] in ('rsync','ditto') and row[-2].endswith('kdk-intel') for row in self.commands()))
         self.assertFalse((self.system/'System/Library/Kernels/kernel').exists())
 
     def test_running_system_or_overlapping_roots_refused_before_mount(self):

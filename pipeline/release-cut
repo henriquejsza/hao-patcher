@@ -506,6 +506,11 @@ def main(argv):
             print('release-cut: --final: there is no final channel yet; every release is a prerelease', file=sys.stderr)
             return 2
         assembly = next(a for a in argv if not a.startswith('--'))
+        # No release while a fix proven on the laptop exists only there (pipeline/swaps.py; no override).
+        refusal = runpy.run_path(str(Path(__file__).resolve().parent / 'swaps.py'))['gate']()
+        if refusal:
+            print('release-cut: refused: ' + '\n'.join(refusal), file=sys.stderr)
+            return 3
         stage = Path(opts['--stage']) if '--stage' in opts else None
         if stage is not None:
             if stage.exists() and any(p for p in stage.iterdir() if not p.name.startswith('.')):

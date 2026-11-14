@@ -7,6 +7,7 @@ set, and run only --dry-run, or stop at the check before any write.
 """
 import argparse
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -419,6 +420,50 @@ class BuilderTest(unittest.TestCase):
             self.assertEqual(assemble[2], str(kit.resolve()))
             self.assertEqual(assemble[-4:], ['--disk', 'disk0', '--confirm-disk', 'disk0'])
             self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'hao-install-')))
+
+    def test_install_resumes_a_failed_one(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            failed = Path(d) / 'hao-install-1' / 'local' / 'work'; failed.mkdir(parents=True)
+            steps = [dict(name=n, complete=True) for n in ('layout', 'golden-system', 'group-volumes', 'golden-finalize')]
+            (failed / 'build.json').write_text(json.dumps(dict(status='failed', steps=steps + [dict(name='boot-and-esp')])))
+            ran, run = self.fake_run()
+            a = ns(disk='disk0', dry_run=False, confirm='RESUME', kit=str(kit), resume=str(failed.parents[1]))
+            c, out = console('steps')
+            self.assertEqual(BUILD.install(a, c, host, run=run), 0)
+            (assemble,) = ran
+            self.assertEqual(assemble[-2:], ['--resume', str(failed.resolve())])
+            self.assertIn('continues the install', out.getvalue())
+            with self.assertRaises(CON.Stopped):    # ERASE does not confirm a resume
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), resume=str(failed)), c, host, run=run)
+            steps.append(dict(name='boot-and-esp', complete=True)); steps += [dict(name='hardware', complete=True)]
+            (failed / 'build.json').write_text(json.dumps(dict(status='failed', steps=steps + [dict(name='recipes')])))
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='RESUME', kit=str(kit), resume=str(failed)), c, host, run=run)
+            self.assertIn('stopped in recipes', x.exception.what)
+
+    def test_failed_install_names_its_step_and_the_resume(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            work = Path(d) / 'w'
+
+            def run(cmd):
+                (work / 'local' / 'work').mkdir(parents=True)
+                (work / 'local' / 'work' / 'build.json').write_text(json.dumps(dict(
+                    status='failed', steps=[dict(name='layout', complete=True), dict(name='boot-and-esp')])))
+                return 1
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), work=str(work)), c, host, run=run)
+            self.assertIn('in step boot-and-esp', x.exception.what)
+            self.assertTrue(any('--resume %s' % work.resolve() in o for o in x.exception.options))
+
+    def test_resumable_steps_are_the_assemblers(self):
+        spec = importlib.util.spec_from_file_location('gi', BUILD.TOP / 'pipeline' / 'stages' / 'golden-image.py')
+        gi = importlib.util.module_from_spec(spec); spec.loader.exec_module(gi)
+        self.assertEqual(set(BUILD.RESUMABLE), set(gi.RESUMABLE))
 
     def test_install_detects_this_mac(self):
         c, out = console('edits')

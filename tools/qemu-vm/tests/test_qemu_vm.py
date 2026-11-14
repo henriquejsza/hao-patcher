@@ -21,6 +21,14 @@ class Command(unittest.TestCase):
         self.assertEqual(c[c.index('-m') + 1], '16G')
         self.assertNotIn('usb-storage', j)
 
+    def test_two_usb_disks_get_their_own_root_ports(self):
+        c = qv.command(Path('/r'), Path('/e/esp.cdr'), 'n', 22397, '16G', Path('/s'), usb_disks=2)
+        self.assertIn('qemu-xhci,id=xhci,p2=8,p3=8', c)
+        self.assertIn('usb-storage,bus=xhci.0,drive=usb0,removable=on,port=5', c)
+        self.assertIn('usb-storage,bus=xhci.0,drive=usb1,removable=on,port=6', c)
+        one = qv.command(Path('/r'), Path('/e/esp.cdr'), 'n', 22397, '16G', Path('/s'), usb_disks=1)
+        self.assertIn('qemu-xhci,id=xhci', one)      # one stick: the tested topology unchanged
+
     def test_usb_disks_are_overlays_on_xhci(self):
         c = qv.command(Path('/r'), Path('/e/esp.cdr'), 'n', 22397, '16G', Path('/s'), usb_disks=1)
         j = ' '.join(c)

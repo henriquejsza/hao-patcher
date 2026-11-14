@@ -470,9 +470,9 @@
     "capture": false,
     "command": [
      "ditto",
-     "--rsrc",
-     "--extattr",
-     "--acl",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/esp",
      "<root>/work/mnt/esp"
     ],
@@ -765,6 +765,9 @@
     "capture": false,
     "command": [
      "ditto",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/work/mnt/esp",
      "<root>/work/boot-efi/payload"
     ],
@@ -1387,9 +1390,9 @@
      "capture": false,
      "command": [
       "ditto",
-      "--rsrc",
-      "--extattr",
-      "--acl",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/esp",
       "<root>/work/mnt/esp"
      ],
@@ -1682,6 +1685,9 @@
      "capture": false,
      "command": [
       "ditto",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/work/mnt/esp",
       "<root>/work/boot-efi/payload"
      ],
@@ -2355,9 +2361,9 @@
     "capture": false,
     "command": [
      "ditto",
-     "--rsrc",
-     "--extattr",
-     "--acl",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/esp",
      "<root>/work/mnt/esp"
     ],
@@ -2619,6 +2625,9 @@
     "capture": false,
     "command": [
      "ditto",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/work/mnt/esp",
      "<root>/work/boot-efi/payload"
     ],
@@ -3241,9 +3250,9 @@
      "capture": false,
      "command": [
       "ditto",
-      "--rsrc",
-      "--extattr",
-      "--acl",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/esp",
       "<root>/work/mnt/esp"
      ],
@@ -3505,6 +3514,9 @@
      "capture": false,
      "command": [
       "ditto",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/work/mnt/esp",
       "<root>/work/boot-efi/payload"
      ],
@@ -4178,9 +4190,9 @@
     "capture": false,
     "command": [
      "ditto",
-     "--rsrc",
-     "--extattr",
-     "--acl",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/esp",
      "<root>/work/mnt/esp"
     ],
@@ -4785,9 +4797,9 @@
      "capture": false,
      "command": [
       "ditto",
-      "--rsrc",
-      "--extattr",
-      "--acl",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/esp",
       "<root>/work/mnt/esp"
      ],
@@ -5439,9 +5451,9 @@
     "capture": false,
     "command": [
      "ditto",
-     "--rsrc",
-     "--extattr",
-     "--acl",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/esp",
      "<root>/work/mnt/esp"
     ],
@@ -5703,6 +5715,9 @@
     "capture": false,
     "command": [
      "ditto",
+     "--norsrc",
+     "--noextattr",
+     "--noacl",
      "<root>/work/mnt/esp",
      "<root>/work/boot-efi/payload"
     ],
@@ -6319,9 +6334,9 @@
      "capture": false,
      "command": [
       "ditto",
-      "--rsrc",
-      "--extattr",
-      "--acl",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/esp",
       "<root>/work/mnt/esp"
      ],
@@ -6583,6 +6598,9 @@
      "capture": false,
      "command": [
       "ditto",
+      "--norsrc",
+      "--noextattr",
+      "--noacl",
       "<root>/work/mnt/esp",
       "<root>/work/boot-efi/payload"
      ],

@@ -35,6 +35,18 @@ question), default (one line per step with its check), `--show` (one line per fi
 and reason of each change), `--log json` (every event as a JSON line). A failed check stops the command with what
 happened, why it matters, what was left untouched and what to do next (exit 1).
 
+On a terminal the output has the mockups' colours: green check marks and `sha256 ✓`, cyan progress, bold step
+headers, pack names and the banner, dim notes and paths, yellow warnings, notes and "will be erased", red `✗` and
+`STOPPED`, and origin tags (Apple grey, Tahoe orange, OCLP purple, hao teal). The colours are 256-colour values that
+read on the Recovery's white Terminal as well as a dark one; a terminal without 256 colours gets the 8 basic ones.
+There is no colour when the output is not a terminal (a pipe, a file, the stick's log), when `NO_COLOR` is set to
+anything, when `TERM=dumb`, or with `--log json`, and the events kept for a record never hold colour codes.
+
+`create-installer` has three steps, not the mockups' four (Download, Unpack, Prepare packs, Write the USB stick):
+nothing is unpacked on the user's Mac yet. The kit comes from `--kit` or from this checkout's store, so the
+mockups' Unpack step (decoding the installers, extracting the Tahoe donors) is not there. It comes back when the
+kit is made from the downloads on the user's Mac (plan steps 12/13).
+
 ### The builder and installer commands
 
 ```sh
@@ -44,7 +56,7 @@ hao verify [ROOT] [--manifests OVERLAY_DIR|MANIFEST]...
 hao build-image REPO --model MacBookPro9,2 [--overlay-system ROOT] [--dry-run]
 sudo hao build-disk /dev/diskN --model MacBookPro9,2 [--dry-run]     # output (b): an external SSD
 sudo hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run]  # output (a): the USB stick
-hao install /dev/diskN [--dry-run]              # on the target, from the stick's Recovery
+hao install /dev/diskN [--dry-run] [--resume WORK]   # on the target, from the stick's Recovery
 hao report [--output FILE]                      # one text file for a GitHub issue
 ```
 
@@ -76,6 +88,9 @@ hao report [--output FILE]                      # one text file for a GitHub iss
   `amfi=0x80`), because the build makes firmlinks with an ad hoc entitled tool. The installer's Recovery starts that
   way; on a Mac's everyday macOS they stop before writing and say so. Our dev host never runs them against its own
   disks: they run in the builder VM or on the laptop.
+  When an install stops, the console names its step; at `boot-and-esp` or `hardware` it also gives the command to
+  continue there: `--resume WORK` (the failed install's folder) keeps the disk and the steps it completed, and is
+  confirmed with RESUME.
 - **create-installer** (`src/installer.py`) is the user's one command. It asks, one question at a time with
   numbered choices: which Mac (the release's proven models, the first by default; this Mac through `hao detect`,
   offered on an Intel Mac; or a profile file), which disk is the stick (`diskutil list external physical`, each

@@ -108,7 +108,9 @@ else
         "$KDK_PREPARER" "$KDK/System/Library/Extensions" "$WORK/kdk-intel"
     # Normalize only the new local output; never chown the shared input.
     chown -R root:wheel "$WORK/kdk-intel"
-    rsync -r -i -a --checksum "$WORK/kdk-intel/" "$SYSTEM/System/Library/Extensions/"
+    # ditto, not rsync: a macOS Recovery has no rsync (bench 2355: the stick's install stopped here). ditto merges
+    # the same way (existing files replaced, nothing deleted) and, run as root, keeps owners, modes and attributes.
+    ditto --rsrc --extattr --acl "$WORK/kdk-intel" "$SYSTEM/System/Library/Extensions"
     # The only install of the Darwin 27 x86_64 kernel file. It belongs to the base because the OCLP hardware
     # overlay (next layer) reads its Darwin version; patches/darwin27-kernel later links the collections around it.
     echo 'STEP darwin27-kernel-file'
