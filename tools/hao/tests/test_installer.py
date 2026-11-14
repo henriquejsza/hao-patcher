@@ -73,6 +73,10 @@ class FakeMac(LaptopMac):
             return b'Darwin Kernel Version 27.2.0'
         if argv[:2] == ['hdiutil', 'detach']:
             return b''
+        if argv == ['diskutil', 'list', '-plist', 'internal', 'physical']:
+            internal = [d for d in self.disks if self.disks[d].get('Internal') and
+                        self.disks[d].get('VirtualOrPhysical') == 'Physical']
+            return plistlib.dumps({'WholeDisks': internal})
         return super().answer(argv)
 
 
@@ -166,6 +170,29 @@ class Release:
 def writes(host):
     return [c for c in host.calls if any(x in c for x in ('eraseDisk', 'partitionDisk', 'unmountDisk', 'apfs',
                                                            'newfs_apfs', 'dd')) and c[:3] != ['diskutil', 'apfs', 'list']]
+
+
+class InstallQuestionTest(unittest.TestCase):
+    """hao install in the stick's Recovery with no disk named: it asks which internal disk."""
+
+    def test_asks_for_the_internal_disk(self):
+        import builder as BUILD
+        host = FakeMac(root_device='disk9s1')
+        c, out, asked = console(['1'])
+        a = ns(model='MacBookPro9,2', dry_run=True)
+        self.assertEqual(BUILD.install(a, c, host), 0)
+        self.assertEqual(a.disk, 'disk0')
+        self.assertIn('Which disk should macOS 27 be installed on?', out.getvalue())
+        self.assertIn('APPLE SSD SM512E', out.getvalue())
+
+    def test_running_system_disk_cannot_be_chosen(self):
+        import builder as BUILD
+        host = FakeMac()                              # the running system is on disk0 (container disk1)
+        c, out, _ = console([])
+        with self.assertRaises(CON.Stopped) as x:
+            BUILD.install(ns(model='MacBookPro9,2', dry_run=True), c, host)
+        self.assertEqual(x.exception.what, 'no internal disk macOS 27 can be installed on')
+        self.assertIn('holds the running system', out.getvalue())
 
 
 class CreateInstallerTest(unittest.TestCase):

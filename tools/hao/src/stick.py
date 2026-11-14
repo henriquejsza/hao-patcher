@@ -23,6 +23,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -36,11 +37,12 @@ SCAN_POLICY = 0x00000801            # FILE_SYSTEM_LOCK | FS_NTFS (Basic Data par
 LAUNCHER = '''#!/bin/sh
 # %(what)s, from the stick: hao %(cmd)s with the kit's own CPython (the Recovery has no Python).
 D=$(cd "$(dirname "$0")" && pwd)
+export HAO_STICK=$D
 case $(uname -m) in x86_64) PY=$D/kit/py-x86_64 ;; *) PY=$D/kit/py ;; esac
 exec "$PY/bin/python3.12" -I "$D/hao/tools/hao/hao" %(cmd)s %(args)s"$@"
 '''
 LAUNCHERS = {
-    'install': dict(what='Install macOS 27', cmd='install', args='--kit "$D/kit" '),
+    'install': dict(what='Install macOS 27', cmd='install', args='--kit "$D/kit" %(assembly)s'),
     'report': dict(what='A report for a GitHub issue', cmd='report', args='--output "$D/reports/hao-report-$(date +%Y%m%d-%H%M%S).txt" '),
 }
 SKIP = {'store', '.git', '__pycache__', '.DS_Store', '.claude'}
@@ -237,8 +239,11 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     copy_hao(hao_top, mount / 'hao')
     linked = []
     copy_tree(kit, mount / 'kit', skip={'.DS_Store', '__pycache__'}, linked=linked)
+    assembly = (record or {}).get('assembly')
     for name, fill in LAUNCHERS.items():
         p = mount / name
+        fill = dict(fill, args=fill['args'] % {'assembly': '--assembly %s ' % shlex.quote(assembly) if assembly else ''}
+                    if '%(assembly)s' in fill['args'] else fill['args'])
         p.write_text(LAUNCHER % fill)
         p.chmod(0o755)
     (mount / 'reports').mkdir(exist_ok=True)

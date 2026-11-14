@@ -166,6 +166,21 @@ class StickTest(unittest.TestCase):
         self.assertIn('CLAUDE.md', files)            # an archive has none; what it holds is copied
         self.assertFalse([f for f in files if f.startswith(('store/', '.git/')) or '__pycache__' in f])
 
+    def test_launcher_names_the_assembly_and_the_stick(self):
+        STICK.write(FakeHost(self.mnt), 'disk4', self.bs, self.esp, self.kit, self.top,
+                    record={'assembly': 'mbp92-26B131'})
+        text = (self.mnt / 'HAO' / 'install').read_text()
+        self.assertIn('install --kit "$D/kit" --assembly mbp92-26B131 "$@"', text)
+        self.assertIn('export HAO_STICK=$D', text)
+        self.assertIn('--output "$D/reports/hao-report-$(date +%Y%m%d-%H%M%S).txt" "$@"',
+                      (self.mnt / 'HAO' / 'report').read_text())
+
+    def test_report_hint_on_the_stick(self):
+        env = dict(os.environ, HAO_STICK='/Volumes/HAO')
+        code = 'import sys; sys.path.insert(0, %r); import installer; print(installer.REPORT)' % str(TOOL / 'src')
+        out = subprocess.run([sys.executable, '-I', '-c', code], env=env, capture_output=True, text=True, check=True)
+        self.assertIn('/Volumes/HAO/report', out.stdout)
+
     def test_refuses_a_folder_that_is_no_kit(self):
         (self.kit / 'kit.json').unlink()
         with self.assertRaises(STICK.StickError):

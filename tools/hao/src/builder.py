@@ -202,7 +202,7 @@ def resolve(a, c, command):
 def gate(c, host, a, policy, minimum):
     """The disk checks; returns the accepted disk's description, or stops."""
     if not a.disk:
-        raise Stopped('no disk named', options=['name the whole disk: /dev/diskN (diskutil list external)'])
+        raise Stopped('no disk named', options=['name the whole disk: /dev/diskN (diskutil list %s)' % policy])
     why = DISKS.refusal(host, a.disk, policy, minimum, sources=[s for s in getattr(a, 'sources', []) if s])
     if why:
         raise Stopped('/dev/%s may not be erased: %s' % (DISKS.normalize(a.disk), why),
@@ -394,6 +394,11 @@ def install(a, c, host, run=subprocess.call):
                           untouched='nothing was written')
         a.profile_data = profile
     _, path, asm, groups = resolve(a, c, 'install')
+    if getattr(a, 'kit', None) and not getattr(a, 'sources', None):
+        a.sources = [str(Path(a.kit).resolve())]       # never the disk the kit (the stick) is on
+    if not a.disk:
+        import installer
+        a.disk = installer.ask_internal_disk(a, c, host, asm['size_bytes'], getattr(a, 'sources', []))
     info = gate(c, host, a, 'internal', asm['size_bytes'])
     c.print('Disk   %s  will be erased' % DISKS.label(info))
     show_steps(c, 'install', groups)

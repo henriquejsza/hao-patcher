@@ -40,7 +40,10 @@ ACQUIRE = TOP / 'tools' / 'acquire' / 'acquire'
 STICK_GB = 64                      # what the README asks for: a stick sold as 64 GB
 MINIMUM_BYTES = 60 * 10 ** 9       # sticks sold as 64 GB hold 60 to 64 * 10^9 bytes
 STEPS = ('Download', 'Prepare packs', 'Write the USB stick')
-REPORT = 'save a report for developers: ./hao report (attach the file it writes to a GitHub issue)'
+# the stick's launchers export HAO_STICK (the HAO volume): there the report command is the stick's own
+REPORT = ('save a report for developers: %s/report (it writes the file into the stick\'s reports folder; attach it to '
+          'a GitHub issue)' % os.environ['HAO_STICK'] if os.environ.get('HAO_STICK') else
+          'save a report for developers: ./hao report (attach the file it writes to a GitHub issue)')
 
 
 # -- questions
@@ -192,6 +195,34 @@ def ask_disk(a, c, host, minimum, sources):
                for disk, info, why in found]
     a.disk = choose(c, 'disk', 'Which disk is the USB stick?', choices, default=None)
     return dict(usable)[a.disk]
+
+
+def ask_internal_disk(a, c, host, minimum, sources):
+    """hao install's question when no disk is named (the stick's Recovery): which internal disk to erase. Lists the
+    internal physical whole disks; one refused (too small, holding the running system or the stick's files) is shown
+    with the reason and cannot be chosen. Returns the disk name."""
+    r = host.run(['diskutil', 'list', '-plist', 'internal', 'physical'], check=False)
+    try:
+        whole = plistlib.loads(r.stdout).get('WholeDisks', []) if r.returncode == 0 else []
+    except Exception:
+        whole = []
+    choices = []
+    for disk in whole:
+        why = DISKS.refusal(host, disk, 'internal', minimum, sources=sources)
+        try:
+            info, _ = DISKS.describe(host, disk)
+        except LP.PatchError:
+            continue
+        choices.append((DISKS.label(info) + ('  (%s)' % why if why else ''), None if why else disk))
+    if not any(v for _, v in choices):
+        for label, _ in choices:
+            c.print('  ' + label, 'quiet')
+        raise Stopped('no internal disk macOS 27 can be installed on',
+                      why='hao installs only onto an internal disk of at least %s' % human_size(minimum),
+                      options=['in Disk Utility, check that the internal disk is there', REPORT],
+                      untouched='nothing was written')
+    return choose(c, 'disk', 'Which disk should macOS 27 be installed on? Everything on it will be erased.', choices,
+                  default=None)
 
 
 # -- the steps
