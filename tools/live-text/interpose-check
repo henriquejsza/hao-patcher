@@ -1,0 +1,169 @@
+#!/usr/bin/env python3.14
+"""Check a rebuilt x86_64 shared-cache family that holds the Live Text runtime: are its interpose entries applied?
+
+    interpose-check FAMILY RUNTIME [--jobs N]
+
+FAMILY is the family's main file (dyld_shared_cache_x86_64), RUNTIME the runtime folder that was folded in (row
+live_text_framework, framework/runtime). dyld ignores __interpose in a cache image (dyld-1378
+DyldRuntimeState.cpp:1310), so the producer applies each entry as cache patches instead. For every entry of every
+RUNTIME library it checks, through ipsw (independent of the producer):
+
+  1. the original (e5rt_*) is exported by exactly one cache image, and the replacement by the folded library;
+  2. every use of the original that the cache's patch table lists holds the replacement, and there is at least one;
+  3. the folded library carries no __interpose section;
+  4. the folded library's own pointer slots (__got, __la_symbol_ptr, ...) hold the original of every e5rt function it
+     calls through to, and none holds one of its own replacements: a retargeted call-through slot would loop the hook
+     into itself (dlsym is no way out: dyld interposes its result too).
+
+Prints one line per entry and exits 1 on any failure. Read-only; needs ipsw and xcrun (dyld_info, nm).
+"""
+import argparse
+import concurrent.futures
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+HEX = re.compile(r'0x[0-9a-fA-F]+')
+
+
+def out(*args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
+
+def ipsw(family, *args):
+    return out('ipsw', 'dyld', args[0], str(family), *args[1:], '--no-color')
+
+
+def entries(lib):
+    """[(replacement, original)] from LIB's __interpose, and the e5rt functions it binds outside it (calls through)."""
+    fixups = out('xcrun', 'dyld_info', '-fixups', '-arch', 'x86_64', str(lib))
+    symbols = {}
+    for line in out('nm', '-m', '-arch', 'x86_64', str(lib)).splitlines():
+        f = line.split()
+        if len(f) >= 4 and '(__TEXT,__text)' in line:
+            symbols[int(f[0], 16)] = f[-1]
+    slots, outside = {}, set()
+    for line in fixups.splitlines():
+        f = line.split()
+        if len(f) < 5 or not f[2].startswith('0x'):
+            continue
+        section, address, kind, target = f[1], int(f[2], 16), f[3], f[4]
+        name = target.rsplit('/', 1)[-1] if kind.endswith('bind') else None
+        if section == '__interpose':
+            slots[address] = symbols.get(int(target, 16)) if kind == 'rebase' else name
+        elif name and name.startswith('_e5rt_'):
+            outside.add(name)
+    pairs = [(slots[a], slots.get(a + 8)) for a in sorted(slots) if (a - min(slots)) % 16 == 0]
+    return pairs, outside
+
+
+def definitions(family, symbol, image=None):
+    text = ipsw(family, 'symaddr', symbol, *(['-i', image] if image else []))
+    found = []
+    for line in text.splitlines():
+        f = line.split('\t')
+        if len(f) >= 3 and f[0].rstrip(':').startswith('0x') and f[2] == symbol:
+            found.append((int(f[0].rstrip(':'), 16), f[-1].strip()))
+    return found
+
+
+POINTER_SECTIONS = re.compile(r'addr=(0x[0-9a-f]+)-(0x[0-9a-f]+)\s+__\w+\.(__(?:auth_|weak_)?got|__la_symbol_ptr|__nl_symbol_ptr|__auth_ptr)\b')
+
+
+def own_slots(family, path):
+    """Every pointer value in the folded image's own symbol-pointer sections."""
+    values = []
+    for start, end, _ in POINTER_SECTIONS.findall(ipsw(family, 'macho', path, '-l')):
+        count = (int(end, 16) - int(start, 16)) // 8
+        if count:
+            values += [int(v, 16) for v in HEX.findall(ipsw(family, 'dump', start, '-a', '-c', str(count)))]
+    return values
+
+
+def calls_through(family, path, pairs, called):
+    """Problems with the folded image's own slots: an original it calls missing, or one of its replacements present."""
+    slots, problems = set(own_slots(family, path)), []
+    for name in sorted(called):
+        theirs = [d for d in definitions(family, name) if d[1] != Path(path).name]
+        if not theirs or theirs[0][0] not in slots:
+            problems.append(f'its call through to {name} does not reach the original (not in its own pointer slots)')
+    for replacement, _ in pairs:
+        mine = definitions(family, replacement, Path(path).name)
+        if mine and mine[0][0] in slots:
+            problems.append(f'one of its own pointer slots holds its replacement {replacement} (the hook would loop)')
+    return problems
+
+
+def check(family, leaf, folded, replacement, original):
+    problems = []
+    mine = definitions(family, replacement, leaf)
+    if len(mine) != 1:
+        return [f'replacement {replacement} found {len(mine)} times in {leaf}']
+    target = mine[0][0]
+    theirs = [d for d in definitions(family, original) if d[1] not in folded]
+    if len({d[1] for d in theirs}) != 1:
+        return [f'original {original} defined by {sorted({d[1] for d in theirs}) or "no image"}']
+    address, image = theirs[0]
+    uses = []
+    for line in ipsw(family, 'patches', '-i', image, '-s', original).splitlines():
+        m = re.match(r'\s+(0x[0-9a-fA-F]+):\s+(\S+)', line)
+        if m:
+            uses.append((int(m.group(1), 16), m.group(2)))
+    if not uses:
+        problems.append('no use in the patch table')
+    for use, kind in uses:
+        values = HEX.findall(ipsw(family, 'dump', hex(use), '-a', '-c', '1'))
+        value = int(values[-1], 16) if values else None
+        if value != target:
+            what = 'the original' if value == address else (hex(value) if value is not None else 'unreadable')
+            problems.append(f'{kind} {use:#x} holds {what}, not {replacement} {target:#x}')
+    return problems or [f'ok: {len(uses)} uses -> {replacement} {target:#x} ({image} {address:#x})']
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    p.add_argument('family', type=Path)
+    p.add_argument('runtime', type=Path)
+    p.add_argument('--jobs', type=int, default=8)
+    a = p.parse_args()
+    record = json.loads((a.runtime/'build.json').read_text())
+    root = record['install_root']
+    libs = [a.runtime/Path(h).name for h in record['helper_paths']]
+    folded = {lib.name for lib in libs}
+    work, failed = [], False
+    for lib in libs:
+        pairs, outside = entries(lib)
+        if not pairs:
+            continue
+        path = f'{root}/{lib.name}'
+        try:
+            commands = ipsw(a.family, 'macho', path, '-l')
+        except subprocess.CalledProcessError:
+            print(f'FAIL {lib.name}: {path} is not an image of this family')
+            failed = True
+            continue
+        if '__interpose' in commands:
+            print(f'FAIL {lib.name}: the folded image still has __interpose (dyld ignores it in a cache)')
+            failed = True
+        problems = calls_through(a.family, path, pairs, outside)
+        for problem in problems:
+            print(f'FAIL {lib.name}: {problem}')
+        if not problems:
+            print(f'ok   {lib.name}: {len(outside)} calls through reach the originals')
+        failed |= bool(problems)
+        work += [(lib.name, r, o) for r, o in pairs]
+    with concurrent.futures.ThreadPoolExecutor(a.jobs) as pool:
+        results = pool.map(lambda w: (w, check(a.family, w[0], folded, w[1], w[2])), work)
+        for (leaf, r, o), lines in results:
+            for line in lines:
+                bad = not line.startswith('ok:')
+                failed |= bad
+                print(f'{"FAIL" if bad else "ok  "} {leaf} {o}: {line.removeprefix("ok: ")}')
+    print(f'{len(work)} entries checked: {"FAILED" if failed else "all applied"}')
+    return 1 if failed or not work else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

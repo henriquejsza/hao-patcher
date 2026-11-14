@@ -3,6 +3,8 @@
 // diagnostic run supplies HAO_LIVE_TEXT_E5_CACHE itself. Shaders compile in the image's MTLCompilerService.
 #include <stdlib.h>
 #include <pthread.h>
+#include <stdatomic.h>
+#include <stdbool.h>
 #ifndef LIVE_TEXT_ROOT
 #error LIVE_TEXT_ROOT must name the installed runtime folder
 #endif
@@ -15,3 +17,8 @@ void hao_live_text_configure(void) {
     pthread_once(&once, configure_once);
 }
 __attribute__((constructor)) static void configure(void) { hao_live_text_configure(); }
+// Set by libLiveTextPolicy once a TextRecognition compile is prepared; read by libhao_input_coherence. Kept here, the
+// library both link, so each imports it from a named library (a folded shared-cache image cannot use flat lookups).
+static atomic_bool recognition_active;
+bool hao_live_text_recognition_active(void) { return atomic_load_explicit(&recognition_active, memory_order_acquire); }
+void hao_live_text_set_recognition_active(void) { atomic_store_explicit(&recognition_active, true, memory_order_release); }

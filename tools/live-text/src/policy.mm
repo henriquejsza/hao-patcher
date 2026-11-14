@@ -14,7 +14,8 @@
 #include <mutex>
 #include <atomic>
 extern "C" {
-void hao_live_text_record_library(void*,int) __attribute__((weak_import));
+void hao_live_text_record_library(void*,int);           // libhao_input_coherence (linked)
+void hao_live_text_set_recognition_active(void);         // libLiveTextConfig (linked)
 int e5rt_e5_compiler_compile(void*,void*,void*,void*) __attribute__((weak_import));
 int e5rt_e5_compiler_options_get_compute_device_types_mask(void*,uint64_t*) __attribute__((weak_import));
 int e5rt_e5_compiler_options_set_compute_device_types_mask(void*,uint64_t) __attribute__((weak_import));
@@ -26,8 +27,6 @@ int e5rt_e5_compiler_config_options_release(void**) __attribute__((weak_import))
 }
 static const char *root(){const char *p=getenv("HAO_LIVE_TEXT_ROOT");return p&&*p&&strcmp(p,"0")?p:nullptr;}
 static bool nonmemref_ready=false;
-static std::atomic<bool> recognition_active{false};
-extern "C" bool hao_live_text_recognition_active(){return recognition_active.load(std::memory_order_acquire);}
 typedef id __attribute__((ns_returns_retained)) (*InitFunction)(id __attribute__((ns_consumed)),SEL);
 static InitFunction original_init;
 static signed char (*original_getter)(id,SEL);
@@ -69,13 +68,13 @@ extern "C" int live_text_compile(void *compiler,void *model,void *options,void *
  static std::once_flag prepare;
  std::call_once(prepare,install_nonmemref);
  if(!nonmemref_ready)return 22;
- recognition_active.store(true,std::memory_order_release);
+ hao_live_text_set_recognition_active();
  std::string replacement;
  if(detector_model(path)){if(package[0]!='/')return 22;replacement=std::string(package)+"/detector/model.mil";if(access(replacement.c_str(),R_OK))return 22;}
  uint64_t previous=0;if(e5rt_e5_compiler_options_get_compute_device_types_mask(options,&previous))return 22;MaskRestore restore{options,previous};
  if(e5rt_e5_compiler_options_set_compute_device_types_mask(options,2))return 22;
  int result=e5rt_e5_compiler_compile(compiler,replacement.empty()?model:const_cast<char*>(replacement.c_str()),options,out);
- if(!result&&out&&*static_cast<void**>(out)&&hao_live_text_record_library)
+ if(!result&&out&&*static_cast<void**>(out))
      hao_live_text_record_library(*static_cast<void**>(out),detector_model(path)?2:1);
  int restored=restore.restore();return result?result:(restored?22:0);
 }
