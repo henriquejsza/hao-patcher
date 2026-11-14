@@ -137,6 +137,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('installer'); ap.add_argument('out')
     ap.add_argument('--requirements', required=True); ap.add_argument('--kdk')
+    ap.add_argument('--ripatch', help='a prebuilt ripatch (our asset, pipeline/unpack/build-tools); without it ripatch.c '
+                                      'is compiled with /usr/bin/cc, which a Mac without developer tools lacks')
     ap.add_argument('--target-system', help='the target OS System tree (read-only): keep its own x86_64 subsystems and '
                                             'take a donor root only where the target cannot supply it')
     ap.add_argument('--target-cache-images', help='file listing the target x86_64 shared cache image paths (one per line); '
@@ -244,7 +246,10 @@ def main():
 
         dk = req['driverkit']; found = {}; dk_meta = []
         ripatch = os.path.join(work, 'ripatch')
-        steps.run('build-ripatch', ['/usr/bin/cc', '-O2', '-Wall', '-o', ripatch, os.path.join(HERE, 'ripatch.c')])
+        if a.ripatch:
+            shutil.copyfile(a.ripatch, ripatch); os.chmod(ripatch, 0o755)
+        else:
+            steps.run('build-ripatch', ['/usr/bin/cc', '-O2', '-Wall', '-o', ripatch, os.path.join(HERE, 'ripatch.c')])
         dst = os.path.join(o, 'driverkit'); os.makedirs(dst)
         # REQ os_cache: the OS cryptex's own shared cache families (tools/tahoe-donors native cuts REQ cache_images,
         # libraries Tahoe ships only in its cache, out of them). Images are not kept.

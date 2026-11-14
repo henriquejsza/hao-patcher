@@ -1,2 +1,3 @@
 # OCLP hardware overlay for MacBookPro9,2 made by tools/oclp-hardware.
-0d947b4aacd7334afc16d3b6ffb12423d409a0c6d3eb997ff66575eb44f41108 store/artifacts/oclp-hardware-mbp92-psp2.0.5-20261109-157bf4246bcc
+# hash: without build.json  # build records and intermediates: a remake of the same payload matches
+b8d2c7e407c9f1b3b52869d3ac4981ece2be744a8b20fddcfe70666ea9bab7a7 store/artifacts/oclp-hardware-mbp92-psp2.0.5-20261109-157bf4246bcc

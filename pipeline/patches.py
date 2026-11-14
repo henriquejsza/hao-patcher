@@ -109,7 +109,7 @@ def missing_row(row, locks):
             if not os.path.exists(p):
                 return 'row %s: %s is not there' % (row, p)
             # a file row's sha256, or a sealed folder row's content hash (lock.py row_sha256 does both)
-            if sha != '-' and lock['row_sha256'](p) != sha:
+            if sha != '-' and lock['row_hash'](d, row, p) != sha:
                 raise ValueError('row %s: %s is not %s (a corrupted input stops, it is not skipped)' % (row, p, sha))
             return None
     return 'no row %s in %s' % (row, ', '.join(os.path.relpath(d, TOP) if d.startswith(TOP) else d for d in locks))

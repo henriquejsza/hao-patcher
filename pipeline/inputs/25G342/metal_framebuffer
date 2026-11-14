@@ -1,2 +1,3 @@
 # Metal framebuffer adapter made by patches/golden-gate-metal-framebuffer/build/metal-framebuffer.
-4a5dbcc201207d3ab4a8fd4403b28fe3bc39283821ae2336096761b3f83dc0b4 store/artifacts/metal-framebuffer-26A428-20261105-f8ff3547ed3c
+# hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
+166aa56be6bb77f104a8b68f0bbfc09599e8aa811c24a6697f4ce715524af20a store/artifacts/metal-framebuffer-26A428-20261105-f8ff3547ed3c

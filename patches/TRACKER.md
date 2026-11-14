@@ -15,14 +15,14 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-hello | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
+| golden-gate-hello | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
 | golden-gate-live-text-service | r4 | post | experiment |  | x |  |  |  | **needs** | r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, ar |
-| golden-gate-live-text-shared | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-13 Input row `live_text_framework` (26B131) now names framework/ of live-text-26B131-20261113-fa444 |
-| golden-gate-metal-argbuf | r2 | oclp-hook | product |  | x |  |  |  | **needs** | r2 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-metal-framebuffer | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-metal-libraries | r20 | oclp-hook | experiment |  | x | x |  |  | **needs** | r20 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
+| golden-gate-live-text-shared | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-14 Input row `live_text_framework` now hashes only the files a release can give a user's Mac (`# ha |
+| golden-gate-metal-argbuf | r3 | oclp-hook | product |  | x |  |  |  | **needs** | r3 2026-11-14 Input row `metal_argbuf` now hashes only the files a release can give a user's Mac (`# hash: rel |
+| golden-gate-metal-framebuffer | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input row `metal_framebuffer` now hashes only the files a release can give a user's Mac (`# hash |
+| golden-gate-metal-libraries | r21 | oclp-hook | experiment |  | x | x |  |  | **needs** | r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their p |
 | golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
@@ -31,9 +31,9 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-user-template | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh |
 | golden-gate-userspace | r73 | oclp-hook | experiment |  | x | x |  |  | **needs** | r73 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e t |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
-| hao-opencore | r60 | post | experiment |  | x | x |  |  | **needs** | r60 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e t |
+| hao-opencore | r61 | post | experiment |  | x | x |  |  | **needs** | r61 2026-11-14 Input row `kernel_repair_binding` now hashes only the files a release can give a user's Mac (`# |
 | hao-runtime | r77 | oclp-hook | experiment |  | x | x |  |  | **needs** | r77 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e t |
-| metal-compiler-compat | r6 | oclp-hook | experiment |  | x |  |  |  | **needs** | r6 2026-11-13 Input row `metal_compiler_compat` (26B131) now names compiler-service/ of live-text-26B131-20261 |
+| metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | rec-audio | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the three kext bundles and the kernel collection link in `patch.json` `files` and `edits |
