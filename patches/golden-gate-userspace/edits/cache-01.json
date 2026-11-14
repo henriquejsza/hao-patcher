@@ -39,6 +39,14 @@
    "reason": "Audio stops retrying with configd before login: no false server-death notification is sent when no console user exists (tools/audiomxd-fix)"
   },
   {
+   "id": "model-gates",
+   "kind": "matcher",
+   "resolved": {
+    "2992c56ec67804a411c973c715dd86984bde657f52e5aa07dfefec69fa5bd9d5": [{"at": 197117575, "before": "4d6163426f6f6b50726f392c32", "after": "4e6163426f6f6b50726f392c32", "reason": "Sidecar (an iPad as a second display): take MacBookPro9,2 off the unsupported-model list"}, {"at": 646027599, "before": "4d6163426f6f6b50726f392c32", "after": "4e6163426f6f6b50726f392c32", "reason": "AirPlay to Mac (this Mac as an AirPlay receiver): take MacBookPro9,2 off the unsupported-model list"}, {"at": 508183874, "before": "4d6163426f6f6b50726f392c32", "after": "4e6163426f6f6b50726f392c32", "reason": "Continuity Camera: take MacBookPro9,2 off the unsupported-model list"}]
+   },
+   "reason": "Sidecar, AirPlay to Mac and Continuity Camera no longer find this Mac on their unsupported-model lists: its entry is renamed in place (src/model_gates.py, data src/model-gates.json), in place of a FeatureUnlock kext"
+  },
+  {
    "id": "resign-4k-pages",
    "kind": "op",
    "op": "cryptex.build",

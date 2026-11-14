@@ -54,7 +54,7 @@ def local_imports(path, folder):
 
 
 # Data files a module of the image build reads (they decide bytes as its code does).
-DATA_FILES = ('prespecialization-26B131.json',)
+DATA_FILES = ('prespecialization-26B131.json', 'model-gates.json', 'compat-locators.json')
 
 
 def source_files(folder):
