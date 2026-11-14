@@ -24,7 +24,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-framebuffer | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-metal-libraries | r20 | oclp-hook | experiment |  | x | x |  |  | **needs** | r20 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
 | golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-native-identities | r5 | oclp-hook | experiment |  | x | x |  |  | **needs** | r5 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
+| golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r1 | post | experiment | boot-seeds |  |  |  |  | **needs** | r1 2026-11-12 New: install root's LaunchServices store and auth.db from a builder boot of the same image (row  |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
 | golden-gate-user-seed | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-13 Tests and README only: the seed chain includes golden-gate-user-template; README names it. seed. |
