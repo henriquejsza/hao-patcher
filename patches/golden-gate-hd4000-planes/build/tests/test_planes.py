@@ -4,7 +4,7 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-hd4000-planes/build
 
 Always: the build is reproducible from build/hd4000_planes.m and yields the bytes of the input row's artifact
 (when the row resolves), an x86_64 dylib with the install name the driver's weak load command names.
-With HD4000_PLANES_PROBE=PATH (hao-research's ycbcr-plane-texture probe, phase D): the probe passes with the
+With HD4000_PLANES_PROBE=PATH (the plane-texture probe, phase D): the probe passes with the
 library inserted, and shadows are made for exactly the surfaces whose plane pitches differ. The host GPU does not
 have the HD 4000 fault, so this shows the library acts where it should and breaks nothing, not that it fixes it.
 """

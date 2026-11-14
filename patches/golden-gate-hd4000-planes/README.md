@@ -12,7 +12,7 @@ most video) nothing goes wrong. When they differ, every reader (blit, `getBytes`
 writer of that plane uses the wrong rows. An example is 444f at 1182x664: plane 0 has 1216 bytes per row, plane 1
 has 2368.
 
-Measured on the laptop with hao-research's probe (`tests/diagnostics/ycbcr-plane-texture`), phase D: 444f,
+Measured on the laptop with the plane-texture probe, phase D: 444f,
 444f-cv and 420f with plane 1 padded fail; 444f with plane 0 padded to plane 1's pitch, and 420f, pass. Photos
 fills such a 444f surface on the GPU at every zoom and hands it to Core Animation's render server (WindowServer),
 which reads it.
@@ -77,4 +77,5 @@ phase D passed all five cases through the driver, and the `HD4000_PLANES=0` cont
 recipe has booted.
 
 ## Revisions
+- r2 2026-11-14 Wording: the probe is named without its repository. Installed bytes unchanged.
 - r1 2026-11-14 Initial recipe: libhd4000-planes.dylib and its weak load in the HD 4000 Metal driver (diag#0025).
