@@ -71,7 +71,7 @@ class FakeMac(LaptopMac):
             return b'Alice Example'
         if argv == ['uname', '-v']:
             return b'Darwin Kernel Version 27.2.0'
-        if argv[:2] == ['hdiutil', 'detach']:
+        if argv[:2] == ['hdiutil', 'detach'] or argv[:2] == ['diskutil', 'eject']:
             return b''
         if argv == ['diskutil', 'list', '-plist', 'internal', 'physical']:
             internal = [d for d in self.disks if self.disks[d].get('Internal') and
@@ -323,6 +323,8 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertIn('6 packs', text)
         self.assertIn('[3/3] Write the USB stick', text)
         self.assertIn('/Volumes/HAO/install', text)
+        self.assertIn('ejected: you can unplug it', text)
+        self.assertIn(['diskutil', 'eject', '/dev/disk4'], host.calls)
         self.assertEqual(writes(host), [])                # the fake writer touched no disk
 
     def test_write_failure_says_the_stick_is_incomplete(self):

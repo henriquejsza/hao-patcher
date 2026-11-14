@@ -367,9 +367,15 @@ def create_installer(a, c, host, acquire=None):
         if image:
             host.run(['hdiutil', 'detach', '/dev/' + disk], check=False, timeout=300)
     c.event('stick.written', stick=rec)
-    c.done(('stick image written: %s' % image) if image else
-           'the USB stick is ready: plug it into the Intel Mac, hold Option while it starts and choose EFI Boot; '
-           'in the Recovery open Terminal and run /Volumes/HAO/install', disk=disk)
+    if image:
+        c.done('stick image written: %s' % image, disk=disk)
+        return 0
+    # the writer leaves the stick unmounted; eject it, so the last line can say it may be unplugged
+    ejected = host.run(['diskutil', 'eject', '/dev/' + disk], check=False, timeout=300).returncode == 0
+    c.done('the USB stick is ready%s. On the Intel Mac: hold Option while it starts, choose EFI Boot, then in the '
+           'Recovery open Terminal and run /Volumes/HAO/install' % (
+               ' and ejected: you can unplug it' if ejected else
+               ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected)
     return 0
 
 
