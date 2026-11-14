@@ -35,12 +35,12 @@ Only built for 26B131.
 
 ## Validation
 
-NEEDS VALIDATION. r5's libargbuf ran as a live swap on laptop 1 (26B131, 2026-11-14 06:19-06:27): Weather's precipitation
-map no longer aborts (3 of 3 selections; before: abort each time its pass ran), its radar-coverage hatching draws, and the
-Temperature and Wind maps draw as before; precipitation colour itself was not seen (Weather finds no radar overlay in its map
-metadata: a data-side fault traced separately under diag#0002). r4's wrapper ran as a live swap (bench 0640): no GPU reset,
-WebGPU and WebGL readback right. r2's files were proven as a live swap on 2026-11-12 (Weather with all four maps, Safari
-WebGPU compute and render). No image built with this recipe has booted yet.
+NEEDS VALIDATION. Laptop test 2026-11-14, image f112087 (26B131) with r5's libargbuf: Weather's precipitation map no
+longer aborts (3 of 3 selections; before, it aborted each time its pass ran), its radar-coverage hatching draws, and the
+Temperature and Wind maps draw as before; the precipitation colour itself is not drawn yet (diag#0002, open). Laptop test
+2026-11-14, image f112087 (26B131) with r4's wrapper: no GPU reset, WebGPU and WebGL read back right. Laptop test
+2026-11-12 with r2's files: Weather with all four maps, Safari WebGPU compute and render. No image built with this recipe
+has booted yet.
 
 ## Revisions
 
