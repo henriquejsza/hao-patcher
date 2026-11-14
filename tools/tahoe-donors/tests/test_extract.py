@@ -87,6 +87,12 @@ class Donors(unittest.TestCase):
         self.assertEqual({i['family'] for i in recipe['cache_images']},set(recipe['os_cache']['families']))
         self.assertFalse(any(i['path'].startswith(r) for i in recipe['cache_images'] for r in recipe['system_roots']))
 
+    def test_intel_recipe_names_its_layout_beside_itself(self):
+        # donor-inputs resolves boot_layout against the recipe's folder; an absolute path would tie it to one checkout
+        recipe=json.loads((UNIT/'recipes/intel-donors.json').read_text())
+        self.assertFalse(Path(recipe['boot_layout']).is_absolute())
+        self.assertTrue((UNIT/'recipes'/recipe['boot_layout']).is_file())
+
     def test_missing_driverkit_is_explicit_failure(self):
         source=self.root/'cache';source.mkdir()
         with self.assertRaisesRegex(ValueError,'no x86_64 family'):
