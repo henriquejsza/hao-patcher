@@ -5,6 +5,7 @@ import runpy
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -69,6 +70,38 @@ class RecoveryToolsTest(unittest.TestCase):
             for tool in ('install ', 'shasum ', 'cmp ', 'readlink '):
                 self.assertFalse(code.lstrip().startswith(tool) or (' ' + tool) in code and 'for t in' not in code,
                                  line)
+
+    def test_assemble_stays_awake_before_any_long_step(self):
+        text = ASSEMBLE.read_text()
+        at = text.index('\nstay_awake\n')
+        self.assertLess(at, text.index('\nbootstrap || exit $?'))
+        self.assertIn('caffeinate -dimsu -w $$ &', text)
+        self.assertIn('recovery-tools.py" awake $$ &', text)
+
+    def test_awake_refuses_other_forms(self):
+        self.assertEqual(run('awake').returncode, 64)
+        self.assertEqual(run('awake', '-w', '1').returncode, 64)
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'IOKit power assertions')
+    def test_awake_holds_assertions_until_the_pid_exits(self):
+        sleeper = subprocess.Popen(['sleep', '30'])
+        helper = subprocess.Popen([sys.executable, '-I', str(TOOL), 'awake', str(sleeper.pid)],
+                                  stderr=subprocess.PIPE, text=True)
+        try:
+            listed = ''
+            for _ in range(50):
+                listed = subprocess.run(['pmset', '-g', 'assertions'], capture_output=True, text=True).stdout
+                if 'hao install: assembling the macOS image' in listed:
+                    break
+                time.sleep(0.2)
+            mine = [l for l in listed.splitlines() if 'pid %d(' % helper.pid in l]
+            self.assertTrue(any('PreventUserIdleSystemSleep' in l for l in mine), listed)
+            self.assertIsNone(helper.poll())
+        finally:
+            sleeper.kill(); sleeper.wait()
+        code = helper.wait(timeout=15)
+        err = helper.stderr.read(); helper.stderr.close()
+        self.assertEqual(code, 0, err)
 
 
 if __name__ == '__main__':

@@ -30,6 +30,19 @@ case $(uname -m) in
 esac
 [ -f "$G/kit.json" ] || { echo "golden-assemble.sh: $G has no kit.json" >&2; exit 2; }
 [ -x "$G/$PYDIR/bin/python3.12" ] || { echo "golden-assemble.sh: the kit has no $PYDIR/ CPython" >&2; exit 2; }
+# The Mac stays awake until this script exits: a Recovery idle-sleeps after about ten minutes without input
+# (bench2 2355: a QEMU install slept 10.5 min in and did not come back). caffeinate where the Mac has it, otherwise the
+# kit's recovery-tools (IOKit assertions); either one watches this shell's pid and ends with it.
+stay_awake() {
+    if command -v caffeinate >/dev/null 2>&1; then
+        caffeinate -dimsu -w $$ &
+        echo "golden-assemble.sh: caffeinate -dimsu keeps this Mac awake until the assembly ends (pid $!)"
+    else
+        "$G/$PYDIR/bin/python3.12" -I "$G/assembly-source/recovery-tools.py" awake $$ &
+        echo "golden-assemble.sh: no caffeinate on this Mac: hao's recovery-tools keeps it awake (pid $!)"
+    fi
+}
+stay_awake
 # mkdir, not install: a macOS Recovery has no /usr/bin/install (nor shasum, cmp, readlink: see recovery_tools below)
 mkdir -p "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
 chmod 755 "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?

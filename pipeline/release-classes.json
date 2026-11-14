@@ -60,6 +60,14 @@
    ],
    "reason": "libmetal-framebuffer.dylib compiled from patches/golden-gate-metal-framebuffer/build/src (our source), the only file the recipe installs; the folder's build intermediates and build.json are left out (they hold the builder's home-folder paths)"
   },
+  "hd4000_planes": {
+   "class": "ours",
+   "publish": "tar",
+   "include": [
+    "libhd4000-planes.dylib"
+   ],
+   "reason": "libhd4000-planes.dylib compiled from patches/golden-gate-hd4000-planes/build/hd4000_planes.m (our source) by build/make, which reproduces it byte for byte, the only file the recipe installs; build.json is left out"
+  },
   "metal_argbuf": {
    "class": "ours",
    "publish": "tar",

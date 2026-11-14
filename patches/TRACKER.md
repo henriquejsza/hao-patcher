@@ -15,7 +15,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-hd4000-planes | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-14 Wording: the probe is named without its repository. Installed bytes unchanged. |
+| golden-gate-hd4000-planes | r2 | oclp-hook | product |  | x |  |  |  | **needs** | r2 2026-11-14 Wording: the probe is named without its repository. Installed bytes unchanged. |
 | golden-gate-hello | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
