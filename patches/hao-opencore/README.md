@@ -189,6 +189,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r60 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e tree (hao-runtime-26B131-20261113-399e78e32376, tag v0.1.0-beta.1): Optional witness nils returned to native as a callback result (diag#0001). No recipe change.
 - r59 2026-11-13 Documentation only: the declared `boot-args` reason no longer says the Intel commpage reports Apple-internal CSR (dropped in r52), and the page names tests as laptop tests on an image. `apply.sh` and what it writes are unchanged.
 - r58 2026-11-13 Input rows `kernel_repair_efi` and `kernel_repair_binding` (26B131) now name kernel-repairs-26B131-r42-53815151 and kernel-binding-26B131-r42-53815151, rebuilt at 53815151 so build.json names its inputs as `store/...` paths instead of the builder's home folder. `EFI/` (config.plist, IntelCommpage.kext) is byte-identical to r42's; the binding profile differs only in the producer commit and its pin of the new build.json. Installed bytes unchanged: the two recorded 2026-11-13 26B131 images' BootKCs bind to exactly their config.plist (tests/test_kc_bind.py with the new rows).
 - r57 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 1de47eb tree (hao-runtime-26B131-20261113-1de47eb87a7f): the ControlCenter GridSizes and Displayable refusals fixed (2b19233) and the stub skeletons (1de47eb). No recipe change.

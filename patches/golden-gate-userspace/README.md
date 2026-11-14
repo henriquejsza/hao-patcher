@@ -342,6 +342,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r73 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e tree (hao-runtime-26B131-20261113-399e78e32376, tag v0.1.0-beta.1): Optional witness nils returned to native as a callback result (diag#0001). No recipe change.
 - r72 2026-11-13 Documentation only: tests are cited as laptop tests on an image, and the cache-dylib tool is named without its repository. The hook and what it installs are unchanged.
 - r71 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 1de47eb tree (hao-runtime-26B131-20261113-1de47eb87a7f): the ControlCenter GridSizes and Displayable refusals fixed (2b19233) and the stub skeletons (1de47eb). No recipe change.
 - r70 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 9dce413 tree (hao-runtime-26B131-20261113-9dce4138ddfa): the ControlCenter crash fix and f66403c's float-HFA stack fix. No recipe change.
