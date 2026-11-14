@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-38 of 41 patches declare their files so far.
+39 of 42 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -54,6 +54,13 @@ Revision r4, status dev. [Recipe](../patches/dev-diagnostics/README.md)
      OpenCore's log goes to a file on the EFI partition (0x41), nothing on screen, so a bench boot's early evidence can be collected from Recovery; an end-user image writes no OpenCore log.
   3. `opencore-log-info-lines`: plist.set Misc:Debug:DisplayLevel = 2147483714.
      The file log includes OpenCore's info lines (DisplayLevel 0x40).
+
+## golden-gate-appstore-slices
+
+Revision r1, status product. [Recipe](../patches/golden-gate-appstore-slices/README.md)
+
+- `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
+- `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
 
 ## golden-gate-corespotlight-compat
 

@@ -1,0 +1,27 @@
+{
+ "revision": 1,
+ "stage": "post",
+ "applies": "any",
+ "inputs": [
+  "appstore_slice_guard"
+ ],
+ "status": "product",
+ "validated": false,
+ "files": [
+  {
+   "path": "usr/local/libexec/hao-slice-guard",
+   "origin": {
+    "kind": "hao",
+    "row": "appstore_slice_guard",
+    "note": "Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755"
+   }
+  },
+  {
+   "path": "Library/LaunchDaemons/org.hao.slice-guard.plist",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644"
+   }
+  }
+ ]
+}

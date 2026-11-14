@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""patches/golden-gate-appstore-slices/build/make OUTPUT_PARENT
+
+Builds hao-slice-guard (x86_64, ad hoc signed) from slice_guard.c into a new artifact folder
+OUTPUT_PARENT/appstore-slices-YYYYMMDD-<source sha256 12> with build.json (source and output sha256, compiler, flags).
+Compiles from this folder with the source named relatively, so the same source and compiler give the same bytes.
+Run with `python3.14 -I`. The tests build the same source for the host's own architecture (build(..., arch)).
+"""
+import datetime
+import hashlib
+import json
+import pathlib
+import subprocess
+import sys
+
+HERE = pathlib.Path(__file__).resolve().parent
+SOURCE = 'slice_guard.c'
+OUTPUT = 'hao-slice-guard'
+CFLAGS = ['-mmacosx-version-min=13.0', '-Os', '-Wall', '-Wextra', '-Werror']
+FRAMEWORKS = ['CoreFoundation']
+
+
+def sha256(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def run(cmd, **kw):
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, **kw)
+
+
+def build(out_dir, arch='x86_64'):
+    """compile and sign into OUT_DIR/hao-slice-guard; returns its path and the command as recorded"""
+    out = pathlib.Path(out_dir) / OUTPUT
+    cmd = ['xcrun', 'clang', '-arch', arch, *CFLAGS, *[a for f in FRAMEWORKS for a in ('-framework', f)],
+           '-o', str(out), SOURCE]
+    run(cmd, cwd=HERE)
+    run(['codesign', '-s', '-', '-f', '-i', 'org.hao.slice-guard', str(out)])
+    return out, [OUTPUT if c == str(out) else c for c in cmd]
+
+
+def main(parent):
+    src = sha256(HERE / SOURCE)
+    dest = pathlib.Path(parent).resolve() / f'appstore-slices-{datetime.date.today():%Y%m%d}-{src[:12]}'
+    if dest.exists():
+        sys.exit(f'{dest} exists; refusing to overwrite')
+    dest.mkdir(parents=True)
+    out, cmd = build(dest)
+    record = dict(unit='patches/golden-gate-appstore-slices/build', source=SOURCE, source_sha256=src,
+                  output=OUTPUT, output_sha256=sha256(out),
+                  compiler=run(['xcrun', 'clang', '--version']).stdout.splitlines()[0], command=cmd,
+                  date=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'))
+    (dest / 'build.json').write_text(json.dumps(record, indent=2) + '\n')
+    print(dest)
+    print(record['output_sha256'], OUTPUT)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    main(sys.argv[1])

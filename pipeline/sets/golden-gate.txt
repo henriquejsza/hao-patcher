@@ -19,3 +19,4 @@ golden-gate-metal-framebuffer     # framebuffer reads for RenderBox symbols (Wi-
 golden-gate-native-identities     # Apple originals of the native programs the image re-signed ad hoc + /usr/lib/hao/native-identities, for golden-gate-userspace's code identity carrier. Last oclp-hook: after every recipe that re-signs
 # post entries (apply.sh, after the snapshot, System read-only):
 hao-opencore                      # OpenCore: kernel repairs bound to this image's BootKC, IntelCommpage, HaoExec, early display/Ethernet kexts, boot-args
+golden-gate-appstore-slices       # App Store slice guard: logs each Mach-O without x86_64 in a universal App Store app after install or update (Data: tool + LaunchDaemon)

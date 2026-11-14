@@ -7,6 +7,14 @@
   "mbp92": false
  },
  "rows": {
+  "appstore_slice_guard": {
+   "class": "ours",
+   "publish": "tar",
+   "include": [
+    "hao-slice-guard"
+   ],
+   "reason": "hao-slice-guard compiled from patches/golden-gate-appstore-slices/build/slice_guard.c (our source) by build/make, the only file the recipe installs; build.json is left out"
+  },
   "codeid_carrier": {
    "class": "ours",
    "publish": "tar",
