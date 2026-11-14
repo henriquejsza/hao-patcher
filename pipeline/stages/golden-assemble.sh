@@ -30,6 +30,17 @@ case $(uname -m) in
 esac
 [ -f "$G/kit.json" ] || { echo "golden-assemble.sh: $G has no kit.json" >&2; exit 2; }
 [ -x "$G/$PYDIR/bin/python3.12" ] || { echo "golden-assemble.sh: the kit has no $PYDIR/ CPython" >&2; exit 2; }
+# HAO_RECOVERY_COMMANDS=FILE (golden-run --recovery-commands, tests): only the commands FILE lists (a Recovery's
+# /bin, /sbin, /usr/bin, /usr/sbin, /usr/libexec) are on PATH, as in the target's Recovery, so a command the Recovery
+# lacks fails here too. Calls by absolute path are checked by pipeline/tests/test_recovery_commands.py.
+if [ -n "${HAO_RECOVERY_COMMANDS:-}" ]; then
+    mkdir -p "$W/recovery-only" || exit $?
+    grep -v '^#' "$HAO_RECOVERY_COMMANDS" | while read -r c; do
+        [ -n "$c" ] && [ -e "$c" ] && ln -sf "$c" "$W/recovery-only/${c##*/}"
+    done
+    PATH="$W/recovery-only"; export PATH
+    echo "golden-assemble.sh: PATH holds only the commands of $HAO_RECOVERY_COMMANDS"
+fi
 # The Mac stays awake until this script exits: a Recovery idle-sleeps after about ten minutes without input
 # (bench2 2355: a QEMU install slept 10.5 min in and did not come back). caffeinate where the Mac has it, otherwise the
 # kit's recovery-tools (IOKit assertions); either one watches this shell's pid and ends with it.

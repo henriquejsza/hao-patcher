@@ -53,6 +53,14 @@ python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json --repo /
 The [assembly](../pipeline/assemblies/mbp92-26B131.json) selects target, OS and donor
 builds, image sizes, donor rows and the patch set.
 
+The VM runs the same `pipeline/stages/golden-assemble.sh` that `hao install` runs in the target's Recovery.
+That Recovery (Tahoe 25G342) has fewer commands than a full macOS. The ones it has are listed in
+`pipeline/stages/recovery-commands-25G342.txt`. `install`, `shasum`, `cmp` and `readlink` are missing, and the
+kit's `recovery-tools.py` stands in for them. `rsync` is missing too, so the assembly uses `ditto`.
+`pipeline/tests/test_recovery_commands.py` checks every command the install path runs against that list.
+`golden-run --recovery-commands` builds in the VM with only those commands on PATH, as the stick's install does.
+The assembly also holds a sleep assertion for its whole run (`caffeinate`, or `recovery-tools.py awake`).
+
 ### Layer order
 
 Defined by `LAYERS` in [`golden-image.py`](../pipeline/stages/golden-image.py). Each layer goes
