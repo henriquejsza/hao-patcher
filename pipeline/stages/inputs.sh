@@ -63,6 +63,8 @@ for arch dir in arm64 py x86_64 py-x86_64; do
     [[ -x $PY/python/bin/python3.12 ]] || { rm -rf $PY; mkdir -p $PY; tar -xzf $(common python_$arch) -C $PY; }
     ditto $PY/python $SHARE/$dir
 done
+# the x86_64 one runs in a Recovery (hao install from the stick), whose shared cache has no libedit/ncurses/panel
+python3 -I $TOP/pipeline/stages/weaken-dylibs.py $SHARE/py-x86_64/bin/python3.12
 ditto $(common python_site) $SHARE/site
 
 # A patch input: the Golden Gate build's row (GOLDEN_LOCK, golden-first only), else the donor build's, else common's.
