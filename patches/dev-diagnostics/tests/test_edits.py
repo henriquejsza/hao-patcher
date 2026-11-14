@@ -57,7 +57,11 @@ class Edits(unittest.TestCase):
     def test_script_and_spec_agree(self):
         data = end_user_config()
         out, _ = engine.apply(SPEC, data, repo=str(TOP))
-        self.assertEqual(plistlib.loads(out), plistlib.loads(run('dev-diagnostics', data)))
+        script_out = plistlib.loads(run('dev-diagnostics', data)); declared = plistlib.loads(out)
+        # csr-active-config is a data value, which plist.set cannot declare yet: the script alone writes it.
+        self.assertEqual(script_out['NVRAM']['Add'][APPLE].pop('csr-active-config'), b'\x27\x08\x00\x00')
+        self.assertEqual(declared['NVRAM']['Add'][APPLE].pop('csr-active-config'), b'\x03\x08\x00\x00')
+        self.assertEqual(declared, script_out)
 
     def test_adds_only_the_measurement_settings(self):
         before = plistlib.loads(end_user_config())
@@ -71,6 +75,10 @@ class Edits(unittest.TestCase):
         for k in ('Target', 'DisplayLevel'):
             after['Misc']['Debug'].pop(k), before['Misc']['Debug'].pop(k)
         after['NVRAM']['Add'][APPLE].pop('boot-args'), before['NVRAM']['Add'][APPLE].pop('boot-args')
+        # SIP: the end-user value plus task-for-pid and unrestricted DTrace, nothing else (never Apple internal, 0x10)
+        self.assertEqual(before['NVRAM']['Add'][APPLE].pop('csr-active-config'), b'\x03\x08\x00\x00')
+        self.assertEqual(after['NVRAM']['Add'][APPLE].pop('csr-active-config'), b'\x27\x08\x00\x00')
+        self.assertIn('csr-active-config', after['NVRAM']['Delete'][APPLE])   # OpenCore replaces a stored value
         self.assertEqual(after, before)
 
     def test_idempotent(self):

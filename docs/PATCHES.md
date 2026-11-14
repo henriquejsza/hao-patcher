@@ -43,7 +43,7 @@ Revision r4, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-diagnostics
 
-Revision r3, status dev. [Recipe](../patches/dev-diagnostics/README.md)
+Revision r4, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
   1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
