@@ -14,3 +14,5 @@ b627e8b30636891a9ddeb00c337d91b6fddaef8080f915b5e6f21f7d17d38d8f	/System/Library
 3c34fbf119b1a647d1ee79d025e86e2c230964fc6d1c728e8f0fa04812e0c315	/usr/lib/hao/libpxtrace.dylib	dropped: diag#0025 trace tool v4 (in-process texture and surface trace for Photos); diagnostic only, never part of an image
 cf5bd4762bd80f540f6db259aa8c50080d3c55884d4d12a5d0f37ce178f59ae9	/usr/lib/hao/libpxtrace.dylib	dropped: diag#0025 trace tool v5 with the shadow-texture test mode; diagnostic only, the fix itself will ship as a recipe
 ddc6c9c8e12c2d979bdd07f174d511bdef29e2f1249456ef1f5c822adc2f9e8f	/usr/lib/hao/libpxtrace.dylib	dropped: diag#0025 trace tool v6 (adds where a planar surface is handed to: layer contents, mach port, use count); diagnostic only
+fee66603f0ae5a3d130bc89cd345f077249ee2e7ce9b389ac63cbdaea79dd957	/usr/lib/libhd4000-planes.dylib	recipe golden-gate-hd4000-planes
+1a9763f55ea63ed6aa6724929445fafe8313243bad45f16f8900fc398fc8b5f5	/System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver	recipe golden-gate-hd4000-planes
