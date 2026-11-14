@@ -52,9 +52,12 @@ def command(run, esp, name, ssh_port, memory, sockets, usb_disks=0):
     USB_DISKS: that many USB mass-storage disks on the xHCI bus, RUN/usbN.qcow2 (the installer stick)."""
     r = str(run)
     usb = []
+    # Two or more disks: QEMU put the second behind an automatic hub (port 4.1), which the Recovery did not enumerate
+    # (bench 0745 R). Then the xHCI gets 8 USB 2 ports and each disk its own root port (5, 6, ...).
+    many = usb_disks > 1
     for n in range(usb_disks):
         usb += ['-drive', 'id=usb%d,if=none,format=qcow2,file=%s/usb%d.qcow2' % (n, r, n),
-                '-device', 'usb-storage,bus=xhci.0,drive=usb%d,removable=on' % n]
+                '-device', 'usb-storage,bus=xhci.0,drive=usb%d,removable=on%s' % (n, ',port=%d' % (5 + n) if many else '')]
     return [QEMU, '-name', name, '-machine', 'q35', '-accel', 'tcg,thread=multi',
             '-cpu', 'IvyBridge,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on',
             '-smp', '4,sockets=1,cores=2,threads=2', '-m', memory,
@@ -64,7 +67,8 @@ def command(run, esp, name, ssh_port, memory, sockets, usb_disks=0):
             '-device', 'ide-hd,bus=ide.0,drive=esp,bootindex=0',
             '-drive', 'id=system,if=none,format=qcow2,file=%s/guest.qcow2' % r,
             '-device', 'ide-hd,bus=ide.1,drive=system',
-            '-device', 'qemu-xhci,id=xhci', '-device', 'usb-kbd,bus=xhci.0', '-device', 'usb-tablet,bus=xhci.0',
+            '-device', 'qemu-xhci,id=xhci' + (',p2=8,p3=8' if many else ''),
+            '-device', 'usb-kbd,bus=xhci.0', '-device', 'usb-tablet,bus=xhci.0',
             ] + usb + [
             '-vga', 'std',
             '-nic', 'user,model=vmxnet3,restrict=on,hostfwd=tcp:127.0.0.1:%d-:22,id=sshnet' % ssh_port,
