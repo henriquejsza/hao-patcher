@@ -43,5 +43,29 @@ class Storage(unittest.TestCase):
             'pass_stencil_store': 'no', 'pass_depth_resolve': 'no'})
 
 
+    def test_weather_cpu_stencil(self):
+        # Weather's pattern on the host GPU with the adaptations installed on its classes: the MSAA Stencil8 target goes
+        # Private, the CPU mask upload is emulated (staging + per-bit stencil passes), getBytes reads the staging copy, and
+        # the overlay pass (separate Depth32Float depth, stencil Load) gets a packed texture filled from the CPU copy
+        with tempfile.TemporaryDirectory() as t:
+            lib, probe = Path(t) / 'libargbuf.dylib', Path(t) / 'weather_stencil_probe'
+            subprocess.run(['xcrun', 'clang', *X86, '-fobjc-arc', '-O1', '-Wall', '-Wextra', '-Wno-unused-parameter',
+                            '-Wno-protocol', '-Wno-mismatched-parameter-types', '-Wl,-no_warn_inits', '-dynamiclib',
+                            str(SRC / 'argbuf.m'), str(SRC / 'astc.m'), str(SRC / 'argbuf_tramp.s'),
+                            '-framework', 'Foundation', '-framework', 'Metal', '-late', '-o', str(lib)], check=True)
+            subprocess.run(['xcrun', 'clang', *X86, '-fobjc-arc', str(HERE / 'weather_stencil_probe.m'), str(lib),
+                            '-framework', 'Foundation', '-framework', 'Metal', '-o', str(probe)], check=True)
+            for f in (lib, probe):
+                subprocess.run(['codesign', '-f', '-s', '-', str(f)], check=True, capture_output=True)
+            r = subprocess.run([str(probe)], capture_output=True, text=True, env={'AGB_LOG': '1'})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        got = dict(line.split(None, 1) for line in r.stdout.splitlines() if ' ' in line)
+        self.assertEqual(got.get('blocks_ok'), '64/64', r.stdout + r.stderr)
+        self.assertEqual(got.get('getbytes_ok'), 'yes', r.stdout)
+        self.assertEqual(got.get('storage'), str(2), r.stdout)   # MTLStorageModePrivate
+        for line in ('texture', 'CPU stencil upload', 'pipeline depth 252 + stencil 253', 'loads a CPU-written stencil'):
+            self.assertIn(line, r.stderr, r.stderr)
+
+
 if __name__ == '__main__':
     unittest.main()
