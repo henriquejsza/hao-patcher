@@ -252,43 +252,78 @@
   },
   "tahoe_native_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace"
    ],
-   "reason": "Tahoe (25G342) userspace donor files extracted from Apple's installer"
+   "reason": "Tahoe (25G342) userspace donor files extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements <the 26B131 minimal requirements> --kdk {kdk} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_extensions_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace"
    ],
-   "reason": "Tahoe Intel kexts extracted from Apple's installer"
+   "reason": "Tahoe Intel kexts extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements <the 26B131 minimal requirements> --kdk {kdk} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_driverkit_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace"
    ],
-   "reason": "Tahoe DriverKit extensions extracted from Apple's installer"
+   "reason": "Tahoe DriverKit extensions extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements <the 26B131 minimal requirements> --kdk {kdk} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_recovery_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace"
    ],
-   "reason": "Tahoe Recovery donor files extracted from Apple's installer"
+   "reason": "Tahoe Recovery donor files extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements <the 26B131 minimal requirements> --kdk {kdk} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_boot_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace"
    ],
-   "reason": "Tahoe Intel boot files (boot.efi, BuildManifests) extracted from Apple's installer"
+   "reason": "Tahoe Intel boot files (boot.efi, BuildManifests) extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements <the 26B131 minimal requirements> --kdk {kdk} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_kmutil": {
    "class": "made-on-mac",

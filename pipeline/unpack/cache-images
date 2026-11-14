@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""cache-images: the image paths of an x86_64 dyld shared cache, one per line: donor-inputs' --target-cache-images.
+
+  cache-images list CACHE OUT          CACHE = the main dyld_shared_cache_x86_64 file (its subcaches are not needed:
+                                       the image table is in the main file)
+  cache-images dmg ROSETTA_DMG OUT     the same from Golden Gate's Rosetta cryptex image (golden_gate_userspace's
+                                       rosetta.dmg), attached read-only at a new mount point and detached again
+
+Golden Gate itself is arm64-only; its x86_64 code is in the Rosetta cryptex's x86_64 shared cache. donor-inputs picks
+a Tahoe donor root only where Golden Gate supplies no x86_64 code for it, on disk (--target-system) or in that cache
+(this list). Paths are written without the leading slash, sorted, one per line; the result depends only on the cache.
+Standard library only, Python 3.9+; no root.
+"""
+import os
+from pathlib import Path
+import struct
+import subprocess
+import sys
+import tempfile
+
+MAGIC = b'dyld_v1'
+IMAGES = 448              # modern dyld_cache_header: imagesOffset, imagesCount (uint32 each)
+OLD_IMAGES = 0x18         # mappingOffset/mappingCount at 0x10, imagesOffset/imagesCount at 0x18 (pre-2021 caches)
+
+
+def images(cache):
+    """Sorted image paths of the dyld shared cache CACHE (x86_64)."""
+    with open(cache, 'rb') as f:
+        head = f.read(512)
+        if not head.startswith(MAGIC) or b'x86_64' not in head[:16]:
+            raise ValueError('%s: not an x86_64 dyld shared cache' % cache)
+        offset, count = struct.unpack_from('<II', head, IMAGES)
+        if not offset or not count:
+            offset, count = struct.unpack_from('<II', head, OLD_IMAGES)
+        f.seek(offset)
+        table = f.read(count * 32)
+        if len(table) != count * 32:
+            raise ValueError('%s: image table runs past the file' % cache)
+        out = set()
+        for row in range(count):
+            name = struct.unpack_from('<QQQII', table, row * 32)[3]
+            f.seek(name)
+            raw = f.read(1024).split(b'\0', 1)[0].decode()
+            if not raw.startswith('/'):
+                raise ValueError('%s: image %d has no absolute path (%r)' % (cache, row, raw[:60]))
+            out.add(raw.lstrip('/'))
+    return sorted(out)
+
+
+def write(paths, out):
+    out = Path(out)
+    if out.exists():
+        raise ValueError('%s exists' % out)
+    out.write_text(''.join(p + '\n' for p in paths))
+
+
+def from_dmg(dmg, out):
+    mnt = Path(tempfile.mkdtemp(prefix='cache-images-'))
+    try:
+        r = subprocess.run(['hdiutil', 'attach', '-readonly', '-nobrowse', '-noautoopen', '-noverify', '-mountpoint',
+                            str(mnt), str(dmg)], capture_output=True, text=True)
+        if r.returncode:
+            raise ValueError('hdiutil attach %s failed: %s' % (dmg, r.stderr.strip()))
+        try:
+            write(images(mnt / 'System' / 'Library' / 'dyld' / 'dyld_shared_cache_x86_64'), out)
+        finally:
+            subprocess.run(['hdiutil', 'detach', str(mnt)], capture_output=True)
+    finally:
+        try:
+            mnt.rmdir()
+        except OSError:
+            pass
+
+
+def main(argv):
+    if len(argv) == 3 and argv[0] == 'list':
+        write(images(argv[1]), argv[2])
+    elif len(argv) == 3 and argv[0] == 'dmg':
+        from_dmg(argv[1], argv[2])
+    else:
+        print(__doc__, file=sys.stderr)
+        return 2
+    print('cache-images: %s (%d images)' % (argv[2], sum(1 for _ in open(argv[2]))))
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except ValueError as x:
+        sys.exit('cache-images: %s' % x)
