@@ -213,7 +213,7 @@ class Declaration(unittest.TestCase):
     def test_cache_specs_follow_install_py_order_and_do_not_overlap(self):
         planners = ['legacy-trackpad-v3', 'endpoint-security-selectors', 'core-routine-console-uid',
                     'mps-matrix-initializer', 'audio-no-console-notification', 'swift-conformance-types',
-                    'code-identity-carrier']   # install.py applies them in this order to each cache file
+                    'code-identity-carrier', 'prespecialization-overrides']   # install.py applies them in this order to each cache file
         names = set()
         for path, (name, spec) in BY_PATH.items():
             if not path.startswith(CACHE):
@@ -265,6 +265,7 @@ def plan_all(cache_dir, reference, carrier):
     import core_routine
     import endpoint_security
     import legacy_trackpad
+    import prespecialization
     import swift_refs
     out = {}
 
@@ -283,6 +284,7 @@ def plan_all(cache_dir, reference, carrier):
     add('swift-conformance-types', swift_refs.plan_cache_family(cache_dir, reference=reference))
     plan, _ = codeid_carrier.plan_cache_family(cache_dir, carrier)
     add('code-identity-carrier', plan)
+    add('prespecialization-overrides', prespecialization.plan_cache_family(cache_dir))
     return out
 
 

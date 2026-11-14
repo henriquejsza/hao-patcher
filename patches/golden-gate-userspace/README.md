@@ -61,7 +61,7 @@ Tahoe's copies of those frameworks first.
 edit specs ([tools/edit-engine](../../tools/edit-engine/README.md)); `patches.py explain golden-gate-userspace` prints
 them. The in-cache repairs are `matcher` specs with their sites resolved for the 26B131 cache (`cache-*.json`, in the
 OS cryptex where the running system grafts it: trackpad V3, EndpointSecurity selectors, CoreRoutine, the MPSMatrix
-initializer, audiomxd, the Swift conformance references and the code identity carrier), followed by the 4 KiB
+initializer, audiomxd, the Swift conformance references, the code identity carrier and the Swift prespecialization switch), followed by the 4 KiB
 re-signing; the two cryptex images are `cryptex.build` specs (`cryptex-os.json`, `cryptex-app.json`) and each of the 26
 stubs is a `hao.embed-stub` spec (`embed-*.json`). `hybridsearchd-job.json` and `launchd-job-cache.json` are
 `plist.set`; the three renamed wrappers (`io80211-oclp.json`, `wifip2p-oclp.json`, `corewifi-tahoe.json`) and
@@ -88,6 +88,40 @@ tables) and the install stops on any bad reference.
 ```sh
 python3.14 -I patches/golden-gate-userspace/src/swift_refs.py X86_64_CACHE_DIR            # verify
 python3.14 -I patches/golden-gate-userspace/src/swift_refs.py X86_64_CACHE_DIR --plan --reference ARM64E_CACHE_DIR
+```
+
+### Swift prespecialized metadata
+libswiftCore turns its prespecialized metadata off for the whole process when
+`_dyld_shared_cache_some_image_overridden()` is true, and on this image it always is. dyld scans the disk for roots
+(golden-gate-dyld-internal), and files sit at cache install paths:
+- OCLP's Metal, AppleGVA, AppleGVACore, IO80211, WiFiPeerToPeer and MultitouchHID;
+- this recipe's CoreWiFi compat library;
+- Apple's own `libsystem_{kernel,platform,pthread}`.
+
+It was measured on the test laptop: "Disabling prespecialized metadata, dyld_shared_cache_some_image_overridden = 1".
+The edits in `src/prespecialization-26B131.json` keep the metadata on. The shared-cache generator made them
+(`make prespecialization-overrides`) for the pristine 26B131 cache (UUID 262FA161...).
+`src/prespecialization.py` plans them, checking the UUID and every site's bytes, and `cryptex.py` applies them with
+the other cache repairs before the 4 KiB re-sign. There are two kinds:
+- **main:** the two calls that read the switch (libPrespecializedImageLoaded, the LibPrespecializedState setup) become
+  `xor eax, eax; nop`;
+- **.06:** the 113 descriptor-map slots of LibPrespecializedData whose descriptor lies in an overridden image (111 in
+  CoreWiFi, 2 in WiFiPeerToPeer) are nulled, with their chain delta kept. An empty slot sends the name down the
+  runtime's ordinary path, so a lookup never returns the cache copy's descriptor for a library that is loaded from
+  disk.
+
+The third reader, the conformance-block callback, is left alone. dyld's conformance table is not valid for an
+overridden image with `__swift5_proto`, and 452 of its rows reference CoreWiFi.
+
+**Gate.** The edits are right only for the set of overridden images they were made for. For that set of 10 images,
+The generator's check found that 0 of 2,762 Apple entries and 0 of 1,282 catalog keys have a descriptor, argument or value
+in one of them. `install.py` (`prespecialization.gate`) lists every image of the x86_64 cache family whose file
+exists on the built System (dyld itself does not count) and stops the build unless the list equals the recorded one.
+A changed list means the edits have to be made again with the tool. The data file is part of the cryptex cache key.
+
+```sh
+python3.14 -I patches/golden-gate-userspace/src/prespecialization.py plan X86_64_CACHE_DIR
+python3.14 -I patches/golden-gate-userspace/src/prespecialization.py gate SYSTEM_ROOT X86_64_CACHE_DIR
 ```
 
 ### IO80211
@@ -284,6 +318,8 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/tests
 python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/build/tests
 # code identity carrier: HAO_RUNTIME = hao-runtime checkout (runs it); CODEID_CACHE = an image cache folder (plans it)
 HAO_RUNTIME=... CODEID_CACHE=.../System/Library/dyld python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/tests -k codeid
+# Swift prespecialization edits on the pristine cache (and all cache declarations with the arm64e cache and carrier)
+USERSPACE_X86_CACHE=.../dyld python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/tests -k prespecialization
 # cryptex cache: CRYPTEX_CACHE_IMAGE = a built sealed os.dmg (read-only), CRYPTEX_CACHE_SCRATCH = a folder with room
 CRYPTEX_CACHE_IMAGE=.../cryptex1/current/os.dmg python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/tests -k cryptex_cache
 python3.14 -I patches/golden-gate-userspace/src/cryptex_cache.py key patches/golden-gate-userspace/src   # the code lines
@@ -310,7 +346,7 @@ creation logs in automatically (authd accepts loginwindow's `FUSAutologinDataKey
 unlisted ad hoc one.
 
 ## Validation
-NEEDS VALIDATION: r64 moves the image code into `src/cryptex.py` and adds the cryptex cache; the images it builds are
+NEEDS VALIDATION: r75 (Swift prespecialization edits and gate) has only host tests: on the pristine 26B131 caches the declared sites equal the planner and the engine applies them; no image has been built with it. Before that, r64 moves the image code into `src/cryptex.py` and adds the cryptex cache; the images it builds are
 made by the same code as r63, and a reused one equals the stored one (host tests, including a 26 GB image from a
 built 26B131 image). VM build 2026-11-13 (dev-26B131, from-overlays, empty cache): a miss, built and stored in 18 s
 (guest copy) plus 9 s (host sha256 check); the hook took 318 s (340 s before). The hit path has run only in host
@@ -342,6 +378,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r75 2026-11-14 Swift prespecialized metadata stays on in every process: in the x86_64 cache the two reads of `_dyld_shared_cache_some_image_overridden()` in libswiftCore answer false, and the 113 descriptor-map slots of overridden images (CoreWiFi, WiFiPeerToPeer) are emptied (`src/prespecialization.py`, data from the shared-cache generator). The build stops unless the image overrides exactly the 10 cache images the edits were made for. The OS cryptex's bytes change.
 - r74 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime bd08b64 tree (hao-runtime-26B131-20261114-bd08b64a1563; libhao ffa4eeb6, the bytes proven on laptop 1 for Control Center): Finder (diag#0032), mds, the Control Center warm and cold-open fixes, native stack per callback level (diag#0005). No recipe change.
 - r73 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e tree (hao-runtime-26B131-20261113-399e78e32376, tag v0.1.0-beta.1): Optional witness nils returned to native as a callback result (diag#0001). No recipe change.
 - r72 2026-11-13 Documentation only: tests are cited as laptop tests on an image, and the cache-dylib tool is named without its repository. The hook and what it installs are unchanged.

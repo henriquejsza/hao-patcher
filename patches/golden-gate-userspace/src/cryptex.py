@@ -21,6 +21,7 @@ from endpoint_security import plan_cache_family as endpoint_plan
 from core_routine import plan_cache_family as routine_plan
 import swift_refs
 from codeid_carrier import plan_cache_family as codeid_plan
+import prespecialization
 import cryptex_stubs
 
 
@@ -296,6 +297,12 @@ def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, dono
         # Apple-signed reference (/usr/lib/hao/stub-identities, native-identities).
         carrier, counts['code_identity_carrier'] = codeid_plan(mount/'System/Library/dyld', codeid_carrier)
         for path, changes in carrier.items():
+            trackpad_plan.setdefault(path, []).extend(changes)
+        # Swift prespecialized metadata stays on although files override cache images (src/prespecialization.py;
+        # install.py's gate checks the image overrides exactly the images these edits were made for).
+        prespecialized = prespecialization.plan_cache_family(mount/'System/Library/dyld')
+        counts['prespecialization_overrides'] = {path.name: len(changes) for path, changes in prespecialized.items()}
+        for path, changes in prespecialized.items():
             trackpad_plan.setdefault(path, []).extend(changes)
         resigned = []
         for cache in sorted((mount/'System/Library/dyld').glob('dyld_shared_cache_x86_64*')):

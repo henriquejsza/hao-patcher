@@ -215,7 +215,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-user-seed/README
 
 ## golden-gate-userspace
 
-Revision r74, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r75, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -241,10 +241,12 @@ Revision r74, status experiment. [Recipe](../patches/golden-gate-userspace/READM
      Tahoe's WindowServer takes the 27.x WindowServer's embedded Info.plist (same __TEXT,__info_plist section, in each slice): 27.x's SkyLight listens on a BoardServices service that only the 27.x plist declares, and Tahoe's launcher otherwise traps.
   2. `load-dss-shim`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/dss_shim.dylib.
      WindowServer loads the display-state shim, which supplies the flag byte 27.x's clients need and the x86_64 server omits.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 2 edits, applied by the installer.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 3 edits, applied by the installer.
   1. `code-identity-carrier`: matcher (resolved sites only), resolved for 1 input.
      Code requirement checks (anchor apple) are decided by hao's code identity lists for hao stubs and re-signed native programs: the carrier is linked into Security's free space and entered from the two validity checks (src/codeid_carrier.py).
-  2. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
+  2. `prespecialization-overrides`: matcher (resolved sites only), resolved for 1 input.
+     Swift prespecialized metadata stays on in every process although files override cache images (OCLP's Metal and Wi-Fi libraries, this recipe's CoreWiFi compat library, Apple's libsystem_kernel/platform/pthread): the two reads of _dyld_shared_cache_some_image_overridden() in libswiftCore answer false, and the descriptor-map slots of the overridden images are emptied so their names take the runtime's ordinary path (src/prespecialization.py; install.py refuses an image whose overridden set differs).
+  3. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 4 edits, applied by the installer.
   1. `legacy-trackpad-v3`: matcher (resolved sites only), resolved for 1 input.
@@ -267,10 +269,12 @@ Revision r74, status experiment. [Recipe](../patches/golden-gate-userspace/READM
      Programs that use EndpointSecurity reach Tahoe's provider: the selector numbers in 27.x's libEndpointSecurity are renumbered to the provider's table.
   2. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.06`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 2 edits, applied by the installer.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.06`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 3 edits, applied by the installer.
   1. `swift-conformance-types`: matcher (resolved sites only), resolved for 1 input.
      Swift lookups by name no longer fault: Apple's broken direct conformance type references in the x86_64 cache (PaperKit, PhoneAppIntents, _MusicKitInternal_AppIntents) point at their type descriptors (src/swift_refs.py).
-  2. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
+  2. `prespecialization-overrides`: matcher (resolved sites only), resolved for 1 input.
+     Swift prespecialized metadata stays on in every process although files override cache images (OCLP's Metal and Wi-Fi libraries, this recipe's CoreWiFi compat library, Apple's libsystem_kernel/platform/pthread): the two reads of _dyld_shared_cache_some_image_overridden() in libswiftCore answer false, and the descriptor-map slots of the overridden images are emptied so their names take the runtime's ordinary path (src/prespecialization.py; install.py refuses an image whose overridden set differs).
+  3. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
 - `System/Volumes/Preboot/Cryptexes/OS`: from Apple · SystemOS image (os.dmg) of the 26B131 IPSW (row golden_gate_userspace); 6 edits, applied by the installer.
   1. `fresh-container`: cryptex.build (applied by the cryptex builder).

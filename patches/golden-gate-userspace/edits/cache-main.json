@@ -18,6 +18,17 @@
    "reason": "Code requirement checks (anchor apple) are decided by hao's code identity lists for hao stubs and re-signed native programs: the carrier is linked into Security's free space and entered from the two validity checks (src/codeid_carrier.py)"
   },
   {
+   "id": "prespecialization-overrides",
+   "kind": "matcher",
+   "resolved": {
+    "1ea9e2cfcec5b03603415d4f5e0f8f59884f7786a3f3a027e783847f3ef25057": [
+     {"at": 57865044, "before": "e88bb14b00", "after": "31c00f1f00", "reason": "_dyld_shared_cache_some_image_overridden() no longer turns prespecialized metadata off (image-loaded); the gate checked that no pointer-keyed entry references an overridden image"},
+     {"at": 61777907, "before": "e8ecfc0f00", "after": "31c00f1f00", "reason": "_dyld_shared_cache_some_image_overridden() no longer turns prespecialized metadata off (state-setup); the gate checked that no pointer-keyed entry references an overridden image"}
+    ]
+   },
+   "reason": "Swift prespecialized metadata stays on in every process although files override cache images (OCLP's Metal and Wi-Fi libraries, this recipe's CoreWiFi compat library, Apple's libsystem_kernel/platform/pthread): the two reads of _dyld_shared_cache_some_image_overridden() in libswiftCore answer false, and the descriptor-map slots of the overridden images are emptied so their names take the runtime's ordinary path (src/prespecialization.py; install.py refuses an image whose overridden set differs)"
+  },
+  {
    "id": "resign-4k-pages",
    "kind": "op",
    "op": "cryptex.build",

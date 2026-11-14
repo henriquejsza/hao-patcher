@@ -28,6 +28,7 @@ from macho import add_load_dylib, section_ranges, set_install_name
 from cryptex import (build_app_image, build_os_image, disk_info, image_mount, remove, run,  # noqa: F401
                      matrix_plan, audio_plan, replace_tree, restore_special_modes)
 import cryptex_cache
+import prespecialization
 
 
 @contextmanager
@@ -287,6 +288,8 @@ def main():
         corewifi = install_corewifi(system, args.corewifi, workspace)
         display_installer.resign_clients(system, source, workspace, RESIGN_WITH_27_ENTITLEMENTS,
                                         resign_with_entitlements)
+        # The cache edits keep Swift prespecialized metadata on only for the overridden images they were made for.
+        prespecialized = prespecialization.gate(system, rosetta/'System/Library/dyld')
         counts = install_cryptex(payload, preboot, group, golden_os, rosetta, workspace,
                                  driverkit_artifact=args.driverkit_artifact, donor_tool=args.donor_tool,
                                  codeid_carrier=Path(__file__).resolve().parent/'inputs/codeid_carrier',
@@ -300,6 +303,7 @@ def main():
             remove(target)
             run('ditto', version, target)
         metadata.update(installation_order="golden-first", disabled_jobs=disabled, corewifi=corewifi,
+                        prespecialization=prespecialized,
                         cryptex=counts,
                         boot_metadata='Tahoe Intel bootloader, collection layout and cryptex tickets retained',
                         validation='Built only; full Golden Gate boot and desktop untested')

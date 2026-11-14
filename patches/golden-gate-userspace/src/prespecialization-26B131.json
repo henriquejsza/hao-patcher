@@ -1,0 +1,960 @@
+{
+ "schema": 1,
+ "generator": "shared-cache generator: make prespecialization-overrides CACHE_MAIN --overridden LIST",
+ "cache_uuid": "262FA161F25B34F2B18BC7ED4369D620",
+ "apple_entries": 2762,
+ "catalog_keys": 1282,
+ "blocked": {
+  "apple_entries": 0,
+  "catalog_keys": 0
+ },
+ "overridden": [
+  "/System/Library/Extensions/AppleMultitouchDriver.kext/Contents/PlugIns/MultitouchHID.plugin/Contents/MacOS/MultitouchHID",
+  "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+  "/System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA",
+  "/System/Library/PrivateFrameworks/AppleGVACore.framework/Versions/A/AppleGVACore",
+  "/System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi",
+  "/System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211",
+  "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer",
+  "/usr/lib/system/libsystem_kernel.dylib",
+  "/usr/lib/system/libsystem_platform.dylib",
+  "/usr/lib/system/libsystem_pthread.dylib"
+ ],
+ "descriptor_slots_dropped": {
+  "/System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi": 111,
+  "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer": 2
+ },
+ "conformance_site": "unchanged (dyld conformance table is invalid for an overridden image with __swift5_proto)",
+ "files": {
+  "dyld_shared_cache_x86_64": {
+   "sha256": "1ea9e2cfcec5b03603415d4f5e0f8f59884f7786a3f3a027e783847f3ef25057",
+   "edits": [
+    {
+     "id": "prespecialization-image-loaded",
+     "at": 57865044,
+     "before": "e88bb14b00",
+     "after": "31c00f1f00",
+     "address": "0x7ff80372f354",
+     "reason": "_dyld_shared_cache_some_image_overridden() no longer turns prespecialized metadata off (image-loaded); the gate checked that no pointer-keyed entry references an overridden image"
+    },
+    {
+     "id": "prespecialization-state-setup",
+     "at": 61777907,
+     "before": "e8ecfc0f00",
+     "after": "31c00f1f00",
+     "address": "0x7ff803aea7f3",
+     "reason": "_dyld_shared_cache_some_image_overridden() no longer turns prespecialized metadata off (state-setup); the gate checked that no pointer-keyed entry references an overridden image"
+    }
+   ]
+  },
+  "dyld_shared_cache_x86_64.06": {
+   "sha256": "fcb3ac956b68df8107dc8adea2e3357c1477c6f2fa3c5d3c48abb23b54a758b7",
+   "edits": [
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629586336,
+     "before": "78aa2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f0f9a0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629606200,
+     "before": "7cb02e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f14738",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629653448,
+     "before": "4ca52e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f1ffc8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629663296,
+     "before": "0cb02e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f22640",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629762008,
+     "before": "84a72e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f3a7d8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629800712,
+     "before": "68a42e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f43f08",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629926576,
+     "before": "acae2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f62ab0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629941712,
+     "before": "aca42e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe42f665d0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629948752,
+     "before": "1ca32e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f68150",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629963088,
+     "before": "bcaa2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f6b950",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 629983688,
+     "before": "f0ac2e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe42f709c8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630005104,
+     "before": "00a12e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f75d70",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630062840,
+     "before": "44a12e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f83ef8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630177048,
+     "before": "0caa2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42f9fd18",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630182912,
+     "before": "b4a22e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe42fa1400",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630195488,
+     "before": "90ae2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fa4520",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630215192,
+     "before": "3ca62e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe42fa9218",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630276080,
+     "before": "6ca12e1f00000000",
+     "after": "0000000000000000",
+     "address": "0x7ffe42fb7ff0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630280624,
+     "before": "fcad2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fb91b0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630336432,
+     "before": "68ae2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fc6bb0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630349672,
+     "before": "f4a32e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fc9f68",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630352096,
+     "before": "5caf2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fca8e0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630365288,
+     "before": "38a22e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe42fcdc68",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630382584,
+     "before": "d4a42e1f00000000",
+     "after": "0000000000000000",
+     "address": "0x7ffe42fd1ff8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630436456,
+     "before": "34a72e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fdf268",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630437160,
+     "before": "e0ae2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fdf528",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630447048,
+     "before": "70a22e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe42fe1bc8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630598016,
+     "before": "2ca42e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43006980",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630632848,
+     "before": "00a22e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe4300f190",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630641784,
+     "before": "78a92e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43011478",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630695936,
+     "before": "8ca62e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4301e800",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630720048,
+     "before": "78af2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43024630",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630788520,
+     "before": "4ca82e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430351a8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630812696,
+     "before": "90ad2e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe4303b018",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 630974824,
+     "before": "1ca12e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43062968",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631005400,
+     "before": "28f9161f01020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4306a0d8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631024136,
+     "before": "5caa2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4306ea08",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631059296,
+     "before": "bca92e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43077360",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631096848,
+     "before": "c4a52e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43080610",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631138296,
+     "before": "64a62e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4308a7f8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631165624,
+     "before": "68ad2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430912b8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631168728,
+     "before": "fca22e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe43091ed8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631189584,
+     "before": "aca82e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe43097050",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631239576,
+     "before": "34a92e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430a3398",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631251232,
+     "before": "bcab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430a6120",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631274480,
+     "before": "9ca52e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430abbf0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631305904,
+     "before": "d4a72e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430b36b0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631320344,
+     "before": "0cac2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430b6f18",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631331688,
+     "before": "dca22e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430b9b68",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631340304,
+     "before": "24ae2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430bbd10",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631383568,
+     "before": "7ca32e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe430c6610",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631455240,
+     "before": "24a52e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430d7e08",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631572752,
+     "before": "94a12e1f000c0000",
+     "after": "00000000000c0000",
+     "address": "0x7ffe430f4910",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631598768,
+     "before": "24a82e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430faeb0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631599696,
+     "before": "f8a62e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe430fb250",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631642120,
+     "before": "84ac2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43105808",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631657248,
+     "before": "54a22e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43109320",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631673792,
+     "before": "c8af2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4310d3c0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631720656,
+     "before": "74a82e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43118ad0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631746368,
+     "before": "14a62e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4311ef40",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631774248,
+     "before": "fca42e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43125c28",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631796920,
+     "before": "84ab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4312b4b8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631812320,
+     "before": "94aa2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4312f0e0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631956080,
+     "before": "5cab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43152270",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 631977816,
+     "before": "8ca22e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43157758",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632022184,
+     "before": "0cab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431624a8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632176552,
+     "before": "bca12e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43187fa8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632193888,
+     "before": "38a32e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4318c360",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632226568,
+     "before": "40af2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43194308",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632226728,
+     "before": "18ad2e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe431943a8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632264376,
+     "before": "b8ad2e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe4319d6b8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632349640,
+     "before": "50a92e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe431b23c8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632357904,
+     "before": "5cb02e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431b4410",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632376752,
+     "before": "10a42e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe431b8db0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632394096,
+     "before": "1ca22e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431bd170",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632418416,
+     "before": "40ad2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431c3070",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632433096,
+     "before": "18af2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431c69c8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632483848,
+     "before": "94a92e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431d3008",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632500416,
+     "before": "34aa2e1f00080000",
+     "after": "0000000000080000",
+     "address": "0x7ffe431d70c0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632506960,
+     "before": "e4aa2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431d8a50",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632518912,
+     "before": "e4a92e1f000e0000",
+     "after": "00000000000e0000",
+     "address": "0x7ffe431db900",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632527576,
+     "before": "e0ad2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431ddad8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632535648,
+     "before": "b4a62e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe431dfa60",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632542920,
+     "before": "84a42e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe431e16c8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632560968,
+     "before": "34ac2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe431e5d48",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632703704,
+     "before": "b8b02e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe43208ad8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632714000,
+     "before": "a4a32e1f000a0000",
+     "after": "00000000000a0000",
+     "address": "0x7ffe4320b310",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632733176,
+     "before": "fcae2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4320fdf8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632734856,
+     "before": "e4a12e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43210488",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632758848,
+     "before": "34ab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43216240",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632783512,
+     "before": "e0b02e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe4321c298",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632830024,
+     "before": "e4ab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43227848",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632875032,
+     "before": "a0ab2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43232818",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632898320,
+     "before": "f0a82e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43238310",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632919864,
+     "before": "0ca92e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4323d738",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632922944,
+     "before": "cca32e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4323e340",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632953064,
+     "before": "acac2e1f00040000",
+     "after": "0000000000040000",
+     "address": "0x7ffe432458e8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632974712,
+     "before": "60f9161f01020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4324ad78",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 632991632,
+     "before": "dca62e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4324ef90",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633002680,
+     "before": "eca52e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43251ab8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633043608,
+     "before": "a0af2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4325ba98",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633045640,
+     "before": "40ae2e1f00060000",
+     "after": "0000000000060000",
+     "address": "0x7ffe4325c288",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633055480,
+     "before": "74a52e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4325e8f8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633224752,
+     "before": "aca72e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43287e30",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633250272,
+     "before": "fca72e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe4328e1e0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633262432,
+     "before": "54a32e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43291160",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633286544,
+     "before": "90a82e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43296f90",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633294000,
+     "before": "d4ac2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe43298cb0",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633361640,
+     "before": "f0af2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe432a94e8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633450680,
+     "before": "c8a82e1f00080000",
+     "after": "0000000000080000",
+     "address": "0x7ffe432bf0b8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633452984,
+     "before": "40b02e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe432bf9b8",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633458192,
+     "before": "5ca72e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe432c0e10",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    },
+    {
+     "id": "descriptor-map-overridden",
+     "at": 633473408,
+     "before": "5cac2e1f00020000",
+     "after": "0000000000020000",
+     "address": "0x7ffe432c4980",
+     "reason": "descriptor in overridden /System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi: the slot reads as empty, so the name takes the normal runtime path"
+    }
+   ]
+  }
+ }
+}

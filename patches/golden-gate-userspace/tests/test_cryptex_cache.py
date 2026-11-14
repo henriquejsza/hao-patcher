@@ -47,7 +47,8 @@ class SourceFiles(unittest.TestCase):
                 'if getattr(m, "__file__", None) and os.path.dirname(os.path.abspath(m.__file__)) == sys.argv[1])))')
         loaded = subprocess.run([sys.executable, '-I', '-B', '-c', code, str(SRC)], check=True, capture_output=True,
                                 text=True).stdout.split()
-        self.assertEqual(sorted(f for f in files if '/' not in f), sorted(loaded))
+        self.assertEqual(sorted(f for f in files if '/' not in f and f not in cc.DATA_FILES), sorted(loaded))
+        self.assertEqual([f for f in cc.DATA_FILES if f in files], list(cc.DATA_FILES))   # the data the code reads
         self.assertNotIn('install.py', files)
         for name in ('cryptex.py', 'cryptex_cache.py', 'cache_pages.py', 'swift_refs.py', 'codeid_carrier.py',
                      'cryptex_stubs.py', 'legacy_trackpad.py', 'macho.py'):

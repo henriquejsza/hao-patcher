@@ -53,10 +53,14 @@ def local_imports(path, folder):
     return {name for name in names if (Path(folder)/(name + '.py')).is_file()}
 
 
+# Data files a module of the image build reads (they decide bytes as its code does).
+DATA_FILES = ('prespecialization-26B131.json',)
+
+
 def source_files(folder):
     """The code that decides the images' bytes, relative to the recipe FOLDER (src/ in the repository, the staged hook
     folder in a build): cryptex.py, the local modules it imports (transitively), this module (it checks a reuse), and
-    every file under build/."""
+    the data files they read (DATA_FILES) and every file under build/."""
     folder = Path(folder)
     todo, seen = ['cryptex', 'cryptex_cache'], set()
     while todo:
@@ -66,6 +70,7 @@ def source_files(folder):
         seen.add(name)
         todo.extend(local_imports(folder/(name + '.py'), folder) - seen)
     files = [name + '.py' for name in seen]
+    files += [name for name in DATA_FILES if (folder/name).is_file()]
     build = folder/'build'
     if build.is_dir():
         for top, dirs, names in os.walk(build):
