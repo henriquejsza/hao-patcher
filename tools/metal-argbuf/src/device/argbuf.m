@@ -516,6 +516,281 @@ static void traceTextures(Class dev) {
     }));
 }
 
+// ---- Requests the legacy stack refuses that Apple's current drivers accept (diag#0002, 2026-11-14) ------------------
+// MetalOld validates more strictly than the platform apps for macOS 27 are tested on, and a failed validation aborts the
+// process. Weather's precipitation map hit two in a row (laptop traces 2026-11-14):
+//   1. a 4x MSAA Stencil8 render target asked for as Managed ("Multisample/Depth, Stencil textures cannot be allocated with
+//      MTLStorageModeShared or MTLStorageModeManaged on this device"); MetalOld refuses Memoryless for any texture too;
+//   2. a pipeline with depth Depth32Float and a separate stencil Stencil8 ("depthAttachmentPixelFormat and
+//      stencilAttachmentPixelFormat must match"): Intel needs one packed depth/stencil format.
+// Adapted where the HD 4000 can honour the request exactly:
+//   - such textures are made Private (a GPU-only target is what these apps get from their own GPU; the caller's descriptor
+//     is copied, not changed);
+//   - such pipelines are built with Depth32Float_Stencil8 for both, and a render pass that names two separate textures
+//     (Depth32Float + Stencil8) gets one packed Private texture (cached per size and sample count) for both, but only when
+//     neither attachment's contents come in or go out (load Clear/DontCare, store DontCare): then nothing outside the pass
+//     can tell. Otherwise the pass is passed through unchanged and the refusal is logged (MetalOld then stops it as before):
+//     never drawn wrong.
+// Each adaptation and refusal is logged once per kind. AGB_KEEP_TARGET_STORAGE=1 / AGB_KEEP_DEPTH_STENCIL=1 turn them off.
+// AGB_SURVEY=1 (off by default; releases' claims pass): every distinct texture descriptor, pipeline attachment set and
+// render pass attachment set a process uses is logged once (category "survey"), adapted or not.
+static BOOL agb_depth_stencil(MTLPixelFormat f) {
+    switch (f) { case MTLPixelFormatDepth16Unorm: case MTLPixelFormatDepth32Float: case MTLPixelFormatStencil8:
+                 case MTLPixelFormatDepth24Unorm_Stencil8: case MTLPixelFormatDepth32Float_Stencil8:
+                 case MTLPixelFormatX32_Stencil8: case MTLPixelFormatX24_Stencil8: return YES;
+                 default: return NO; } }
+BOOL agb_private_target(MTLTextureDescriptor *td);
+BOOL agb_private_target(MTLTextureDescriptor *td) {   // exported for the host tests
+    if (td.storageMode == MTLStorageModeMemoryless) return YES;   // never had CPU memory
+    // never take CPU access from a texture the app may upload into or read back: only render targets, which the CPU
+    // cannot write anyway when they are multisample or depth/stencil
+    if (!(td.usage & MTLTextureUsageRenderTarget)) return NO;
+    BOOL msaa = td.sampleCount > 1 || td.textureType == MTLTextureType2DMultisample || td.textureType == MTLTextureType2DMultisampleArray;
+    return (msaa || agb_depth_stencil(td.pixelFormat)) && td.storageMode != MTLStorageModePrivate; }
+// the packed format for a separate depth + stencil pair, or 0 (not separate, or no packed equivalent)
+MTLPixelFormat agb_packed_depth_stencil(MTLPixelFormat depth, MTLPixelFormat stencil);
+MTLPixelFormat agb_packed_depth_stencil(MTLPixelFormat depth, MTLPixelFormat stencil) {
+    if (!depth || !stencil || depth == stencil) return MTLPixelFormatInvalid;
+    if (depth == MTLPixelFormatDepth32Float && stencil == MTLPixelFormatStencil8) return MTLPixelFormatDepth32Float_Stencil8;
+    return MTLPixelFormatInvalid; }
+// a pass whose separate depth/stencil textures may share one packed texture: nothing loaded in, nothing stored out
+BOOL agb_pass_contents_local(MTLRenderPassDescriptor *rp);
+BOOL agb_pass_contents_local(MTLRenderPassDescriptor *rp) {
+    MTLRenderPassDepthAttachmentDescriptor *d = rp.depthAttachment; MTLRenderPassStencilAttachmentDescriptor *s = rp.stencilAttachment;
+    BOOL inOK = (d.loadAction == MTLLoadActionClear || d.loadAction == MTLLoadActionDontCare) && (s.loadAction == MTLLoadActionClear || s.loadAction == MTLLoadActionDontCare);
+    BOOL outOK = d.storeAction == MTLStoreActionDontCare && s.storeAction == MTLStoreActionDontCare;
+    return inOK && outOK; }
+static BOOL g_survey;
+static NSMutableSet *g_seen;
+static void agb_once(NSString *key, NSString *msg) {   // one log line per distinct key
+    @synchronized (g_seen) { if ([g_seen containsObject:key]) return; [g_seen addObject:key]; }
+    agb_log("%s", msg.UTF8String); }
+static NSHashTable *g_switched;   // textures argbuf made Private (weak)
+static NSString *tex_key(MTLTextureDescriptor *td) {
+    return [NSString stringWithFormat:@"type %lu fmt %lu %lux%lux%lu mips %lu array %lu samples %lu usage 0x%lx storage %lu",
+        (unsigned long)td.textureType, (unsigned long)td.pixelFormat, (unsigned long)td.width, (unsigned long)td.height, (unsigned long)td.depth,
+        (unsigned long)td.mipmapLevelCount, (unsigned long)td.arrayLength, (unsigned long)td.sampleCount, (unsigned long)td.usage, (unsigned long)td.storageMode]; }
+static void privateTargets(Class dev) {
+    if (getenv("AGB_KEEP_TARGET_STORAGE") && !g_survey) return;
+    BOOL adapt = !getenv("AGB_KEEP_TARGET_STORAGE");
+    SEL sel = @selector(newTextureWithDescriptor:);
+    __block IMP orig = NULL;
+    orig = replace(dev, sel, imp_implementationWithBlock(^id(id d, MTLTextureDescriptor *td) __attribute__((ns_returns_retained)) {
+        if (td && g_survey) agb_once([@"survey tex " stringByAppendingString:tex_key(td)], [@"survey: texture " stringByAppendingString:tex_key(td)]);
+        if (td && adapt && agb_private_target(td)) {
+            MTLTextureDescriptor *c = [td copy]; c.storageMode = MTLStorageModePrivate;
+            id t = ((id (*)(id, SEL, id))orig)(d, sel, c);
+            agb_log("adapted: texture %p storage %lu -> Private (%s)", t, (unsigned long)td.storageMode, tex_key(td).UTF8String);
+            if (t) @synchronized (g_switched) { [g_switched addObject:t]; }
+            return t;
+        }
+        return ((id (*)(id, SEL, id))orig)(d, sel, td);
+    }));
+}
+// ---- CPU-written stencil targets (diag#0002): Weather writes its precipitation mask from the CPU (replaceRegion, full
+// 512x512) into a 4x MSAA Stencil8 render target it asks for as Managed. MetalOld refuses Managed for such a texture and a
+// Private one has no CPU side, so the upload is emulated: the bytes go into a single-sample R8Uint staging texture
+// (CPU-writable, kept per target) and are written into the MSAA stencil on the GPU. The HD 4000 (Mac family 1) cannot
+// write stencil from a shader, so the write is per bit: one pass writes 0 over the region (write mask 0xFF), then one
+// pass per bit that occurs in the data writes 0xFF through write mask 1<<bit where a fragment shader, reading the staging
+// texel, keeps the fragments whose bit is set (discard otherwise). Cost per upload: 1 + popcount(OR of the bytes)
+// full-region draws (Weather's 0/1 mask: 2), on the tracer's own queue, waited for (replaceRegion is synchronous).
+// Reads (getBytes) of such a texture are answered from the staging copy. A pass that loads this stencil next to a
+// separate depth texture gets the packed texture filled from the staging copy the same way, encoded in the app's
+// command buffer right before its pass.
+static NSMapTable *g_cpuStencil;   // target (weak) -> {staging, bits}
+static NSString *const kStencilMSL = @"#include <metal_stdlib>\nusing namespace metal;\n"
+    "struct AGBV { float4 p [[position]]; };\n"
+    "struct AGBBit { uint bit; };\n"
+    "vertex AGBV agb_stencil_vert(uint i [[vertex_id]]) { float2 q[3] = { float2(-1, -1), float2(3, -1), float2(-1, 3) };\n"
+    "  AGBV o; o.p = float4(q[i], 0, 1); return o; }\n"
+    "fragment void agb_stencil_frag(AGBV in [[stage_in]], texture2d<uint> src [[texture(0)]], constant AGBBit &b [[buffer(0)]]) {\n"
+    "  if (b.bit < 8u && ((src.read(uint2(in.p.xy)).r >> b.bit) & 1u) == 0u) discard_fragment(); }\n";
+static id<MTLLibrary> g_stencilLib; static id<MTLCommandQueue> g_stencilQ; static NSMutableDictionary *g_stencilPipes; static NSMutableArray *g_dss;
+static BOOL stencil_tools(id<MTLDevice> dev) {
+    @synchronized (g_cpuStencil) {
+        if (g_stencilLib) return YES;
+        NSError *e = nil; g_stencilLib = [dev newLibraryWithSource:kStencilMSL options:nil error:&e];
+        if (!g_stencilLib) { agb_log("stencil emulation: library failed: %s", e.localizedDescription.UTF8String); return NO; }
+        g_stencilQ = [dev newCommandQueue]; g_stencilPipes = [NSMutableDictionary new]; g_dss = [NSMutableArray new];
+        for (int i = 0; i <= 8; i++) {   // 0..7: write mask 1<<i, 8: write mask 0xFF
+            MTLDepthStencilDescriptor *d = [MTLDepthStencilDescriptor new]; d.depthCompareFunction = MTLCompareFunctionAlways; d.depthWriteEnabled = NO;
+            MTLStencilDescriptor *st = [MTLStencilDescriptor new]; st.stencilCompareFunction = MTLCompareFunctionAlways;
+            st.stencilFailureOperation = st.depthFailureOperation = MTLStencilOperationKeep; st.depthStencilPassOperation = MTLStencilOperationReplace;
+            st.readMask = 0xFF; st.writeMask = i < 8 ? (1u << i) : 0xFFu; d.frontFaceStencil = st; d.backFaceStencil = st;
+            [g_dss addObject:[dev newDepthStencilStateWithDescriptor:d]]; }
+        return YES; } }
+static id<MTLRenderPipelineState> stencil_pipe(id<MTLDevice> dev, MTLPixelFormat fmt, NSUInteger samples) {
+    NSString *k = [NSString stringWithFormat:@"%lu %lu", (unsigned long)fmt, (unsigned long)samples];
+    @synchronized (g_cpuStencil) {
+        id p = g_stencilPipes[k]; if (p) return p;
+        MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+        d.vertexFunction = [g_stencilLib newFunctionWithName:@"agb_stencil_vert"]; d.fragmentFunction = [g_stencilLib newFunctionWithName:@"agb_stencil_frag"];
+        d.stencilAttachmentPixelFormat = fmt; d.depthAttachmentPixelFormat = fmt == MTLPixelFormatDepth32Float_Stencil8 ? fmt : MTLPixelFormatInvalid;
+        d.rasterSampleCount = samples;
+        NSError *e = nil; p = [dev newRenderPipelineStateWithDescriptor:d error:&e];
+        if (!p) { agb_log("stencil emulation: pipeline fmt %lu samples %lu failed: %s", (unsigned long)fmt, (unsigned long)samples, e.localizedDescription.UTF8String); return nil; }
+        g_stencilPipes[k] = p; return p; } }
+// encode the staging bytes of REGION into TARGET's stencil (TARGET: Stencil8 or Depth32Float_Stencil8); returns draws
+static int encode_stencil_fill(id<MTLCommandBuffer> cb, id<MTLTexture> target, id<MTLTexture> staging, uint8_t bits, MTLRegion r) {
+    id<MTLRenderPipelineState> p = stencil_pipe(target.device, target.pixelFormat, target.sampleCount); if (!p) return -1;
+    MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
+    rp.stencilAttachment.texture = target; rp.stencilAttachment.loadAction = MTLLoadActionLoad; rp.stencilAttachment.storeAction = MTLStoreActionStore;
+    if (target.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) { rp.depthAttachment.texture = target; rp.depthAttachment.loadAction = MTLLoadActionLoad; rp.depthAttachment.storeAction = MTLStoreActionStore; }
+    rp.renderTargetWidth = target.width; rp.renderTargetHeight = target.height;
+    id<MTLRenderCommandEncoder> en = [cb renderCommandEncoderWithDescriptor:rp]; if (!en) return -1;
+    [en setRenderPipelineState:p]; [en setFragmentTexture:staging atIndex:0];
+    [en setScissorRect:(MTLScissorRect){ r.origin.x, r.origin.y, r.size.width, r.size.height }];
+    int draws = 0; uint32_t bit = 8;
+    [en setDepthStencilState:g_dss[8]]; [en setStencilReferenceValue:0]; [en setFragmentBytes:&bit length:sizeof bit atIndex:0];
+    [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; draws++;
+    [en setStencilReferenceValue:0xFF];
+    for (bit = 0; bit < 8; bit++) if (bits & (1u << bit)) {
+        [en setDepthStencilState:g_dss[bit]]; [en setFragmentBytes:&bit length:sizeof bit atIndex:0];
+        [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; draws++; }
+    [en endEncoding]; return draws; }
+static NSMutableDictionary *cpu_stencil_entry(id<MTLTexture> t, BOOL create) {
+    @synchronized (g_cpuStencil) {
+        NSMutableDictionary *e = [g_cpuStencil objectForKey:t];
+        if (!e && create) {
+            MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR8Uint width:t.width height:t.height mipmapped:NO];
+            d.usage = MTLTextureUsageShaderRead; d.storageMode = MTLStorageModeManaged;
+            id<MTLTexture> st = [t.device newTextureWithDescriptor:d]; if (!st) return nil;
+            e = [NSMutableDictionary dictionaryWithDictionary:@{@"staging": st, @"bits": @0}]; [g_cpuStencil setObject:e forKey:t]; }
+        return e; } }
+// CPU upload into a stencil target argbuf made Private: emulated. Returns YES when handled.
+static BOOL cpu_stencil_upload(id<MTLTexture> t, MTLRegion r, const void *b, NSUInteger bpr) {
+    if (t.pixelFormat != MTLPixelFormatStencil8 || !stencil_tools(t.device)) return NO;
+    NSMutableDictionary *e = cpu_stencil_entry(t, YES); if (!e) return NO;
+    id<MTLTexture> st = e[@"staging"];
+    [st replaceRegion:r mipmapLevel:0 withBytes:b bytesPerRow:bpr];
+    uint8_t bits = (uint8_t)[e[@"bits"] unsignedIntValue]; const uint8_t *p = b;
+    for (NSUInteger y = 0; y < r.size.height; y++) for (NSUInteger x = 0; x < r.size.width; x++) bits |= p[y * bpr + x];
+    e[@"bits"] = @(bits);
+    id<MTLCommandBuffer> cb = [g_stencilQ commandBuffer];
+    int draws = encode_stencil_fill(cb, t, st, bits, r); if (draws < 0) return NO;
+    [cb commit]; [cb waitUntilCompleted];
+    agb_once([NSString stringWithFormat:@"cpu stencil %lu %lu", (unsigned long)t.width, (unsigned long)t.sampleCount],
+        [NSString stringWithFormat:@"adapted: CPU stencil upload into %p (%lux%lu samples %lu) emulated on the GPU: staging R8Uint + %d draws (bits 0x%02x); logged once",
+         t, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.sampleCount, draws, bits]);
+    return YES; }
+// CPU uploads into Private textures: logged with the address, and whether argbuf made it Private (it never should for a
+// texture the app uploads into; a hit means the rule above is too wide)
+static void uploadWatch(Class tc) {
+    if (!tc) return;
+    SEL s = @selector(replaceRegion:mipmapLevel:slice:withBytes:bytesPerRow:bytesPerImage:);
+    __block IMP o = NULL;
+    o = replace(tc, s, imp_implementationWithBlock(^void(id<MTLTexture> t, MTLRegion r, NSUInteger lvl, NSUInteger sl, const void *b, NSUInteger bpr, NSUInteger bpi) {
+        if (t.storageMode == MTLStorageModePrivate) {
+            BOOL ours; @synchronized (g_switched) { ours = [g_switched containsObject:t]; }
+            if (ours && lvl == 0 && sl == 0 && cpu_stencil_upload(t, r, b, bpr)) return;
+            agb_log("CPU upload into Private texture %p (%s): type %lu fmt %lu %lux%lu samples %lu usage 0x%lx, region %lux%lu",
+                t, ours ? "made Private by argbuf" : "Private as created", (unsigned long)t.textureType, (unsigned long)t.pixelFormat,
+                (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.sampleCount, (unsigned long)t.usage,
+                (unsigned long)r.size.width, (unsigned long)r.size.height); }
+        ((void (*)(id, SEL, MTLRegion, NSUInteger, NSUInteger, const void *, NSUInteger, NSUInteger))o)(t, s, r, lvl, sl, b, bpr, bpi); }));
+    // reads of an emulated stencil target come from its staging copy
+    SEL g = @selector(getBytes:bytesPerRow:bytesPerImage:fromRegion:mipmapLevel:slice:);
+    __block IMP og = NULL;
+    og = replace(tc, g, imp_implementationWithBlock(^void(id<MTLTexture> t, void *b, NSUInteger bpr, NSUInteger bpi, MTLRegion r, NSUInteger lvl, NSUInteger sl) {
+        NSMutableDictionary *e = t.storageMode == MTLStorageModePrivate ? cpu_stencil_entry(t, NO) : nil;
+        if (e && lvl == 0 && sl == 0) { [(id<MTLTexture>)e[@"staging"] getBytes:b bytesPerRow:bpr fromRegion:r mipmapLevel:0]; return; }
+        ((void (*)(id, SEL, void *, NSUInteger, NSUInteger, MTLRegion, NSUInteger, NSUInteger))og)(t, g, b, bpr, bpi, r, lvl, sl); }));
+}
+// pipelines: separate depth + stencil formats -> packed
+static MTLRenderPipelineDescriptor *pipeline_adapt(MTLRenderPipelineDescriptor *pd) {
+    if (!pd) return pd;
+    MTLPixelFormat df = pd.depthAttachmentPixelFormat, sf = pd.stencilAttachmentPixelFormat;
+    if (g_survey) { NSString *k = [NSString stringWithFormat:@"color %lu depth %lu stencil %lu samples %lu", (unsigned long)pd.colorAttachments[0].pixelFormat,
+                                   (unsigned long)df, (unsigned long)sf, (unsigned long)pd.rasterSampleCount];
+        agb_once([@"survey pipe " stringByAppendingString:k], [@"survey: pipeline " stringByAppendingString:k]); }
+    if (getenv("AGB_KEEP_DEPTH_STENCIL")) return pd;
+    MTLPixelFormat packed = agb_packed_depth_stencil(df, sf);
+    if (!packed) {
+        if (df && sf && df != sf) agb_once([NSString stringWithFormat:@"refuse pipe %lu %lu", (unsigned long)df, (unsigned long)sf],
+            [NSString stringWithFormat:@"refused: pipeline depth %lu + stencil %lu has no packed format on this device; left as asked", (unsigned long)df, (unsigned long)sf]);
+        return pd; }
+    agb_once([NSString stringWithFormat:@"adapt pipe %lu %lu", (unsigned long)df, (unsigned long)sf],
+        [NSString stringWithFormat:@"adapted: pipeline depth %lu + stencil %lu -> %lu for both (rasterSampleCount %lu)", (unsigned long)df, (unsigned long)sf, (unsigned long)packed, (unsigned long)pd.rasterSampleCount]);
+    MTLRenderPipelineDescriptor *c = [pd copy]; c.depthAttachmentPixelFormat = packed; c.stencilAttachmentPixelFormat = packed;
+    return c; }
+static void packedPipelines(Class dev) {
+    SEL s1 = @selector(newRenderPipelineStateWithDescriptor:error:);
+    __block IMP o1 = NULL;
+    o1 = replace(dev, s1, imp_implementationWithBlock(^id(id d, MTLRenderPipelineDescriptor *pd, NSError **e) __attribute__((ns_returns_retained)) {
+        return ((id (*)(id, SEL, id, NSError **))o1)(d, s1, pipeline_adapt(pd), e); }));
+    SEL s2 = @selector(newRenderPipelineStateWithDescriptor:options:reflection:error:);
+    __block IMP o2 = NULL;
+    o2 = replace(dev, s2, imp_implementationWithBlock(^id(id d, MTLRenderPipelineDescriptor *pd, MTLPipelineOption opt, id *refl, NSError **e) __attribute__((ns_returns_retained)) {
+        return ((id (*)(id, SEL, id, MTLPipelineOption, id *, NSError **))o2)(d, s2, pipeline_adapt(pd), opt, refl, e); }));
+    SEL s3 = @selector(newRenderPipelineStateWithDescriptor:completionHandler:);
+    __block IMP o3 = NULL;
+    o3 = replace(dev, s3, imp_implementationWithBlock(^void(id d, MTLRenderPipelineDescriptor *pd, id cb) {
+        ((void (*)(id, SEL, id, id))o3)(d, s3, pipeline_adapt(pd), cb); }));
+    SEL s4 = @selector(newRenderPipelineStateWithDescriptor:options:completionHandler:);
+    __block IMP o4 = NULL;
+    o4 = replace(dev, s4, imp_implementationWithBlock(^void(id d, MTLRenderPipelineDescriptor *pd, MTLPipelineOption opt, id cb) {
+        ((void (*)(id, SEL, id, MTLPipelineOption, id))o4)(d, s4, pipeline_adapt(pd), opt, cb); }));
+}
+// render passes: separate depth + stencil textures -> one packed texture, when the contents stay inside the pass
+static NSMutableDictionary *g_packed;   // "w h samples type" -> packed Private texture
+static MTLRenderPassDescriptor *pass_adapt(MTLRenderPassDescriptor *rp, id<MTLCommandBuffer> cb) {
+    if (!rp) return rp;
+    id<MTLTexture> dt = rp.depthAttachment.texture, st = rp.stencilAttachment.texture;
+    if (g_survey) { NSString *k = [NSString stringWithFormat:@"color %lu depth %lu stencil %lu samples %lu depth load %lu store %lu stencil load %lu store %lu",
+            (unsigned long)rp.colorAttachments[0].texture.pixelFormat, (unsigned long)dt.pixelFormat, (unsigned long)st.pixelFormat,
+            (unsigned long)(dt ?: st).sampleCount, (unsigned long)rp.depthAttachment.loadAction, (unsigned long)rp.depthAttachment.storeAction,
+            (unsigned long)rp.stencilAttachment.loadAction, (unsigned long)rp.stencilAttachment.storeAction];
+        agb_once([@"survey pass " stringByAppendingString:k], [@"survey: render pass " stringByAppendingString:k]); }
+    if (getenv("AGB_KEEP_DEPTH_STENCIL") || !dt || !st || dt == st) return rp;
+    MTLPixelFormat packed = agb_packed_depth_stencil(dt.pixelFormat, st.pixelFormat);
+    if (!packed || dt.width != st.width || dt.height != st.height || dt.sampleCount != st.sampleCount) return rp;
+    NSString *acts = [NSString stringWithFormat:@"depth load %lu store %lu, stencil load %lu store %lu", (unsigned long)rp.depthAttachment.loadAction,
+                      (unsigned long)rp.depthAttachment.storeAction, (unsigned long)rp.stencilAttachment.loadAction, (unsigned long)rp.stencilAttachment.storeAction];
+    NSMutableDictionary *cpu = cpu_stencil_entry(st, NO);   // the stencil target's contents came from the CPU (emulated)
+    MTLRenderPassDepthAttachmentDescriptor *da = rp.depthAttachment; MTLRenderPassStencilAttachmentDescriptor *sa = rp.stencilAttachment;
+    BOOL depthLocal = (da.loadAction == MTLLoadActionClear || da.loadAction == MTLLoadActionDontCare) && da.storeAction == MTLStoreActionDontCare;
+    BOOL fromCPU = cpu && depthLocal && sa.loadAction == MTLLoadActionLoad && sa.storeAction == MTLStoreActionDontCare;
+    if (!fromCPU && !agb_pass_contents_local(rp)) {
+        agb_once([@"refuse pass " stringByAppendingString:acts], [NSString stringWithFormat:@"refused: render pass with separate depth %lu + stencil %lu textures keeps their contents (%@); not shared, left as asked",
+                  (unsigned long)dt.pixelFormat, (unsigned long)st.pixelFormat, acts]);
+        return rp; }
+    NSString *key = [NSString stringWithFormat:@"%lu %lu %lu %lu", (unsigned long)dt.width, (unsigned long)dt.height, (unsigned long)dt.sampleCount, (unsigned long)dt.textureType];
+    id<MTLTexture> pt;
+    @synchronized (g_packed) {
+        pt = g_packed[key];
+        if (!pt) { MTLTextureDescriptor *td = [MTLTextureDescriptor new]; td.textureType = dt.textureType; td.pixelFormat = packed;
+            td.width = dt.width; td.height = dt.height; td.sampleCount = dt.sampleCount; td.usage = MTLTextureUsageRenderTarget;
+            td.storageMode = MTLStorageModePrivate; pt = [dt.device newTextureWithDescriptor:td]; if (pt) g_packed[key] = pt; } }
+    if (!pt) return rp;
+    if (fromCPU) {   // load = the CPU-written stencil: write it into the packed texture first, in the app's command buffer
+        int draws = cb ? encode_stencil_fill(cb, pt, cpu[@"staging"], (uint8_t)[cpu[@"bits"] unsignedIntValue], MTLRegionMake2D(0, 0, pt.width, pt.height)) : -1;
+        if (draws < 0) { agb_log("refused: could not fill the packed stencil from the CPU copy; left as asked"); return rp; }
+        agb_once([@"adapt pass cpu " stringByAppendingString:key], [NSString stringWithFormat:@"adapted: render pass loads a CPU-written stencil next to separate depth %lu: packed %lu texture filled from the CPU copy (%d draws) (%@)",
+                  (unsigned long)dt.pixelFormat, (unsigned long)packed, draws, acts]); }
+    agb_once([@"adapt pass " stringByAppendingString:key], [NSString stringWithFormat:@"adapted: render pass separate depth %lu + stencil %lu textures -> one packed %lu texture %@ (%@)",
+              (unsigned long)dt.pixelFormat, (unsigned long)st.pixelFormat, (unsigned long)packed, key, acts]);
+    MTLRenderPassDescriptor *c = [rp copy]; c.depthAttachment.texture = pt; c.stencilAttachment.texture = pt;
+    return c; }
+static void packedPasses(Class cb) {
+    if (!cb) return;
+    SEL s1 = @selector(renderCommandEncoderWithDescriptor:);
+    __block IMP o1 = NULL;
+    o1 = replace(cb, s1, imp_implementationWithBlock(^id(id b, MTLRenderPassDescriptor *rp) { return ((id (*)(id, SEL, id))o1)(b, s1, pass_adapt(rp, b)); }));
+    SEL s2 = @selector(parallelRenderCommandEncoderWithDescriptor:);
+    __block IMP o2 = NULL;
+    o2 = replace(cb, s2, imp_implementationWithBlock(^id(id b, MTLRenderPassDescriptor *rp) { return ((id (*)(id, SEL, id))o2)(b, s2, pass_adapt(rp, b)); }));
+}
+// the legacy adaptations, on the HD 4000 driver's classes (agb_install) or, in host tests, on the host GPU's classes
+void agb_legacy_install(Class dev, Class cb, Class tex);
+void agb_legacy_install(Class dev, Class cb, Class tex) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        if (!g_log) g_log = os_log_create("com.hao.argbuf", "device");
+        g_survey = getenv("AGB_SURVEY") != NULL; g_seen = [NSMutableSet new]; g_packed = [NSMutableDictionary new];
+        g_switched = [NSHashTable weakObjectsHashTable]; g_cpuStencil = [NSMapTable weakToStrongObjectsMapTable];
+        privateTargets(dev); packedPipelines(dev); packedPasses(cb); uploadWatch(tex); }); }
+
 void agb_astc_install(Class device, Class heap, Class blit, void (*log)(const char *, ...));
 void agb_install(void);
 void agb_install(void) {
@@ -543,6 +818,7 @@ void agb_install(void) {
         hookDraws(cce, 0);
         hookDraws(rce, 1);
         agb_astc_install(dev, NSClassFromString(@"MTLIGAccelHeap"), NSClassFromString(@"MTLIGAccelBlitCommandEncoder"), agb_log);
+        agb_legacy_install(dev, NSClassFromString(@"MTLIGAccelCommandBuffer"), NSClassFromString(@"MTLIGAccelTexture"));
         if (getenv("AGB_TRACE_TEXTURES")) traceTextures(dev);
         agb_log("installed: textures %d..%d, buffers %d..%d (BTI %d), samplers %d..%d, %d draw/dispatch selectors",
                 AGB_TEX_SLOT, AGB_TEX_SLOT + AGB_TEX_COUNT - 1, AGB_BUF_SLOT, AGB_BUF_SLOT + AGB_BUF_COUNT - 1, AGB_BUF_BTI,
