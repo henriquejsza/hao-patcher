@@ -54,17 +54,17 @@ class FakeHost:
         self.calls.append(argv)
         out = b''
         if argv[:2] == ['diskutil', 'partitionDisk']:
-            for name in ('HAOBOOT', 'HAO'):
+            for name in ('EFI', 'HAOBOOT', 'HAO'):
                 (self.root / name).mkdir()
             self.partitioned = True
         elif argv[:3] == ['diskutil', 'list', '-plist']:
-            parts = [{'DeviceIdentifier': 'disk4s1', 'VolumeName': 'EFI'}]
+            parts = [{'DeviceIdentifier': 'disk4s1', 'VolumeName': 'EFI', 'Content': 'EFI'}]
             if self.partitioned:
                 parts += [{'DeviceIdentifier': 'disk4s2', 'VolumeName': 'HAOBOOT'},
                           {'DeviceIdentifier': 'disk4s3', 'VolumeName': 'HAO'}]
             out = plistlib.dumps({'AllDisksAndPartitions': [{'DeviceIdentifier': 'disk4', 'Partitions': parts}]})
         elif argv[:3] == ['diskutil', 'info', '-plist']:
-            name = {'disk4s2': 'HAOBOOT', 'disk4s3': 'HAO'}[argv[3]]
+            name = {'disk4s1': 'EFI', 'disk4s2': 'HAOBOOT', 'disk4s3': 'HAO'}[argv[3]]
             out = plistlib.dumps({'MountPoint': str(self.root / name)})
         elif argv[:2] == ['hdiutil', 'attach']:
             out = plistlib.dumps({'system-entities': [{'dev-entry': '/dev/disk7s1'}, {'dev-entry': '/dev/disk7'}]})
@@ -112,14 +112,17 @@ class StickTest(unittest.TestCase):
         self.assertEqual(host.calls[1][:3], ['diskutil', 'partitionDisk', '/dev/disk4'])
         self.assertEqual(host.calls[1][3:], ['GPT', 'MS-DOS', 'HAOBOOT', '%dM' % STICK.SLACK_MB, 'JHFS+', 'HAO', 'R'])
         self.assertEqual(host.calls[-1], ['diskutil', 'unmountDisk', '/dev/disk4'])
-        boot, kit = self.mnt / 'HAOBOOT', self.mnt / 'HAO'
-        self.assertEqual((boot / 'EFI/BOOT/BOOTX64.EFI').read_bytes(), b'MZ opencore')
-        self.assertFalse((boot / 'EFI/BOOT/OpenCore.efi').exists())
-        self.assertFalse((boot / 'EFI/BOOT/.contentFlavour').exists())
-        self.assertTrue((boot / 'EFI/BOOT/Kexts/Lilu.kext/Contents/Info.plist').is_file())
-        self.assertFalse((boot / 'System').exists())
+        esp, boot, kit = self.mnt / 'EFI', self.mnt / 'HAOBOOT', self.mnt / 'HAO'
+        # OpenCore on the EFI partition as OCLP installs it: Bootstrap at CoreServices and EFI/BOOT, OpenCore in EFI/OC
+        self.assertEqual((esp / 'System/Library/CoreServices/boot.efi').read_bytes(), b'boot')
+        self.assertEqual((esp / 'EFI/BOOT/BOOTX64.EFI').read_bytes(), b'boot')
+        self.assertEqual((esp / 'EFI/OC/OpenCore.efi').read_bytes(), b'MZ opencore')
+        self.assertTrue((esp / 'EFI/OC/.contentFlavour').is_file())
+        self.assertTrue((esp / 'EFI/OC/Kexts/Lilu.kext/Contents/Info.plist').is_file())
+        self.assertFalse((boot / 'EFI').exists())
         self.assertEqual((boot / 'com.apple.recovery.boot/BaseSystem.dmg').read_bytes(), self.bs.read_bytes())
-        c = plistlib.loads((boot / 'EFI/BOOT/config.plist').read_bytes())
+        c = plistlib.loads((esp / 'EFI/OC/config.plist').read_bytes())
+        self.assertEqual(c['Misc']['Debug']['Target'], 0x41)
         self.assertEqual(c['Misc']['Security']['DmgLoading'], 'Any')
         self.assertEqual(c['NVRAM']['Add'][NV]['boot-args'], 'keepsyms=1 -lilubetaall amfi=0x80')
         self.assertEqual(rec['boot_args'], 'keepsyms=1 -lilubetaall amfi=0x80')
@@ -144,7 +147,7 @@ class StickTest(unittest.TestCase):
             self.assertIn('"$PY/bin/python3.12" -I "$D/hao/tools/hao/hao" ' + cmd, text)
         self.assertTrue((kit / 'reports').is_dir())
         self.assertIn('erased /dev/disk4', steps[0])
-        self.assertEqual(len(steps), 3)
+        self.assertEqual(len(steps), 4)
 
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)
