@@ -10,10 +10,12 @@ static void pass(const char *n, MTLLoadAction dl, MTLStoreAction ds, MTLLoadActi
     MTLRenderPassDescriptor *r = [MTLRenderPassDescriptor renderPassDescriptor];
     r.depthAttachment.loadAction = dl; r.depthAttachment.storeAction = ds; r.stencilAttachment.loadAction = sl; r.stencilAttachment.storeAction = ss;
     printf("%s %s\n", n, agb_pass_contents_local(r) ? "yes" : "no"); }
-static void c(const char *n, MTLPixelFormat f, MTLTextureType t, NSUInteger s, MTLStorageMode m) {
+static void cu(const char *n, MTLPixelFormat f, MTLTextureType t, NSUInteger s, MTLStorageMode m, MTLTextureUsage u) {
     MTLTextureDescriptor *d = [MTLTextureDescriptor new]; d.pixelFormat = f; d.width = d.height = 512; d.textureType = t;
-    d.sampleCount = s; d.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead; d.storageMode = m;
+    d.sampleCount = s; d.usage = u; d.storageMode = m;
     printf("%s %s\n", n, agb_private_target(d) ? "yes" : "no"); }
+static void c(const char *n, MTLPixelFormat f, MTLTextureType t, NSUInteger s, MTLStorageMode m) {
+    cu(n, f, t, s, m, MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead); }
 int main(void) { @autoreleasepool {
     c("weather_msaa_stencil_managed", MTLPixelFormatStencil8, MTLTextureType2DMultisample, 4, MTLStorageModeManaged);
     c("msaa_stencil_memoryless", MTLPixelFormatStencil8, MTLTextureType2DMultisample, 4, MTLStorageModeMemoryless);
@@ -23,6 +25,8 @@ int main(void) { @autoreleasepool {
     c("msaa_stencil_private", MTLPixelFormatStencil8, MTLTextureType2DMultisample, 4, MTLStorageModePrivate);
     c("color_managed", MTLPixelFormatRGBA8Unorm, MTLTextureType2D, 1, MTLStorageModeManaged);
     c("r8_shared", MTLPixelFormatR8Unorm, MTLTextureType2D, 1, MTLStorageModeShared);
+    cu("depth32_managed_not_target", MTLPixelFormatDepth32Float, MTLTextureType2D, 1, MTLStorageModeManaged, MTLTextureUsageShaderRead);
+    cu("stencil8_shared_not_target", MTLPixelFormatStencil8, MTLTextureType2D, 1, MTLStorageModeShared, MTLTextureUsageShaderRead);
     c("color_memoryless", MTLPixelFormatBGRA8Unorm, MTLTextureType2D, 1, MTLStorageModeMemoryless);
     pk("packed_weather", MTLPixelFormatDepth32Float, MTLPixelFormatStencil8);
     pk("packed_same", MTLPixelFormatDepth32Float_Stencil8, MTLPixelFormatDepth32Float_Stencil8);

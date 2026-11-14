@@ -541,7 +541,10 @@ static BOOL agb_depth_stencil(MTLPixelFormat f) {
                  default: return NO; } }
 BOOL agb_private_target(MTLTextureDescriptor *td);
 BOOL agb_private_target(MTLTextureDescriptor *td) {   // exported for the host tests
-    if (td.storageMode == MTLStorageModeMemoryless) return YES;
+    if (td.storageMode == MTLStorageModeMemoryless) return YES;   // never had CPU memory
+    // never take CPU access from a texture the app may upload into or read back: only render targets, which the CPU
+    // cannot write anyway when they are multisample or depth/stencil
+    if (!(td.usage & MTLTextureUsageRenderTarget)) return NO;
     BOOL msaa = td.sampleCount > 1 || td.textureType == MTLTextureType2DMultisample || td.textureType == MTLTextureType2DMultisampleArray;
     return (msaa || agb_depth_stencil(td.pixelFormat)) && td.storageMode != MTLStorageModePrivate; }
 // the packed format for a separate depth + stencil pair, or 0 (not separate, or no packed equivalent)
@@ -562,6 +565,7 @@ static NSMutableSet *g_seen;
 static void agb_once(NSString *key, NSString *msg) {   // one log line per distinct key
     @synchronized (g_seen) { if ([g_seen containsObject:key]) return; [g_seen addObject:key]; }
     agb_log("%s", msg.UTF8String); }
+static NSHashTable *g_switched;   // textures argbuf made Private (weak)
 static NSString *tex_key(MTLTextureDescriptor *td) {
     return [NSString stringWithFormat:@"type %lu fmt %lu %lux%lux%lu mips %lu array %lu samples %lu usage 0x%lx storage %lu",
         (unsigned long)td.textureType, (unsigned long)td.pixelFormat, (unsigned long)td.width, (unsigned long)td.height, (unsigned long)td.depth,
@@ -574,13 +578,29 @@ static void privateTargets(Class dev) {
     orig = replace(dev, sel, imp_implementationWithBlock(^id(id d, MTLTextureDescriptor *td) __attribute__((ns_returns_retained)) {
         if (td && g_survey) agb_once([@"survey tex " stringByAppendingString:tex_key(td)], [@"survey: texture " stringByAppendingString:tex_key(td)]);
         if (td && adapt && agb_private_target(td)) {
-            agb_once([NSString stringWithFormat:@"adapt tex %lu %lu %lu", (unsigned long)td.storageMode, (unsigned long)td.pixelFormat, (unsigned long)td.sampleCount],
-                [NSString stringWithFormat:@"adapted: texture storage %lu -> Private (%@)", (unsigned long)td.storageMode, tex_key(td)]);
             MTLTextureDescriptor *c = [td copy]; c.storageMode = MTLStorageModePrivate;
-            return ((id (*)(id, SEL, id))orig)(d, sel, c);
+            id t = ((id (*)(id, SEL, id))orig)(d, sel, c);
+            agb_log("adapted: texture %p storage %lu -> Private (%s)", t, (unsigned long)td.storageMode, tex_key(td).UTF8String);
+            if (t) @synchronized (g_switched) { [g_switched addObject:t]; }
+            return t;
         }
         return ((id (*)(id, SEL, id))orig)(d, sel, td);
     }));
+}
+// CPU uploads into Private textures: logged with the address, and whether argbuf made it Private (it never should for a
+// texture the app uploads into; a hit means the rule above is too wide)
+static void uploadWatch(Class tc) {
+    if (!tc) return;
+    SEL s = @selector(replaceRegion:mipmapLevel:slice:withBytes:bytesPerRow:bytesPerImage:);
+    __block IMP o = NULL;
+    o = replace(tc, s, imp_implementationWithBlock(^void(id<MTLTexture> t, MTLRegion r, NSUInteger lvl, NSUInteger sl, const void *b, NSUInteger bpr, NSUInteger bpi) {
+        if (t.storageMode == MTLStorageModePrivate) {
+            BOOL ours; @synchronized (g_switched) { ours = [g_switched containsObject:t]; }
+            agb_log("CPU upload into Private texture %p (%s): type %lu fmt %lu %lux%lu samples %lu usage 0x%lx, region %lux%lu",
+                t, ours ? "made Private by argbuf" : "Private as created", (unsigned long)t.textureType, (unsigned long)t.pixelFormat,
+                (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.sampleCount, (unsigned long)t.usage,
+                (unsigned long)r.size.width, (unsigned long)r.size.height); }
+        ((void (*)(id, SEL, MTLRegion, NSUInteger, NSUInteger, const void *, NSUInteger, NSUInteger))o)(t, s, r, lvl, sl, b, bpr, bpi); }));
 }
 // pipelines: separate depth + stencil formats -> packed
 static MTLRenderPipelineDescriptor *pipeline_adapt(MTLRenderPipelineDescriptor *pd) {
@@ -686,6 +706,8 @@ void agb_install(void) {
         hookDraws(rce, 1);
         agb_astc_install(dev, NSClassFromString(@"MTLIGAccelHeap"), NSClassFromString(@"MTLIGAccelBlitCommandEncoder"), agb_log);
         g_survey = getenv("AGB_SURVEY") != NULL; g_seen = [NSMutableSet new]; g_packed = [NSMutableDictionary new];
+        g_switched = [NSHashTable weakObjectsHashTable];
+        uploadWatch(NSClassFromString(@"MTLIGAccelTexture"));
         privateTargets(dev);
         packedPipelines(dev);
         packedPasses(NSClassFromString(@"MTLIGAccelCommandBuffer"));

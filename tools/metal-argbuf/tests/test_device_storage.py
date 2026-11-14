@@ -34,6 +34,8 @@ class Storage(unittest.TestCase):
             'weather_msaa_stencil_managed': 'yes', 'msaa_stencil_memoryless': 'yes', 'msaa_color_shared': 'yes',
             'depth32_managed': 'yes', 'depth24s8_shared': 'yes',
             'msaa_stencil_private': 'no', 'color_managed': 'no', 'r8_shared': 'no', 'color_memoryless': 'yes',
+            # not a render target: the app may upload into it, so CPU access is never taken away
+            'depth32_managed_not_target': 'no', 'stencil8_shared_not_target': 'no',
             # separate Depth32Float + Stencil8 -> Depth32Float_Stencil8 (260); anything else has no packed equivalent (0)
             'packed_weather': '260', 'packed_same': '0', 'packed_depth_only': '0', 'packed_depth16_stencil8': '0',
             # a shared packed texture only when nothing is loaded in or stored out (else refused, left as asked)
