@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     char *s = malloc(n + 1); fread(s, 1, n, f); s[n] = 0; fclose(f);
     igil_config c = { AGB_TEX_SLOT, AGB_TEX_COUNT, AGB_BUF_SLOT, AGB_BUF_COUNT, AGB_BUF_BTI, AGB_SAMP_SLOT, AGB_SAMP_COUNT }; igil_stats st;
     char *r = igil_rewrite(s, &c, &st);
-    printf("textures %d buffers %d tex_base %d buf_base %d\n", st.textures, st.buffers, st.tex_base, st.buf_base);
+    printf("textures %d buffers %d tex_base %d buf_base %d unresolved %d\n", st.textures, st.buffers, st.tex_base, st.buf_base, st.unresolved);
     f = fopen(argv[2], "wb"); fputs(r ? r : s, f); fclose(f);
     return r ? 0 : 1;
 }

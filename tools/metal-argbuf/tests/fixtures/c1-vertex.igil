@@ -1,0 +1,72 @@
+
+	VERTEXSHADER function0
+
+	VERSION_3_0
+
+	DCL_CONSTANTBUFFER C0=
+	{
+	  KERNEL_ARGUMENT, 1,
+	  LOCATION_INDEX, 0, 0,
+	  EMULATION_ARGUMENT, FALSE,
+	  STRIDE, 4, 4
+	};
+
+	DCL_INDEXABLETEMP x0[2];
+
+	DCL_INPUT i0.x, VERTEXID;
+
+	DCL_TEMPS r0..r44;
+	MOV r0.x, i0.x;
+	DCL_OUTPUT o0.xyzw, POSITION, 0;
+
+	MOV r2, 0;
+
+
+
+	MOV r6.x, r2;
+	MOV_SWZ r7, r6.x, r6.x, r6.x, r6.x;
+	MOV r8.x, 0;
+	MOV_SWZ r9, r8.x, r8.x, r8.x, r8.x;
+	IADD r10, r7, r9;
+	MOV r11.x, 12;
+	MOV r12.x, 8;
+	MOV r13.x, 4;
+	MOV_SWZ r14, r8.x, r13.x, r12.x, r11.x;
+	IADD r15, r10, r14;
+	MOV r16.x, 0x00000000;
+	MOV r17.x, 0xBF800000;
+	MOV_SWZ r18, r17.x, r17.x, r16.x, r16.x;
+	STORE_RAW_SCRATCH x0[0].xy, r15, r18;
+	IADD r19.x, r6.x, 8;
+	MOV_SWZ r20, r19.x, r19.x, r19.x, r19.x;
+	IADD r21, r20, r9;
+	IADD r22, r21, r14;
+	MOV r23.x, 0x40400000;
+	MOV_SWZ r24, r23.x, r17.x, r16.x, r16.x;
+	STORE_RAW_SCRATCH x0[0].xy, r22, r24;
+	IADD r25.x, r6.x, 16;
+	MOV_SWZ r26, r25.x, r25.x, r25.x, r25.x;
+	IADD r27, r26, r9;
+	IADD r28, r27, r14;
+	MOV_SWZ r29, r17.x, r23.x, r16.x, r16.x;
+	STORE_RAW_SCRATCH x0[0].xy, r28, r29;
+	SHL r30.x, r0.x, 3;
+	IADD r31.x, r6.x, r30.x;
+	MOV_SWZ r32, r31.x, r31.x, r31.x, r31.x;
+	IADD r33, r32, r9;
+	IADD r34, r33, r14;
+	LD_RAW_SCRATCH r35.xy, r34, x0[0];
+	LD_RAW r36, 0, C0;
+	MOV r37.x, r36.x;
+	IADD r38.x, r37.x, 16;
+	LD_RAW r39, r38.x, C-1;
+	MOV_SWZ r40, r39.x, r39.x, r16.x, r16.x;
+	FMUL r41, r40, r35;
+	MOV r42.x, r41.y;
+	MOV r43.x, r41.x;
+	MOV r44.x, 0x3F800000;
+	MOV_SWZ r1, r43.x, r42.x, r16.x, r44.x;
+	MOV o0.xyzw, r1.xyzw;
+	RET;
+
+	END

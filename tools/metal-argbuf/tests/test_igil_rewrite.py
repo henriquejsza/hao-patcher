@@ -112,6 +112,35 @@ class Rewrite(unittest.TestCase):
             self.assertNotRegex((FIX / name).read_text(), r'SAMPLE_L .*s0\[', name)
         self.assertRegex((FIX / 'k13-c8.igil').read_text(), r'SAMPLE_L .*s0\[')
 
+    def test_constant_pointer_raw_load(self):
+        # diag#0016 (2026-11-14): constant pointers read with `LD_RAW rD, rA.x, C-1` (scalars, byte/short/half after an
+        # `AND rA, rB, -4`, dynamic scalar indexing, vertex programs) were left on C-1 and the backend refused the
+        # program (CompilerError 2). wgsl-uniform-c1: WebKit's MSL for a WGSL uniform {vec4f, f32} read as a vec4
+        # (`C-1[..]`) and a float at byte 16 (`LD_RAW .., C-1`), captured in Safari's GPU process (bench 0540);
+        # c1-*: the 3802 front end's IGIL for this tool's survey shaders (MSL in the commit message's list).
+        for name, loads in (('wgsl-uniform-c1.igil', ['r14']), ('c1-byte.igil', ['r9', 'r18']),
+                            ('c1-dynfloat.igil', ['r6', 'r14'])):
+            src = (FIX / name).read_text()
+            self.assertRegex(src, r'LD_RAW r\d+, r\d+\.x, C-1;', name)
+            changed, out, info = self.fixture(name)
+            self.assertTrue(changed, name)
+            self.assertNotIn('C-1', out, name)
+            self.assertIn('unresolved 0', info, name)
+            for r in loads:   # pixel programs: the handle in .y of the argument-buffer load selects the UAV
+                self.assertRegex(out, r'IADD (r\d+)\.x, r\d+\.y, %d;\n\tLD_RAW %s, r\d+\.x, u\[\1\.x\];'
+                                 % (-self.cfg['BUF_BTI'], r), name)
+        # with a value loaded through the pointer in the address arithmetic, the argument-buffer pointer (r4) wins
+        _, out, _ = self.fixture('c1-dynfloat.igil')
+        self.assertEqual(set(re.findall(r'IADD r\d+\.x, (r\d+)\.y, -?\d+;', out)), {'r4'})
+
+    def test_constant_pointer_raw_load_vertex(self):
+        # vertex programs ignore a dynamic surface index: one compare per buffer slot
+        changed, out, info = self.fixture('c1-vertex.igil')
+        self.assertTrue(changed)
+        self.assertNotIn('C-1', out)
+        self.assertIn('unresolved 0', info)
+        self.assertEqual(len(re.findall(r'IF_ICMP\.eq r\d+\.x, \d+;\n\tLD_RAW r39, r38\.x, u\d+;', out)), self.cfg['BUF_COUNT'])
+
     def test_plain_program_unchanged(self):
         plain = ('\tPROGRAM\n\tSHADER k\n\n\tVERSION_3_0\n\n\tDCL_UAVRAW u0, TRUE =\n\t{\n\t  KERNEL_ARGUMENT, 0,\n'
                  '\t  LOCATION_INDEX, 0, 0,\n\t  EMULATION_ARGUMENT, FALSE,\n\t  STRIDE, 16, 16\n\t};\n\n'

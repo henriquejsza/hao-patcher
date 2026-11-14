@@ -1,0 +1,48 @@
+
+	PIXELSHADER function1
+
+	VERSION_3_0
+
+	DCL_CONSTANTBUFFER C0=
+	{
+	  KERNEL_ARGUMENT, 0,
+	  LOCATION_INDEX, 0, 0,
+	  EMULATION_ARGUMENT, FALSE,
+	  STRIDE, 4, 4
+	};
+
+	DCL_TEMPS r0..r24;
+	DCL_OUTPUT o0.xyzw, PRIMARYCOLOR, 0;
+
+
+
+	DCL_EARLY_DEPTH_STENCIL_TEST_MODE NORMAL;
+
+
+	LD_RAW r3, 0, C0;
+	MOV r4.x, r3.x;
+	IADD r5.x, r4.x, 1;
+	AND r6.x, r5.x, 3;
+	SHL r7.x, r6.x, 3;
+	AND r8.x, r5.x, -4;
+	LD_RAW r9, r8.x, C-1;
+	SHR r10.x, r9.x, r7.x;
+	AND r11.x, r10.x, 255;
+	UTOF r12.x, r11.x;
+	FMUL r13.x, r12.x, 0x3B808081;
+	IADD r14.x, r4.x, 2;
+	AND r15.x, r14.x, 3;
+	SHL r16.x, r15.x, 3;
+	AND r17.x, r14.x, -4;
+	LD_RAW r18, r17.x, C-1;
+	SHR r19.x, r18.x, r16.x;
+	AND r20.x, r19.x, 65535;
+	UTOF r21.x, r20.x;
+	FMUL r22.x, r21.x, 0x37800080;
+	MOV r23.x, 0x3F800000;
+	MOV r24.x, 0x00000000;
+	MOV_SWZ r0, r13.x, r22.x, r24.x, r23.x;
+	MOV o0.xyzw, r0.xyzw;
+	RET;
+
+	END
