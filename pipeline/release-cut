@@ -77,9 +77,17 @@ def rows_for(assembly):
     return out
 
 
+def store_repository():
+    """The predecessor repository the store belongs to: named by the store's own .source-repository file (a store
+    moved out of that repository keeps the link; the file is local, never tracked), else the store's parent."""
+    store = (TOP / 'store').resolve()
+    marker = store / '.source-repository'
+    return Path(marker.read_text().strip()) if marker.is_file() else store.parent
+
+
 def commit_known(commit):
     # hao-patcher, its sibling repositories, and the predecessor repository the store belongs to
-    store_repo = (TOP / 'store').resolve().parent
+    store_repo = store_repository()
     for repo in (TOP, Path.home() / 'hao-runtime', Path.home() / 'hao-tools', store_repo):
         if repo.is_dir() and subprocess.run(['git', '-C', str(repo), 'cat-file', '-e', commit + '^{commit}'],
                                             capture_output=True).returncode == 0:
@@ -232,7 +240,7 @@ def producer_of(row, hit):
     repo = commit_known(str(commit))
     if repo is None:
         return None, str(commit)
-    store_repo = (TOP / 'store').resolve().parent
+    store_repo = store_repository()
     where = TOP if repo == 'hao-patcher' else store_repo if repo == store_repo.name else Path.home() / repo
     full = subprocess.run(['git', '-C', str(where), 'rev-parse', str(commit) + '^{commit}'], capture_output=True,
                           text=True)

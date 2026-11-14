@@ -78,6 +78,17 @@ list. Mixed-architecture, missing and resource-only roots remain candidates;
 `keep_donor_roots` always takes precedence. The disk-image services remain paired
 with Tahoe's IOHDIXController, as established by the 27-first laptop test.
 
+`recipes/intel-donors.json` is the requirements file for `pipeline/unpack/donor-inputs`
+(`--requirements`), for every donor build. It names its layout file relative to itself, so
+it works from any checkout. The stored 26B131 donor rows (`minimal-*-25G342-26B131`) were
+made from it: their run used a copy of this file as of 207d5635 with only `boot_layout`
+rewritten to an absolute path (that copy's sha256 `83588560...` is the one the run's
+`report.json` records, and donor-inputs' steps on it give the run's `recipe.json` byte for
+byte, with the eight roots Golden Gate supplies itself left out). The file has since gained
+only `os_cache`, `cache_images` and `cache_images_reason` (r11, Tahoe CoreWiFi), which
+the native row's `-corewifi-r3` artifact was made with. No separate per-build requirements
+file exists or is needed.
+
 ## Revisions
 - r12 2026-11-11 cache-dylib is no longer kept in this repository: found next to it or through `CACHE_DYLIB`; a missing copy is an error before extracting.
 - r11 2026-11-11 `native --cache`: the recipe's `cache_images` (Tahoe CoreWiFi from the x86_64h OS cache) are cut out with tools/cache-dylib, verified and added to the system role at their own path; extraction records in `cache-images.json`.

@@ -1,2 +1,3 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
-d7f1778bd3fbd433326f8380b1b4df2d67d09e8143254c7c78fb3ee4b42c1748 store/artifacts/minimal-driverkit-25G342-26B131
+# hash: without build.json  # build records and intermediates: a remake of the same payload matches
+c0a18b6b3272840516f4f80210a80398ad83831a0385a55a09d04c37846862de store/artifacts/minimal-driverkit-25G342-26B131

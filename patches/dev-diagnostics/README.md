@@ -10,6 +10,7 @@ end-user image is built without this recipe and carries none of them.
 | boot-args | adds `hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` after `hao_crash=1` | hao-runtime's NX fault tables, bridge statistics, phase lines and usage counters (boot-gantt reads them). They cost time on every translated native call. |
 | `Misc.Debug.Target` | 0x41 | OpenCore's log goes to a file on the EFI partition, nothing on screen, for collection from Recovery. hao-opencore writes 0 (no log). |
 | `Misc.Debug.DisplayLevel` | adds 0x40 | the file log includes OpenCore's info lines (each kernel patch result). |
+| `NVRAM.Add` `csr-active-config` | 0x827 (the image's 0x803 plus 0x4 and 0x20) | DTrace can attach to a process (`dtrace -p PID`, the pid provider, user stacks): task-for-pid and unrestricted DTrace. hao-opencore's end-user value stays 0x803. Written by `apply.sh` only: a data value cannot be declared with `plist.set` yet. |
 
 Declared in `edits/config.json` (`plist.set`); `tests/test_edits.py` proves the spec and `apply.sh` write the same
 config, starting from hao-opencore's declared values, and that nothing else changes.
@@ -29,13 +30,14 @@ In an end-user image (`mbp92-26B131`): none of them.
 
 ## Validation
 
-NEEDS VALIDATION: not yet built into a bench image or booted. Host evidence: hao-opencore r50's declared values, then
+NEEDS VALIDATION: r4's SIP value has not been built or booted; what should be shown on a dev image: `csrutil status` lists DTrace Restrictions and Task for PID as disabled, `dtrace -p PID -n 'syscall:::entry /pid == $target/ { @[probefunc] = count(); } tick-2s { exit(0); }'` prints counts, and an end-user image's config still has 0x803. Earlier revisions: not yet built into a bench image or booted. Host evidence: hao-opencore r50's declared values, then
 golden-gate-live-text-service's and this recipe's, applied to the base config of the bench image built 2026-11-13
 (run golden-26B131-20261113-091741) give exactly that image's config.plist apart from Kernel.Add/Patch (hao-opencore's
 `tests/test_edits.py` with `HAO_OPENCORE_INPUT` and `HAO_OPENCORE_IMAGE_CONFIG`): bench images keep the same config.
 
 ## Revisions
 
+- r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestricted DTrace, so DTrace can attach to processes on a dev image. End-user images are unchanged (hao-opencore still writes 0x803).
 - r3 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, arm64 or x86_64), falling back to the builder VM's share copy; same Python version and bytes written.
 - r2 2026-11-13 The declared boot-args follow hao-opencore r52 (no ic_csr_internal=1); script unchanged.
 

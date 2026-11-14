@@ -4,7 +4,7 @@
  "origin": {
   "kind": "oclp",
   "name": "OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service)",
-  "note": "in the image's EFI partition, not in the System volume; dev images only (pack dev): an end-user image keeps hao-opencore's values"
+  "note": "in the image's EFI partition, not in the System volume; dev images only (pack dev): an end-user image keeps hao-opencore's values. Not declared here (plist.set has no data value yet): NVRAM.Add csr-active-config, which apply.sh raises from the image's 0x803 to 0x827 (adds task-for-pid 0x4 and unrestricted DTrace 0x20)"
  },
  "applied_by": "installer",
  "edits": [

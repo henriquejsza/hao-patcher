@@ -246,55 +246,97 @@
    "class": "made-on-mac",
    "producer": "tools/oclp-hardware (OCLP at the assembly's commit)",
    "inputs": [
-    "psp_2.0.5"
+    "psp_2.0.5",
+    "oclp_source"
    ],
    "reason": "OCLP's legacy hardware overlay: Apple's older Intel GPU, Wi-Fi and audio binaries from PatcherSupportPkg"
   },
   "tahoe_native_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace",
+    "ripatch"
    ],
-   "reason": "Tahoe (25G342) userspace donor files extracted from Apple's installer"
+   "reason": "Tahoe (25G342) userspace donor files extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements tools/tahoe-donors/recipes/intel-donors.json --kdk {kdk} --ripatch {ripatch} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_extensions_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace",
+    "ripatch"
    ],
-   "reason": "Tahoe Intel kexts extracted from Apple's installer"
+   "reason": "Tahoe Intel kexts extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements tools/tahoe-donors/recipes/intel-donors.json --kdk {kdk} --ripatch {ripatch} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_driverkit_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace",
+    "ripatch"
    ],
-   "reason": "Tahoe DriverKit extensions extracted from Apple's installer"
+   "reason": "Tahoe DriverKit extensions extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements tools/tahoe-donors/recipes/intel-donors.json --kdk {kdk} --ripatch {ripatch} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_recovery_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace",
+    "ripatch"
    ],
-   "reason": "Tahoe Recovery donor files extracted from Apple's installer"
+   "reason": "Tahoe Recovery donor files extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements tools/tahoe-donors/recipes/intel-donors.json --kdk {kdk} --ripatch {ripatch} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_boot_donors": {
    "class": "made-on-mac",
-   "producer": "tools/tahoe-donors",
+   "producer": "tools/tahoe-donors from pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "golden_gate_userspace",
+    "ripatch"
    ],
-   "reason": "Tahoe Intel boot files (boot.efi, BuildManifests) extracted from Apple's installer"
+   "reason": "Tahoe Intel boot files (boot.efi, BuildManifests) extracted from Apple's installer; donor-inputs keeps a Tahoe root only where Golden Gate supplies no x86_64 code for it, on disk (golden_gate_userspace's filesystem.dmg) or in its Rosetta x86_64 shared cache (golden_gate_userspace's rosetta.dmg, listed by pipeline/unpack/cache-images): reproduced 2026-11-14, the 8 target choices of the stored 26B131 run match exactly",
+   "producer_steps": [
+    "pipeline/unpack/cache-images dmg {golden_gate_userspace}/rosetta.dmg {work}/gg-cache-images.txt",
+    "hdiutil attach -readonly {golden_gate_userspace}/filesystem.dmg (the target system)",
+    "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements tools/tahoe-donors/recipes/intel-donors.json --kdk {kdk} --ripatch {ripatch} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
+    "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
+   ]
   },
   "tahoe_kmutil": {
    "class": "made-on-mac",
    "producer": "pipeline/unpack/donor-inputs",
    "inputs": [
-    "installer"
+    "installer",
+    "ripatch"
    ],
    "reason": "Apple's Tahoe kmutil binary extracted from the installer (release-cut's store path calls it a download; it is not one)"
   },
@@ -310,7 +352,8 @@
    "class": "made-on-mac",
    "producer": "pipeline/unpack/unpack-installer",
    "inputs": [
-    "installer"
+    "installer",
+    "ripatch"
    ],
    "reason": "Tahoe's x86_64h OS cryptex shared cache, rebuilt by pipeline/unpack's ripatch from Apple's installer; read only by the producers that cut libraries out of it (kc-builder)"
   },
@@ -449,6 +492,16 @@
    "name": "urllib3-2.8.0-py3-none-any.whl",
    "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
    "reason": "PyPI wheel urllib3 2.8.0 (third-party; size checked), unpacked into python_site"
+  },
+  "ripatch": {
+   "class": "ours",
+   "publish": "file",
+   "reason": "our RIDIFF10 image patcher (pipeline/unpack/ripatch.c), one universal binary built by pipeline/unpack/build-tools from a clean commit; it dlopens the host's libParallelCompression, no Apple code in it"
+  },
+  "oclp_source": {
+   "class": "ours",
+   "publish": "file",
+   "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
   }
  }
 }
