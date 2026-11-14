@@ -21,7 +21,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
 | golden-gate-live-text-service | r4 | post | experiment |  | x |  |  |  | **needs** | r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, ar |
 | golden-gate-live-text-shared | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-14 Input row `live_text_framework` now hashes only the files a release can give a user's Mac (`# ha |
-| golden-gate-metal-argbuf | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-14 Wrapper from d9cff656: the IGIL rewrite also handles constant-pointer raw loads (`LD_RAW .., C-1 |
+| golden-gate-metal-argbuf | r5 | oclp-hook | product |  | x |  |  |  | **needs** | r5 2026-11-14 libargbuf from 547557ae: requests MetalOld refuses but current Apple drivers accept are adapted  |
 | golden-gate-metal-framebuffer | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input row `metal_framebuffer` now hashes only the files a release can give a user's Mac (`# hash |
 | golden-gate-metal-libraries | r21 | oclp-hook | experiment |  | x | x |  |  | **needs** | r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their p |
 | golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |

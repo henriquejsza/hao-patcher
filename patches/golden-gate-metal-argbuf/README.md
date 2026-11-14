@@ -35,14 +35,16 @@ Only built for 26B131.
 
 ## Validation
 
-NEEDS VALIDATION. r4's wrapper ran as a live swap on laptop 1 (26B131, bench 0640, 2026-11-14): no GPU reset, WebGPU and
-WebGL readback right in every phase, Maps drew; WebGPU canvases are still not shown on the panel (a separate fault,
-diag#0016), and Weather's precipitation map was blank in that run, but no program Weather compiles differs under r4's
-rewrite (bench 0720 diagnostic wrapper, measured). r2's files were proven as a live swap on 2026-11-12: Weather with all
-four maps, and Safari WebGPU compute and render. No image built with this recipe has booted yet.
+NEEDS VALIDATION. r5's libargbuf ran as a live swap on laptop 1 (26B131, 2026-11-14 06:19-06:27): Weather's precipitation
+map no longer aborts (3 of 3 selections; before: abort each time its pass ran), its radar-coverage hatching draws, and the
+Temperature and Wind maps draw as before; precipitation colour itself was not seen (Weather finds no radar overlay in its map
+metadata: a data-side fault traced separately under diag#0002). r4's wrapper ran as a live swap (bench 0640): no GPU reset,
+WebGPU and WebGL readback right. r2's files were proven as a live swap on 2026-11-12 (Weather with all four maps, Safari
+WebGPU compute and render). No image built with this recipe has booted yet.
 
 ## Revisions
 
+- r5 2026-11-14 libargbuf from 547557ae: requests MetalOld refuses but current Apple drivers accept are adapted where the HD 4000 can honour them (multisample/depth-stencil render targets made Private; separate Depth32Float + Stencil8 built packed; a CPU-written MSAA stencil emulated through a staging texture and per-bit stencil passes), each logged; AGB_SURVEY=1 logs every texture/pipeline/pass shape (off by default). Ends Weather's precipitation-map abort (diag#0002). Wrapper and iCBE-real as r4.
 - r4 2026-11-14 Wrapper from d9cff656: the IGIL rewrite also handles constant-pointer raw loads (`LD_RAW .., C-1`: a scalar read through an argument-buffer pointer, e.g. a WebGPU uniform `{vec4f, f32}`), which the backend refused (CompilerError 2) and which hung the GPU in Safari (diag#0016). iCBE-real and libargbuf unchanged.
 - r3 2026-11-14 Input row `metal_argbuf` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.
 
