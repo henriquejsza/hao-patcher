@@ -501,6 +501,11 @@ class Assembler:
                 # the dev-golden-bootstrap assembly derives row darwin27_boot_kc (kernel repairs) from it.
                 self.run('ditto',self.mounts['system']/'System/Library/KernelCollections/BootKernelExtensions.kc',
                          self.work/'BootKernelExtensions.kc')
+                # And all three files as linked, for a kit whose install cannot link them (golden-run stores them
+                # under their key, pipeline/prelinked_kc.py).
+                (self.work/'kc').mkdir(mode=0o755,exist_ok=True)
+                for name in ('BootKernelExtensions.kc','BootKernelExtensions.kc.elides','SystemKernelExtensions.kc'):
+                    self.run('ditto',self.mounts['system']/'System/Library/KernelCollections'/name,self.work/'kc'/name)
 
     def snapshot(self):
         system = self.mounts['system']

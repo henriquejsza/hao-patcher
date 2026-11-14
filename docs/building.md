@@ -72,6 +72,14 @@ the Recovery runs no `doubleagentd`, which keeps a FAT volume's extended attribu
 there. `pipeline/tests/test_fat_esp.py` runs those copies on a real FAT32 disk image, with only the Recovery's
 commands on PATH (`HAO_TEST_KIT=KIT` adds a staged kit's ESP).
 
+The Recovery cannot link the kernel collections: its `kmutil` links a kernel-only collection for the target volume
+(it reads none of its kexts). So a builder VM build stores the Boot and System collections it linked in
+`store/cache/kc/KEY/` ([`prelinked_kc.py`](../pipeline/prelinked_kc.py): KEY covers the input rows and sources that
+shape System up to `darwin27-kernel`). `golden-run --stage-kit` copies the entry with the kit's key into the kit's
+`darwin27-kernel` hook folder (`prelinked/`), and the hook checks each file's sha256 and installs them instead of
+linking. `hao create-installer` refuses a kit without them: build the image once in the VM first. Producing them
+without the VM is open (see the VM-free build plan).
+
 A failed assembly can continue at its failed step, on the same disk, when that step can run again over what the
 failed attempt left (`RESUMABLE` in `golden-image.py`: `boot-and-esp` and `hardware`):
 `golden-image.py CONFIG --resume WORK`, `golden-assemble.sh ... --resume WORK`, or

@@ -527,6 +527,33 @@
    {
     "capture": false,
     "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
+     "<root>/work/kc/BootKernelExtensions.kc"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
+     "<root>/work/kc/BootKernelExtensions.kc.elides"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/SystemKernelExtensions.kc",
+     "<root>/work/kc/SystemKernelExtensions.kc"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
      "sh",
      "-eu",
      "/staged/userspace/kc-hook.sh",
@@ -1441,6 +1468,33 @@
       "ditto",
       "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
       "<root>/work/BootKernelExtensions.kc"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
+      "<root>/work/kc/BootKernelExtensions.kc"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
+      "<root>/work/kc/BootKernelExtensions.kc.elides"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/SystemKernelExtensions.kc",
+      "<root>/work/kc/SystemKernelExtensions.kc"
      ],
      "environment": 4
     },
@@ -2418,6 +2472,33 @@
    {
     "capture": false,
     "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
+     "<root>/work/kc/BootKernelExtensions.kc"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
+     "<root>/work/kc/BootKernelExtensions.kc.elides"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/SystemKernelExtensions.kc",
+     "<root>/work/kc/SystemKernelExtensions.kc"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
      "sh",
      "-eu",
      "/staged/userspace/kc-hook.sh",
@@ -3301,6 +3382,33 @@
       "ditto",
       "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
       "<root>/work/BootKernelExtensions.kc"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
+      "<root>/work/kc/BootKernelExtensions.kc"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
+      "<root>/work/kc/BootKernelExtensions.kc.elides"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/SystemKernelExtensions.kc",
+      "<root>/work/kc/SystemKernelExtensions.kc"
      ],
      "environment": 4
     },
@@ -5508,6 +5616,33 @@
    {
     "capture": false,
     "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
+     "<root>/work/kc/BootKernelExtensions.kc"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
+     "<root>/work/kc/BootKernelExtensions.kc.elides"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
+     "ditto",
+     "<root>/work/mnt/system/System/Library/KernelCollections/SystemKernelExtensions.kc",
+     "<root>/work/kc/SystemKernelExtensions.kc"
+    ],
+    "environment": 4
+   },
+   {
+    "capture": false,
+    "command": [
      "sh",
      "-eu",
      "/staged/userspace/kc-hook.sh",
@@ -6385,6 +6520,33 @@
       "ditto",
       "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
       "<root>/work/BootKernelExtensions.kc"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc",
+      "<root>/work/kc/BootKernelExtensions.kc"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
+      "<root>/work/kc/BootKernelExtensions.kc.elides"
+     ],
+     "environment": 4
+    },
+    {
+     "capture": false,
+     "command": [
+      "ditto",
+      "<root>/work/mnt/system/System/Library/KernelCollections/SystemKernelExtensions.kc",
+      "<root>/work/kc/SystemKernelExtensions.kc"
      ],
      "environment": 4
     },

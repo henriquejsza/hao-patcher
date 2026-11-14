@@ -20,6 +20,19 @@ CONTENT = {'ours', 'made-on-mac', 'download', 'harvested', 'in-checkout', 'pendi
 STORE = (TOP / 'store/artifacts').is_dir()
 
 
+_LEDGER = tempfile.TemporaryDirectory()
+
+
+def setUpModule():
+    # release-cut --write refuses while the laptops' swap ledger has a proven, unresolved swap (pipeline/swaps.py
+    # gate); these tests are about the release, so they run against an empty ledger.
+    os.environ['HAO_SWAP_LEDGER'] = str(Path(_LEDGER.name) / 'ledger.tsv')
+
+
+def tearDownModule():
+    os.environ.pop('HAO_SWAP_LEDGER', None)
+    _LEDGER.cleanup()
+
 class ReleaseCut(unittest.TestCase):
     def test_missing_rows_are_reported(self):
         self.assertEqual(R['classify']('nothing', None)[0], 'missing')

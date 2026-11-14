@@ -8,7 +8,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-13 Documentation only: Inputs lists `tahoe_kc_builder` (added in r8). The hook is unchanged. |
+| darwin27-kernel | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-14 With `prelinked/prelinked.json` in its folder (a kit for the USB installer: golden-run `--stage |
 | darwin27-sandbox-disk-space | r3 | oclp-hook | experiment |  |  | x |  |  | **needs** | r3 2026-11-12 Declare the system.sb rule in `edits/system-sb.json` (edit-engine text.insert, unless already pr |
 | dev-access | r4 | post | dev |  |  |  |  |  | ok (r3) | r4 2026-11-12 Declare the four files it installs in patch.json `files`; the hook is unchanged. |
 | dev-diagnostics | r4 | post | dev |  |  |  |  |  | **needs** | r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestrict |

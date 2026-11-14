@@ -81,6 +81,8 @@ class FakeCommands:
         elif a[:3]==['sh','-eu',self.config['hooks'][0]['kc_hook']]:
             kc=Path(a[3])/'System/Library/KernelCollections';kc.mkdir(parents=True,exist_ok=True)
             (kc/'BootKernelExtensions.kc').write_bytes(b'authored collection')
+            (kc/'BootKernelExtensions.kc.elides').write_text('com.apple.iokit.IOPCIFamily\n')
+            (kc/'SystemKernelExtensions.kc').write_bytes(b'authored system collection')
         elif a[:2]==['sh','-eu'] and any(a[2]==h['kc_hook'] for h in self.config['hooks'][1:]):
             # A later recipe changes the collection; the record keeps darwin27-kernel's bytes.
             (Path(a[3])/'System/Library/KernelCollections/BootKernelExtensions.kc').write_bytes(b'edited by '+a[2].encode())
