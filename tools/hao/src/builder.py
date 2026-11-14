@@ -62,7 +62,6 @@ DISK_DETAIL = {
     'Make it bootable': 'OpenCore to the EFI partition, bless',
 }
 HERE_STEPS = ('Prepare the kit', 'Assemble the image on this Mac', 'Keep the reusable parts')
-NOT_WIRED = 'writing the USB stick (its Recovery, launcher and kit partition) is not built yet'
 BUILDS = Path.home() / 'Library' / 'Caches' / 'hao' / 'builds'
 AMFI_RELAXED = re.compile(r'(^|\s)(amfi_get_out_of_my_way=(1|0x1)|amfi=0x80)(\s|$)')
 

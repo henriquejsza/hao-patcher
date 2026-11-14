@@ -34,7 +34,7 @@ logs:  for a stopped run: the guest's unified log as a logarchive (boot.logarchi
 import argparse, datetime, hashlib, json, os, plistlib, re, shutil, signal, struct, subprocess, sys, tempfile, time
 from pathlib import Path
 
-UNIT, REVISION = 'tools/qemu-vm', 9
+UNIT, REVISION = 'tools/qemu-vm', 10
 TOP = Path(__file__).resolve().parents[2]
 QEMU = '/opt/homebrew/bin/qemu-system-x86_64'
 QEMU_IMG = '/opt/homebrew/bin/qemu-img'
@@ -46,10 +46,15 @@ NVRAM_GUID = '7C436110-AB2A-4BBB-A880-FE41995C9F82'   # Apple's NVRAM variables 
 SKIP = shutil.ignore_patterns('._*', '.fseventsd', '.Spotlight-V100', '.Trashes', '.DS_Store')
 
 
-def command(run, esp, name, ssh_port, memory, sockets):
+def command(run, esp, name, ssh_port, memory, sockets, usb_disks=0):
     """The QEMU command of the tested topology: Q35/TCG, IvyBridge, 1 socket x 2 cores x 2 threads, OVMF,
-    ESP and system on IDE, xHCI keyboard/tablet, std VGA, vmxnet3 user net with SSH forwarded to localhost."""
+    ESP and system on IDE, xHCI keyboard/tablet, std VGA, vmxnet3 user net with SSH forwarded to localhost.
+    USB_DISKS: that many USB mass-storage disks on the xHCI bus, RUN/usbN.qcow2 (the installer stick)."""
     r = str(run)
+    usb = []
+    for n in range(usb_disks):
+        usb += ['-drive', 'id=usb%d,if=none,format=qcow2,file=%s/usb%d.qcow2' % (n, r, n),
+                '-device', 'usb-storage,bus=xhci.0,drive=usb%d,removable=on' % n]
     return [QEMU, '-name', name, '-machine', 'q35', '-accel', 'tcg,thread=multi',
             '-cpu', 'IvyBridge,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on',
             '-smp', '4,sockets=1,cores=2,threads=2', '-m', memory,
@@ -60,6 +65,7 @@ def command(run, esp, name, ssh_port, memory, sockets):
             '-drive', 'id=system,if=none,format=qcow2,file=%s/guest.qcow2' % r,
             '-device', 'ide-hd,bus=ide.1,drive=system',
             '-device', 'qemu-xhci,id=xhci', '-device', 'usb-kbd,bus=xhci.0', '-device', 'usb-tablet,bus=xhci.0',
+            ] + usb + [
             '-vga', 'std',
             '-nic', 'user,model=vmxnet3,restrict=on,hostfwd=tcp:127.0.0.1:%d-:22,id=sshnet' % ssh_port,
             '-display', 'none',
@@ -128,14 +134,18 @@ def sha256(path):
 
 def start(a):
     image, esp = Path(a.image).resolve(), Path(a.esp).resolve()
-    if not image.is_file() or not esp.exists():
-        sys.exit('qemu-vm: no such image or ESP')
+    usb = [Path(u).resolve() for u in getattr(a, 'usb_disk', None) or []]
+    if not image.is_file() or not esp.exists() or not all(u.is_file() for u in usb):
+        sys.exit('qemu-vm: no such image, ESP or USB disk')
     now = datetime.datetime.now(datetime.timezone.utc)
     run = new_run(a.out, a.name, now)
     sockets = Path(tempfile.mkdtemp(prefix='qemu-vm-'))   # unix socket paths must stay short
     shutil.copyfile(VARS_FD, run / 'vars.fd')
     subprocess.run([QEMU_IMG, 'create', '-q', '-f', 'qcow2', '-F', 'raw', '-b', str(image), str(run / 'guest.qcow2')],
                    check=True)
+    for n, u in enumerate(usb):   # each USB disk through its own overlay: the stick image is never written
+        subprocess.run([QEMU_IMG, 'create', '-q', '-f', 'qcow2', '-F', 'raw', '-b', str(u), str(run / ('usb%d.qcow2' % n))],
+                       check=True)
     boot_args, csr, drive = None, None, esp
     if a.boot_arg or a.csr is not None:  # a per-run ESP folder: the stored ESP is never changed
         drive = run / 'esp'
@@ -147,11 +157,11 @@ def start(a):
             boot_args = add_boot_args(drive / 'EFI' / 'OC' / 'config.plist', a.boot_arg)
         if a.csr is not None:
             csr = set_csr(drive / 'EFI' / 'OC' / 'config.plist', a.csr)
-    cmd = command(run, drive, a.name, a.ssh_port, a.memory, sockets)
+    cmd = command(run, drive, a.name, a.ssh_port, a.memory, sockets, len(usb))
     (run / 'command.json').write_text(json.dumps(cmd, indent=2) + '\n')
     (run / 'started.json').write_text(json.dumps({
         'unit': UNIT, 'revision': REVISION, 'date': now.isoformat(), 'image': str(image),
-        'esp': str(esp), 'esp_sha256': sha256(esp) if esp.is_file() else None, 'boot_args': boot_args, 'csr': csr, 'sockets': str(sockets), 'ssh': '127.0.0.1:%d' % a.ssh_port,
+        'esp': str(esp), 'usb_disks': [str(u) for u in usb], 'esp_sha256': sha256(esp) if esp.is_file() else None, 'boot_args': boot_args, 'csr': csr, 'sockets': str(sockets), 'ssh': '127.0.0.1:%d' % a.ssh_port,
         'qemu': subprocess.run([QEMU, '--version'], capture_output=True, text=True).stdout.splitlines()[0]},
         indent=2) + '\n')
     subprocess.run(cmd, check=True)
@@ -585,6 +595,8 @@ def main(argv):
     s.add_argument('--name', default='darwin27')
     s.add_argument('--ssh-port', type=int, default=22397)
     s.add_argument('--memory', default='16G')
+    s.add_argument('--usb-disk', action='append', default=[],
+                   help='a raw disk image attached as a USB stick through a per-run overlay (repeatable)')
     s.add_argument('--out')
     s.add_argument('--boot-arg', action='append', default=[],
                    help='append to the ESP boot-args for this run (repeatable); boots a per-run ESP folder')

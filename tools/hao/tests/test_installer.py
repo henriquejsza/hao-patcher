@@ -71,12 +71,15 @@ class FakeMac(LaptopMac):
             return b'Alice Example'
         if argv == ['uname', '-v']:
             return b'Darwin Kernel Version 27.2.0'
+        if argv[:2] == ['hdiutil', 'detach']:
+            return b''
         return super().answer(argv)
 
 
 def ns(**kw):
     base = dict(model=None, profile=None, assembly=None, dry_run=True, disk=None, confirm=None, quiet=False,
-                show=False, show_edits=False, log=None, minimum_bytes=None, release=None, cache=None)
+                show=False, show_edits=False, log=None, minimum_bytes=None, release=None, cache=None, kit=None,
+                work=None, basesystem=None, image=None, image_size=None)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -113,6 +116,33 @@ class FakeAcquire:
             self.fetched.append(r['name'])
             on_event({'ev': 'progress', 'name': r['name'], 'done': r['size'], 'size': r['size']})
             on_event({'ev': 'ok', 'name': r['name'], 'sha256': r['sha256']})
+
+
+class FakeWriter:
+    """Stands in for the kit staging, the input lookup and stick.write: records the call, writes nothing."""
+
+    def __init__(self, fail=None):
+        self.calls, self.attached, self.fail = [], [], fail
+
+    def __enter__(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        d = Path(self.tmp.name)
+        self.saved = INST.prepare_kit, INST.stick_inputs, INST.STICK.write, INST.STICK.attach_image
+        INST.prepare_kit = lambda a, c, path: d / 'kit'
+        INST.stick_inputs = lambda a, asm: (d / 'BaseSystem.dmg', d / 'esp.tar')
+        INST.STICK.attach_image = lambda host, image, size: self.attached.append((image, size)) or 'disk9'
+
+        def write(host, disk, *args, **kw):
+            self.calls.append(((disk,) + args, kw))
+            if self.fail:
+                raise INST.STICK.StickError(self.fail)
+            return dict(basesystem_sha256='ab' * 32, kit_bytes=10 * GB)
+        INST.STICK.write = write
+        return self
+
+    def __exit__(self, *exc):
+        INST.prepare_kit, INST.stick_inputs, INST.STICK.write, INST.STICK.attach_image = self.saved
+        self.tmp.cleanup()
 
 
 class Release:
@@ -245,36 +275,61 @@ class CreateInstallerTest(unittest.TestCase):
                 self.assertIn('Everything on disk4  SanDisk Ultra 62.0 GB will be erased.', out.getvalue())
         self.assertEqual(writes(host), [])
 
-    def test_downloads_prepares_and_stops_before_writing(self):
+    def test_downloads_prepares_and_writes(self):
         host = FakeMac(uid=0)
-        with Release() as r:
+        with Release() as r, FakeWriter() as w:
             fake = FakeAcquire()
             c, out, _ = console(['', '1', 'disk4'])
-            with self.assertRaises(CON.Stopped) as x:
-                INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c, host,
-                                      acquire=fake.api)
+            self.assertEqual(INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c,
+                                                   host, acquire=fake.api), 0)
         self.assertEqual(fake.fetched, ['UniversalMac_27.2.1_26B131_Restore.ipsw', 'shims.tar'])
-        self.assertIn('cannot write the USB stick yet', x.exception.what)
-        self.assertIn('the stick was not touched', x.exception.untouched)
-        self.assertTrue(x.exception.options)
+        (disk, basesystem, opencore, kit, top), kw = w.calls[0]
+        self.assertEqual((disk, basesystem.name, opencore.name, kit.name, top), ('disk4', 'BaseSystem.dmg', 'esp.tar',
+                                                                              'kit', INST.TOP))
+        self.assertEqual(kw['release'], r.path)
+        self.assertEqual(kw['record']['model'], 'MacBookPro9,2')
+        self.assertEqual(kw['record']['target'], 'mbp92')
         text = out.getvalue()
         self.assertIn('[1/3] Download', text)
         self.assertIn('2 files, 9 B', text)
         self.assertIn('[2/3] Prepare packs', text)
         self.assertIn('6 packs', text)
         self.assertIn('[3/3] Write the USB stick', text)
-        self.assertEqual(writes(host), [])
+        self.assertIn('/Volumes/HAO/install', text)
+        self.assertEqual(writes(host), [])                # the fake writer touched no disk
+
+    def test_write_failure_says_the_stick_is_incomplete(self):
+        host = FakeMac(uid=0)
+        with Release() as r, FakeWriter(fail='partitionDisk failed (1): busy') as w:
+            c, _, _ = console(['', '1', 'disk4'])
+            with self.assertRaises(CON.Stopped) as x:
+                INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c, host,
+                                      acquire=FakeAcquire().api)
+        self.assertEqual(x.exception.what, 'writing the USB stick failed')
+        self.assertIn('busy', x.exception.cause)
+        self.assertIn(INST.REPORT, x.exception.options)
+
+    def test_image_needs_no_root_disk_or_confirmation(self):
+        host = FakeMac(uid=501)
+        with FakeWriter() as w, tempfile.TemporaryDirectory() as d:
+            c, _, asked = console([])
+            a = ns(dry_run=False, model='MacBookPro9,2', release='/nonexistent/release.json',
+                   image=str(Path(d) / 'stick.img'), image_size=64 * GB)
+            self.assertEqual(INST.create_installer(a, c, host), 0)
+        self.assertEqual(asked, [])
+        self.assertEqual(w.attached, [((Path(d) / 'stick.img').resolve(), 64 * GB)])
+        self.assertEqual(w.calls[0][0][0], 'disk9')
+        self.assertIsNone(w.calls[0][1]['release'])
+        self.assertIn(['hdiutil', 'detach', '/dev/disk9'], host.calls)
 
     def test_flags_answer_every_question(self):
         host = FakeMac(uid=0)
-        with Release() as r:
+        with Release() as r, FakeWriter():
             fake = FakeAcquire()
             c, _, asked = console([])
             a = ns(dry_run=False, model='MacBookPro9,2', disk='/dev/disk4', confirm='disk4', release=str(r.path),
                    cache=str(r.cache))
-            with self.assertRaises(CON.Stopped) as x:
-                INST.create_installer(a, c, host, acquire=fake.api)
-        self.assertIn('cannot write', x.exception.what)
+            self.assertEqual(INST.create_installer(a, c, host, acquire=fake.api), 0)
         self.assertEqual(asked, [])
         self.assertEqual(len(fake.fetched), 2)
 

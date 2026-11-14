@@ -11,20 +11,29 @@ It asks only what it must, one question at a time, with numbered choices, then r
 
 --model, --profile, the disk argument and --confirm answer them ahead (scripts and tests). Then: Download (the files
 release.json pins, beside `hao`, through tools/acquire, each checked by size and sha256), Prepare packs, Write the USB
-stick. Writing the stick is not built yet: the command stops there, says so in plain words and leaves the stick as it
-was. --dry-run asks the questions and shows the plan; it downloads and writes nothing.
+stick (stick.py: OpenCore and the Recovery on a FAT32 partition, hao and the kit on a Mac OS Extended one).
+--dry-run asks the questions and shows the plan; it downloads and writes nothing.
+
+Until the kit is made from the downloads on the user's Mac (workflow plan steps 12/13), the kit is staged from the
+checkout's store (golden-run --stage-kit) or named with --kit; the Recovery is the donor build's stock Tahoe
+BaseSystem (row `unpack`), or --basesystem FILE. --image FILE (development) writes a raw stick image instead of a
+disk: no root, no disk question, no confirmation; QEMU or `dd` take it from there.
 """
+import datetime
 import json
 import os
 from pathlib import Path
 import plistlib
 import runpy
+import subprocess
 import sys
 
 from console import Stopped, human_size
 import builder as BUILD
 import detect as DETECT
 import disks as DISKS
+import livepatch as LP
+import stick as STICK
 
 TOP = Path(__file__).resolve().parents[3]
 ACQUIRE = TOP / 'tools' / 'acquire' / 'acquire'
@@ -257,7 +266,8 @@ def create_installer(a, c, host, acquire=None):
     release = load_release(release_path)
     c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which stick, then works on '
             'its own.', 'quiet')
-    if not a.dry_run:
+    image = getattr(a, 'image', None)
+    if not a.dry_run and not image:
         if host.euid() != 0:
             raise Stopped('hao create-installer needs administrator rights to erase the USB stick',
                           options=['run it again as: sudo ./hao create-installer'],
@@ -268,13 +278,19 @@ def create_installer(a, c, host, acquire=None):
         a.assembly = release.get('assembly')
     ask_mac(a, c, host, release)
     a.sources = [str(p) for p in (TOP, cache) if p.exists()]
-    info = ask_disk(a, c, host, minimum, a.sources)
-    disk = DISKS.normalize(a.disk)
+    if image:
+        info = dict(DeviceIdentifier='image', MediaName=str(image), TotalSize=a.image_size)
+    else:
+        info = ask_disk(a, c, host, minimum, a.sources)
+    disk = DISKS.normalize(a.disk) if not image else None
     c.print('', 'quiet')
     profile, path, asm, groups = BUILD.resolve(a, c, 'create-installer')
-    c.print('Stick  %s  external, big enough %s' % (DISKS.label(info), c.ok))
-    c.event('disk', disk=disk, policy='external', size=info.get('TotalSize') or info.get('Size'))
-    if not a.dry_run:
+    if image:
+        c.print('Stick  image file %s (%s, sparse)' % (image, human_size(a.image_size)))
+    else:
+        c.print('Stick  %s  external, big enough %s' % (DISKS.label(info), c.ok))
+        c.event('disk', disk=disk, policy='external', size=info.get('TotalSize') or info.get('Size'))
+    if not a.dry_run and not image:
         c.print('')
         if not c.confirm('Everything on %s will be erased.' % DISKS.label(info), disk, a.confirm):
             raise Stopped('not confirmed', untouched='nothing was downloaded or written')
@@ -289,14 +305,78 @@ def create_installer(a, c, host, acquire=None):
                                              profile['model']), ok=not a.dry_run, ev='packs', packs=profile['packs'])
     for pack, names in groups.items():
         c.item('%-22s %d recipes' % (pack, len(names)), 'files')
-    c.step(STEPS[2], plan=a.dry_run)
-    c.item('erase %s; partition 1: OpenCore, Recovery and the installer; partition 2: the kit' % disk)
     if a.dry_run:
+        c.step(STEPS[2], plan=True)
+        c.item('erase %s; partition 1: OpenCore and the Recovery; partition 2: hao, the kit and the install command'
+               % (disk or 'the image'))
         c.done('dry run: nothing was downloaded or written')
         return 0
-    raise Stopped('this release cannot write the USB stick yet',
-                  why='making the stick (its Recovery, the installer and the macOS 27 files from Apple\'s downloads) '
-                      'is still being built',
-                  untouched='the stick was not touched; the downloads are kept and reused next time',
-                  options=['wait for a release whose notes say it writes the stick, then run the same command',
-                           'developers: build an image in the builder VM with hao build-image (tools/hao/README.md)'])
+    kit = prepare_kit(a, c, path)
+    basesystem, opencore = stick_inputs(a, asm)
+    c.step(STEPS[2])
+    if image:
+        disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
+        c.item('stick image %s attached as /dev/%s' % (image, disk), 'files')
+    record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
+                  target=asm['target'], assembly=path.stem, golden_build=asm['golden_build'],
+                  donor_build=asm['donor_build'], basesystem=Path(basesystem).name)
+    try:
+        rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
+                          record=record, on_step=lambda text: c.item(text, 'steps'))
+    except (STICK.StickError, OSError, LP.PatchError) as x:
+        raise Stopped('writing the USB stick failed', cause=str(x).splitlines()[0],
+                      why='the stick is erased and incomplete; it will not start',
+                      options=['run the same command again: it starts from an empty stick; the downloads are kept',
+                               REPORT])
+    finally:
+        if image:
+            host.run(['hdiutil', 'detach', '/dev/' + disk], check=False, timeout=300)
+    c.item('BaseSystem.dmg sha256 %s, kit %s' % (rec['basesystem_sha256'][:16], human_size(rec['kit_bytes'])),
+           ok=True, ev='stick.written', stick=rec)
+    c.done(('stick image written: %s' % image) if image else
+           'the USB stick is ready: plug it into the Intel Mac, hold Option while it starts and choose EFI Boot; '
+           'in the Recovery open Terminal and run /Volumes/HAO/install', disk=disk)
+    return 0
+
+
+def lock_path(*argv):
+    """pipeline/lock.py path ...: an input row's file, hash-checked."""
+    r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline' / 'lock.py'), 'path'] + [str(x) for x in argv],
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode:
+        raise Stopped('an input is missing or has the wrong sha256', cause=r.stderr.decode(errors='replace').strip()[:300],
+                      untouched='the stick was not touched')
+    return Path(r.stdout.decode().strip())
+
+
+def stick_inputs(a, asm):
+    """(BaseSystem.dmg, the target's ESP tar): --basesystem or the donor build's stock Tahoe BaseSystem; the ESP row
+    of targets/TARGET.json (OpenCore as OCLP installs it on that model)."""
+    basesystem = getattr(a, 'basesystem', None)
+    if basesystem:
+        basesystem = Path(basesystem).expanduser().resolve()
+    else:
+        basesystem = lock_path(TOP / 'pipeline' / 'inputs' / asm['donor_build'], 'unpack') / 'out' / 'BaseSystem-x86_64.dmg'
+    if not basesystem.is_file():
+        raise Stopped('no BaseSystem.dmg at %s' % basesystem, untouched='the stick was not touched')
+    return basesystem, lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
+
+
+def prepare_kit(a, c, path, run=subprocess.call):
+    """The kit the stick carries: --kit, else staged now (golden-run --stage-kit) from the checkout's store."""
+    if getattr(a, 'kit', None):
+        kit = Path(a.kit).expanduser().resolve()
+    else:
+        work = Path(getattr(a, 'work', None) or BUILD.BUILDS / datetime.datetime.now().strftime('%Y%m%d-%H%M%S')).resolve()
+        cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit',
+               '--work', str(work / 'stage'), '--record', str(work / 'record')]
+        c.event('command', argv=cmd)
+        c.item('prepare the kit  ' + str(work / 'stage' / 'share'), 'files')
+        if run(cmd):
+            raise Stopped('preparing the kit failed', options=['the record is in %s' % (work / 'record'), REPORT],
+                          untouched='the stick was not touched')
+        kit = work / 'stage' / 'share'
+    if not (kit / 'kit.json').is_file():
+        raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
+    c.item('kit  %s' % kit, 'files', ok=True)
+    return kit

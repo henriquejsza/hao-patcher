@@ -19,6 +19,14 @@ class Command(unittest.TestCase):
                      'file:/r/serial.log', 'unix:/s/qmp.sock', 'unix:/s/gdb.sock', 'model=vmxnet3', '-no-reboot'):
             self.assertIn(want, j)
         self.assertEqual(c[c.index('-m') + 1], '16G')
+        self.assertNotIn('usb-storage', j)
+
+    def test_usb_disks_are_overlays_on_xhci(self):
+        c = qv.command(Path('/r'), Path('/e/esp.cdr'), 'n', 22397, '16G', Path('/s'), usb_disks=1)
+        j = ' '.join(c)
+        self.assertIn('id=usb0,if=none,format=qcow2,file=/r/usb0.qcow2', j)
+        self.assertIn('usb-storage,bus=xhci.0,drive=usb0,removable=on', j)
+        self.assertLess(c.index('qemu-xhci,id=xhci'), c.index('usb-storage,bus=xhci.0,drive=usb0,removable=on'))
 
 
 class Runs(unittest.TestCase):
