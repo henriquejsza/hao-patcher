@@ -1,0 +1,27 @@
+# golden-gate-shared-cache: the System files the rebuilt cache may hold as providers, reviewed by the owning lane.
+# The artifact's retired-roots.txt must list every R line and may list C lines; any other root stops the build.
+#   R  an image of Apple's x86_64 cache family that the image has on disk (dyld counts it as overridden)
+#   C  a companion a provider loads, not in Apple's cache
+# Apple's own (same build as the cache image; on disk in Apple's 26B131 root)
+R usr/lib/system/libsystem_kernel.dylib
+R usr/lib/system/libsystem_platform.dylib
+R usr/lib/system/libsystem_pthread.dylib
+# metal: OCLP's Metal wrapper and legacy Metal, the GPUCompiler 31001 libraries MetalOld loads
+R System/Library/Frameworks/Metal.framework/Versions/A/Metal
+C System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib
+C System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libllvm-flatbuffers.dylib
+C System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libGPUCompilerUtils.dylib
+# patcher: golden-gate-userspace's compat libraries in front of OCLP's wrappers and Tahoe's CoreWiFi
+R System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi
+C System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib
+R System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211
+C System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211OCLP.dylib
+C System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211Old.dylib
+R System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer
+C System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOCLP.dylib
+C System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOld.dylib
+C System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/LibSystemShim.dylib
+# patcher: OCLP's video decode and trackpad
+R System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA
+R System/Library/PrivateFrameworks/AppleGVACore.framework/Versions/A/AppleGVACore
+R System/Library/Extensions/AppleMultitouchDriver.kext/Contents/PlugIns/MultitouchHID.plugin/Contents/MacOS/MultitouchHID
