@@ -34,12 +34,14 @@ Revision r3, status experiment. [Recipe](../patches/darwin27-sandbox-disk-space/
 
 ## dev-access
 
-Revision r4, status dev. [Recipe](../patches/dev-access/README.md)
+Revision r5, status dev. [Recipe](../patches/dev-access/README.md)
 
 - `private/var/root/.testssh/ssh_host_ed25519_key`: whole file from hao (row test_host_key). Data volume; the test host's private key, root:wheel 0600; dev images only.
 - `private/var/root/.testssh/authorized_keys`: whole file from hao (row test_authorized_key). Data volume; the bench host's public key, root:wheel 0600.
 - `private/var/root/.testssh/sshd_config`: whole file from hao. Data volume; src/sshd_config: root by key only, no passwords, UsePAM no; root:wheel 0644.
 - `Library/LaunchDaemons/local.testssh.plist`: whole file from hao. Data volume; src/local.testssh.plist: launchd runs sshd -i per connection on port 22; root:wheel 0644.
+- `private/var/root/.testssh/screensharing-users`: whole file from hao (row screensharing_users). Data volume; the account names allowed to use Screen Sharing, one per line; root:wheel 0600.
+- `Library/LaunchDaemons/dev.hao.screensharing.plist`: whole file from hao. Data volume; src/dev.hao.screensharing.plist: at every boot, the accounts in screensharing-users join com.apple.access_screensharing and Apple's Screen Sharing service is enabled and loaded (LAN, port 5900); root:wheel 0644; dev images only.
 
 ## dev-diagnostics
 

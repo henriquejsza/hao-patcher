@@ -22,19 +22,37 @@ IconServices logging profile is `dev-telemetry`.
 
 Declared files: `patch.json` `files` lists the four files above with their origins (`tests/test_edits.py` checks them against `apply.sh`).
 
+## Screen Sharing (r5)
+Owner, 2026-11-14: Screen Sharing on the test laptops for the test account, on the LAN. `dev.hao.screensharing`
+(`src/dev.hao.screensharing.plist`, a system LaunchDaemon run once at every boot) does what was done by hand on the
+laptops:
+- it creates the group `com.apple.access_screensharing` if it is missing and adds each account named in the row
+  `screensharing_users` (installed as `/private/var/root/.testssh/screensharing-users`) by name, so the entry is in
+  place before the account exists;
+- it runs `launchctl enable system/com.apple.screensharing` and loads Apple's job if it is not loaded.
+
+Only members of the group get view and control, with their own password: this is plain Screen Sharing, not Remote
+Management. ARD's `kickstart` is not used, because its Perl bridge has only arm64e. screensharingd has an x86_64
+slice; dscl, dseditgroup and launchctl run through hao. Log: `/private/var/log/dev-screensharing.log`.
+
 ## Verify
 `python3.14 -I -B -m unittest discover -s patches/dev-access/tests`
 
-After a test boot: `ssh -i ~/.ssh/mbp92_test root@<laptop> sw_vers` answers with the image's build.
+After a test boot: `ssh -i ~/.ssh/mbp92_test root@<laptop> sw_vers` answers with the image's build. Screen Sharing:
+port 5900 answers `RFB` from another Mac on the LAN, `dscl . -read /Groups/com.apple.access_screensharing
+GroupMembership` lists the row's accounts, and a viewer signed in as one of them sees and controls the screen.
 
 
 ## Validation
+NEEDS VALIDATION: r5 (Screen Sharing) is host-tested only and has not been built into an image yet. The same steps,
+run by hand on both test laptops on 2026-11-14, brought port 5900 up for the test account. Before r5:
 In use (FACT, from the build manifests in store/runs): r3 is in 12 image builds, first mbp92-25G332-dev-cache-layout-20261101-020101, latest mbp92-25G332-dev-next-20261102-115128,
 including the benched dev images (store/runs/bench-mbp92-25G332-dev-*) and the owner's beta. No open item.
 
 ## Revisions
 Newest first: revision, date, change (commit). `revision` in patch.json is the newest; bump it
 and add a line here with every change to this patch or its input rows.
+- r5 2026-11-14 Screen Sharing for the test account from the first boot (owner's decision): system LaunchDaemon dev.hao.screensharing adds the accounts of the new row `screensharing_users` to com.apple.access_screensharing by name and enables and loads com.apple.screensharing at every boot.
 - r4 2026-11-12 Declare the four files it installs in patch.json `files`; the hook is unchanged.
 - r3 2026-10-28 Lock rows one file each; working files in store/tmp; store-gc; STATUS edited only by the merging session (5a7d438)
 - r2 2026-10-28 PLAN 3c dev patches: dev-telemetry, testbench; boot-kc-trim experiment (dev-kctrim set) (259a8f5)

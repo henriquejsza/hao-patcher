@@ -1,15 +1,14 @@
 {
- "revision": 4,
+ "revision": 5,
  "stage": "post",
  "applies": "any",
  "inputs": [
   "test_host_key",
-  "test_authorized_key"
+  "test_authorized_key",
+  "screensharing_users"
  ],
  "status": "dev",
- "validated": true,
- "validated_revision": 3,
- "validated_digest": "f8a8a5003b368b65afe0585788ca13da8bbc2a5675e393b4f00bc2d81c80dbf9",
+ "validated": false,
  "files": [
   {
    "path": "private/var/root/.testssh/ssh_host_ed25519_key",
@@ -39,6 +38,21 @@
    "origin": {
     "kind": "hao",
     "note": "Data volume; src/local.testssh.plist: launchd runs sshd -i per connection on port 22; root:wheel 0644"
+   }
+  },
+  {
+   "path": "private/var/root/.testssh/screensharing-users",
+   "origin": {
+    "kind": "hao",
+    "row": "screensharing_users",
+    "note": "Data volume; the account names allowed to use Screen Sharing, one per line; root:wheel 0600"
+   }
+  },
+  {
+   "path": "Library/LaunchDaemons/dev.hao.screensharing.plist",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; src/dev.hao.screensharing.plist: at every boot, the accounts in screensharing-users join com.apple.access_screensharing and Apple's Screen Sharing service is enabled and loaded (LAN, port 5900); root:wheel 0644; dev images only"
    }
   }
  ]

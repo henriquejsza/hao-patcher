@@ -1,0 +1,2 @@
+# dev-access: the account names allowed to use Screen Sharing on dev images, one per line (private: not in the repository).
+285943c02667ac9e54da3aaaeeaa1d5b75d34cd68018c6e9534bcb573df00d9c  store/inputs/dev-access/screensharing-users
