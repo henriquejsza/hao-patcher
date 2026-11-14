@@ -395,7 +395,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
                 command(['ditto',source,extras/role]);sources[role]=dict(row=row,path=str(source))
                 if (source/'build.json').exists():shutil.copy2(source/'build.json',record/(role+'-input.json'))
             source=share/'assembly-source';source.mkdir(mode=0o755)
-            for name in ('golden-image.py','golden-layout.py','golden-pristine.sh','golden-workspace.py'):
+            for name in ('golden-image.py','golden-layout.py','golden-pristine.sh','golden-workspace.py','recovery-tools.py'):
                 shutil.copy2(pipeline/'stages'/name,source/name)
             shutil.copy2(pipeline/'stages/copy-hooks.py',source/'copy-hooks.py')
             shutil.copy2(pipeline/'stages/golden-assemble.sh',source/'golden-assemble.sh')

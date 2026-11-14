@@ -30,7 +30,9 @@ case $(uname -m) in
 esac
 [ -f "$G/kit.json" ] || { echo "golden-assemble.sh: $G has no kit.json" >&2; exit 2; }
 [ -x "$G/$PYDIR/bin/python3.12" ] || { echo "golden-assemble.sh: the kit has no $PYDIR/ CPython" >&2; exit 2; }
-install -d -m 755 "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
+# mkdir, not install: a macOS Recovery has no /usr/bin/install (nor shasum, cmp, readlink: see recovery_tools below)
+mkdir -p "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
+chmod 755 "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
 export TMPDIR="$W/tmp"
 bootstrap() {
     (cd "$G/assembly-source" && tar -cf - .) | (cd "$W/source" && tar -xf -) || return $?
@@ -41,6 +43,19 @@ bootstrap() {
     chown -R "$OWNER" "$W/source" "$W/py" "$W/site" "$W/post" || return $?
 }
 bootstrap || exit $?
+# The tools the assembly and its hooks call that this Mac lacks (a Recovery): wrappers that run
+# source/recovery-tools.py with the kit's CPython, first on PATH; the kit's CPython is last on PATH (python3 where the Mac has none).
+recovery_tools() {
+    mkdir -p "$W/recovery-bin" || return $?
+    for t in install shasum cmp readlink; do
+        command -v "$t" >/dev/null 2>&1 && continue
+        printf '#!/bin/sh\nexec "%s" -I "%s" %s "$@"\n' "$W/py/bin/python3.12" "$W/source/recovery-tools.py" "$t" \
+            > "$W/recovery-bin/$t" && chmod 755 "$W/recovery-bin/$t" || return $?
+        echo "golden-assemble.sh: no $t on this Mac: hao's recovery-tools stands in for it"
+    done
+}
+recovery_tools || exit $?
+export PATH="$W/recovery-bin:$PATH:$W/py/bin"
 echo "Assembly storage after local source/hook copies:"
 df -k "$W"
 set --
