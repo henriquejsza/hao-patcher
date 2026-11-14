@@ -9,7 +9,7 @@ specs are consistent with each other and with the two cryptex build specs.
 With real inputs (environment variable: what it points at):
   USERSPACE_X86_CACHE        the 26B131 RosettaOS x86_64 dyld cache folder (read only). The resolved sites of
                              cache-*.json must equal, site for site, what the recipe's own planners output on it
-                             (legacy_trackpad, endpoint_security, core_routine, swift_refs, codeid_carrier,
+                             (legacy_trackpad, endpoint_security, core_routine, model_gates, swift_refs, codeid_carrier,
                              tools/metal-fixes mps-plan, tools/audiomxd-fix plan); the engine applies each spec
   USERSPACE_ARM_CACHE        the same build's arm64e cache folder (swift_refs reads its reference types there)
   USERSPACE_CODEID_CARRIER   the row codeid_carrier folder (the carrier's objects)
@@ -212,7 +212,7 @@ class Declaration(unittest.TestCase):
 
     def test_cache_specs_follow_install_py_order_and_do_not_overlap(self):
         planners = ['legacy-trackpad-v3', 'endpoint-security-selectors', 'core-routine-console-uid',
-                    'mps-matrix-initializer', 'audio-no-console-notification', 'swift-conformance-types',
+                    'mps-matrix-initializer', 'audio-no-console-notification', 'model-gates', 'swift-conformance-types',
                     'code-identity-carrier', 'prespecialization-overrides']   # install.py applies them in this order to each cache file
         names = set()
         for path, (name, spec) in BY_PATH.items():
@@ -265,6 +265,7 @@ def plan_all(cache_dir, reference, carrier):
     import core_routine
     import endpoint_security
     import legacy_trackpad
+    import model_gates
     import prespecialization
     import swift_refs
     out = {}
@@ -281,6 +282,7 @@ def plan_all(cache_dir, reference, carrier):
                                          text=True)
         for path, changes in json.loads(result).items():
             out.setdefault(Path(path).name, {})[edit_id] = [tuple(c) for c in changes]
+    add('model-gates', model_gates.plan_cache_family(cache_dir))
     add('swift-conformance-types', swift_refs.plan_cache_family(cache_dir, reference=reference))
     plan, _ = codeid_carrier.plan_cache_family(cache_dir, carrier)
     add('code-identity-carrier', plan)

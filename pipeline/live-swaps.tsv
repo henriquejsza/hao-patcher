@@ -60,3 +60,4 @@ c754618c7398ce515f8d8bb702628b5ac5682141504f9d49b40c1964f8233565	/private/var/db
 a5f9e8a811294be180f10be671dd74524dc429c41a18018e7e942a07cae3fe4e	/private/var/db/hao/874c581c6de93cf0ab35ed0783f59398.aot	dropped: AOT cache for SystemUIServer generated with libhao 498f9dc for the Xcode X1 rerun; AOT caches are bound to their libhao and every payload generates its own
 303a156781ec5f9397a76b4251105e2b8043d3b4f6b4d1ced1ae39d2f8165a47	/private/var/db/hao/a11351ab1e983221ae60474cfb639cc2.aot	dropped: AOT cache for Xcode generated with libhao 498f9dc for the Xcode X1 rerun; AOT caches are bound to their libhao and every payload generates its own
 23292c22807339fd37c070e3db33057686b234c42ffe5b51dbd6625e1ddf6197	/private/var/tmp/libwebtrace.dylib	dropped: diagnostic library for diag#0002, not shipped
+6f538c43328aa2fdc43ddd19dc1087915c86a22241fe719ae53eeac2d211e38b	/private/var/tmp/patcher-awdl-trace.d	dropped: dtrace script for diag#0044, not shipped

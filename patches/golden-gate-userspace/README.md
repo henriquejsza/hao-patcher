@@ -61,7 +61,7 @@ Tahoe's copies of those frameworks first.
 edit specs ([tools/edit-engine](../../tools/edit-engine/README.md)); `patches.py explain golden-gate-userspace` prints
 them. The in-cache repairs are `matcher` specs with their sites resolved for the 26B131 cache (`cache-*.json`, in the
 OS cryptex where the running system grafts it: trackpad V3, EndpointSecurity selectors, CoreRoutine, the MPSMatrix
-initializer, audiomxd, the Swift conformance references, the code identity carrier and the Swift prespecialization switch), followed by the 4 KiB
+initializer, audiomxd, the model gates, the Swift conformance references, the code identity carrier and the Swift prespecialization switch), followed by the 4 KiB
 re-signing; the two cryptex images are `cryptex.build` specs (`cryptex-os.json`, `cryptex-app.json`) and each of the 26
 stubs is a `hao.embed-stub` spec (`embed-*.json`). `hybridsearchd-job.json` and `launchd-job-cache.json` are
 `plist.set`; the three renamed wrappers (`io80211-oclp.json`, `wifip2p-oclp.json`, `corewifi-tahoe.json`) and
@@ -70,6 +70,18 @@ entitlements (`sign.entitlements_from`, as `resign_with_entitlements` reads them
 `restricted` say so in their `install` flags. The engine applies none of the external ops (cache re-signing, image
 builds, stub embedding), so `tests/test_edits.py` proves those through the recipe's and the payload's own code. The Preboot copies of
 SystemVersion.plist (under the build's group folder) are not declared.
+
+### Model gates
+27.x keeps unsupported-model lists for three features, and MacBookPro9,2 is on each (the x86_64 cache, image:
+section): Sidecar (SidecarCore `__TEXT,__const`), AirPlay to Mac, i.e. this Mac as an AirPlay receiver
+(AirPlaySupport `__TEXT,__const`) and Continuity Camera (CMCapture `__TEXT,__cstring`). Each list is consecutive
+NUL-terminated model names. `src/model_gates.py` renames this Mac's entry in each (`MacBookPro9,2` -> `NacBookPro9,2`,
+one byte, same length; data `src/model-gates.json`), so the model check no longer finds it. It refuses unless the
+model is there exactly once, between other model names. Other images that name the model (CoreFoundation, ProductKit,
+ProductKitCore, ServerInformation) are name tables and stay. This is the same string edit acidanthera's FeatureUnlock
+makes, made once in the cache instead of by a kernel extension that searches every validated page at run time (the
+Tahoe images ran without FeatureUnlock). AirPlay *sending* and Universal Control are not model-gated on 27.x for this
+Mac; Universal Control needs AWDL (diag#0044).
 
 ### Swift conformance type references
 Apple's x86_64 cache (RosettaOS, untouched) has direct conformance type references that point at unrelated bytes
@@ -346,7 +358,7 @@ creation logs in automatically (authd accepts loginwindow's `FUSAutologinDataKey
 unlisted ad hoc one.
 
 ## Validation
-NEEDS VALIDATION: r75 (Swift prespecialization edits and gate) has only host tests: on the pristine 26B131 caches the declared sites equal the planner and the engine applies them; no image has been built with it. Before that, r64 moves the image code into `src/cryptex.py` and adds the cryptex cache; the images it builds are
+NEEDS VALIDATION: r77 (model gates) has only host tests: on the pristine 26B131 x86_64 cache the declared sites equal the planner's and the engine applies them; no image has been built with it, and whether Sidecar, AirPlay Receiver and Continuity Camera then appear is not shown. r75 (Swift prespecialization edits and gate) has only host tests: on the pristine 26B131 caches the declared sites equal the planner and the engine applies them; no image has been built with it. Before that, r64 moves the image code into `src/cryptex.py` and adds the cryptex cache; the images it builds are
 made by the same code as r63, and a reused one equals the stored one (host tests, including a 26 GB image from a
 built 26B131 image). VM build 2026-11-13 (dev-26B131, from-overlays, empty cache): a miss, built and stored in 18 s
 (guest copy) plus 9 s (host sha256 check); the hook took 318 s (340 s before). The hit path has run only in host
@@ -378,7 +390,9 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
-- r77 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime c66997a (hao-runtime-26B131-20261114-c66997a2a0bb; libhao b8f0480f, the bytes proven on the test laptop): native SwiftUI.View modifiers lend guest-made self with native nils (diag#0038). Dev images only until c66997a is pushed. No recipe change.
+- r79 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime c66997a (hao-runtime-26B131-20261114-c66997a2a0bb; libhao b8f0480f, the bytes proven on the test laptop): native SwiftUI.View modifiers lend guest-made self with native nils (diag#0038). Dev images only until c66997a is pushed. No recipe change.
+- r78 2026-11-14 The prespecialization gate counts an image the overridden set gains or loses only if it carries Swift metadata: the 14 Apple-silicon `AGXMetal*.bundle` drivers 27.x keeps on disk have no `__swift5` section (no process loads them on this Mac), so they change none of the edits; the record lists them (`ignored_without_swift`). A Swift-bearing difference still stops the build. The cache edits are unchanged.
+- r77 2026-11-14 Model gates: this Mac's entry in 27.x's unsupported-model lists for Sidecar, AirPlay to Mac and Continuity Camera is renamed in the x86_64 cache (`src/model_gates.py`, three one-byte sites in `edits/cache-01.json`), in place of a FeatureUnlock kext. The OS cryptex's bytes change.
 - r76 2026-11-14 Merges the two r75s: the Swift prespecialization edits of the r75 below (the OS cryptex's bytes change) with input row `hao_runtime` (26B131) at hao-runtime-26B131-20261114-79bc70ead081 (the other r75: guest dlopen resolves @rpath, @loader_path and @executable_path; Xcode starts). Nothing else changes.
 - r75 2026-11-14 (main) Swift prespecialized metadata stays on in every process: in the x86_64 cache the two reads of `_dyld_shared_cache_some_image_overridden()` in libswiftCore answer false, and the 113 descriptor-map slots of overridden images (CoreWiFi, WiFiPeerToPeer) are emptied (`src/prespecialization.py`, data from the shared-cache generator). The build stops unless the image overrides exactly the 10 cache images the edits were made for. The OS cryptex's bytes change.
 - r75 2026-11-14 (row update, made in parallel) Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e tree (hao-runtime-26B131-20261114-79bc70ead081): guest dlopen resolves @rpath, @loader_path and @executable_path from the calling image (Xcode starts instead of aborting at launch). No recipe change.

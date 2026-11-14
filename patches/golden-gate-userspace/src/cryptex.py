@@ -19,6 +19,7 @@ from cache_pages import resign_file
 from legacy_trackpad import plan_cache_family, apply_edits
 from endpoint_security import plan_cache_family as endpoint_plan
 from core_routine import plan_cache_family as routine_plan
+from model_gates import plan_cache_family as model_gates_plan
 import swift_refs
 from codeid_carrier import plan_cache_family as codeid_plan
 import prespecialization
@@ -283,6 +284,14 @@ def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, dono
             path.name: [reason for _, _, _, reason in changes]
             for path, changes in audio.items()}
         for path, changes in audio.items():
+            trackpad_plan.setdefault(path, []).extend(changes)
+        # Sidecar, AirPlay to Mac and Continuity Camera: this Mac's entry in their unsupported-model lists is renamed
+        # (src/model_gates.py, data src/model-gates.json), in place of a FeatureUnlock kext.
+        gates = model_gates_plan(mount/'System/Library/dyld')
+        counts['model_gates'] = {
+            path.name: [reason for _, _, _, reason in changes]
+            for path, changes in gates.items()}
+        for path, changes in gates.items():
             trackpad_plan.setdefault(path, []).extend(changes)
         # Apple's x86_64 cache leaves some Swift conformance type references unadjusted (they point at unrelated
         # bytes; a name lookup that scans them faults). The arm64e cache beside it names the intended types.

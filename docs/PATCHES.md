@@ -231,7 +231,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-user-seed/README
 
 ## golden-gate-userspace
 
-Revision r77, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r79, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -264,14 +264,16 @@ Revision r77, status experiment. [Recipe](../patches/golden-gate-userspace/READM
      Swift prespecialized metadata stays on in every process although files override cache images (OCLP's Metal and Wi-Fi libraries, this recipe's CoreWiFi compat library, Apple's libsystem_kernel/platform/pthread): the two reads of _dyld_shared_cache_some_image_overridden() in libswiftCore answer false, and the descriptor-map slots of the overridden images are emptied so their names take the runtime's ordinary path (src/prespecialization.py; install.py refuses an image whose overridden set differs).
   3. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 4 edits, applied by the installer.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 5 edits, applied by the installer.
   1. `legacy-trackpad-v3`: matcher (resolved sites only), resolved for 1 input.
      The built-in trackpad works: restores the V3 touch report path (0x73 and 0x74) that Tahoe's USB multitouch driver sends and 27.x's MultitouchSupport dropped or limited to internal OS variants.
   2. `core-routine-console-uid`: matcher (resolved sites only), resolved for 1 input.
      CoreRoutine no longer reads an uninitialised console user ID when no user is logged in.
   3. `audio-no-console-notification`: matcher (resolved sites only), resolved for 1 input.
      Audio stops retrying with configd before login: no false server-death notification is sent when no console user exists (tools/audiomxd-fix).
-  4. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
+  4. `model-gates`: matcher (resolved sites only), resolved for 1 input.
+     Sidecar, AirPlay to Mac and Continuity Camera no longer find this Mac on their unsupported-model lists: its entry is renamed in place (src/model_gates.py, data src/model-gates.json), in place of a FeatureUnlock kext.
+  5. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.03`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 3 edits, applied by the installer.
   1. `mps-matrix-initializer`: matcher (resolved sites only), resolved for 1 input.

@@ -125,15 +125,31 @@ class Gate(unittest.TestCase):
             self.assertEqual(record['overridden'], len(DATA['overridden']))
             self.assertEqual(record['descriptor_slots_dropped'], 113)
 
+    @staticmethod
+    def swift(path):   # the fixture's Swift-bearing images: everything but the AGX driver and the 10 recorded ones
+        return 'AGXMetal' not in path and path not in DATA['overridden']
+
     def test_one_more_or_one_fewer_overridden_image_stops_the_build(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.system(tmp, DATA['overridden'] + ['/usr/lib/libobjc.A.dylib'])
             with self.assertRaisesRegex(SystemExit, r"new: \['/usr/lib/libobjc.A.dylib'\]"):
-                P.gate(root, None, paths=self.IMAGES)
+                P.gate(root, None, paths=self.IMAGES, swift=lambda p: True)
         with tempfile.TemporaryDirectory() as tmp:
             root = self.system(tmp, DATA['overridden'][1:])
             with self.assertRaisesRegex(SystemExit, 'gone: '):
-                P.gate(root, None, paths=self.IMAGES)
+                P.gate(root, None, paths=self.IMAGES, swift=lambda p: True)
+
+    def test_an_extra_image_without_swift_metadata_passes_and_is_recorded(self):
+        agx = '/System/Library/Extensions/AGXMetalG14X.bundle/Contents/MacOS/AGXMetalG14X'
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.system(tmp, DATA['overridden'] + [agx])
+            record = P.gate(root, None, paths=self.IMAGES + [agx], swift=self.swift)
+            self.assertEqual(record['ignored_without_swift'], [agx])
+            self.assertEqual(record['overridden'], len(DATA['overridden']) + 1)
+        with tempfile.TemporaryDirectory() as tmp:   # a Swift-bearing extra one still stops it, next to the AGX one
+            root = self.system(tmp, DATA['overridden'] + [agx, '/usr/lib/libobjc.A.dylib'])
+            with self.assertRaisesRegex(SystemExit, r"new: \['/usr/lib/libobjc.A.dylib'\]"):
+                P.gate(root, None, paths=self.IMAGES + [agx], swift=self.swift)
 
 
 @unittest.skipUnless(os.environ.get('USERSPACE_X86_CACHE'), 'set USERSPACE_X86_CACHE to the 26B131 x86_64 cache folder')
@@ -143,6 +159,14 @@ class RealCache(unittest.TestCase):
         plan = P.plan_cache_family(folder)
         self.assertEqual({p.name: len(c) for p, c in plan.items()}, {MAIN: 2, SIX: 113})
         self.assertTrue(set(DATA['overridden']) <= set(P.image_paths(folder)))
+
+    def test_the_agx_drivers_carry_no_swift_metadata_and_the_wifi_ones_do(self):
+        folder = Path(os.environ['USERSPACE_X86_CACHE'])
+        swift = P.swift_sections(folder)
+        agx = [p for p in P.image_paths(folder) if '/AGXMetal' in p and '.bundle/' in p]
+        self.assertGreaterEqual(len(agx), 14)
+        self.assertFalse(any(swift(p) for p in agx))
+        self.assertTrue(swift('/System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi'))
 
 
 if __name__ == '__main__':
