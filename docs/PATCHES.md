@@ -7,11 +7,11 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-39 of 43 patches declare their files so far.
+40 of 44 patches declare their files so far.
 
 ## darwin27-kernel
 
-Revision r9, status experiment. [Recipe](../patches/darwin27-kernel/README.md)
+Revision r10, status experiment. [Recipe](../patches/darwin27-kernel/README.md)
 
 - `System/Library/Kernels/kernel`: whole file from Apple (row darwin27_kernel). Golden Gate's own x86_64 kernel from the IPSW, unchanged; installed once by the base layer (golden-pristine.sh finalize) and only checked by the kc-hook. Installed mode 0644, owner root:wheel.
 - `System/Library/KernelCollections/BootKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
@@ -54,6 +54,13 @@ Revision r4, status dev. [Recipe](../patches/dev-diagnostics/README.md)
      OpenCore's log goes to a file on the EFI partition (0x41), nothing on screen, so a bench boot's early evidence can be collected from Recovery; an end-user image writes no OpenCore log.
   3. `opencore-log-info-lines`: plist.set Misc:Debug:DisplayLevel = 2147483714.
      The file log includes OpenCore's info lines (DisplayLevel 0x40).
+
+## dev-keepawake
+
+Revision r1, status dev. [Recipe](../patches/dev-keepawake/README.md)
+
+- `Library/LaunchDaemons/dev.hao.keepawake.plist`: whole file from hao. Data volume; src/dev.hao.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644.
+- `Library/LaunchDaemons/dev.hao.power.plist`: whole file from hao. Data volume; src/dev.hao.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644.
 
 ## golden-gate-appstore-slices
 
@@ -224,7 +231,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-user-seed/README
 
 ## golden-gate-userspace
 
-Revision r76, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r77, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -397,7 +404,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-windowserver-fil
 
 ## hao-opencore
 
-Revision r64, status experiment. [Recipe](../patches/hao-opencore/README.md)
+Revision r65, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -418,7 +425,7 @@ Revision r64, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r79, status experiment. [Recipe](../patches/hao-runtime/README.md)
+Revision r80, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.

@@ -1,10 +1,8 @@
-# hao runtime payload for 26B131 from https://github.com/lythka/hao-runtime (build.json names its commit: 79bc70e).
-# Built from a clean 79bc70e tree, with 399e78e's payload's units, AOT list and cryptex programs. libhao 7051dc53
-# (UUID 02f9dbe8) and libhao_identity 752fd35f, the bytes proven on the test laptop on 2026-11-14. 963 embedded, 965 of 969
-# AOT caches. Adds since bd08b64: 79bc70e guest dlopen resolves @rpath, @loader_path and @executable_path from the
-# calling image (Xcode's launch abort). bd08b64 added, since 399e78e: 8c0d9ab native stack per callback level
-# (diag#0005); aee7feb, 9568ead Finder (diag#0032); 857862f MRMediaRemoteRequestVideoThumbnails row; eef78f8 mds
-# SIPathFilterCreate callback; 496c15c (c930bf9) Swift value lookups once per call site; e2b7ad9 host-code check of
-# a first-call bind (Control Center cold open).
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=67b0d4042725305460574c61027fdeb598930d66b28031b64b674582fb7cc73f
-5888543b1202baf14a1b811f21b3deaaa9f31de1ded9ee7333aa3867efca0c47 store/artifacts/hao-runtime-26B131-20261114-79bc70ead081/payload
+# hao runtime payload for 26B131 from https://github.com/lythka/hao-runtime (build.json names its commit: c66997a).
+# DEV payload: built from a clean local c66997a main before its push (owner 2026-11-14 "Faster, yes": dev images may
+# use local commits; beta and release payloads need the pushed commit). With 79bc70ead081's units, AOT list and
+# cryptex programs. libhao b8f0480f (UUID 6025CE78), the bytes proven on the test laptop on 2026-11-14, and
+# libhao_identity 752fd35f (as 79bc70ead081). 963 embedded, 965 of 969 AOT caches. Adds since 79bc70e: 877891d
+# native SwiftUI.View modifiers lend guest-made self with native nils (diag#0038), 6578cdf its test.
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=de49444b9190db087542f42ff9bc7ed073a4495b45ac53e7393bf86788c34019
+e29b10e5fdc33061dcfeca3de578144191784f4aa755f80128e4df16fc5fb33e store/artifacts/hao-runtime-26B131-20261114-c66997a2a0bb/payload
