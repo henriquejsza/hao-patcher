@@ -342,6 +342,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r75 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e tree (hao-runtime-26B131-20261114-79bc70ead081): guest dlopen resolves @rpath, @loader_path and @executable_path from the calling image (Xcode starts instead of aborting at launch). No recipe change.
 - r74 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime bd08b64 tree (hao-runtime-26B131-20261114-bd08b64a1563; libhao ffa4eeb6, the bytes proven on laptop 1 for Control Center): Finder (diag#0032), mds, the Control Center warm and cold-open fixes, native stack per callback level (diag#0005). No recipe change.
 - r73 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e tree (hao-runtime-26B131-20261113-399e78e32376, tag v0.1.0-beta.1): Optional witness nils returned to native as a callback result (diag#0001). No recipe change.
 - r72 2026-11-13 Documentation only: tests are cited as laptop tests on an image, and the cache-dylib tool is named without its repository. The hook and what it installs are unchanged.
