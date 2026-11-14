@@ -82,6 +82,14 @@ class Kit(unittest.TestCase):
             with self.assertRaises(ValueError):
                 KIT['render'](kit, '/k', '/l', disk='disk9', confirm_disk='disk9', disk_policy='any')
 
+    def test_no_cryptex_cache_drops_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            _, _, kit = self.configs(folder, cryptex_cache=True)
+            self.assertEqual('/k/cryptex-cache', KIT['render'](kit, '/k', '/l')['cryptex_cache'])
+            self.assertNotIn('cryptex_cache', KIT['render'](kit, '/k', '/l', cryptex_cache=False))
+            _, _, plain = self.configs(folder + '/plain')
+            self.assertNotIn('cryptex_cache', KIT['render'](plain, '/k', '/l', cryptex_cache=False))
+
     def test_local_inside_the_kit_is_refused(self):
         with tempfile.TemporaryDirectory() as folder:
             _, _, kit = self.configs(folder)
@@ -105,6 +113,11 @@ class Kit(unittest.TestCase):
         self.assertEqual('py-x86_64', KIT['python_dir']('x86_64'))
         with self.assertRaises(ValueError):
             KIT['python_dir']('ppc')
+
+    def test_assemble_script_passes_no_cryptex_cache_to_render(self):
+        text = (TOP / 'pipeline/stages/golden-assemble.sh').read_text()
+        self.assertIn('--no-cryptex-cache) NOCACHE=--no-cryptex-cache; shift ;;', text)
+        self.assertIn('[ -z "$NOCACHE" ] || set -- "$@" $NOCACHE\n"$W/py/bin/python3.12" -I "$W/source/kit.py" render', text)
 
 
 class CaptureKit(unittest.TestCase):

@@ -1,5 +1,6 @@
 #!/bin/sh
 # golden-assemble.sh KIT LOCAL [--owner USER:GROUP] [--disk diskN --confirm-disk diskN [--external]] [--resume WORK]
+#                     [--no-cryptex-cache]
 #
 # Assemble the Golden Gate image from a staged kit (pipeline/kit.py) on the Mac this runs on: the arm64 builder VM
 # (golden-run's guest job), an Intel Mac building onto an external SSD (hao build-disk) or the target's Recovery
@@ -9,12 +10,14 @@
 # disk with --disk (golden-image.py's DiskTarget refuses a disk the installer's checks refuse: the Mac's own internal
 # disk, or with --external an external SSD only). --resume WORK: the work folder of a failed run on the same target
 # (another LOCAL): golden-image.py continues at its failed step when that step can be run again (its RESUMABLE).
+# --no-cryptex-cache: neither reuse nor store sealed cryptex images in KIT/cryptex-cache (for an assembly whose kit
+# nobody collects afterwards, such as hao install from a stick: the store would fill the stick).
 # Exit status: golden-image.py's, or the first failing copy's.
 set -u
 set -o pipefail
-[ $# -ge 2 ] || { echo 'usage: golden-assemble.sh KIT LOCAL [--owner U:G] [--disk diskN --confirm-disk diskN [--external]] [--resume WORK]' >&2; exit 2; }
+[ $# -ge 2 ] || { echo 'usage: golden-assemble.sh KIT LOCAL [--owner U:G] [--disk diskN --confirm-disk diskN [--external]] [--resume WORK] [--no-cryptex-cache]' >&2; exit 2; }
 G=$1; W=$2; shift 2
-OWNER=root:wheel; DISK=; CONFIRM=; EXTERNAL=; RESUME=
+OWNER=root:wheel; DISK=; CONFIRM=; EXTERNAL=; RESUME=; NOCACHE=
 while [ $# -gt 0 ]; do
     case $1 in
         --owner) OWNER=$2; shift 2 ;;
@@ -22,6 +25,7 @@ while [ $# -gt 0 ]; do
         --confirm-disk) CONFIRM=$2; shift 2 ;;
         --external) EXTERNAL=--external; shift ;;
         --resume) RESUME=$2; shift 2 ;;
+        --no-cryptex-cache) NOCACHE=--no-cryptex-cache; shift ;;
         *) echo "golden-assemble.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
@@ -91,6 +95,7 @@ echo "Assembly storage after local source/hook copies:"
 df -k "$W"
 set --
 [ -z "$DISK" ] || set -- --disk "$DISK" --confirm-disk "$CONFIRM" $EXTERNAL
+[ -z "$NOCACHE" ] || set -- "$@" $NOCACHE
 "$W/py/bin/python3.12" -I "$W/source/kit.py" render "$G" "$W" --out "$W/config.json" "$@" || exit $?
 set --
 [ -z "$RESUME" ] || set -- --resume "$RESUME"
