@@ -29,7 +29,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-shared-cache | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-14 New: the 26B131 B image's OS cryptex gets the rebuilt x86_64 family with the on-disk providers f |
+| golden-gate-shared-cache | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-14 Seven more reviewed companions (metal): libhelloblur and the six /usr/lib/hao-live-text dylibs;  |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh |
 | golden-gate-userspace | r75 | oclp-hook | experiment |  | x | x |  |  | **needs** | r75 2026-11-14 Swift prespecialized metadata stays on in every process: in the x86_64 cache the two reads of ` |

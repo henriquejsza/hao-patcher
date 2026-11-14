@@ -25,9 +25,15 @@ build, seal, 4 KiB re-sign and Swift reference check are that recipe's own code.
 
 1. **Roots.** The artifact's roots must include every `R` line of `src/providers.txt` (the 10 images
    golden-gate-userspace's gate counts as overridden) and may include only its `C` lines (companions the providers
-   load). Any other root stops the build until its lane has reviewed it.
+   load: the Metal and Wi-Fi wrappers' libraries, and golden-gate-hello's libhelloblur with golden-gate-live-text-shared's
+   six LiveText dylibs, which the Metal wrapper loads; the LiveText data files stay on disk). MTLCompiler 3802 stays on
+   disk (metal's review). Any other root stops the build until its lane has reviewed it.
 2. **Provider bytes.** Each root on this System must have the sha256 the artifact folded in. A provider changed
    since the artifact was made (a new OCLP, a Metal or Wi-Fi recipe revision) stops the build: rebuild the artifact.
+   This is what refuses a new revision of golden-gate-hello (it edits the Metal wrapper and libhelloblur) or of
+   golden-gate-live-text-shared (it rewrites libhelloblur and installs the LiveText dylibs) until the artifact is
+   made again from an image with that revision. A revision that changes only their data files changes no root and
+   needs no new artifact.
 3. **Input cache.** The artifact must have been made from this image's cache. Its recorded input files must equal
    the x86_64 files of the OS cryptex golden-gate-userspace just built. They may match as built, or with that
    recipe's prespecialization edits (`src/prespecialization-26B131.json`) taken back out and the file re-signed:
@@ -70,4 +76,5 @@ NEEDS VALIDATION: not built or booted. Host tests pass with a stand-in artifact;
 `experiment` (r2) in the commit that adds the row.
 
 ## Revisions
+- r2 2026-11-14 Seven more reviewed companions (metal): libhelloblur and the six /usr/lib/hao-live-text dylibs; MTLCompiler 3802 stays on disk. Nothing installed changes on existing sets.
 - r1 2026-11-14 New: the 26B131 B image's OS cryptex gets the rebuilt x86_64 family with the on-disk providers folded in, after checking the reviewed roots, the provider bytes and the input cache; the roots leave System and no cache image may stay on disk.

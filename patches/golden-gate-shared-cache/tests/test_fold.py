@@ -87,7 +87,23 @@ class StandIn(unittest.TestCase):
         self.assertEqual(REQUIRED, {p.lstrip('/') for p in data['overridden']})
         self.assertFalse(REQUIRED & COMPANIONS)
 
+    def test_every_library_hello_and_live_text_install_is_a_reviewed_root(self):
+        # golden-gate-hello weak-loads libhelloblur from the Metal wrapper; live-text-shared hangs LiveText's dylibs off it
+        for name in ('golden-gate-hello', 'golden-gate-live-text-shared'):
+            pj = json.loads((TOP/'patches'/name/'patch.json').read_text())
+            libs = {f['path'] for f in pj['files'] if f['path'].endswith('.dylib') or f['path'].endswith('/Metal')}
+            self.assertTrue(libs)
+            self.assertLessEqual(libs, REQUIRED | COMPANIONS, name)
+        self.assertFalse({r for r in REQUIRED | COMPANIONS if 'MTLCompiler' in r or 'libMTLIntelCompilerPlugin' in r})
+
     # 2. provider bytes
+    def test_a_new_hello_or_live_text_revision_is_refused_until_the_artifact_is_rebuilt(self):
+        art = fold.load_artifact(self.artifact)
+        wrapper = 'System/Library/Frameworks/Metal.framework/Versions/A/Metal'   # golden-gate-hello edits it
+        (self.system/wrapper).write_bytes(b'hello r9: another un-skip')
+        with self.assertRaisesRegex(SystemExit, 'Metal: [0-9a-f]{12} on this System, the cache holds'):
+            fold.check_providers(self.system, art['roots'], art['providers'])
+
     def test_provider_bytes_must_be_the_folded_ones(self):
         art = fold.load_artifact(self.artifact)
         self.assertEqual(fold.check_providers(self.system, art['roots'], art['providers']), art['providers'])
