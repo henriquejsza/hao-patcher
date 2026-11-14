@@ -303,10 +303,12 @@ def create_installer(a, c, host, acquire=None):
             raise Stopped('hao create-installer needs administrator rights to erase the USB stick',
                           options=['run it again as: sudo ./hao create-installer'],
                           untouched='nothing was downloaded or written')
-        if release is None:
+        if release is None and not getattr(a, 'kit', None):
             raise no_release(release_path)
     if release and not getattr(a, 'assembly', None):
         a.assembly = release.get('assembly')
+    if getattr(a, 'kit', None) and not getattr(a, 'assembly', None):
+        a.assembly = kit_assembly(a.kit)
     ask_mac(a, c, host, release)
     a.sources = [str(p) for p in (TOP, cache) if p.exists()]
     if image:
@@ -327,7 +329,9 @@ def create_installer(a, c, host, acquire=None):
             raise Stopped('not confirmed', untouched='nothing was downloaded or written')
     c.steps(len(STEPS))
     c.step(STEPS[0], plan=a.dry_run)
-    if release is None:
+    if getattr(a, 'kit', None):
+        c.item('the kit is given (--kit): it holds every input, nothing is downloaded', ev='download.plan', files=0)
+    elif release is None:
         c.item('no release.json beside hao: the files to download are not known here', ev='download.plan', files=None)
     else:
         download(c, release_path, cache, acquire or runpy.run_path(str(ACQUIRE)), a.dry_run)
@@ -390,7 +394,20 @@ def stick_inputs(a, asm):
         basesystem = lock_path(TOP / 'pipeline' / 'inputs' / asm['donor_build'], 'unpack') / 'out' / 'BaseSystem-x86_64.dmg'
     if not basesystem.is_file():
         raise Stopped('no BaseSystem.dmg at %s' % basesystem, untouched='the stick was not touched')
+    if getattr(a, 'opencore', None):
+        opencore = Path(a.opencore).expanduser().resolve()
+        if not opencore.is_file():
+            raise Stopped('no OpenCore ESP file at %s' % opencore, untouched='the stick was not touched')
+        return basesystem, opencore
     return basesystem, lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
+
+
+def kit_assembly(kit):
+    """The assembly a staged kit was made from (kit.json), or None."""
+    try:
+        return json.loads((Path(kit).expanduser() / 'kit.json').read_text()).get('assembly')
+    except (OSError, ValueError):
+        return None
 
 
 def prepare_kit(a, c, path, run=subprocess.call):

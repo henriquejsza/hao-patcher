@@ -41,9 +41,12 @@
         Mac's everyday macOS they stop before writing. LOCAL (default WORK/local) holds the assembly's copies and
         logs and must not be on the disk being erased.
   hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; USB stick)
+        [--kit DIR] [--basesystem DMG] [--opencore ESP.tar] [--image FILE [--image-size BYTES]]
         asks which Mac (a proven model by default, this Mac, or a profile file) and which external disk is the stick,
-        and for the disk's name typed; then downloads what release.json (beside hao) pins and prepares the packs.
-        Writing the stick is not built yet: it stops there. --dry-run asks and shows the plan, nothing more.
+        and for the disk's name typed; then downloads what release.json (beside hao) pins (nothing with --kit),
+        prepares the packs and the kit, and writes the stick: OpenCore + the Recovery on HAOBOOT, hao + the kit on
+        HAO (run /Volumes/HAO/install in the stick's Recovery). Not built yet: the kit made from the downloads, so
+        without --kit it stages one from this checkout's store. --dry-run asks and shows the plan, nothing more.
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
         its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
 
@@ -440,6 +443,7 @@ def main():
     q.add_argument('--kit', help='the kit to put on the stick (default: staged now with golden-run --stage-kit)')
     q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/hao/builds/DATE)')
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
+    q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
     q.add_argument('--image', help='(development) write a raw stick image FILE instead of a disk; no root needed')
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
     q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(a, c, MAC.SystemHost()), log='create-installer'))

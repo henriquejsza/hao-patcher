@@ -17,8 +17,7 @@ run pipeline/stages/golden-assemble.sh onto the confirmed disk, which golden-ima
 (policy external for build-disk, internal for install). They need what the builder VM gives the assembly: root,
 System Integrity Protection's filesystem protection off and AMFI relaxed (the build makes firmlinks with an ad hoc
 entitled tool). The installer's Recovery starts that way; a Mac's everyday macOS does not, and hao never changes
-it: the command stops before writing. create-installer still stops after its checks (writing the stick is not
-built).
+it: the command stops before writing. create-installer writes the stick (installer.py, stick.py).
 """
 import json
 import os

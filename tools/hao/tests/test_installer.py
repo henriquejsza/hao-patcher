@@ -83,7 +83,7 @@ class FakeMac(LaptopMac):
 def ns(**kw):
     base = dict(model=None, profile=None, assembly=None, dry_run=True, disk=None, confirm=None, quiet=False,
                 show=False, show_edits=False, log=None, minimum_bytes=None, release=None, cache=None, kit=None,
-                work=None, basesystem=None, image=None, image_size=None)
+                work=None, basesystem=None, image=None, image_size=None, opencore=None)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -348,6 +348,22 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertEqual(w.calls[0][0][0], 'disk9')
         self.assertIsNone(w.calls[0][1]['release'])
         self.assertIn(['hdiutil', 'detach', '/dev/disk9'], host.calls)
+
+    def test_a_given_kit_needs_no_release_and_downloads_nothing(self):
+        host = FakeMac(uid=0)
+        with FakeWriter() as w, tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'
+            kit.mkdir()
+            (kit / 'kit.json').write_text(json.dumps({'schema': 1, 'assembly': 'mbp92-26B131'}))
+            fake = FakeAcquire()
+            c, out, _ = console([])
+            a = ns(dry_run=False, model='MacBookPro9,2', disk='disk4', confirm='disk4', kit=str(kit),
+                   release='/nonexistent/release.json')
+            self.assertEqual(INST.create_installer(a, c, host, acquire=fake.api), 0)
+        self.assertEqual(fake.fetched, [])
+        self.assertEqual(a.assembly, 'mbp92-26B131')
+        self.assertIn('nothing is downloaded', out.getvalue())
+        self.assertIsNone(w.calls[0][1]['release'])
 
     def test_flags_answer_every_question(self):
         host = FakeMac(uid=0)
