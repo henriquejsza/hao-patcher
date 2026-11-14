@@ -19,7 +19,8 @@ golden-run and release-cut refuse to start a build (owner, 2026-11-14: a proven 
 or never converted to a build ... That's nonsense"). There is no override: resolve it, or mark it "dropped: WHY".
 
 A swap is resolved when:
-  - pipeline/live-swaps.tsv has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it, RESOLUTION being
+  - pipeline/live-swaps.tsv has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it (a path on the EFI partition as
+    the ledger names it: "ESP diskNsM EFI/..."), RESOLUTION being
     "row NAME" or "recipe NAME" (the fix now ships in images that way) or "dropped: WHY" (not wanted), or
   - its path is under /usr/lib/hao/ and the hao_runtime row's payload holds the same bytes at root/<path> (hao-runtime
     fixes ship in its payload).
@@ -65,7 +66,7 @@ def resolutions(path=RESOLUTIONS):
         if not line.strip() or line.startswith('#'):
             continue
         f = line.split('\t')
-        if len(f) != 3 or len(f[0]) != 64 or not f[1].startswith('/') or not f[2].startswith(KINDS):
+        if len(f) != 3 or len(f[0]) != 64 or not f[1].startswith(('/', 'ESP ')) or not f[2].startswith(KINDS):
             raise ValueError('%s:%d: want SHA256<TAB>/LAPTOP/PATH<TAB>row NAME | recipe NAME | dropped: WHY' % (path, n))
         out[(f[0], f[1])] = f[2]
     return out

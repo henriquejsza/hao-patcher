@@ -46,6 +46,8 @@ class Swaps(unittest.TestCase):
             self.res.write_text(line + '\n')
             with self.assertRaises(ValueError):
                 S['resolutions'](self.res)
+        self.res.write_text('%s\tESP disk0s1 EFI/OC/config.plist\tdropped: test\n' % SHA(b''))
+        self.assertEqual(len(S['resolutions'](self.res)), 1)     # the ledger's name for a file on the EFI partition
         self.res.write_text('%s\t/x\tdropped: experiment only\n' % SHA(b''))
         self.assertEqual(S['resolutions'](self.res), {(SHA(b''), '/x'): 'dropped: experiment only'})
 
