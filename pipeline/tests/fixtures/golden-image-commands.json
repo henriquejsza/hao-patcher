@@ -1864,6 +1864,25 @@
    },
    "group_uuid": "DATA-UUID",
    "operation": "golden-first-image",
+   "owners_fixed": {
+    "base layers": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0,
+     "system": 0
+    },
+    "posts": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0
+    },
+    "recipes": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0,
+     "system": 0
+    }
+   },
    "revision": 1,
    "status": "assembled",
    "steps": [
@@ -3747,6 +3766,25 @@
    },
    "group_uuid": "DATA-UUID",
    "operation": "golden-first-image",
+   "owners_fixed": {
+    "base layers": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0,
+     "system": 0
+    },
+    "posts": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0
+    },
+    "recipes": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0,
+     "system": 0
+    }
+   },
    "revision": 1,
    "status": "assembled",
    "steps": [
@@ -5049,6 +5087,7 @@
    "error": "Command '['/staged/python', '-I', '/staged/hardware/apply', 'apply', '--artifact', '/staged/hardware', '--system-root', '<root>/work/mnt/system', '--data-root', '<root>/work/mnt/data', '--report', '<root>/work/hardware.json']' returned non-zero exit status 19.",
    "group_uuid": "DATA-UUID",
    "operation": "golden-first-image",
+   "owners_fixed": {},
    "revision": 1,
    "status": "failed",
    "steps": [
@@ -6876,6 +6915,25 @@
    },
    "group_uuid": "DATA-UUID",
    "operation": "golden-first-image",
+   "owners_fixed": {
+    "base layers": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0,
+     "system": 0
+    },
+    "posts": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0
+    },
+    "recipes": {
+     "data": 0,
+     "preboot": 0,
+     "recovery": 0,
+     "system": 0
+    }
+   },
    "revision": 1,
    "status": "failed",
    "steps": [

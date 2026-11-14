@@ -80,6 +80,11 @@ shape System up to `darwin27-kernel`). `golden-run --stage-kit` copies the entry
 linking. `hao create-installer` refuses a kit without them: build the image once in the VM first. Producing them
 without the VM is open (see the VM-free build plan).
 
+The Recovery mounts the stick's HAO volume `noowners`, so every file the install copies from the kit arrives owned
+by `_unknown` (99:99). `golden-image.py` gives such files root:wheel after the base layers, the recipes and the
+posts, and records the counts in `build.json` `owners_fixed`. kmutil refuses kexts with those owners, which is why
+the Recovery linked a kernel-only collection before. In the builder VM there are none.
+
 A failed assembly can continue at its failed step, on the same disk, when that step can run again over what the
 failed attempt left (`RESUMABLE` in `golden-image.py`: `boot-and-esp` and `hardware`):
 `golden-image.py CONFIG --resume WORK`, `golden-assemble.sh ... --resume WORK`, or
