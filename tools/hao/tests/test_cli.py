@@ -441,6 +441,16 @@ class CommandLineTest(unittest.TestCase):
         return subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'hao')] + list(argv), capture_output=True,
                               text=True)
 
+    def test_detect_names_its_file_and_prints_no_json(self):
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'hao'), 'detect'], capture_output=True,
+                               text=True, cwd=d)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            (made,) = Path(d).glob('hao-profile-*.json')
+            self.assertIn('Profile written to ', r.stdout); self.assertIn(made.name, r.stdout)
+            self.assertNotIn('{', r.stdout)
+            self.assertIn('model', json.loads(made.read_text()))
+
     def test_build_image_json(self):
         r = self.hao('build-image', '/nonexistent', '--model', 'MacBookPro9,2', '--dry-run', '--log', 'json')
         self.assertEqual(r.returncode, 0, r.stderr)
