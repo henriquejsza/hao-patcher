@@ -188,7 +188,7 @@ class RecoveryCommands(unittest.TestCase):
             self.assertIn('caffeinate -dimsu keeps this Mac awake', out)
             links = {p.name for p in (local / 'recovery-only').iterdir()}
             self.assertIn('ditto', links)
-            self.assertNotIn('rsync', links)
+            self.assertEqual('rsync' in links, os.access('/usr/bin/rsync', os.X_OK))   # only for absolute-path shims
             # the stub kit has no kit.py: the assembly stops at the render, after the PATH and the stand-ins
             self.assertNotEqual(r.returncode, 0)
 

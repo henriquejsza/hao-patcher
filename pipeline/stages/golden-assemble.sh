@@ -38,6 +38,11 @@ if [ -n "${HAO_RECOVERY_COMMANDS:-}" ]; then
     grep -v '^#' "$HAO_RECOVERY_COMMANDS" | while read -r c; do
         [ -n "$c" ] && [ -e "$c" ] && ln -sf "$c" "$W/recovery-only/${c##*/}"
     done
+    # A limited PATH cannot hide what this Mac has at an absolute path. OCLP's hardware tool probes /usr/bin/rsync
+    # --version: a Recovery has none and the tool merges with ditto; a full macOS has its rsync shim, which passes
+    # the probe and then starts "rsync" from PATH. So on a Mac with /usr/bin/rsync it is linked here too (the
+    # Recovery's ditto path is checked by pipeline/tests/test_recovery_commands.py and run by the QEMU stick test).
+    [ ! -x /usr/bin/rsync ] || ln -sf /usr/bin/rsync "$W/recovery-only/rsync"
     PATH="$W/recovery-only"; export PATH
     echo "golden-assemble.sh: PATH holds only the commands of $HAO_RECOVERY_COMMANDS"
 fi
