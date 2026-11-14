@@ -1,2 +1,3 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
-b8a0c6a23eede1cc376789b61c9725758ee908abb3b9164db73f82e143c997e7 store/artifacts/minimal-extensions-25G342-26B131
+# hash: without build.json  # build records and intermediates: a remake of the same payload matches
+b9cd040204a6eb8dc8c9991cc7f4ac2435dd81a3d13c17dd83521938e5ecc46d store/artifacts/minimal-extensions-25G342-26B131

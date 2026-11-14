@@ -305,3 +305,29 @@ class ReleaseFilesScope(unittest.TestCase):
                 entry = classes[f.name]
                 self.assertEqual(only, entry['include'] + [m['path'] for m in entry.get('made_on_mac_files', [])])
         self.assertEqual(found, 5)
+
+
+class HashWithout(unittest.TestCase):
+    """`# hash: without NAME...`: a folder row's sha256 leaves out its producer's record, so a remake matches."""
+
+    def test_record_left_out_payload_counted(self):
+        import runpy
+        L = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'lock.py'))
+        with tempfile.TemporaryDirectory() as t:
+            a, b = Path(t) / 'a', Path(t) / 'b'
+            for top, date in ((a, '2026-11-09'), (b, '2026-11-14')):
+                (top / 'payload' / 'x').mkdir(parents=True)
+                (top / 'payload' / 'x' / 'f').write_bytes(b'same')
+                (top / 'build.json').write_text('{"date": "%s", "path": "/somewhere/%s"}' % (date, date))
+                (top / 'build').mkdir()
+                (top / 'build' / 'tmp.ll').write_text(date)
+            self.assertNotEqual(L['content_sha256'](str(a)), L['content_sha256'](str(b)))
+            self.assertEqual(L['content_sha256'](str(a), None, ('build.json', 'build')),
+                             L['content_sha256'](str(b), None, ('build.json', 'build')))
+            (b / 'payload' / 'x' / 'f').write_bytes(b'other')
+            self.assertNotEqual(L['content_sha256'](str(a), None, ('build.json', 'build')),
+                                L['content_sha256'](str(b), None, ('build.json', 'build')))
+            lock = Path(t) / 'lock'
+            lock.mkdir()
+            (lock / 'r').write_text('# hash: without build.json build  # records\n- %s\n' % a)
+            self.assertEqual(L['without'](str(lock), 'r'), ('build.json', 'build'))

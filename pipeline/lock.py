@@ -117,7 +117,7 @@ def in_scope(rel, only):
     return any(rel == o or rel.startswith(o.rstrip('/') + '/') or o.startswith(rel + '/') for o in only)
 
 
-def content_sha256(top, only=None):
+def content_sha256(top, only=None, without=()):
     """sha256 over a folder: one line per entry in sorted walk order (relative name, permission bits, and the file's
     sha256, the link's target text, or 'dir'). Ownership and times are left out: the builder stages as root.
     ONLY (a list of relative paths) limits it to those entries and the folders above them (scope())."""
@@ -126,7 +126,10 @@ def content_sha256(top, only=None):
         dirs.sort()
         for f in sorted(files + dirs):
             p = os.path.join(d, f)
-            if only is not None and not in_scope(os.path.relpath(p, top), only):
+            rel = os.path.relpath(p, top)
+            if only is not None and not in_scope(rel, only):
+                continue
+            if any(rel == w or rel.startswith(w.rstrip('/') + '/') for w in without):
                 continue
             st = os.lstat(p)
             if stat.S_ISLNK(st.st_mode):
@@ -141,14 +144,31 @@ def content_sha256(top, only=None):
     return h.hexdigest()
 
 
-def row_sha256(p, only=None):
-    """What a row's sha256 column says about PATH: the file's sha256 or the folder's content_sha256 (of ONLY)."""
+def row_sha256(p, only=None, without=()):
+    """What a row's sha256 column says about PATH: the file's sha256 or the folder's content_sha256 (of ONLY, without
+    WITHOUT)."""
     if os.path.isdir(p):
-        return content_sha256(p, only)
+        return content_sha256(p, only, without)
     return sha256(p)
 
 
 HASH_SCOPE = re.compile(r'^#\s*hash:\s*release-files(\s|$)')
+HASH_WITHOUT = re.compile(r'^#\s*hash:\s*without\s+(\S.*?)\s*$')
+
+
+def without(lock, name):
+    """The entries a folder row's sha256 leaves out: a `# hash: without NAME...` line names them (relative paths,
+    a folder leaves out everything below it): the producer's build record (dates, paths), notes, intermediates, so a
+    remake of the same payload on another Mac matches the row."""
+    f = os.path.join(lock, name)
+    if not os.path.isdir(lock) or not os.path.isfile(f):
+        return ()
+    out = []
+    for l in open(f):
+        m = HASH_WITHOUT.match(l.rstrip('\n'))
+        if m:
+            out += [w for w in m.group(1).split('#', 1)[0].split() if w]
+    return tuple(out)
 
 
 def scope(lock, name):
@@ -167,7 +187,7 @@ def scope(lock, name):
 
 def row_hash(lock, name, p):
     """Row NAME's sha256 as its lock folder LOCK defines it, for the thing at P."""
-    return row_sha256(p, scope(lock, name))
+    return row_sha256(p, scope(lock, name), without(lock, name))
 
 
 def in_checkout(p):
