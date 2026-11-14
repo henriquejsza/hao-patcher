@@ -26,12 +26,12 @@ adds the fixes under [What's new](#whats-new).
 - WebGPU in Safari: compute and rendering on the HD 4000.
 - SceneKit: 3D scenes with physically based materials, cube-map environments, shadows and reflections; Preview
   opens SceneKit scenes.
-- Photos: import, thumbnails, full-size view.
 - Spotlight opens and searches.
 - macOS 27's ARM-only programs run on the Intel CPU through hao-runtime, including the
   Geekbench 6 ARM CPU benchmark's workloads.
 
 **In development**
+- Photos: the zoom from a thumbnail to the full-size view is being fixed.
 - Spotlight: local app results. The next image lets macOS download its search data (only dyld is treated as
   an internal install, so the asset service uses Apple's public servers).
 - Live Text: the analysis service runs text recognition on the HD 4000; results in Photos

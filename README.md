@@ -39,7 +39,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
 | Connectivity | Wi-Fi (joins at startup and from Setup), Bluetooth, AirPlay display discovery |
 | Audio and input | Speakers, keyboard, trackpad, brightness keys |
-| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Weather (with its maps), Photos, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Weather (with its maps), Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
 | 3D | SceneKit scenes with materials, shadows and reflections |
 | ARM-only programs | Run on the Intel CPU through hao-runtime, at about half to a third of native speed |
 
@@ -77,7 +77,9 @@ There is no end-user installer yet. The `hao` command ([tools/hao](tools/hao)) i
 
 ## Building
 
-On the build Mac, with the assets folder in place (`A`):
+On the build Mac, with the assets folder in place (`A`). Building on the Mac itself is new: the images tested so
+far were built on an Apple silicon Mac with a builder virtual machine, as [Building an image](docs/building.md)
+describes.
 
 ```sh
 curl -L https://codeload.github.com/lythka/hao-patcher/tar.gz/main -o hao-patcher.tar.gz
