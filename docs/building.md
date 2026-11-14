@@ -53,6 +53,13 @@ python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json --repo /
 The [assembly](../pipeline/assemblies/mbp92-26B131.json) selects target, OS and donor
 builds, image sizes, donor rows and the patch set.
 
+`golden-run` (also with `--stage-kit`, which the stick's kit comes from) and `release-cut --write` refuse to start
+while a live swap proven on a laptop has no resolution. The swapper records the proof when a bench pass or the owner
+shows the swap works: `python3.14 -I pipeline/swaps.py proven LAPTOP-PATH --evidence "bench ITEM"` (or
+`"owner: THEIR WORDS"`), which adds a `proven` line to the swap ledger. The refusal names each path, its sha256, who
+swapped it and who proved it. It is resolved by a line in `pipeline/live-swaps.tsv` (`recipe NAME`, `row NAME`, or
+`dropped: WHY`); there is no override. `swaps.py status` lists every swap (`OPEN`, `PROVEN-OPEN`, `resolved`).
+
 The VM runs the same `pipeline/stages/golden-assemble.sh` that `hao install` runs in the target's Recovery.
 That Recovery (Tahoe 25G342) has fewer commands than a full macOS. The ones it has are listed in
 `pipeline/stages/recovery-commands-25G342.txt`. `install`, `shasum`, `cmp` and `readlink` are missing, and the

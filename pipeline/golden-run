@@ -647,6 +647,10 @@ def main():
         if args.stage_kit:
             if not args.recipe or args.repo:parser.error('--stage-kit takes a recipe and no --repo')
         elif not args.recipe or not args.repo:parser.error('recipe and --repo are required')
+        # No candidate build while a fix proven on the laptop exists only there (pipeline/swaps.py; no override).
+        refusal=runpy.run_path(str(Path(__file__).resolve().parent/'swaps.py'))['gate']()
+        if refusal:
+            print('golden-run: refused: '+'\n'.join(refusal),file=sys.stderr);sys.exit(3)
         run(args.recipe,args.repo,args.work,args.record,args.base,args.timeout,args.skip_optional,overlays,
             cryptex_cache=not args.no_cryptex_cache,kit_only=args.stage_kit,recovery_commands=args.recovery_commands)
 
