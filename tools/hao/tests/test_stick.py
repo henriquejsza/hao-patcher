@@ -143,7 +143,8 @@ class StickTest(unittest.TestCase):
             self.assertTrue(os.access(kit / name, os.X_OK))
             self.assertIn('"$PY/bin/python3.12" -I "$D/hao/tools/hao/hao" ' + cmd, text)
         self.assertTrue((kit / 'reports').is_dir())
-        self.assertIn('erase /dev/disk4', steps[0])
+        self.assertIn('erased /dev/disk4', steps[0])
+        self.assertEqual(len(steps), 3)
 
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)

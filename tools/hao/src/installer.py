@@ -357,7 +357,7 @@ def create_installer(a, c, host, acquire=None):
                   donor_build=asm['donor_build'], basesystem=Path(basesystem).name)
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
-                          record=record, on_step=lambda text: c.item(text, 'steps'))
+                          record=record, on_step=lambda text: c.item(text, 'steps', ok=True))
     except (STICK.StickError, OSError, LP.PatchError) as x:
         raise Stopped('writing the USB stick failed', cause=str(x).splitlines()[0],
                       why='the stick is erased and incomplete; it will not start',
@@ -366,8 +366,7 @@ def create_installer(a, c, host, acquire=None):
     finally:
         if image:
             host.run(['hdiutil', 'detach', '/dev/' + disk], check=False, timeout=300)
-    c.item('BaseSystem.dmg sha256 %s, kit %s' % (rec['basesystem_sha256'][:16], human_size(rec['kit_bytes'])),
-           ok=True, ev='stick.written', stick=rec)
+    c.event('stick.written', stick=rec)
     c.done(('stick image written: %s' % image) if image else
            'the USB stick is ready: plug it into the Intel Mac, hold Option while it starts and choose EFI Boot; '
            'in the Recovery open Terminal and run /Volumes/HAO/install', disk=disk)

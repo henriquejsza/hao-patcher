@@ -302,16 +302,17 @@ def attach_image(host, image, size_bytes):
 
 
 def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, record=None, on_step=None):
-    """The whole stick on DISK. ON_STEP(text) is told each part as it starts. Returns stick.json's content."""
+    """The whole stick on DISK. ON_STEP(text) is told each part once it is done and checked. Returns stick.json's
+    content."""
     step = on_step or (lambda text: None)
     mb = boot_mb(Path(basesystem).stat().st_size, Path(opencore_tar).stat().st_size)
-    step('erase /dev/%s: EFI, %s (FAT32, %d MB), %s (Mac OS Extended, the rest)' % (disk, BOOT_NAME, mb, KIT_NAME))
     parts = partition(host, disk, mb)
-    step('%s: OpenCore and the Recovery (%s)' % (BOOT_NAME, Path(basesystem).name))
+    step('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (disk, BOOT_NAME, mb, KIT_NAME))
     rec = dict(record or {})
     rec.update(write_boot(parts[BOOT_NAME][1], basesystem, opencore_tar))
-    step('%s: hao, the kit, the install and report commands' % KIT_NAME)
+    step('%s  OpenCore and the Recovery, sha256 checked' % BOOT_NAME)
     rec = write_kit(parts[KIT_NAME][1], kit, hao_top, release, rec)
+    step('%s      hao, the kit (%.1f GB), install and report' % (KIT_NAME, rec['kit_bytes'] / 1e9))
     host.run(['diskutil', 'unmountDisk', '/dev/' + disk], check=False, timeout=300)
     return rec
 
