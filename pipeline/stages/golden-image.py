@@ -430,9 +430,13 @@ class Assembler:
         self.container = info['ContainerReference']
         volumes = {row['DeviceIdentifier']:row for row in info['Volumes']}
         for key, variable in dict(system='SYSU',data='DATU',preboot='PBU',recovery='RCU').items():
-            device = self.plist('diskutil','info','-plist',values[variable])['DeviceIdentifier']
+            try:
+                device = self.plist('diskutil','info','-plist',values[variable])['DeviceIdentifier']
+            except subprocess.CalledProcessError:
+                device = None    # no volume with that UUID on this Mac
             if device not in volumes:
-                raise ValueError('%s volume %s is not in this disk\'s container' % (key, values[variable]))
+                raise ValueError('%s volume %s is not in the container of %s: not the failed run\'s disk'
+                                 % (key, values[variable], self.target.whole))
             self.devices[key] = device
             self.environment[variable] = values[variable]
         vm = [d for d, row in volumes.items() if 'VM' in row.get('Roles',[])]
@@ -612,7 +616,11 @@ def resume_point(config, prior):
     def same(value):
         return json.loads(json.dumps(value).replace(json.dumps(old)[1:-1], json.dumps(new)[1:-1]))
     keys = set(config)|set(prior['configuration'])
-    differ = sorted(k for k in keys - {'work','image'} if same(prior['configuration'].get(k)) != config.get(k))
+    # Not compared: the work folder, the image (the failed run's is used) and the disk's name, which can change
+    # between starts (bench 0745: disk0 in the failed run, disk1 after a restart). adopt() finds the failed run's
+    # volumes by UUID in the named disk's container, and refuses a disk that does not hold them.
+    differ = sorted(k for k in keys - {'work','image','disk','confirm_disk'}
+                    if same(prior['configuration'].get(k)) != config.get(k))
     if differ:
         raise ValueError('the kit\'s configuration differs from the failed run\'s (%s): start from an empty disk' % ', '.join(differ))
     done = {row['name'] for row in prior.get('steps',[]) if row.get('complete')}

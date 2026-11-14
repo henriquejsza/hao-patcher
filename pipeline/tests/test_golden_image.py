@@ -51,7 +51,9 @@ class FakeCommands:
             for row in self.volumes:
                 if row['Roles']==['Preboot']:row['MountPoint']='/Volumes/UnexpectedPreboot'
         elif a[:3]==['diskutil','info','-plist']:
-            return plistlib.dumps({k:v for k,v in next(row for row in self.volumes if a[3] in (row['DeviceIdentifier'],row['VolumeUUID'])).items() if k!='files'})
+            row=next((row for row in self.volumes if a[3] in (row['DeviceIdentifier'],row['VolumeUUID'])),None)
+            if row is None:raise subprocess.CalledProcessError(1,a)    # diskutil: no such disk or volume
+            return plistlib.dumps({k:v for k,v in row.items() if k!='files'})
         elif a[:2]==['rm','-rf']:
             shutil.rmtree(a[2],ignore_errors=True)
         elif a[0]==self.config['python'] and a[2]==self.config['layout_helper']:
@@ -290,6 +292,19 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(steps,[(n,i<4) for i,(n,_,_) in enumerate(golden.LAYERS)])
         hook=next(r for r in self.fake.entries if c['hooks'][1]['kc_hook'] in r['command'])
         self.assertEqual(hook['environment']['SYSU'],'SYSTEM-UUID');self.assertEqual(hook['environment']['GRP'],'DATA-UUID')
+
+    def test_the_disk_may_have_another_name_after_a_restart(self):
+        prior=self.fail_at(lambda a:a[0]=='ditto' and a[-1].endswith('/mnt/esp'))
+        prior['configuration'].update(disk='disk0',confirm_disk='disk0')
+        c=dict(self.second(),disk='disk1',confirm_disk='disk1')
+        self.assertEqual(golden.LAYERS[golden.resume_point(c,prior)][0],'boot-and-esp')
+
+    def test_refuses_a_disk_without_the_failed_runs_volumes(self):
+        prior=self.fail_at(lambda a:a[0]=='ditto' and a[-1].endswith('/mnt/esp'))
+        c=self.second()
+        for row in self.fake.volumes:
+            row['VolumeUUID']='OTHER-'+row['VolumeUUID']     # another disk: none of the failed run's volumes
+        with self.assertRaisesRegex(ValueError,'not the failed run'):golden.assemble(c,self.fake,prior=prior)
 
     def test_refuses_a_step_that_edits_in_place(self):
         prior=self.fail_at(lambda a:self.first['hooks'][2]['kc_hook'] in a)
