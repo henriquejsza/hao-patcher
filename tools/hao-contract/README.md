@@ -22,7 +22,8 @@ The labels are the ones a `contract.json` `allow` list names.
 the staged change adds, is refused if it names a home folder, a private name or a private pattern. It is also refused
 if it uses internal wording on the wording list; for the staged change, that applies to documentation only (`*.md`,
 `patch.json`). The lists live outside the repository; a local file names them (`KIND PATH` lines: `names`,
-`patterns`, `wording`; see `hooks/check.py`). The output names the label and the file and line, never the matched text.
+`patterns`, `wording`; see `hooks/check.py`). A message must also keep the lengths of the commit-message standard: a subject of at most 72 characters, at most 6
+body lines, and one `Tested:` line of at most 160 characters. The output names the label and the file and line, never the matched text.
 
 ```sh
 sh tools/hao-contract/hooks/install --lists LISTS-FILE REPO...   # once per repository; again after hooks/ changes

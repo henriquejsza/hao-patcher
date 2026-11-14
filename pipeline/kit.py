@@ -9,7 +9,7 @@ folder; the assembly writes only KIT/cryptex-cache/out, the sealed cryptex image
 local copies of the source, Python, hooks and posts, and its work folder). It names no target: `render` adds either
 the raw image (LOCAL/target.img) or the whole disk to erase.
 
-    kit.py render KIT LOCAL --out CONFIG [--disk diskN --confirm-disk diskN [--external]]
+    kit.py render KIT LOCAL --out CONFIG [--disk diskN --confirm-disk diskN [--external]] [--no-cryptex-cache]
     kit.py python-dir [MACHINE]        # the kit folder holding the CPython for this Mac (py, py-x86_64)
 
 Python 3.9+ only (it runs under the kit's own CPython, or a host's older python3)."""
@@ -68,10 +68,12 @@ def strings(value):
         yield value
 
 
-def render(kit_json, kit, local, disk=None, confirm_disk=None, disk_policy='internal'):
+def render(kit_json, kit, local, disk=None, confirm_disk=None, disk_policy='internal', cryptex_cache=True):
     """The assembler configuration for a kit at KIT assembling in LOCAL: the raw image LOCAL/target.img, or the
     whole DISK (CONFIRM_DISK must name it again; golden-image.py's DiskTarget runs the installer's disk checks under
-    DISK_POLICY: internal for hao install, the Mac's own disk; external for hao build-disk, an external SSD)."""
+    DISK_POLICY: internal for hao install, the Mac's own disk; external for hao build-disk, an external SSD).
+    CRYPTEX_CACHE false drops the kit's cryptex cache: an assembly nobody collects (hao install from a stick) would
+    only write the sealed cryptex images (~26 GB) into KIT/cryptex-cache/out, onto the stick."""
     if kit_json.get('schema') != SCHEMA:
         raise ValueError('kit.json schema %r, this kit.py reads %d' % (kit_json.get('schema'), SCHEMA))
     kit, local = str(kit).rstrip('/') or '/', str(local).rstrip('/') or '/'
@@ -87,6 +89,8 @@ def render(kit_json, kit, local, disk=None, confirm_disk=None, disk_policy='inte
             return value.replace(LOCAL, local).replace(KIT, kit)
         return value
     config = fill(kit_json['config'])
+    if not cryptex_cache:
+        config.pop('cryptex_cache', None)
     if disk:
         if not confirm_disk:
             raise ValueError('a disk target needs --confirm-disk naming the same disk')
@@ -108,6 +112,8 @@ def main(argv=None):
     r.add_argument('--disk')
     r.add_argument('--confirm-disk')
     r.add_argument('--external', action='store_true', help='the disk is an external SSD (hao build-disk)')
+    r.add_argument('--no-cryptex-cache', action='store_true',
+                   help='do not reuse or store sealed cryptex images (nothing collects them afterwards)')
     p = sub.add_parser('python-dir', help='the kit folder with the CPython for MACHINE (default: this Mac)')
     p.add_argument('machine', nargs='?')
     a = parser.parse_args(argv)
@@ -116,7 +122,7 @@ def main(argv=None):
             print(python_dir(a.machine))
             return 0
         config = render(json.loads((a.kit / 'kit.json').read_text()), a.kit, a.local, a.disk, a.confirm_disk,
-                        'external' if a.external else 'internal')
+                        'external' if a.external else 'internal', not a.no_cryptex_cache)
     except ValueError as error:
         print('kit.py: ' + str(error), file=sys.stderr)
         return 2

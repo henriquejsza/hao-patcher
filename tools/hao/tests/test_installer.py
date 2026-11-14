@@ -526,5 +526,21 @@ class CommandLineTest(unittest.TestCase):
             self.assertNotIn(str(Path.home()), text)
 
 
+class PrelinkedKit(unittest.TestCase):
+    """A stick's kit must carry darwin27-kernel's prelinked collections: the stick's Recovery cannot link them."""
+    def test_kit_without_prelinked_collections_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'share'; (kit / 'hooks/01-darwin27-kernel').mkdir(parents=True)
+            (kit / 'kit.json').write_text('{}')
+            c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
+            a = argparse.Namespace(kit=str(kit))
+            with self.assertRaises(CON.Stopped) as x:
+                INST.prepare_kit(a, c, None)
+            self.assertIn('no prelinked kernel collections', x.exception.what)
+            p = kit / 'hooks/01-darwin27-kernel/prelinked'; p.mkdir()
+            (p / 'prelinked.json').write_text(json.dumps(dict(key='k1', files={})))
+            self.assertEqual(kit.resolve(), INST.prepare_kit(a, c, None))
+
+
 if __name__ == '__main__':
     unittest.main()

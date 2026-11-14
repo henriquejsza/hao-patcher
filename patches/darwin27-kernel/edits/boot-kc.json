@@ -29,7 +29,8 @@
     "build_directory_note": "inside the System volume while linking and removed after; its path is linked into the BootKC, so changing it changes the bytes hao-opencore's repairs are bound to",
     "kexts": "the image's Intel driver tree: Tahoe Extensions, KDK kexts, OCLP's hardware kexts, found by kmutil under the root",
     "name": "boot",
-    "boot_collection": "BootKernelExtensions.kc (-B, in the build directory)"
+    "boot_collection": "BootKernelExtensions.kc (-B, in the build directory)",
+    "prelinked": "an installer kit carries prelinked/: the three files a builder VM build linked from the same tree (pipeline/prelinked_kc.py, key over the rows and sources that shape System up to this hook); the hook checks each against prelinked/prelinked.json and installs them instead of linking, because the stick's Recovery links a kernel-only collection (its kmutil reads no kext of the target volume)"
    },
    "reason": "the Intel Mac boots Apple's own Darwin 27 kernel with Tahoe's Intel drivers (Ethernet, HD 4000, and the rest of the boot-time set) linked into one boot collection"
   }

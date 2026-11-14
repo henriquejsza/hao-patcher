@@ -110,7 +110,10 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='nothing was written to the disk')
     local = Path(getattr(a, 'local', None) or work / 'local').resolve()
     prior = resumed_work(a)
-    cmd = ['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), str(local), '--disk', name,
+    # A kit staged here is collected afterwards (golden-run --collect-kit keeps its sealed cryptex images); a kit
+    # named with --kit (hao install from the stick) is not, so storing them would only fill the stick.
+    cmd = ['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), str(local)] + (
+           [] if record is not None else ['--no-cryptex-cache']) + ['--disk', name,
            '--confirm-disk', name] + (['--external'] if policy == 'external' else []) + (
            ['--resume', str(prior)] if prior else [])
     c.event('command', argv=cmd)

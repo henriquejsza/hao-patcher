@@ -5,6 +5,7 @@ from pathlib import Path
 import plistlib
 import shutil
 import subprocess
+import os
 import tempfile
 import unittest
 
@@ -81,6 +82,8 @@ class FakeCommands:
         elif a[:3]==['sh','-eu',self.config['hooks'][0]['kc_hook']]:
             kc=Path(a[3])/'System/Library/KernelCollections';kc.mkdir(parents=True,exist_ok=True)
             (kc/'BootKernelExtensions.kc').write_bytes(b'authored collection')
+            (kc/'BootKernelExtensions.kc.elides').write_text('com.apple.iokit.IOPCIFamily\n')
+            (kc/'SystemKernelExtensions.kc').write_bytes(b'authored system collection')
         elif a[:2]==['sh','-eu'] and any(a[2]==h['kc_hook'] for h in self.config['hooks'][1:]):
             # A later recipe changes the collection; the record keeps darwin27-kernel's bytes.
             (Path(a[3])/'System/Library/KernelCollections/BootKernelExtensions.kc').write_bytes(b'edited by '+a[2].encode())
@@ -336,3 +339,24 @@ class FatCopyTests(unittest.TestCase):
                 if line.lstrip().startswith('#') or not ('ditto' in line or line.lstrip().startswith(('cp ','mv '))):continue
                 if '"$ESP' in line.split()[-1] if line.split() else False:
                     self.assertIn('--noextattr --noacl',line,'%s:%d copies onto the FAT ESP with attributes' % (script.relative_to(top),n))
+
+
+class UnknownOwners(unittest.TestCase):
+    """A Recovery reads the stick noowners: files the kit gives the target arrive as _unknown (99:99) and kmutil
+    refuses such kexts. fixed_owners gives them root/wheel, on the volume's own device, symlinks themselves."""
+    def test_only_unknown_ids_change(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)/'vol';(root/'Ext/A.kext/Contents').mkdir(parents=True)
+            for name in ('Ext/A.kext/Contents/Info.plist','Ext/B','Ext/C'):(root/name).write_text('x')
+            (root/'link').symlink_to('/elsewhere')
+            owners={str(root/'Ext/A.kext'):(99,99),str(root/'Ext/A.kext/Contents/Info.plist'):(99,99),
+                    str(root/'Ext/B'):(99,80),str(root/'Ext/C'):(501,99),str(root/'link'):(99,0)}
+            real=os.lstat
+            class St:
+                def __init__(self,path):
+                    st=real(path);self.st_dev=st.st_dev;self.st_uid,self.st_gid=owners.get(str(path),(0,0))
+            calls=[]
+            n=golden.fixed_owners(root,lstat=St,lchown=lambda p,u,g:calls.append((Path(p).relative_to(root).as_posix(),u,g)))
+            self.assertEqual(5,n)
+            self.assertEqual(sorted(calls),[('Ext/A.kext',0,0),('Ext/A.kext/Contents/Info.plist',0,0),('Ext/B',0,-1),
+                                            ('Ext/C',-1,0),('link',0,-1)])

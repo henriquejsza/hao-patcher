@@ -447,5 +447,21 @@ def prepare_kit(a, c, path, run=subprocess.call):
         kit = work / 'stage' / 'share'
     if not (kit / 'kit.json').is_file():
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
-    c.item('kit  %s' % c.paint('dim', str(kit)), 'files', ok=True)
+    prelinked = prelinked_kc(kit)
+    if prelinked is None:
+        raise Stopped('the kit has no prelinked kernel collections',
+                      why='the stick\'s Recovery cannot link them: its kmutil reads no kext of the disk it installs',
+                      options=['build this image once in the builder VM (hao build-image, or golden-run ASSEMBLY '
+                               '--repo REPO): it stores them, and a kit staged afterwards carries them',
+                               'the kit record names the key it looked for: %s' % (kit.parent.parent / 'record')],
+                      untouched='the stick was not touched')
+    c.item('kit  %s  (kernel collections prelinked, key %s)' % (c.paint('dim', str(kit)), prelinked['key']),
+           'files', ok=True)
     return kit
+
+
+def prelinked_kc(kit):
+    """The kit's prelinked/prelinked.json of darwin27-kernel (pipeline/prelinked_kc.py), or None."""
+    for found in sorted(Path(kit).glob('hooks/*darwin27-kernel/prelinked/prelinked.json')):
+        return json.loads(found.read_text())
+    return None

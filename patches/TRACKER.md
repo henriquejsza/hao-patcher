@@ -8,10 +8,11 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-13 Documentation only: Inputs lists `tahoe_kc_builder` (added in r8). The hook is unchanged. |
+| darwin27-kernel | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-14 With `prelinked/prelinked.json` in its folder (a kit for the USB installer: golden-run `--stage |
 | darwin27-sandbox-disk-space | r3 | oclp-hook | experiment |  |  | x |  |  | **needs** | r3 2026-11-12 Declare the system.sb rule in `edits/system-sb.json` (edit-engine text.insert, unless already pr |
 | dev-access | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-14 Screen Sharing for the test account from the first boot (owner's decision): system LaunchDaemon  |
 | dev-diagnostics | r4 | post | dev |  |  |  |  |  | **needs** | r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestrict |
+| dev-keepawake | r1 | post | dev |  |  |  |  |  | **needs** | r1 2026-11-14 Two system LaunchDaemons: caffeinate -dimsu for good, and the power settings at every boot. |
 | golden-gate-appstore-slices | r1 | post | product |  | x | x |  |  | **needs** | r1 2026-11-14 New: hao-slice-guard and its LaunchDaemon log each Mach-O without x86_64 in a universal App Stor |
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
