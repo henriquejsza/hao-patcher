@@ -35,11 +35,15 @@ Only built for 26B131.
 
 ## Validation
 
-NEEDS VALIDATION. The same files, byte-identical to this artifact, were proven as a live swap on the laptop
-(26B131, 2026-11-12): Weather with all four maps, and Safari WebGPU compute and render (A/B: both abort without
-them). No image built with this recipe has booted yet.
+NEEDS VALIDATION. r4's wrapper ran as a live swap on laptop 1 (26B131, bench 0640, 2026-11-14): no GPU reset, WebGPU and
+WebGL readback right in every phase, Maps drew; WebGPU canvases are still not shown on the panel (a separate fault,
+diag#0016), and Weather's precipitation map was blank in that run, but no program Weather compiles differs under r4's
+rewrite (bench 0720 diagnostic wrapper, measured). r2's files were proven as a live swap on 2026-11-12: Weather with all
+four maps, and Safari WebGPU compute and render. No image built with this recipe has booted yet.
 
 ## Revisions
+
+- r4 2026-11-14 Wrapper from d9cff656: the IGIL rewrite also handles constant-pointer raw loads (`LD_RAW .., C-1`: a scalar read through an argument-buffer pointer, e.g. a WebGPU uniform `{vec4f, f32}`), which the backend refused (CompilerError 2) and which hung the GPU in Safari (diag#0016). iCBE-real and libargbuf unchanged.
 - r3 2026-11-14 Input row `metal_argbuf` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.
 
 - r2 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
