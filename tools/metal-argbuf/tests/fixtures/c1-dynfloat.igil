@@ -1,0 +1,41 @@
+
+	PIXELSHADER function1
+
+	VERSION_3_0
+
+	DCL_CONSTANTBUFFER C0=
+	{
+	  KERNEL_ARGUMENT, 1,
+	  LOCATION_INDEX, 0, 0,
+	  EMULATION_ARGUMENT, FALSE,
+	  STRIDE, 4, 4
+	};
+
+	DCL_TEMPS r0..r16;
+	DCL_INPUT i1.xyzw, POSITION, LINEARNOPERSPECTIVE, 1;
+
+	DCL_OUTPUT o0.xyzw, PRIMARYCOLOR, 0;
+
+
+
+	DCL_EARLY_DEPTH_STENCIL_TEST_MODE NORMAL;
+
+
+	LD_RAW r4, 0, C0;
+	MOV r5.x, r4.x;
+	LD_RAW r6, r5.x, C-1;
+	MOV r7.x, i1.x;
+	FTOI r8.x, r7.x;
+	IADD r9.x, r8.x, r6.x;
+	AND r10.x, r9.x, 7;
+	SHL r11.x, r10.x, 2;
+	IADD r12.x, r5.x, r11.x;
+	IADD r13.x, r12.x, 4;
+	LD_RAW r14, r13.x, C-1;
+	MOV r15.x, 0x3F800000;
+	MOV r16.x, 0x00000000;
+	MOV_SWZ r0, r14.x, r16.x, r16.x, r15.x;
+	MOV o0.xyzw, r0.xyzw;
+	RET;
+
+	END

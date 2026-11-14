@@ -121,8 +121,11 @@ Graphics (vertex/fragment, lowered with a **32-bit pointer data layout**, `e-p:3
   shadow-struct edits made offline are folded back by instcombine under the 64-bit layout before the switch to 32
   bits, so the fix has to run at the start of the IGIL pass manager (the AIR hook).
 - After the fix, constant-buffer reads are `LD_RAW r, byteoffset, C0` (4 dwords: pointer low in `.x`, high in `.y`);
-  a read through a constant pointer becomes `MOV rD, C-1[rI.x]` (rI = byte address >> 4, "C-1" = unknown buffer) and
-  through a device pointer `LD_RAW rD, rA.x, u0` (u0 undeclared). `LD_RAW_PTR` is rejected in graphics.
+  a read through a constant pointer becomes `MOV rD, C-1[rI.x]` (a whole 16-byte register; rI = byte address >> 4,
+  "C-1" = unknown buffer) or `LD_RAW rD, rA.x, C-1` (a dword load: scalars, float2, packed_float3, a float behind a
+  vec4, dynamic scalar indexing, byte/short/half after `AND rA, rB, -4`), and through a device pointer
+  `LD_RAW rD, rA.x, u0` (u0 undeclared). `LD_RAW_PTR` is rejected in graphics. A `C-1` left in the program makes the
+  backend refuse it (`CompilerError 2`; diag#0016, WebGPU uniforms in Safari).
 - Pixel shaders accept `LD_RAW` from a static UAV or CB, and from `u[r]` / `C[r]` indexed ranges.
 - **Vertex shaders ignore a dynamic UAV index** (they read the first UAV whatever the value; a constant index works;
   an indexed CB range fails outright), so vertex shaders select the surface with an `IF_ICMP.eq` chain. Dynamic
@@ -192,7 +195,8 @@ beside it as `iCBE-real.dylib`).
   sampler range (`DCL_SAMPLER` after the function's own; `s0[r]` offset); buffer range `DCL_UAVRAW u(ufix+k)` with
   `ufix = BUF_BTI - nCB - nTexDecl` (the texture range is declared whenever buffers are, to keep `ufix` low);
   constant-pointer accesses (C surface, tainted address) retargeted to `u(ufix)`.
-- `igil_rewrite.c`, graphics: traces each `C-1[...]` / undeclared-`u0` read back to the `LD_RAW` that loaded the
+- `igil_rewrite.c`, graphics: traces each `C-1[...]` / `LD_RAW .., C-1` / undeclared-`u0` read back (through MOV,
+  IADD, SHL, AND; an argument-buffer pointer ranks above a value loaded through a pointer) to the `LD_RAW` that loaded the
   pointer, and reads from the UAV range selected by its high word: indexed `u[h+ubase]` in pixel shaders, an
   `IF_ICMP.eq` chain in vertex shaders.
 
