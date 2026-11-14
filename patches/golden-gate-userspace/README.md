@@ -151,7 +151,7 @@ changed three callout reply blocks (an added `reason` argument lands where Tahoe
 back to Tahoe 25G342's CoreWiFi for every process: airportd and its clients then agree by construction.
 
 Tahoe has CoreWiFi only inside its x86_64h OS cache. The native donors cut it out (`tools/tahoe-donors`,
-recipe `cache_images`, with hao-tools' `tools/cache-dylib`) and install it at `CoreWiFi.framework/Versions/A/CoreWiFi` with its
+recipe `cache_images`, with the `cache-dylib` tool) and install it at `CoreWiFi.framework/Versions/A/CoreWiFi` with its
 own install name. `install.py` then renames it `CoreWiFiTahoe.dylib` (install name and file, re-signed) and installs
 the compat library as `CoreWiFi`, re-exporting it, the same way as IO80211 and WiFiPeerToPeer. dyld loads the file
 instead of the cached 27.x CoreWiFi and repoints the cached clients' bindings to it. airportd is not edited.
@@ -317,12 +317,12 @@ built 26B131 image). VM build 2026-11-13 (dev-26B131, from-overlays, empty cache
 tests; a second VM build (warm cache) and a boot of an image with reused cryptexes are the open checks. Before that,
 the hao_runtime row moved to payload 273ba98 (units u4.1) on 2026-11-12; r58 was proven on the earlier payload. The baseline image and its laptop boot re-validate it. Earlier evidence:
 
-Laptop 2026-11-12, image d131d5b (26B131): r58 boots to a logged-in desktop (automatic login); Stocks, News, Photos and Podcasts run. Weather.app still aborts in hao (see hao-runtime). Image 7d0b612 (r57) booted the same way on 2026-11-11.
+Laptop 2026-11-12, image d131d5b (26B131): r58 boots to a logged-in desktop (automatic login); Stocks, News, Photos and Podcasts run. Image 7d0b612 (r57) booted the same way on 2026-11-11.
 Laptop 2026-11-11, image 4d1c48c (26B131): r46 Setup's own Wi-Fi join, r47 Spotlight without the Swift SIGBUS, r48 automatic login, r49 Safari; r51's Tahoe CoreWiFi auto-joins live and at boot; r52's hao 790720d fixes rapportd and Control Center live. Not yet exercised: the u3 units' Weather/Photos cases, SearchHelper's own identity.
 Earlier: host tests cover the current recipe (r48's carrier runs against this Mac's x86_64 cache; no image
-with it has been built or booted), and a Golden Gate-first image assembled with it reached SSH;
+with it has been built or booted), and a Golden Gate-first image assembled with it booted with its network services up;
 loading of HID and serial DriverKit extensions with the added DriverKit cache, and a full application pass, are open.
-The WiFiPeerToPeer library (r43) was swapped live onto a running 26B131 image on the laptop: AirPlayXPCHelper then
+The WiFiPeerToPeer library (r43) was tested on the laptop on a 26B131 image: AirPlayXPCHelper then
 started without the libobjc abort. An image built with r43, and coreaudiod starting on it, are not yet tested.
 Laptop, image 4d1c48c (26B131, built from adfd15a0 = r49), 2026-11-11:
 - r46: Setup's own Wi-Fi join shows WiFiAgent's password sheet; airportd receives `BEGIN REQ [ASSOC]` from WiFiAgent
@@ -334,14 +334,15 @@ Laptop, image 4d1c48c (26B131, built from adfd15a0 = r49), 2026-11-11:
   and Setup continues in the user session (bf10de4 hung: "client is not allowed to supply FUSAutologinDataKey").
   Confirmed.
 - r49: Safari opens and loads pages; SearchHelper and the WebKit services' own identity not separately checked.
-r50's live swap on the laptop crashed airportd at start-up (Tahoe CoreWiFi's categories not attached; fixed in r51).
-r51 (Tahoe CoreWiFi + compat) on the laptop (4d1c48c, files swapped live, then persisted into the System snapshot):
+r50 on the laptop crashed airportd at start-up (Tahoe CoreWiFi's categories not attached; fixed in r51).
+r51 (Tahoe CoreWiFi + compat) on the laptop (image 4d1c48c with r51's files installed):
 airportd starts and maps CoreWiFi + CoreWiFiTahoe.dylib; Wi-Fi off/on auto-joins the remembered network in 14-27 s
 with no airportd `.ips`; control on the same laptop with the cached 27.x CoreWiFi never auto-joins ("All scan results
-are filtered out ... Known network is found nearby but not joined"); after a reboot with the files persisted, Wi-Fi
+are filtered out ... Known network is found nearby but not joined"); after a reboot Wi-Fi
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r72 2026-11-13 Documentation only: tests are cited as laptop tests on an image, and the cache-dylib tool is named without its repository. The hook and what it installs are unchanged.
 - r71 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 1de47eb tree (hao-runtime-26B131-20261113-1de47eb87a7f): the ControlCenter GridSizes and Displayable refusals fixed (2b19233) and the stub skeletons (1de47eb). No recipe change.
 - r70 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 9dce413 tree (hao-runtime-26B131-20261113-9dce4138ddfa): the ControlCenter crash fix and f66403c's float-HFA stack fix. No recipe change.
 - r69 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
@@ -357,12 +358,12 @@ auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 - r59 2026-11-12 Declare the files and edits in patch.json and edits/*.json (cache repairs, renamed wrappers, WindowServer, disabled job, cryptex builds, hao stubs); the hook and what it installs are unchanged.
 - r58 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime d9ea9bd (4e68804 + the Swift value walk passes values under 8 bytes, which aborted Weather, StocksWidget, NewsTag and NewsToday2 on 7d0b612). No recipe change.
 - r57 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 4e68804 (746f1ec + JIT TBL/EXT/integer and FRINT forms, native-call cache ownership fix, measured Swift value rules for the Stocks/News widgets and Weather, five review fixes); same async provider, units and AOT recipe. No recipe change.
-- r56 2026-11-11 `src/corewifi/make` takes `dsc.py` from hao-tools' `tools/cache-dylib` (its single copy; next to this repository or `CACHE_DYLIB`) and records that checkout's commit and dirty state in `build.json`. No recipe or output change.
+- r56 2026-11-11 `src/corewifi/make` takes `dsc.py` from the `cache-dylib` tool (next to this repository or `CACHE_DYLIB`) and records that checkout's commit and dirty state in `build.json`. No recipe or output change.
 - r55 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 746f1ec (12685dd + the native-call cache signal/fork fix) with the 26B131 async contract provider. No recipe change.
 - r54 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 12685dd (5651d79 + x86-64-v2 build and a startup CPU-feature check). No recipe change.
 - r53 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 5651d79 (native-call cache, JIT vector FP and LD1/ST1, scalar FP and conversions, round-to-odd FP32 FMA; u3 units + the optional-data contract). No recipe change.
-- r52 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 790720d (CoreUtils va_list rows for rapportd, Optional-witness fix for Control Center, u3 interface units for Weather and Photos); its stubs, stub-identities and AOT come from it. No recipe change. The va_list and Control Center fixes were confirmed by a live swap on image 4d1c48c; image build and boot pending.
-- r51 2026-11-11 The live test of r50 crashed airportd at start-up: `-[NSString redactedForWiFi]` (a Tahoe CoreWiFi category) unrecognized, because the cut-out library still claimed dyld-attached categories and libobjc skips those at launch (tools/cache-dylib r3 clears the flag; check.py refuses it). New Artifact test links CoreWiFi at launch and checks its categories attach. Row tahoe_native_donors re-cut; corewifi_compat unchanged.
+- r52 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 790720d (CoreUtils va_list rows for rapportd, Optional-witness fix for Control Center, u3 interface units for Weather and Photos); its stubs, stub-identities and AOT come from it. No recipe change. The va_list and Control Center fixes were confirmed on the laptop on image 4d1c48c; image build and boot pending.
+- r51 2026-11-11 The laptop test of r50 crashed airportd at start-up: `-[NSString redactedForWiFi]` (a Tahoe CoreWiFi category) unrecognized, because the cut-out library still claimed dyld-attached categories and libobjc skips those at launch (tools/cache-dylib r3 clears the flag; check.py refuses it). New Artifact test links CoreWiFi at launch and checks its categories attach. Row tahoe_native_donors re-cut; corewifi_compat unchanged.
 - r50 2026-11-11 CoreWiFi: Tahoe 25G342's CoreWiFi (a native donor, cut from Tahoe's cache by tools/tahoe-donors r11) under a compat library (new input `corewifi_compat`, `src/corewifi`) that adds 2 symbols and 16 methods 27.x clients need; installed by the same wrapper-compat installer as IO80211/WiFiPeerToPeer (renamed `CoreWiFiTahoe.dylib`). Fixes airportd's crash on auto-join (27.x CoreWiFi's callouts and request numbers). The method pass gains every-class, run-time-added and strict modes for it; patch-table symbols only the replaced library uses need no answer. Replaces the separate golden-gate-corewifi recipe. Host tests only.
 - r49 2026-11-11 Embed hao's stubs into the arm64-only programs of the App and OS cryptexes (Safari's agents, Safari's and WebKit's XPC services) before sealing; the App cryptex is rebuilt as a fresh sealed image when the payload has App stubs. New input `hao_runtime` (read from the share). Without them those programs ran through `/usr/libexec/hao` under hao's identity and Safari's SearchHelper aborted on an empty container identifier. The payload (hao-runtime 7415a0b) also ships `usr/lib/hao/stub-identities` (961 stubs, the 26 cryptex stubs included) that r48's carrier and golden-gate-native-identities read. Host tests only; image build and boot pending.
 - r48 2026-11-11 Code identity carrier: hao-runtime's `hao_codeid_decide` (row `codeid_carrier`, hao-runtime 53d26c3 sources) linked into the free tails of the main x86_64 subcache and called after `SecCodeCheckValidityWithErrors` and `SecStaticCodeCheckValidityWithErrors` (their forwarders and SecTaskValidateForRequirement included), for every native and hao process; replaces golden-gate-code-identity's per-daemon interposer. Host-run against this Mac's x86_64 cache; planned on 26A428 and 26B131; boot validation pending.

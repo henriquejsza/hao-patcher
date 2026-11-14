@@ -30,6 +30,9 @@ those repairs ([tools/kernel-foundation](../../tools/kernel-foundation/README.md
 - `darwin27_kernel`: the kernel file, copied unchanged from the verified IPSW (`tools/kernel-foundation/make kernel`):
   26A428 sha256 ce09da26..., 26B131 sha256 3c931751... (row in `pipeline/inputs/golden/26B131`).
 - `tahoe_kmutil`: Tahoe's collection linker, used only in builder scratch space.
+- `tahoe_kc_builder`: Tahoe's x86_64 `libKernelCollectionBuilder.dylib`, cut out of its OS cache by
+  `pipeline/unpack/kc-builder`. Used only on an Intel build host, where the hook's `kmutil` copy loads it
+  (`src/kmutil_builder.py`); the builder VM does not read it.
 
 ## Verify
 Host tests: `python3.14 -I -B -m unittest discover -s patches/darwin27-kernel/tests` (`DARWIN27_KERNEL_KERNEL` and
@@ -46,10 +49,11 @@ NEEDS VALIDATION: r8's Intel-host path (Tahoe's builder) linked this image's Boo
 
 Laptop 2026-11-11, image 4d1c48c (26B131): boots to Setup, the desktop and apps over three boots.
 Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 (26B131 bootstrap), and the
-26A428 kernel has booted Tahoe userspace to SSH on a MacBookPro9,2 and Golden Gate userspace to launchd in QEMU; r5
+26A428 kernel has booted Tahoe userspace on a MacBookPro9,2 and Golden Gate userspace to launchd in QEMU; r5
 (kernel file no longer copied by the hook) has not been built.
 
 ## Revisions
+- r9 2026-11-13 Documentation only: Inputs lists `tahoe_kc_builder` (added in r8). The hook is unchanged.
 - r8 2026-11-13 On an Intel host (`uname -m` x86_64: a hao image, Golden Gate's Recovery) kmutil links in the running system's libKernelCollectionBuilder, Golden Gate's, which refuses x86_64 there ("unsupported arch: x86_64", "Unexpected __HIB segment"). The hook now makes its kmutil copy a thin x86_64 kmutil that loads Tahoe's builder from the new row `tahoe_kc_builder` (`src/kmutil_builder.py`, no developer tools needed). The builder VM (arm64) path is unchanged.
 - r7 2026-11-12 Declare the kernel's install mode, 0644 (golden-pristine.sh installs it `-m 644`); the hook is unchanged. Keeps r5's validation: what it installs is unchanged (validated_digest).
 - r6 2026-11-12 Declare the kernel, both kernel collections (kc.link) and their Preboot copies in `patch.json` `files` and edits/; the hook is unchanged.

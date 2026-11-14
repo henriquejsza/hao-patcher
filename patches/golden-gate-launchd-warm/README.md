@@ -10,14 +10,14 @@ edits; the jobs are listed in `JOBS` in [src/warm.py](src/warm.py):
 | `com.apple.mbsystemadministration` | `KeepAlive={PathState: {/private/var/db/.AppleSetupDone: false}}`, `POSIXSpawnType=Interactive` | loginwindow, before Setup Assistant's first pane |
 
 Every other key stays Apple's. Formerly `golden-gate-kernelmanager-helper-warm` (r1); the kernelmanager_helper part
-is the Golden Gate port of mac27's Tahoe recipe `kernelmanager-helper-warm` and pairs with
+follows an earlier Tahoe recipe of the same kind and pairs with
 [hao-opencore](../hao-opencore/README.md) r44's `auxKCAtBoot=false`.
 
 ## Root cause
 
 ### kernelmanager_helper
 
-FACT (bench of image 8f5ddce, 26B131, log `machTimestamp` s after the kernel; 27.2's kernelmanagerd 514.40.8):
+Measured (laptop test 2026-11-12, image 8f5ddce (26B131), log `machTimestamp` s after the kernel; 27.2's kernelmanagerd 514.40.8):
 - For every kext the kernel loads that is in none of the collections it knows, kernelmanagerd asks
   kernelmanager_helper for a load report, on the thread that serves the kernel's requests. Those are the 9 kexts
   OpenCore injects (Lilu, RestrictEvents, BlueToolFixup, CryptexFixup, KDKlessWorkaround, RSRHelper,
@@ -27,20 +27,20 @@ FACT (bench of image 8f5ddce, 26B131, log `machTimestamp` s after the kernel; 27
 - With hao-opencore r44 that build is skipped, so the first load report (Lilu) would spawn the helper. Its start
   took 10.1 s in 8f5ddce (launchd spawn 48.20, "Starting userland kernel management helper" 50.24, listening 58.34),
   under hao and at the job's background priority (`POSIXSpawnType Adaptive`; a kernel upcall donates no importance).
-  mac27 measured the same on Tahoe (5.3 s queue wait; X86PlatformPlugin, AppleHDA and autofs wait behind it, then
+  The same was measured on Tahoe (5.3 s queue wait; X86PlatformPlugin, AppleHDA and autofs wait behind it, then
   IOKit quiet, WindowServer and the Language Chooser).
 
 26B131's job plist is byte-identical to Tahoe 25G332's (sha256 2de9e533...): same label, path and keys.
 
 ### mbsystemadministration
 
-FACT (mac27's boot Gantt of image a007b23, 26B131): loginwindow asks Setup Assistant's root service
+Measured (laptop test 2026-11-12, image a007b23 (26B131)): loginwindow asks Setup Assistant's root service
 `/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/mbsystemadministration` (Mach service
 `com.apple.mbsystemadministration`) before it shows Setup. launchd spawns it then, "because ipc" at 66.90; it is
 listening at 71.09 and the Language Chooser appears at 71.74. That is 4.4 s of the second boot and 4.7 s of the first
 in which the screen waits for one daemon's start. The program is arm64e only, so it runs under hao.
 
-FACT (26B131's job, sha256 34d524fb...; its arm64e code read with `ipsw`): no `RunAtLoad`, no `KeepAlive`,
+26B131's job (sha256 34d524fb...) and its program: no `RunAtLoad`, no `KeepAlive`,
 `POSIXSpawnType Adaptive`, `EnableTransactions false`, `EnablePressuredExit false`, so launchd never stops it.
 `-[MBSAServer init]` sets `shouldTerminateWhenIdle` to YES; the program exits ("No more connections,
 mbsystemadministration will exit...") only when its last client connection goes away. `-[MBSAServer startServer]`
@@ -74,8 +74,8 @@ script's bytes and that the hook installs every file the script writes. No input
 - mbsystemadministration under `KeepAlive`: if it exits while Setup is not done (its last client went away), launchd
   starts it again (after its 10 s throttle) instead of on the next request; with no client it then stays up, so this
   does not loop. Once `.AppleSetupDone` exists an exit is final until the next request.
-- Cost: both starts move to launchd start, into the busiest part of the boot, on 4 logical CPUs. mac27 measured
-  kernelmanagerd's Aux activation 0.8 s later on Tahoe for the helper. mbsystemadministration's start (4.2 s under
+- Cost: both starts move to launchd start, into the busiest part of the boot, on 4 logical CPUs. On Tahoe
+  kernelmanagerd's Aux activation came 0.8 s later with the helper started this way. mbsystemadministration's start (4.2 s under
   hao at 66.90) then overlaps the rest of the boot instead of the idle screen before Setup; on a set-up system it
   costs nothing.
 
@@ -102,5 +102,6 @@ NEEDS VALIDATION: not built or booted. Host tests pass with the real 26B131 file
 26B131 IPSW).
 
 ## Revisions
+- r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed changes.
 - r2 2026-11-12 Renamed from golden-gate-kernelmanager-helper-warm and made a job list; adds com.apple.mbsystemadministration (KeepAlive PathState while .AppleSetupDone is missing, Interactive), which loginwindow waits for before Setup (4.4-4.7 s in a007b23).
 - r1 2026-11-12 New: kernelmanager_helper RunAtLoad, Interactive (job plist and launchd job cache), so the helper is ready for the OpenCore kexts' load reports once hao-opencore r44 skips the boot-time Aux KC build that used to start it.

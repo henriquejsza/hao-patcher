@@ -8,7 +8,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-13 On an Intel host (`uname -m` x86_64: a hao image, Golden Gate's Recovery) kmutil links in the ru |
+| darwin27-kernel | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-13 Documentation only: Inputs lists `tahoe_kc_builder` (added in r8). The hook is unchanged. |
 | darwin27-sandbox-disk-space | r3 | oclp-hook | experiment |  |  | x |  |  | **needs** | r3 2026-11-12 Declare the system.sb rule in `edits/system-sb.json` (edit-engine text.insert, unless already pr |
 | dev-access | r4 | post | dev |  |  |  |  |  | ok (r3) | r4 2026-11-12 Declare the four files it installs in patch.json `files`; the hook is unchanged. |
 | dev-diagnostics | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, ar |
@@ -17,7 +17,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-font-registry | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-hello | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-launchd-warm | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-12 Renamed from golden-gate-kernelmanager-helper-warm and made a job list; adds com.apple.mbsystema |
+| golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
 | golden-gate-live-text-service | r4 | post | experiment |  | x |  |  |  | **needs** | r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, ar |
 | golden-gate-live-text-shared | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-13 Input row `live_text_framework` (26B131) now names framework/ of live-text-26B131-20261113-fa444 |
 | golden-gate-metal-argbuf | r2 | oclp-hook | product |  | x |  |  |  | **needs** | r2 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
@@ -25,14 +25,14 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-libraries | r20 | oclp-hook | experiment |  | x | x |  |  | **needs** | r20 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
 | golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
-| golden-gate-root-launchservices | r1 | post | experiment | boot-seeds |  |  |  |  | **needs** | r1 2026-11-12 New: install root's LaunchServices store and auth.db from a builder boot of the same image (row  |
+| golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-user-seed | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-13 Tests and README only: the seed chain includes golden-gate-user-template; README names it. seed. |
-| golden-gate-user-template | r4 | post | experiment |  | x |  |  |  | **needs** | r4 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-userspace | r71 | oclp-hook | experiment |  | x | x |  |  | **needs** | r71 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 1de47eb t |
+| golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
+| golden-gate-user-template | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh |
+| golden-gate-userspace | r72 | oclp-hook | experiment |  | x | x |  |  | **needs** | r72 2026-11-13 Documentation only: tests are cited as laptop tests on an image, and the cache-dylib tool is na |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
-| hao-opencore | r58 | post | experiment |  | x | x |  |  | **needs** | r58 2026-11-13 Input rows `kernel_repair_efi` and `kernel_repair_binding` (26B131) now name kernel-repairs-26B |
-| hao-runtime | r75 | oclp-hook | experiment |  | x | x |  |  | **needs** | r75 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 1de47eb t |
+| hao-opencore | r59 | post | experiment |  | x | x |  |  | **needs** | r59 2026-11-13 Documentation only: the declared `boot-args` reason no longer says the Intel commpage reports A |
+| hao-runtime | r76 | oclp-hook | experiment |  | x | x |  |  | **needs** | r76 2026-11-13 Documentation only: Validation states what was shown on the laptop. The hook and what it instal |
 | metal-compiler-compat | r6 | oclp-hook | experiment |  | x |  |  |  | **needs** | r6 2026-11-13 Input row `metal_compiler_compat` (26B131) now names compiler-service/ of live-text-26B131-20261 |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |

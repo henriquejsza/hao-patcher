@@ -3,7 +3,7 @@
 Configures the image's OpenCore so the MacBookPro9,2 boots the Darwin 27.0 x86_64 kernel: the kernel repairs and
 IntelCommpage that let this kernel start on Ivy Bridge hardware, `HaoExec` for arm64-only programs, early Tahoe
 display and Ethernet drivers, and the boot arguments below. It writes the end-user configuration: no OpenCore log
-and no measurement switches. Bench images add those with `dev-diagnostics` (pack `dev`).
+and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `dev`).
 
 ## How it works
 
@@ -13,7 +13,7 @@ and no measurement switches. Bench images add those with `dev-diagnostics` (pack
   golden-run chose (RELEASE unless the assembly says `"opencore": "debug"`) when this runs:
   `pipeline/stages/build-efi.py` replaces all of them in OCLP's generated EFI. `Misc.Debug.Target` is 0: no OpenCore
   log and nothing on screen (OCLP's base config logs to the screen). `dev-diagnostics` turns the ESP file log on in
-  bench images.
+  dev sets.
 - The kernel repairs (early VM range initialization, ascending early kernel-map bounds, bootstrap physical-page
   aliases) are RIP-relative code tied to one collection layout, and kmutil gives every build a new enclosing UUID
   and build paths. Two binders run on this image's BootKC:
@@ -79,17 +79,17 @@ report `CSR_ALLOW_APPLE_INTERNAL` to every process, so os_variant made the whole
 answer internalInstall() itself, and `apply.sh` refuses an image whose dyld lacks that edit.
 
 `hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` (hao's measurement switches) are never written here: only
-`dev-diagnostics` adds them, in bench images.
+`dev-diagnostics` adds them, in dev sets.
 
 `-v`, `startup_debug=1` and `debug=0x100` are removed if the base config has them: early-boot evidence comes from
-the unified log (and the ESP log in bench images), and without `debug=0x100` a panic reboots and leaves `aapl,panic-info` in NVRAM
+the unified log (and the ESP log in dev sets), and without `debug=0x100` a panic reboots and leaves `aapl,panic-info` in NVRAM
 instead of waiting for a debugger.
 
 This patch has status `experiment` because of `amfi_get_out_of_my_way=1`; it is never part of a shipped set.
 
 ## Aux KC gate
 
-FACT (bench `bench-mbp92-26B131-tested-20261112-204015`, image 8f5ddce, both boots, log `machTimestamp` s after the
+Measured (laptop test 2026-11-12, image 8f5ddce (26B131), two boots, log `machTimestamp` s after the
 kernel): kernelmanagerd logs "performing auxiliary activation" (43.94 / 48.04), finds no
 `/Library/KernelCollections/AuxiliaryKernelExtensions.kc` and asks kernelmanager_helper to build one ("Attempting to
 clean up and build from approvals"). The helper is spawned for that request, starts (10 s), loads the Boot and System
@@ -98,11 +98,11 @@ collections, finds `/Library/Apple/System/Library/Extensions/AppleMobileDevice.k
 log "Preparing collection load into kernel"; the kernel loads the System collection at 68.03 / 67.47 and the Capri
 framebuffer is published 0.3 s later.
 
-FACT (27.2's `/usr/libexec/kernelmanagerd`, KernelManagement_executables-514.40.8, the one the image runs): when the
+27.2's `/usr/libexec/kernelmanagerd` (KernelManagement_executables-514.40.8, the one the image runs): when the
 Aux collection does not load, kernelmanagerd reads the boot-arg `auxKCAtBoot` (lazy property `disableAuxKCAtBoot`,
 true when the value is `false`) and, if set, logs "AuxKC building is disabled during boot due to boot-arg. Proceeding
 without AuxKC." instead of "Attempting to clean up and build from approvals."; both branches continue at the same
-code. INFERRED: codeless personalities (AppleMobileDevice) are still sent with the System collection, as now.
+code. Expected, not yet shown on a boot: codeless personalities (AppleMobileDevice) are still sent with the System collection, as now.
 
 Not chosen: removing `AppleMobileDevice.kext` (kernelmanagerd sends the build request to the helper without looking at
 the candidates, so the helper start and collection loads would likely remain, and iPhone USB devices would lose
@@ -173,8 +173,8 @@ has a 15-second alarm. Finally load a website in Safari and scroll, navigate and
 ## Validation
 NEEDS VALIDATION: r52 drops `ic_csr_internal=1` (host tests); needs a laptop boot proving OCLP's Metal still loads
 (dyld edit) and mobileassetd uses the public asset server. r50 writes `Misc.Debug.Target` 0 and never the measurement switches (host tests); not built or
-booted yet. With dev-diagnostics after it, a bench image's config.plist is unchanged (the real-config test on the
-2026-11-13 bench image passes). r48 installs the r42 IntelCommpage on 26B131. It reads its collection addresses from its own table
+booted yet. With dev-diagnostics after it, a dev set's config.plist is unchanged (the real-config test on a
+2026-11-13 image of a dev set passes). r48 installs the r42 IntelCommpage on 26B131. It reads its collection addresses from its own table
 at load, so the kext's bytes are new. The table equals r41's compiled values on all 12 recorded 26B131 KCs (host
 tests), but the kext has not been booted (QEMU, then the laptop). config.plist is byte-identical to r47's. r45 binds the repairs with tools/kc-binder (host tests: byte-identical config.plist on the 26B131
 bootstrap KC and nine recorded image KCs; no VM build yet). r44 adds `auxKCAtBoot=false` (not booted yet; see Verify). the hao_runtime row moved to payload 273ba98 (units u4.1) on 2026-11-12; r40 was proven on the earlier payload. The baseline image and its laptop boot re-validate it. Earlier evidence:
@@ -189,6 +189,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r59 2026-11-13 Documentation only: the declared `boot-args` reason no longer says the Intel commpage reports Apple-internal CSR (dropped in r52), and the page names tests as laptop tests on an image. `apply.sh` and what it writes are unchanged.
 - r58 2026-11-13 Input rows `kernel_repair_efi` and `kernel_repair_binding` (26B131) now name kernel-repairs-26B131-r42-53815151 and kernel-binding-26B131-r42-53815151, rebuilt at 53815151 so build.json names its inputs as `store/...` paths instead of the builder's home folder. `EFI/` (config.plist, IntelCommpage.kext) is byte-identical to r42's; the binding profile differs only in the producer commit and its pin of the new build.json. Installed bytes unchanged: the two recorded 2026-11-13 26B131 images' BootKCs bind to exactly their config.plist (tests/test_kc_bind.py with the new rows).
 - r57 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 1de47eb tree (hao-runtime-26B131-20261113-1de47eb87a7f): the ControlCenter GridSizes and Displayable refusals fixed (2b19233) and the stub skeletons (1de47eb). No recipe change.
 - r56 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 9dce413 tree (hao-runtime-26B131-20261113-9dce4138ddfa): the ControlCenter crash fix and f66403c's float-HFA stack fix. No recipe change.
@@ -197,11 +198,11 @@ Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 - r53 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 397b267 (hao-runtime-26B131-20261113-397b2675d037). No recipe change.
 - r52 2026-11-13 No `ic_csr_internal=1` (removed if present): the image's dyld counts as internal itself (golden-gate-dyld-internal's internalInstall() edit), so only dyld sees an internal install and mobileassetd uses the public asset server; `apply.sh` refuses an image whose dyld lacks the edit.
 - r51 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 43af852 (hao-runtime-26B131-20261113-43af85296aa9). No recipe change.
-- r50 2026-11-13 End-user configuration only: `Misc.Debug.Target` 0 (no OpenCore log, no file writes at boot) and no measurement switches in any build; `IMAGE_DEV_BUILD` is gone. Bench images get `hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` and the ESP file log from the new `dev-diagnostics` recipe (pack `dev`). Edits `debug-log-to-file` (65) and `debug-log-info-lines` replaced by `no-opencore-log` (0).
+- r50 2026-11-13 End-user configuration only: `Misc.Debug.Target` 0 (no OpenCore log, no file writes at boot) and no measurement switches in any build; `IMAGE_DEV_BUILD` is gone. Dev sets get `hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` and the ESP file log from the new `dev-diagnostics` recipe (pack `dev`). Edits `debug-log-to-file` (65) and `debug-log-info-lines` replaced by `no-opencore-log` (0).
 - r49 2026-11-13 A normal boot shows only the Apple logo: `Misc.Debug.AppleDebug` false, and images use the OpenCore 1.0.5 RELEASE archive (row `opencore_release`; golden-run picks it unless the assembly says `"opencore": "debug"`). The DEBUG build printed its early lines and apfs.efi's on screen.
 - r48 2026-11-12 Input rows `kernel_repair_efi`, `kernel_repair_binding` and `intel_commpage_abi` (26B131) now name r42: IntelCommpage reads its collection addresses from `__DATA,__ic_table` at load. kc_bind.py writes this BootKC's table into it in `binder-only` mode instead of refusing a moved layout, and in `binder` mode requires the table to equal the kext's own. config.plist is unchanged. The IntelCommpage binary is new.
 - r47 2026-11-12 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 0a2c2aa (hao-runtime-26B131-20261112-0a2c2aad4755). No recipe change.
-- r46 2026-11-12 Dev builds add `hao_diag_time=1` (hao-runtime 0a2c2aa): mach-clock stamps and phase lines on hao's console lines, and PID 1's lines from before the Data volume mounts, so a bench boot shows launchd's own startup on the Gantt's clock.
+- r46 2026-11-12 Dev builds add `hao_diag_time=1` (hao-runtime 0a2c2aa): mach-clock stamps and phase lines on hao's console lines, and PID 1's lines from before the Data volume mounts, so a boot log shows launchd's own startup on the kernel's clock.
 - r45 2026-11-12 Bind the kernel repairs to the freshly linked BootKC with tools/kc-binder (src/kc_bind.py, staged by make.sh): refuses unless they equal the recorded repairs repair_binding.py binds, and binds a collection those refuse when IntelCommpage's compiled addresses still hold for it. New input row `intel_commpage_abi`; the repairs are declared as `kc.bind` in edits/config.json. Same config.plist bytes on every recorded 26B131 KC.
 - r44 2026-11-12 Boot-arg `auxKCAtBoot=false`: kernelmanagerd no longer tries (and fails) to build an Aux KC from the codeless AppleMobileDevice kext before loading the System KC, which cost 18.5 s per boot (23 s first boot).
 - r43 2026-11-12 Declare the HaoExec identity stamp: the executable is its own `files` entry with `edits/haoexec-identity.json` (external op `hao.stamp`, made on the target after the BootKC is linked, not re-signed), so an overlay never ships the unstamped copy; apply.sh is unchanged.
