@@ -161,7 +161,8 @@ class Release(unittest.TestCase):
         self.d = Path(tempfile.mkdtemp())
         (self.d / 'libhao.dylib').write_bytes(b'lib')
         self.r = {
-            'contract_version': 1, 'release': '27.2.1-26B131.0', 'prerelease': True, 'proven_models': ['MacBookPro9,2'],
+            'contract_version': 2, 'release': '27.2.1-26B131.0', 'prerelease': True, 'proven_models': ['MacBookPro9,2'],
+            'version': 'v0.1.0', 'channel': 'dev', 'state': 'incomplete',
             'assembly': 'mbp92-26B131', 'golden_build': '26B131', 'donor_build': '25G342', 'oclp': 'a' * 7,
             'hao_patcher': 'b' * 7, 'hao_runtime': 'c' * 7,
             'downloads': [{'row': 'kdk', 'name': 'KDK.dmg', 'url': 'https://example.invalid/KDK.dmg', 'size': 1,
@@ -216,10 +217,25 @@ class Release(unittest.TestCase):
 
     def test_name_and_version(self):
         self.r['release'] = 'v0.1.0'
-        self.r['contract_version'] = 2
+        self.r['contract_version'] = 1
+        self.r['version'] = '0.1.0'
         bad = '\n'.join(self.check(stage=False))
         self.assertIn("name 'v0.1.0' is not MACOS-BUILD.N", bad)
-        self.assertIn('contract_version 2', bad)
+        self.assertIn('contract_version 1', bad)
+        self.assertIn("version '0.1.0' is not vX.Y.Z", bad)
+
+    def test_channels(self):
+        self.assertEqual(self.check(), [])                               # dev may be incomplete
+        self.r['channel'] = 'beta'
+        self.assertIn("a beta release must be complete (state 'incomplete')", '\n'.join(self.check()))
+        self.r['state'] = 'complete'
+        self.assertEqual(self.check(), [])
+        self.r['prerelease'] = False
+        self.assertIn('a beta release is a prerelease', '\n'.join(self.check()))
+        self.r['prerelease'], self.r['channel'] = True, 'nightly'
+        self.assertIn("channel 'nightly' is not one of dev, alpha, beta", '\n'.join(self.check()))
+        del self.r['channel']
+        self.assertEqual(self.check(), ['release: lacks channel'])
 
 
 class Schemas(unittest.TestCase):

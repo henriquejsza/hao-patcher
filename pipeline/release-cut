@@ -2,14 +2,17 @@
 """release-cut: what a release of an assembly ships, and whether each input could be made again.
 
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
-  release-cut --write OUT.json ASSEMBLY --release NAME [--stage DIR] [--allow-pending] [--final]
-        the release.json of release NAME (MACOS-BUILD.N, e.g. 27.2.1-26B131.0; the hao-assets contract's release
-        schema): downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
+  release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z [--stage DIR]
+              [--allow-pending]
+        the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
+        hao-assets contract's release schema, format 2), release version VERSION (e.g. v0.1.0) on CHANNEL: downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
         the rows made on the user's Mac (producer, Apple input rows), harvested rows, plus pending rows, recipe
         revisions and packs. With --stage, every asset file is written into DIR (new or empty) and checked against
         release.json after. Refused while the release is incomplete (a pending row, an ours row without a clean
-        producer, a row with no content class), unless --allow-pending, which writes it with "state": "incomplete".
-        A release is a prerelease unless --final.
+        producer, a row with no content class), unless --allow-pending, which writes it with "state": "incomplete";
+        a beta is never written incomplete. Every channel is a prerelease (there is no final channel yet).
+        Promotion (alpha -> beta) is a new --write from the same commits with the new --channel: the release.json
+        then differs only in channel (and state/prerelease where the channel rules change them).
 
 Rows: every input the assembly's set and donors use, the rows golden-run reads besides them (KDK, CPythons, site
 packages, the firmlink tool, OpenCore, PatcherSupportPkg) and the Apple inputs of the rows made on the Mac, resolved
@@ -350,7 +353,12 @@ ASSET_URL = 'https://github.com/lythka/hao-assets/releases/download/%s/%s'
 RELEASE_NAME = __import__('re').compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 
 
-def build_release(assembly, name, stage=None, prerelease=True):
+CHANNELS = ('dev', 'alpha', 'beta')          # hao_contract.py's, earliest first
+COMPLETE_CHANNELS = ('beta',)
+VERSION = __import__('re').compile(r'^v\d+\.\d+\.\d+$')
+
+
+def build_release(assembly, name, stage=None, prerelease=True, channel='dev', version='v0.0.0'):
     """(release.json as a dict, problems). Every row of release_rows is placed by its content class
     (release-classes.json): ours rows become assets (made, hashed and, with STAGE, written there), downloads carry
     their URL, made-on-mac rows their producer and Apple inputs. A problem is anything that keeps the release from
@@ -358,6 +366,10 @@ def build_release(assembly, name, stage=None, prerelease=True):
     its file here."""
     if not RELEASE_NAME.match(name):
         raise ValueError('release %r is not MACOS-BUILD.N (e.g. 27.2.1-26B131.0)' % name)
+    if channel not in CHANNELS:
+        raise ValueError('channel %r is not one of %s' % (channel, ', '.join(CHANNELS)))
+    if not VERSION.match(version):
+        raise ValueError('version %r is not vX.Y.Z (e.g. v0.1.0)' % version)
     patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
     a = json.loads(Path(assembly).read_text())
     import contextlib, io
@@ -436,7 +448,7 @@ def build_release(assembly, name, stage=None, prerelease=True):
                                 capture_output=True, text=True).stdout.strip())
     if dirty:
         problems.append('hao-patcher: the checkout has uncommitted changes')
-    rel = {'contract_version': 1, 'release': name, 'prerelease': prerelease,
+    rel = {'contract_version': 2, 'release': name, 'version': version, 'channel': channel, 'prerelease': prerelease,
            'proven_models': sorted({m for p in packs.values() for m in p.get('proven_on', [])}),
            'assembly': Path(assembly).stem, 'golden_build': a['golden_build'], 'donor_build': a['donor_build'],
            'oclp': a['oclp'], 'hao_patcher': head, 'hao_runtime': runtime_commit or '',
@@ -475,13 +487,16 @@ def main(argv):
         out_path = Path(argv[i + 1])
         argv = argv[:i] + argv[i + 2:]
         opts = {}
-        for flag in ('--release', '--stage'):
+        for flag in ('--release', '--stage', '--channel', '--version'):
             if flag in argv:
                 j = argv.index(flag)
                 opts[flag] = argv[j + 1]
                 argv = argv[:j] + argv[j + 2:]
-        if '--release' not in opts:
+        if not all(f in opts for f in ('--release', '--channel', '--version')):
             sys.exit(__doc__)
+        if '--final' in argv:
+            print('release-cut: --final: there is no final channel yet; every release is a prerelease', file=sys.stderr)
+            return 2
         assembly = next(a for a in argv if not a.startswith('--'))
         stage = Path(opts['--stage']) if '--stage' in opts else None
         if stage is not None:
@@ -489,10 +504,16 @@ def main(argv):
                 print('release-cut: %s is not empty' % stage, file=sys.stderr)
                 return 1
             stage.mkdir(parents=True, exist_ok=True)
-        rel, problems = build_release(assembly, opts['--release'], stage, prerelease='--final' not in argv)
-        if problems and '--allow-pending' not in argv:
-            print('release-cut: refused, the release is incomplete (--allow-pending writes it, marked incomplete):',
-                  file=sys.stderr)
+        try:
+            rel, problems = build_release(assembly, opts['--release'], stage, channel=opts['--channel'],
+                                          version=opts['--version'])
+        except ValueError as x:
+            print('release-cut: %s' % x, file=sys.stderr)
+            return 2
+        if problems and ('--allow-pending' not in argv or rel['channel'] in COMPLETE_CHANNELS):
+            print('release-cut: refused, the release is incomplete%s:' % (
+                  ' (a %s is never written incomplete)' % rel['channel'] if rel['channel'] in COMPLETE_CHANNELS
+                  else ' (--allow-pending writes it, marked incomplete)'), file=sys.stderr)
             for p in problems:
                 print('  ' + p, file=sys.stderr)
             if stage is not None:
