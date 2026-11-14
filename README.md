@@ -39,9 +39,9 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
 | Connectivity | Wi-Fi (joins at startup and from Setup), Bluetooth, AirPlay display discovery |
 | Audio and input | Speakers, keyboard, trackpad, brightness keys |
-| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Weather (with its maps), Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
 | 3D | SceneKit scenes with materials, shadows and reflections |
-| ARM-only programs | Run on the Intel CPU through hao-runtime, at about half to a third of native speed |
+| ARM-only programs | Run on the Intel CPU through hao-runtime |
 
 [Progress](docs/progress.md) has the detailed lists, what's new and every fix.
 

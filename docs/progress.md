@@ -21,8 +21,6 @@ adds the fixes under [What's new](#whats-new).
   (it needs an iCloud account to go further).
 - Maps: tiles, search, place cards, current location, satellite (3D globe and street level) and 3D buildings
   (VectorKit's shader library repaired for the old compiler).
-- Weather: conditions, hourly, air quality, 10-day, and the precipitation, temperature, air-quality and wind
-  maps (native Metal argument buffers and ASTC textures on the HD 4000).
 - WebGPU in Safari: compute and rendering on the HD 4000.
 - SceneKit: 3D scenes with physically based materials, cube-map environments, shadows and reflections; Preview
   opens SceneKit scenes.
@@ -31,6 +29,8 @@ adds the fixes under [What's new](#whats-new).
   Geekbench 6 ARM CPU benchmark's workloads.
 
 **In development**
+- Weather and its maps (native Metal argument buffers and ASTC textures on the HD 4000): the driver's
+  argument-encoder path is being finished.
 - Photos: the zoom from a thumbnail to the full-size view is being fixed.
 - Spotlight: local app results. The next image lets macOS download its search data (only dyld is treated as
   an internal install, so the asset service uses Apple's public servers).
