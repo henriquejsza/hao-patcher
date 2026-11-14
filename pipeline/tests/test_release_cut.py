@@ -157,6 +157,20 @@ class Reproductions(unittest.TestCase):
         self.assertIsNotNone(R['reproduction']('io80211_compat', 'io80211-compat-26B131-20261111-c0558983229b'))
 
 
+class HarvestedAssets(unittest.TestCase):
+    """Shipping harvested rows is a per-target setting in release-classes.json, off unless set true."""
+
+    def test_off_by_default_and_per_target(self):
+        self.assertFalse(R['harvested_ship']({}, 'mbp92'))
+        self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': False}}, 'mbp92'))
+        self.assertTrue(R['harvested_ship']({'harvested_assets': {'mbp92': True}}, 'mbp92'))
+        self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': True}}, 'mbp121'))
+        self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': 'yes'}}, 'mbp92'))
+
+    def test_the_checked_in_setting_is_off_until_the_owner_chooses(self):
+        self.assertIs(R['settings']()['harvested_assets']['mbp92'], False)
+
+
 class Write(unittest.TestCase):
     @unittest.skipUnless(STORE, 'needs the store')
     def test_release_written_and_staged(self):
@@ -187,7 +201,9 @@ class Write(unittest.TestCase):
         for x in rel['made_on_mac']:
             self.assertNotIn('url', x)
         data = R['classes']()
-        self.assertTrue(all(data[x['row']]['class'] == 'ours' for x in rel['assets']))
+        self.assertTrue(all(data[x['row']]['class'] == ('harvested' if x.get('harvested') else 'ours')
+                            for x in rel['assets']))
+        self.assertEqual(rel['target'], 'mbp92')
 
     def test_a_release_needs_a_name(self):
         r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', '/nonexistent/r.json',

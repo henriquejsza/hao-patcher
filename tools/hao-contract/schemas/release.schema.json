@@ -34,14 +34,16 @@
     "size": {"type": "integer", "minimum": 0},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "commit": {"type": "string"},
-    "format": {"enum": ["file", "tar"]}}}},
+    "format": {"enum": ["file", "tar"]},
+    "harvested": {"type": "boolean", "description": "a harvested row (caches made on a running laptop) published as an asset; only for a target the checker allows (mbp92)"}}}},
   "made_on_mac": {"type": "array", "items": {
    "type": "object", "required": ["row", "producer"], "not": {"required": ["url"]},
    "properties": {
     "row": {"type": "string"},
     "producer": {"type": "string", "minLength": 1},
     "inputs": {"type": "array", "items": {"type": "string"}}}}},
-  "harvested": {"type": "array", "items": {"type": "string"}},
+  "harvested": {"type": "array", "items": {"type": "string"}, "description": "harvested rows this release does not ship"},
+  "target": {"type": "string", "description": "the assembly's target (pipeline/targets/<target>.json), e.g. mbp92"},
   "expected": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
  }
 }

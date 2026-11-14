@@ -146,6 +146,18 @@ def classify_record(row, hit):
     return 'reproducible', '%s: %s@%s' % (parts[2], repo, str(commit)[:10])
 
 
+def settings():
+    """pipeline/release-classes.json's release-wide settings: harvested_assets {target: bool}."""
+    return {k: v for k, v in json.loads((TOP / 'pipeline' / 'release-classes.json').read_text()).items()
+            if k == 'harvested_assets'}
+
+
+def harvested_ship(settings, target):
+    """Whether this target's release publishes its harvested rows as assets: only when release-classes.json turns
+    it on for the target (default off); hao_contract.py then still allows it only for its HARVESTED_ASSET_TARGETS."""
+    return settings.get('harvested_assets', {}).get(target) is True
+
+
 def classes():
     """pipeline/release-classes.json: what each row is by content (ours, made-on-mac, download, harvested,
     in-checkout, pending), with its reason."""
@@ -304,6 +316,9 @@ def make_asset(row, hit, entry, stage=None):
             path = (path / entry['source']).resolve()
             sha = entry['source_sha256']
         name = path.name
+        if not path.is_file():
+            return name, None, None, ['%s: its release file %s is not there (the row\'s producer makes it)' % (
+                row, os.path.relpath(path, TOP))]
         data = path.read_bytes()
         digest = __import__('hashlib').sha256(data).hexdigest()
         if sha != '-' and digest != sha:
@@ -351,6 +366,7 @@ def build_release(assembly, name, stage=None, prerelease=True):
                                TOP / 'pipeline/targets' / (a['target'] + '.json'), a['donor_build'], locks=None)
     packs = patches['load_packs']()
     data = classes()
+    data_settings = settings()
     problems, notes = [], []
     downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
     runtime_commit = None
@@ -363,8 +379,19 @@ def build_release(assembly, name, stage=None, prerelease=True):
         if row == 'hao_runtime' and hit and os.path.isdir(hit[1][1]):
             m = Path(hit[1][1]) / 'payload-manifest.json'
             runtime_commit = json.loads(m.read_text()).get('commit') if m.is_file() else None
-        if kind == 'harvested':
+        if kind == 'harvested' and not harvested_ship(data_settings, a['target']):
             harvested.append(row)
+        elif kind == 'harvested':
+            # shipped for this target (owner, 2026-11-14, the 9,2): the harvested artifact the build installs, as a tar
+            # asset marked harvested; its commit is the harvest tool's (cache/seeds) from the artifact's build.json
+            repo, commit = producer_of(row, hit)
+            file, size, digest, bad = make_asset(row, hit, dict(entry, publish='tar'), stage)
+            if bad or not commit:
+                problems += bad or ['%s: harvested, but its artifact names no producer commit' % row]
+                continue
+            assets.append({'row': row, 'file': file, 'url': ASSET_URL % (name, file), 'size': size, 'sha256': digest,
+                           'commit': commit, 'repo': repo, 'format': 'tar', 'harvested': True,
+                           'reason': entry['reason']})
         elif kind == 'in-checkout':
             in_checkout.append({'row': row, 'path': os.path.relpath(hit[1][1], TOP) if hit else None,
                                 'reason': entry['reason']})

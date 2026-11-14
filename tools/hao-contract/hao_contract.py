@@ -29,7 +29,8 @@ check is one of
   {"kind": "release", "release": PATH, "dir": PATH, "url_prefix": URL}
         a release.json (schemas/release.schema.json): every download and asset has url, size and sha256; asset urls
         are URL_PREFIX/<release>/<file> (default the hao-assets releases); no row is both an asset and made on the
-        user's Mac, and no harvested row ships; every made-on-Mac row names its producer. With dir, every asset
+        user's Mac, and no harvested row ships, except as an asset marked "harvested": true for a target in
+        HARVESTED_ASSET_TARGETS (mbp92); every made-on-Mac row names its producer. With dir, every asset
         file is there with its size and sha256, and nothing else is
 Standard library only, so each repo can vendor a pinned copy.
 """
@@ -222,6 +223,10 @@ RELEASE_FIELDS = ('contract_version', 'release', 'prerelease', 'proven_models', 
 DOWNLOAD_FIELDS = ('row', 'name', 'url', 'size', 'sha256')
 ASSET_FIELDS = ('row', 'file', 'url', 'size', 'sha256', 'commit', 'format')
 ASSET_FORMATS = ('file', 'tar')
+# Targets whose release may publish a harvested row (caches made on a running laptop of that model) as an asset marked
+# "harvested": true. Owner, 2026-11-14: "Ship the caches for 9,2." Every other target still refuses one; release-cut
+# publishes them only while pipeline/release-classes.json's harvested_assets turns it on for the target.
+HARVESTED_ASSET_TARGETS = ('mbp92',)
 URL_PREFIX = 'https://github.com/lythka/hao-assets/releases/download'
 RELEASE_NAME = re.compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 HEX64 = re.compile(r'^[0-9a-f]{64}$')
@@ -271,6 +276,11 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
         rows.setdefault(e.get('row'), []).append('assets')
         if b:
             continue
+        if e.get('harvested') is not None and not isinstance(e.get('harvested'), bool):
+            bad.append('release: asset %s harvested must be true or false' % e['row'])
+        elif e.get('harvested') and r.get('target') not in HARVESTED_ASSET_TARGETS:
+            bad.append('release: asset %s is harvested, and target %s may not ship harvested rows (only %s)' % (
+                e['row'], r.get('target'), ', '.join(HARVESTED_ASSET_TARGETS)))
         if e['format'] not in ASSET_FORMATS:
             bad.append('release: asset %s format %r is not one of %s' % (e['row'], e['format'], ', '.join(ASSET_FORMATS)))
         if '/' in e['file'] or e['file'] in ('', '.', '..'):

@@ -191,6 +191,22 @@ class Release(unittest.TestCase):
                      'stray.bin is staged but not an asset'):
             self.assertIn(want, bad)
 
+    def test_harvested_asset_only_for_an_allowed_target(self):
+        (self.d / 'icon_caches.tar').write_bytes(b'tar')
+        self.r['harvested'].remove('icon_caches')
+        self.r['assets'].append({'row': 'icon_caches', 'file': 'icon_caches.tar', 'harvested': True,
+                                 'url': C['URL_PREFIX'] + '/27.2.1-26B131.0/icon_caches.tar', 'size': 3,
+                                 'sha256': sha(b'tar'), 'commit': 'd' * 7, 'format': 'tar'})
+        self.r['target'] = 'mbp92'
+        self.assertEqual(self.check(), [])
+        self.r['target'] = 'mbp121'
+        self.assertIn('target mbp121 may not ship harvested rows', '\n'.join(self.check()))
+        del self.r['target']
+        self.assertIn('target None may not ship harvested rows', '\n'.join(self.check()))
+        self.r['target'] = 'mbp92'
+        self.r['harvested'].append('icon_caches')                     # shipped and listed as not shipped
+        self.assertIn('row icon_caches is in assets and harvested', '\n'.join(self.check()))
+
     def test_staged_file_must_match(self):
         (self.d / 'libhao.dylib').write_bytes(b'LIB')
         self.assertEqual(self.check(), ['release: staged libhao.dylib does not match its sha256'])
