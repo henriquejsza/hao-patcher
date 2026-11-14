@@ -177,7 +177,7 @@ class Write(unittest.TestCase):
         work = Path(tempfile.mkdtemp())
         out, stage = work / 'release.json', work / 'stage'
         cmd = [sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', str(out), str(ASSEMBLY),
-               '--release', '27.2.1-26B131.0', '--stage', str(stage)]
+               '--release', '27.2.1-26B131.0', '--channel', 'dev', '--version', 'v0.1.0', '--stage', str(stage)]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:                                # incomplete (pending rows): refused, nothing left staged
             self.assertIn('refused', r.stderr)
@@ -186,7 +186,8 @@ class Write(unittest.TestCase):
             r = subprocess.run(cmd + ['--allow-pending'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         rel = json.loads(out.read_text())
-        self.assertEqual((rel['contract_version'], rel['release'], rel['prerelease']), (1, '27.2.1-26B131.0', True))
+        self.assertEqual((rel['contract_version'], rel['release'], rel['prerelease'], rel['channel'], rel['version']),
+                         (2, '27.2.1-26B131.0', True, 'dev', 'v0.1.0'))
         self.assertIn('MacBookPro9,2', rel['proven_models'])
         self.assertIn('golden-gate-hello', rel['recipes'])
         placed = [x['row'] for k in ('downloads', 'assets', 'made_on_mac') for x in rel[k]] + rel['harvested']
@@ -204,6 +205,31 @@ class Write(unittest.TestCase):
         self.assertTrue(all(data[x['row']]['class'] == ('harvested' if x.get('harvested') else 'ours')
                             for x in rel['assets']))
         self.assertEqual(rel['target'], 'mbp92')
+
+    def test_channel_and_version_are_required_and_checked(self):
+        base = [sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', '/nonexistent/r.json', str(ASSEMBLY),
+                '--release', '27.2.1-26B131.0']
+        self.assertNotEqual(subprocess.run(base, capture_output=True).returncode, 0)          # no channel, version
+        r = subprocess.run(base + ['--channel', 'nightly', '--version', 'v0.1.0'], capture_output=True, text=True)
+        self.assertIn("channel 'nightly'", r.stderr)
+        r = subprocess.run(base + ['--channel', 'dev', '--version', '0.1'], capture_output=True, text=True)
+        self.assertIn("version '0.1'", r.stderr)
+        r = subprocess.run(base + ['--channel', 'beta', '--version', 'v0.1.0', '--final'], capture_output=True,
+                           text=True)
+        self.assertIn('no final channel', r.stderr)
+
+    @unittest.skipUnless(STORE, 'needs the store')
+    def test_a_beta_is_never_written_incomplete(self):
+        work = Path(tempfile.mkdtemp())
+        out = work / 'release.json'
+        r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', str(out), str(ASSEMBLY),
+                            '--release', '27.2.1-26B131.0', '--channel', 'beta', '--version', 'v0.1.0',
+                            '--allow-pending'], capture_output=True, text=True)
+        if r.returncode:                    # today the runtime's public archive is missing: refused despite the flag
+            self.assertIn('a beta is never written incomplete', r.stderr)
+            self.assertFalse(out.exists())
+        else:
+            self.assertEqual(json.loads(out.read_text())['state'], 'complete')
 
     def test_a_release_needs_a_name(self):
         r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', '/nonexistent/r.json',

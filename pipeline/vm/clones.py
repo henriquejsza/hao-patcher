@@ -98,9 +98,14 @@ def save_records(root, value):
 def owned(vm):
     vm = vm.resolve()
     marker = json.loads((vm / MARKER).read_text())
-    need(marker.get('schema') == 1 and marker.get('vm') == str(vm), 'copied or invalid clone marker')
-    root = Path(marker['root'])
-    need(root.is_absolute() and root.resolve() == root and vm.parent.parent == root, 'clone outside recorded root')
+    # Recorded paths are compared after resolving them, so a store moved within the volume with a symlink left at
+    # its old path keeps its clones; a marker copied to another place still resolves to where it was made, so a copy
+    # is still refused.
+    need(marker.get('schema') == 1 and isinstance(marker.get('vm'), str) and Path(marker['vm']).resolve() == vm,
+         'copied or invalid clone marker')
+    need(Path(marker['root']).is_absolute(), 'clone outside recorded root')
+    root = Path(marker['root']).resolve()
+    need(vm.parent.parent == root, 'clone outside recorded root')
     need(marker == records(root).get(marker['name']), 'clone marker does not match its creation registry')
     need(vm != Path(marker['base']).resolve() and vm != DEFAULT_BASE.resolve(), 'refusing the base VM')
     need(Path(marker['share']).resolve() == vm.parent / 'share', 'clone share moved or symlinked')

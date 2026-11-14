@@ -219,7 +219,7 @@ def check_payload(repo, c):
 
 RELEASE_FIELDS = ('contract_version', 'release', 'prerelease', 'proven_models', 'assembly', 'golden_build',
                   'donor_build', 'oclp', 'hao_patcher', 'hao_runtime', 'downloads', 'assets', 'made_on_mac',
-                  'harvested', 'expected')
+                  'harvested', 'expected', 'version', 'channel')
 DOWNLOAD_FIELDS = ('row', 'name', 'url', 'size', 'sha256')
 ASSET_FIELDS = ('row', 'file', 'url', 'size', 'sha256', 'commit', 'format')
 ASSET_FORMATS = ('file', 'tar')
@@ -229,6 +229,13 @@ ASSET_FORMATS = ('file', 'tar')
 HARVESTED_ASSET_TARGETS = ('mbp92',)
 URL_PREFIX = 'https://github.com/lythka/hao-assets/releases/download'
 RELEASE_NAME = re.compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
+# release.json's own format version (2: version and channel, 2026-11-14); contract.json keeps CONTRACT_VERSION
+RELEASE_FORMAT = 2
+RELEASE_VERSION = re.compile(r'^v\d+\.\d+\.\d+$')
+# Channels, earliest first. Owner, 2026-11-13 ("How do we know which is beta? Is that in the .json?"). Each is a
+# prerelease until a later, final channel exists; beta is cut complete (no pending rows), dev and alpha may not be.
+CHANNELS = ('dev', 'alpha', 'beta')
+COMPLETE_CHANNELS = ('beta',)
 HEX64 = re.compile(r'^[0-9a-f]{64}$')
 
 
@@ -244,8 +251,16 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
     bad = ['release: lacks %s' % f for f in RELEASE_FIELDS if f not in r]
     if bad:
         return bad
-    if r['contract_version'] != CONTRACT_VERSION:
-        bad.append('release: contract_version %r, this checker is %d' % (r['contract_version'], CONTRACT_VERSION))
+    if r['contract_version'] != RELEASE_FORMAT:
+        bad.append('release: contract_version %r, this checker is %d' % (r['contract_version'], RELEASE_FORMAT))
+    if not isinstance(r['version'], str) or not RELEASE_VERSION.match(r['version']):
+        bad.append('release: version %r is not vX.Y.Z (e.g. v0.1.0)' % r['version'])
+    if r['channel'] not in CHANNELS:
+        bad.append('release: channel %r is not one of %s' % (r['channel'], ', '.join(CHANNELS)))
+    elif r['channel'] in COMPLETE_CHANNELS and r.get('state', 'complete') != 'complete':
+        bad.append('release: a %s release must be complete (state %r)' % (r['channel'], r.get('state')))
+    if r['channel'] in CHANNELS and r['prerelease'] is not True:
+        bad.append('release: a %s release is a prerelease (there is no final channel yet)' % r['channel'])
     name = r['release']
     if not isinstance(name, str) or not RELEASE_NAME.match(name):
         bad.append('release: name %r is not MACOS-BUILD.N (e.g. 27.2.1-26B131.0)' % name)
