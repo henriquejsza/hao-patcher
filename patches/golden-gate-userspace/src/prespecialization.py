@@ -86,17 +86,45 @@ def overridden(system, paths):
     return sorted(p for p in paths if p not in NOT_LOADED and os.path.isfile(system/p.lstrip('/')))
 
 
-def gate(system, directory, data=None, paths=None):
-    """Refuse (SystemExit) unless SYSTEM's overridden set equals the one the edits were made for; returns the record."""
+def swift_sections(directory):
+    """A predicate: does the x86_64 cache image at PATH carry Swift metadata (any __TEXT,__swift5_* section)?"""
+    from legacy_trackpad import image_layout, plan_cache_family as plan_family
+
+    def has_swift(path):
+        found = []
+
+        def look(read, base):
+            _, sections = image_layout(read, base)
+            found.extend(name for name in sections if name.startswith(b'__swift5'))
+            return []
+        plan_family(directory, path.encode(), look)
+        return bool(found)
+    return has_swift
+
+
+def gate(system, directory, data=None, paths=None, swift=None):
+    """Refuse (SystemExit) unless SYSTEM's overridden set equals the one the edits were made for; returns the record.
+
+    An image the set gains or loses counts only if it carries Swift metadata: the edits depend on the overridden set
+    only through the descriptors and conformances in those images (the switch edits do not depend on it), so an image
+    without any __swift5 section (the Apple-silicon AGXMetal*.bundle drivers 27.x keeps on disk, which no process loads
+    on this Mac) changes none of them. It is listed in the record instead."""
     data = data or load()
     found = overridden(system, image_paths(directory) if paths is None else paths)
     want = sorted(data['overridden'])
-    if found != want:
-        added, gone = sorted(set(found) - set(want)), sorted(set(want) - set(found))
+    added, gone = sorted(set(found) - set(want)), sorted(set(want) - set(found))
+    if added or gone:
+        swift = swift or swift_sections(directory)
+        without = sorted(p for p in added + gone if not swift(p))
+        added, gone = [p for p in added if p not in without], [p for p in gone if p not in without]
+    else:
+        without = []
+    if added or gone:
         raise SystemExit('prespecialization: the image overrides other cache images than the edits were made for '
-                         f'(new: {added or "none"}; gone: {gone or "none"}). Regenerate: {REGENERATE}')
+                         f'(new: {added or "none"}; gone: {gone or "none"}; each carries Swift metadata). '
+                         f'Regenerate: {REGENERATE}')
     return dict(overridden=len(found), descriptor_slots_dropped=sum(data['descriptor_slots_dropped'].values()),
-                blocked=data['blocked'])
+                blocked=data['blocked'], ignored_without_swift=without)
 
 
 def main(argv=None):
