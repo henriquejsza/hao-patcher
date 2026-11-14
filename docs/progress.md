@@ -48,6 +48,11 @@ adds the fixes under [What's new](#whats-new).
 
 ## What's new
 
+- **2026-11-14:** in the next image: Photos' zoom to the full-size view reads the HD 4000's image planes with
+  their own row pitch (`golden-gate-hd4000-planes`); Weather's precipitation map no longer aborts and Safari's
+  WebGPU uniforms compile (`golden-gate-metal-argbuf` r4, r5); hao-runtime keeps Finder and Spotlight's indexer
+  up and makes Control Center's first open after a restart faster. The USB installer uses only the Recovery's
+  own commands, keeps the Mac awake, and can resume a failed install.
 - **Weather and WebGPU in the image:** the Metal argument-buffer support now installs with the image
   (`golden-gate-metal-argbuf`).
 - **Faster first login:** new accounts start from a preloaded account template (app and widget containers,
