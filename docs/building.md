@@ -60,6 +60,18 @@ kit's `recovery-tools.py` stands in for them. `rsync` is missing too, so the ass
 `pipeline/tests/test_recovery_commands.py` checks every command the install path runs against that list.
 `golden-run --recovery-commands` builds in the VM with only those commands on PATH, as the stick's install does.
 The assembly also holds a sleep assertion for its whole run (`caffeinate`, or `recovery-tools.py awake`).
+Copies onto the FAT ESP carry data only (`FAT_COPY` in `golden-image.py`: `ditto --norsrc --noextattr --noacl`):
+the Recovery runs no `doubleagentd`, which keeps a FAT volume's extended attributes, so a copy with attributes fails
+there. `pipeline/tests/test_fat_esp.py` runs those copies on a real FAT32 disk image, with only the Recovery's
+commands on PATH (`HAO_TEST_KIT=KIT` adds a staged kit's ESP).
+
+A failed assembly can continue at its failed step, on the same disk, when that step can run again over what the
+failed attempt left (`RESUMABLE` in `golden-image.py`: `boot-and-esp` and `hardware`):
+`golden-image.py CONFIG --resume WORK`, `golden-assemble.sh ... --resume WORK`, or
+`hao install /dev/diskN --resume /Volumes/HAO/hao-install-DATE` (confirmed with RESUME, not ERASE). It finds the
+volumes again by their UUIDs, refuses a kit whose configuration differs (set, target, inputs; the files a
+kit carries are not compared), and skips nothing that did not complete. The record's `resumed`
+names the run it continued.
 
 ### Layer order
 

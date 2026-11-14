@@ -37,7 +37,11 @@ class FakeCommands:
             self.volumes=[v for v in self.volumes if v['DeviceIdentifier']!=a[-1]]
         elif a[:2]==['diskutil','mount']:
             for row in self.volumes:
-                if row['DeviceIdentifier']==a[-1]:row['MountPoint']=a[a.index('-mountPoint')+1]
+                if row['DeviceIdentifier']==a[-1]:
+                    point=a[a.index('-mountPoint')+1]
+                    if row.get('files') and row['files']!=point:   # the volume's files, mounted again elsewhere (a resume)
+                        shutil.copytree(row['files'],point,symlinks=True,dirs_exist_ok=True)
+                    row['MountPoint']=row['files']=point
         elif a[:2]==['diskutil','enableOwnership'] and Path(a[-1]).name=='esp':
             raise AssertionError('FAT EFI volume does not support Unix ownership')
         elif a[:2]==['diskutil','unmount']:
@@ -47,7 +51,9 @@ class FakeCommands:
             for row in self.volumes:
                 if row['Roles']==['Preboot']:row['MountPoint']='/Volumes/UnexpectedPreboot'
         elif a[:3]==['diskutil','info','-plist']:
-            return plistlib.dumps(next(row for row in self.volumes if row['DeviceIdentifier']==a[3]))
+            return plistlib.dumps({k:v for k,v in next(row for row in self.volumes if a[3] in (row['DeviceIdentifier'],row['VolumeUUID'])).items() if k!='files'})
+        elif a[:2]==['rm','-rf']:
+            shutil.rmtree(a[2],ignore_errors=True)
         elif a[0]==self.config['python'] and a[2]==self.config['layout_helper']:
             assert a[3]=='group'
             assert len(self.volumes)==2 and a[-1]==self.volumes[1]['DeviceIdentifier']
@@ -238,3 +244,80 @@ class GoldenImageTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class ResumeTests(unittest.TestCase):
+    """golden-image.py --resume: a failed run continues at a RESUMABLE step on the same disk (bench2 rerun3 stopped
+    at boot-and-esp 90 minutes in)."""
+    def setUp(self):
+        base=GoldenImageTests('test_full_order_preserves_golden_identity_and_declared_roles');base.setUp()
+        self.addCleanup(base.temp.cleanup);self.root=base.root
+        self.first=dict(base.config,work=str(self.root/'a/work'),image=str(self.root/'a/target.img'),
+                        environment=dict(base.config['environment'],LOG=str(self.root/'a/log')))
+        self.fake=FakeCommands(self.first)
+
+    def fail_at(self,predicate):
+        self.fake.fail=predicate
+        with self.assertRaises(subprocess.CalledProcessError):golden.assemble(self.first,self.fake)
+        self.fake.fail=None
+        prior=json.loads((Path(self.first['work'])/'build.json').read_text());prior['work']=self.first['work']
+        return prior
+
+    def second(self):
+        # another LOCAL (b/): the paths below it differ, the image is the failed run's
+        c=dict(self.first,work=str(self.root/'b/work'),image=str(self.root/'b/target.img'),
+               environment=dict(self.first['environment'],LOG=str(self.root/'b/log')))
+        self.fake.config=c;self.fake.entries=[]
+        return c
+
+    def test_resumes_at_boot_and_esp_without_erasing(self):
+        prior=self.fail_at(lambda a:a[0]=='ditto' and a[-1].endswith('/mnt/esp'))
+        self.assertEqual(prior['steps'][-1]['name'],'boot-and-esp');self.assertNotIn('complete',prior['steps'][-1])
+        c=self.second()
+        self.assertEqual(golden.LAYERS[golden.resume_point(c,prior)][0],'boot-and-esp')
+        record=golden.assemble(c,self.fake,prior=prior);a=[r['command'] for r in self.fake.entries]
+        self.assertEqual(record['status'],'assembled')
+        self.assertEqual(record['resumed']['step'],'boot-and-esp')
+        self.assertEqual(record['configuration']['image'],self.first['image'])     # the failed run's disk
+        for erased in (['diskutil','partitionDisk'],['diskutil','apfs','addVolume'],['diskutil','apfs','deleteVolume']):
+            self.assertFalse(any(x[:len(erased)]==erased for x in a),erased)
+        self.assertFalse(any(x[:2]==['sh',c['pristine_script']] for x in a))       # golden-system, golden-finalize: kept
+        self.assertIn(['hdiutil','attach','-imagekey','diskimage-class=CRawDiskImage','-nomount','-plist',self.first['image']],a)
+        self.assertIn([*golden.FAT_COPY,c['esp'],str(Path(c['work'])/'mnt/esp')],a)
+        self.assertTrue(any(x[:2]==['rm','-rf'] and x[2].endswith('mnt/preboot/DATA-UUID') for x in a))
+        self.assertIn('GRP=DATA-UUID',(Path(c['work'])/'uuids.env').read_text())
+        steps=[(r['name'],r.get('reused',False)) for r in record['steps'] if r['name'] in {n for n,_,_ in golden.LAYERS}]
+        self.assertEqual(steps,[(n,i<4) for i,(n,_,_) in enumerate(golden.LAYERS)])
+        hook=next(r for r in self.fake.entries if c['hooks'][1]['kc_hook'] in r['command'])
+        self.assertEqual(hook['environment']['SYSU'],'SYSTEM-UUID');self.assertEqual(hook['environment']['GRP'],'DATA-UUID')
+
+    def test_refuses_a_step_that_edits_in_place(self):
+        prior=self.fail_at(lambda a:self.first['hooks'][2]['kc_hook'] in a)
+        with self.assertRaisesRegex(ValueError,'stopped in step recipes'):golden.resume_point(self.second(),prior)
+
+    def test_refuses_another_kit(self):
+        prior=self.fail_at(lambda a:self.first['hardware']['tool'] in a)
+        c=self.second();self.assertEqual(golden.LAYERS[golden.resume_point(c,prior)][0],'hardware')
+        c['hooks']=c['hooks'][:-1]
+        with self.assertRaisesRegex(ValueError,'configuration differs.*hooks'):golden.resume_point(c,prior)
+
+    def test_refuses_a_run_that_did_not_fail(self):
+        golden.assemble(self.first,self.fake)
+        prior=json.loads((Path(self.first['work'])/'build.json').read_text());prior['work']=self.first['work']
+        with self.assertRaisesRegex(ValueError,'did not fail'):golden.resume_point(self.second(),prior)
+
+
+class FatCopyTests(unittest.TestCase):
+    def test_every_copy_onto_the_esp_is_data_only(self):
+        """The assembly and every post write the ESP without xattrs/ACLs/resource forks (no doubleagentd in a Recovery)."""
+        text=SCRIPT.read_text()
+        self.assertNotIn("'--extattr'",text);self.assertNotIn("'--acl'",text)
+        esp=[l for l in text.splitlines() if 'self.run(' in l and "mounts['esp']" in l and 'mount_msdos' not in l]
+        self.assertEqual(len(esp),2)   # bootstrap's copy onto it, export_efi's copy from it
+        self.assertTrue(all('FAT_COPY' in l for l in esp),esp)
+        top=SCRIPT.parents[2]
+        for script in sorted(top.glob('patches/*/apply.sh'))+sorted(top.glob('patches/*/src/*.sh')):
+            for n,line in enumerate(script.read_text().splitlines(),1):
+                if line.lstrip().startswith('#') or not ('ditto' in line or line.lstrip().startswith(('cp ','mv '))):continue
+                if '"$ESP' in line.split()[-1] if line.split() else False:
+                    self.assertIn('--noextattr --noacl',line,'%s:%d copies onto the FAT ESP with attributes' % (script.relative_to(top),n))

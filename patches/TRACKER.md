@@ -32,7 +32,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-user-template | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh |
 | golden-gate-userspace | r73 | oclp-hook | experiment |  | x | x |  |  | **needs** | r73 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e t |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
-| hao-opencore | r61 | post | experiment |  | x | x |  |  | **needs** | r61 2026-11-14 Input row `kernel_repair_binding` now hashes only the files a release can give a user's Mac (`# |
+| hao-opencore | r62 | post | experiment |  | x | x |  |  | **needs** | r62 2026-11-14 `apply.sh` copies IntelCommpage.kext and HaoExec.kext onto the FAT ESP as data only (`ditto --n |
 | hao-runtime | r77 | oclp-hook | experiment |  | x | x |  |  | **needs** | r77 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e t |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |

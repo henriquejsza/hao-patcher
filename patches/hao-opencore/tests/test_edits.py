@@ -179,8 +179,8 @@ class Kexts(unittest.TestCase):
             self.assertEqual(entry['origin']['row'], row)
             self.assertIn(row, inputs)
         script = (PATCH / 'apply.sh').read_text()
-        self.assertIn('ditto "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext" "$ESP/EFI/OC/Kexts/IntelCommpage.kext"', script)
-        self.assertIn('ditto "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EFI/OC/Kexts/HaoExec.kext"', script)
+        self.assertIn('ditto --norsrc --noextattr --noacl "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext" "$ESP/EFI/OC/Kexts/IntelCommpage.kext"', script)
+        self.assertIn('ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EFI/OC/Kexts/HaoExec.kext"', script)
 
     def test_haoexec_identity_stamp_is_declared_as_a_target_side_op(self):
         """apply.sh stamps the executable after the ditto, against this image's BootKC: the executable is its own
@@ -196,7 +196,7 @@ class Kexts(unittest.TestCase):
         self.assertEqual(edit['args']['kernel_collection'], 'System/Library/KernelCollections/BootKernelExtensions.kc')
         self.assertIsNone(spec['sign'])
         script = (PATCH / 'apply.sh').read_text()
-        ditto = script.index('ditto "$P/inputs/hao_runtime/HaoExec.kext"')
+        ditto = script.index('ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext"')
         stamp = script.index('"$P/inputs/hao_runtime/stamp_identity.py" \\\n'
                              '    "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" '
                              '"$ESP/EFI/OC/Kexts/HaoExec.kext"')

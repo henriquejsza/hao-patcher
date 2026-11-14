@@ -331,7 +331,7 @@ class Staging(Case):
                          '--abi-header "$P/inputs/intel_commpage_abi"', '--row-bound "$ROW_BOUND"',
                          '--out "$REPAIR_WORK/bound"'):
             self.assertIn(argument, script[mine:])
-        self.assertIn('ditto "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext"', script)
+        self.assertIn('ditto --norsrc --noextattr --noacl "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext"', script)
         self.assertNotIn('$REPAIR_WORK/artifact/EFI', script)
         inputs = json.loads((PATCH/'patch.json').read_text())['inputs']
         self.assertIn('intel_commpage_abi', inputs)

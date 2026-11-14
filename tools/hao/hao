@@ -461,6 +461,8 @@ def main():
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
     q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(a, c, MAC.SystemHost()), log='create-installer'))
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
+    q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
+                   'continue at its failed step instead of erasing the disk again')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost()), log='install'))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
     q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')
