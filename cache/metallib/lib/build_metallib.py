@@ -31,6 +31,7 @@ import golden_gate
 import legacy_sync
 from assemble_census import command as assembly_command
 import null_compare
+import toolchain
 
 
 def sha(data):
@@ -57,7 +58,7 @@ def same_metadata(a, b):
 
 
 def disassemble(path):
-    result = subprocess.run(['xcrun', 'metal-objdump', '--disassemble', str(path)],
+    result = subprocess.run(toolchain.resolve(['xcrun', 'metal-objdump', '--disassemble', str(path)]),
                             capture_output=True, text=True, check=True)
     assert '; ModuleID' in result.stdout, (path, 'missing AIR disassembly')
     return result.stdout[result.stdout.index('; ModuleID'):]
@@ -112,7 +113,7 @@ def assembled_module(path, original, name, rewritten=None):
 
 
 def run(command):
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(toolchain.resolve(command), capture_output=True, text=True)
     assert result.returncode == 0, (command, result.stderr[:1200])
 
 

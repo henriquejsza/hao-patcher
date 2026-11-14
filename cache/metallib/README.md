@@ -108,6 +108,25 @@ compilers and the HD 4000 driver, prepared from an OCLP-patched System by `cache
 `cache/shaders/profiles/ivybridge.json` and driven by `cache/shaders/lib/harness.py` (sources in `cache/shaders/src`).
 Nothing on the source System is modified.
 
+### Without Xcode
+
+The rows an installed image needs can be made on a Mac with no Xcode and no command-line tools (the user's Mac,
+including an Intel Mac started from hao), with LLVM 15.0.7's `llvm-as` and `llvm-dis` in a folder (universal,
+built from the 15.0.7 source with no code generators; Apache 2.0 with LLVM Exceptions):
+
+```sh
+make SYSTEM OUT --work WORK --paths profiles/metallib-repairs-golden-gate.txt --llvm-bin LLVM_BIN
+make assembler ASSEMBLER                      # once, where Xcode is: the x86_64 helper assembler (assemble.c)
+make runtime-build SPLIT OUT --llvm LIBLLVM_3802 --compiler ICBE --assembler ASSEMBLER
+```
+
+`--llvm-bin` (or `HAO_METAL_LLVM`) maps `xcrun metal-as` and `xcrun metal-objdump --disassemble` to the bundled
+tools (`lib/toolchain.py`) and refuses every other `xcrun` tool, so the `rewrite` recipe (`metal -c`, `metallib`)
+fails at once instead of opening the developer-tools dialog; only the `golden-gate` recipe works this way. Build
+records take the commit from git when the checkout has `.git`, otherwise from `.hao-source`, and never call git
+without a `.git`. With `--llvm-bin` the output is the same modules, not the same bytes (producer string, metadata
+kinds, use lists); `runtime-build` with `--assembler` is byte-identical, as it drives the same 3802 libLLVM.
+
 ## Controls
 
 These commands build Apple GPU controls on the host and, where noted, fixtures to run on the HD 4000; each writes
@@ -147,6 +166,7 @@ Tests that need Apple binaries are skipped unless `METALLIB_RUNTIME` (a prepared
 
 ## Revisions
 
+- r57 2026-11-13 Rows without Xcode: `make --llvm-bin` (or `HAO_METAL_LLVM`) runs the AIR tools from a bundled LLVM 15.0.7 (`lib/toolchain.py`) and refuses Xcode-only tools; `make assembler` + `runtime-build --assembler` replace the clang step; build records take the commit from `.hao-source` when there is no `.git`. Default (xcrun) output unchanged. 26B131 golden-gate profile through LLVM: all 5117 functions of the 11 libraries identical (3901) or the same module under Apple's metal-objdump (1216); runtime-build with the prebuilt assembler byte-identical to the row.
 - r56 2026-11-12 `read_sampler.py` also converts cube and 1D sampler-form reads (no offset operand; only the builtin sampler is dropped). The 31001 downgrader crashed on them (SceneKit `texturecube_copy_kernel`, used for every cube-map environment, and `adaptative_lum`), so SceneKit failed to build those pipelines and divided by zero in `dispatchOnTextureCube`; VFX and CoreRE have the same reads. A SceneKit scene with a cube-map environment, shadows and SSAO renders on the HD 4000.
 - r55 2026-11-12 `metallib-repairs-golden-gate.txt` adds SceneKit (`default.metallib`, macOS and iOSSupport): the 31001 downgrader crashed (libLLVM_real+0x7f02a9) on its depth sampler-form reads when SceneKit drew; 40 of 339 functions repaired in each. SceneKit Quick Look still crashes there with both installed; only the repaired library is mapped, so the remaining requests are shaders compiled at run time (compat.dylib runs after the downgrader).
 - r54 2026-11-11 `metallib-repairs-golden-gate.txt` adds VectorKit (`default.metallib`, `metal_libraries/AlloyCommonLibrary.metallib`) and VFX, which OCLP otherwise leaves as its 26.0 copies (27.2 VectorKit asks for `Icon::shadow_vertex` and other functions they lack). `legacy_sync.py` also converts `air.atomic.*.xchg` (27.2 VFX `particle_fill_grid` crashed IGIL's uniform analysis).

@@ -16,6 +16,7 @@ import threading
 import compatibility
 import mtlb
 import resource_formats
+import toolchain
 
 
 def sha(data):
@@ -69,7 +70,7 @@ def main():
             if sha(text.encode()) != saved['ir_sha256'] or sha((prior / 'original.air').read_bytes()) != digest:
                 raise ValueError('cached IR/input hash drift: ' + digest)
         else:
-            r = subprocess.run(['xcrun', 'metal-objdump', '--disassemble', str(air)], capture_output=True, text=True)
+            r = subprocess.run(toolchain.resolve(['xcrun', 'metal-objdump', '--disassemble', str(air)]), capture_output=True, text=True)
             if r.returncode or '; ModuleID' not in r.stdout:
                 row['refusal'] = r.stderr or r.stdout[:300]
                 return row

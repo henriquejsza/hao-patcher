@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import compatibility
+import toolchain
 
 
 def command(text, source, output):
@@ -37,11 +38,11 @@ def main():
         try:
             args = command(text, source, directory / 'fixed.air')
             result['command'] = args
-            process = subprocess.run(args, capture_output=True, text=True)
+            process = subprocess.run(toolchain.resolve(args), capture_output=True, text=True)
             if process.returncode:
                 raise ValueError(process.stderr[:3000])
             result['assembled'] = True
-            process = subprocess.run(['xcrun', 'metal-objdump', '--disassemble', str(directory / 'fixed.air')], capture_output=True, text=True)
+            process = subprocess.run(toolchain.resolve(['xcrun', 'metal-objdump', '--disassemble', str(directory / 'fixed.air')]), capture_output=True, text=True)
             if process.returncode or '; ModuleID' not in process.stdout:
                 raise ValueError('missing emitted disassembly: ' + process.stderr[:1000])
             emitted = process.stdout[process.stdout.index('; ModuleID'):]
