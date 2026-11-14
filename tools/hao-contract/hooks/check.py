@@ -11,7 +11,8 @@ What counts as private is kept outside every repository (HYGIENE.md section 1). 
   wording PATH    LABEL<TAB>REGEX   internal wording a public message or doc must not use (HYGIENE 2.6)
 plus any absolute home folder. The private names, patterns and home folders are checked in the message and in every
 added line. The wording is checked in the message and in the added lines of documentation (*.md, patch.json).
-A finding prints its label and where it is, never the matched text. Exit status 1 when anything is found.
+The message must also keep HYGIENE 2a's lengths (subject 72 characters, 6 body lines, one Tested: line of 160
+characters). A finding prints its label and where it is, never the matched text. Exit status 1 when anything is found.
 """
 import os
 from pathlib import Path
@@ -66,10 +67,38 @@ def findings(text, checks):
     return sorted({label for label, rx in checks if rx.search(text)})
 
 
+SUBJECT, BODY, TESTED = 72, 6, 160   # HYGIENE 2a: subject characters, body lines before Tested:, Tested characters
+
+
+def lengths(lines):
+    """HYGIENE 2a's limits on a message's LINES (comments already dropped)."""
+    while lines and not lines[-1].strip():
+        lines = lines[:-1]
+    if not lines:
+        return ['the commit message is empty']
+    out = []
+    if len(lines[0]) > SUBJECT:
+        out.append('the subject has %d characters (at most %d)' % (len(lines[0]), SUBJECT))
+    at = next((i for i, l in enumerate(lines) if l.startswith('Tested:')), None)
+    if at is None:
+        return out + ['no Tested: line (what ran, or "not run on a Mac")']
+    body = [l for l in lines[1:at] if l.strip()]
+    if len(body) > BODY:
+        out.append('the body has %d lines before Tested: (at most %d)' % (len(body), BODY))
+    tested = ' '.join(l.strip() for l in lines[at:] if l.strip())
+    if len(tested) > TESTED or len([l for l in lines[at:] if l.strip()]) > 2:
+        out.append('the Tested: line has %d characters (one line, at most %d)' % (len(tested), TESTED))
+    return out
+
+
 def message(path):
     private, wording = rules()
-    body = '\n'.join(l for l in Path(path).read_text(errors='replace').splitlines() if not l.startswith('#'))
-    return ['commit message names a %s' % label for label in findings(body, private + wording)]
+    lines = [l for l in Path(path).read_text(errors='replace').splitlines() if not l.startswith('#')]
+    body = '\n'.join(lines)
+    out = ['commit message names a %s' % label for label in findings(body, private + wording)]
+    if not (lines and lines[0].startswith(('Merge branch ', 'fixup! ', 'squash! '))):
+        out += lengths(lines)
+    return out
 
 
 def staged():
