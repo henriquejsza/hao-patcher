@@ -1,6 +1,8 @@
-# hao runtime payload for 26B131 from https://github.com/lythka/hao-runtime (build.json names its commit: 399e78e).
-# Built from a clean 399e78e tree (tag v0.1.0-beta.1), from a root that includes the App and OS cryptexes (their programs are
-# embedded by golden-gate-userspace). libhao 3a9b858b; 963 embedded, 965 of 969 AOT caches, dyld fixed.
-# Adds since 1de47eb: 399e78e Optional witness nils returned to native as a callback result (diag#0001).
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=4bdd970d142520bf71b41770c648fbdafdd059c8d826cfa478b64af91743e72c
-11b1cbf188eff8df722895af811eec7ea965317c263e7e0b8ff5d959229b5f0b store/artifacts/hao-runtime-26B131-20261113-399e78e32376/payload
+# hao runtime payload for 26B131 from https://github.com/lythka/hao-runtime (build.json names its commit: bd08b64).
+# Built from a clean bd08b64 tree, with 399e78e's payload's units, AOT list and cryptex programs. libhao ffa4eeb6
+# (UUID 5a824ace), the bytes proven on laptop 1 on 2026-11-14 (Control Center). 963 embedded, 965 of 969 AOT caches.
+# Adds since 399e78e: 8c0d9ab native stack per callback level (diag#0005); aee7feb, 9568ead Finder (diag#0032);
+# 857862f MRMediaRemoteRequestVideoThumbnails row; eef78f8 mds SIPathFilterCreate callback; 496c15c (c930bf9) Swift
+# value lookups once per call site; e2b7ad9 host-code check of a first-call bind (Control Center cold open).
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=b519814da0d5c8c93a80d10b3683f0ebbe10a9b06290f25ef1c3a564f46c995e
+d4f8aab64da88bce04b0cf3c192cad157fdc43d4c2c54c7f2810fa544efb93b8 store/artifacts/hao-runtime-26B131-20261114-bd08b64a1563/payload

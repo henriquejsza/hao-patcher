@@ -189,6 +189,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r63 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime bd08b64 tree (hao-runtime-26B131-20261114-bd08b64a1563; libhao ffa4eeb6, the bytes proven on laptop 1 for Control Center): Finder (diag#0032), mds, the Control Center warm and cold-open fixes, native stack per callback level (diag#0005). No recipe change.
 - r62 2026-11-14 `apply.sh` copies IntelCommpage.kext and HaoExec.kext onto the FAT ESP as data only (`ditto --norsrc --noextattr --noacl`): the stick's Recovery runs no doubleagentd, so ditto's default extended attributes and ACLs fail there ("Attribute not found", as golden-image.py's ESP copy did in bench2's QEMU install). The files written are the same.
 - r61 2026-11-14 Input row `kernel_repair_binding` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()), so its sha256 changed. The same artifact, so what this recipe installs is unchanged.
 - r60 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e tree (hao-runtime-26B131-20261113-399e78e32376, tag v0.1.0-beta.1): Optional witness nils returned to native as a callback result (diag#0001). No recipe change.
