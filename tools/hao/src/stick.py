@@ -156,6 +156,10 @@ def opencore_files(tar_path, esp):
 
 
 DEDUPE_BYTES = 64 * MB
+# Kit paths the stick leaves out. cryptex-cache/in holds sealed cryptex images keyed on the Mac that made them
+# (its macOS build and newfs_apfs, e.g. the builder VM's 25G83): a stick's Recovery (25G342, x86_64) never matches
+# that key and makes its own, so the 24 GB would only fill the stick. key.json stays.
+KIT_LEFT_OUT = ('cryptex-cache/in',)
 
 
 def hao_files(top):
@@ -185,7 +189,7 @@ def copy_hao(top, dest):
             shutil.copy2(src, out)
 
 
-def copy_tree(src, dest, skip=SKIP, linked=None):
+def copy_tree(src, dest, skip=SKIP, linked=None, skip_paths=()):
     """SRC into DEST, without the store, git and caches; symlinks kept as links. A file of DEDUPE_BYTES or more whose
     bytes equal one already copied (same size and name, then same sha256) becomes a hard link to it: the kit carries
     the Golden Gate userspace payload in two hooks, APFS clones in the store, 22 GB twice on the stick otherwise.
@@ -193,8 +197,8 @@ def copy_tree(src, dest, skip=SKIP, linked=None):
     src, dest = Path(src), Path(dest)
     seen = {}
     for root, dirs, files in os.walk(src):
-        dirs[:] = sorted(d for d in dirs if d not in skip)
         r = Path(root)
+        dirs[:] = sorted(d for d in dirs if d not in skip and str((r / d).relative_to(src)) not in skip_paths)
         out = dest / r.relative_to(src)
         out.mkdir(parents=True, exist_ok=True)
         for d in list(dirs):
@@ -253,7 +257,7 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
         raise StickError('%s is no kit (no kit.json)' % kit)
     copy_hao(hao_top, mount / 'hao')
     linked = []
-    copy_tree(kit, mount / 'kit', skip={'.DS_Store', '__pycache__'}, linked=linked)
+    copy_tree(kit, mount / 'kit', skip={'.DS_Store', '__pycache__'}, linked=linked, skip_paths=KIT_LEFT_OUT)
     assembly = (record or {}).get('assembly')
     for name, fill in LAUNCHERS.items():
         p = mount / name

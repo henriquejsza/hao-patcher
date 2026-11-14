@@ -83,7 +83,8 @@ class StickTest(unittest.TestCase):
         for rel, data in (('kit.json', b'{"schema": 1}'), ('py-x86_64/bin/python3.12', b'#!py'),
                           ('hooks/02-userspace/inputs/u/filesystem.dmg', b'U' * 2048),
                           ('hooks/15-identities/inputs/u/filesystem.dmg', b'U' * 2048),
-                          ('hooks/15-identities/inputs/u/other.dmg', b'V' * 2048)):
+                          ('hooks/15-identities/inputs/u/other.dmg', b'V' * 2048),
+                          ('cryptex-cache/key.json', b'{}'), ('cryptex-cache/in/abc/os.dmg', b'C' * 4096)):
             (kit / rel).parent.mkdir(parents=True, exist_ok=True)
             (kit / rel).write_bytes(data)
         os.symlink('python3.12', kit / 'py-x86_64/bin/python3')
@@ -139,7 +140,9 @@ class StickTest(unittest.TestCase):
         self.assertEqual(rec['hard_links'], [['kit/hooks/15-identities/inputs/u/filesystem.dmg',
                                               'kit/hooks/02-userspace/inputs/u/filesystem.dmg']])
         self.assertEqual(rec['kit_bytes'], sum(p.stat().st_size for p in self.kit.rglob('*')
-                                               if p.is_file() and not p.is_symlink()) - 2048)
+                                               if p.is_file() and not p.is_symlink()) - 2048 - 4096)
+        self.assertTrue((kit / 'kit/cryptex-cache/key.json').is_file())
+        self.assertFalse((kit / 'kit/cryptex-cache/in').exists())
         # the launchers run hao with the kit's CPython
         for name, cmd in (('install', 'install --kit "$D/kit"'), ('report', 'report --output "$D/reports/')):
             text = (kit / name).read_text()
