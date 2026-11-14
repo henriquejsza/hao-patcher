@@ -260,3 +260,48 @@ class Repo(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReleaseFilesScope(unittest.TestCase):
+    """`# hash: release-files`: a folder row's sha256 covers only what a release can give a user's Mac (its
+    release-classes.json include plus made_on_mac_files), so a store made from a release matches the same row."""
+
+    def setUp(self):
+        import runpy
+        self.L = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'lock.py'))
+        self.tmp = tempfile.TemporaryDirectory()
+        d = Path(self.tmp.name)
+        self.full, self.user = d / 'dev', d / 'user'
+        for top, extra in ((self.full, True), (self.user, False)):
+            (top / 'runtime').mkdir(parents=True)
+            (top / 'build.json').write_text('{}')
+            (top / 'runtime' / 'Lib.dylib').write_bytes(b'ours')
+            (top / 'runtime' / 'detector').write_bytes(b'made on the Mac')
+            if extra:                                     # in the dev store only: never published
+                (top / 'runtime' / 'notes.txt').write_text('dev')
+                (top / 'logs').mkdir()
+                (top / 'logs' / 'build.log').write_text('x')
+        self.only = ['build.json', 'runtime/Lib.dylib', 'runtime/detector']
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_scope_ignores_what_a_release_cannot_carry(self):
+        self.assertNotEqual(self.L['content_sha256'](str(self.full)), self.L['content_sha256'](str(self.user)))
+        self.assertEqual(self.L['content_sha256'](str(self.full), self.only),
+                         self.L['content_sha256'](str(self.user), self.only))
+        (self.user / 'runtime' / 'detector').write_bytes(b'other')        # a covered file differs: the hash differs
+        self.assertNotEqual(self.L['content_sha256'](str(self.full), self.only),
+                            self.L['content_sha256'](str(self.user), self.only))
+
+    def test_rows_that_declare_it_name_release_classes_lists(self):
+        top = Path(__file__).resolve().parents[2]
+        classes = json.loads((top / 'pipeline' / 'release-classes.json').read_text())['rows']
+        found = 0
+        for f in sorted((top / 'pipeline' / 'inputs').rglob('*')):
+            if f.is_file() and any(self.L['HASH_SCOPE'].match(l) for l in f.read_text().splitlines()):
+                found += 1
+                only = self.L['scope'](str(f.parent), f.name)
+                entry = classes[f.name]
+                self.assertEqual(only, entry['include'] + [m['path'] for m in entry.get('made_on_mac_files', [])])
+        self.assertEqual(found, 5)

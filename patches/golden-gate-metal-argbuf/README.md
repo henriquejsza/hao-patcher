@@ -40,6 +40,7 @@ NEEDS VALIDATION. The same files, byte-identical to this artifact, were proven a
 them). No image built with this recipe has booted yet.
 
 ## Revisions
+- r3 2026-11-14 Input row `metal_argbuf` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.
 
 - r2 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r1 2026-11-12 Initial recipe.

@@ -1,4 +1,5 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
 # r42: the r42 repairs and header; abi_bindings and patch sites identical to r41.
 # Regenerated at 53815151 for kernel_repair_efi's rebuilt build.json (payload_files pin); otherwise identical to kernel-binding-26B131-r42.
-ab750e760edf25089aa1421298788945a2a34f470613a2b2e1919a7248f5e76d store/artifacts/kernel-binding-26B131-r42-53815151
+# hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
+461f3fc8d18a55d0ce302ec6ee0c64701672e05130b9d18c358ea0692227ad28 store/artifacts/kernel-binding-26B131-r42-53815151

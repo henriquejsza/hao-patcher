@@ -111,14 +111,23 @@ def check_row(lock, name, p):
     return bad
 
 
-def content_sha256(top):
+def in_scope(rel, only):
+    """Whether relative path REL is covered by ONLY (relative paths; a folder covers everything below it), or is a
+    folder above one of them."""
+    return any(rel == o or rel.startswith(o.rstrip('/') + '/') or o.startswith(rel + '/') for o in only)
+
+
+def content_sha256(top, only=None):
     """sha256 over a folder: one line per entry in sorted walk order (relative name, permission bits, and the file's
-    sha256, the link's target text, or 'dir'). Ownership and times are left out: the builder stages as root."""
+    sha256, the link's target text, or 'dir'). Ownership and times are left out: the builder stages as root.
+    ONLY (a list of relative paths) limits it to those entries and the folders above them (scope())."""
     h = hashlib.sha256()
     for d, dirs, files in os.walk(top):
         dirs.sort()
         for f in sorted(files + dirs):
             p = os.path.join(d, f)
+            if only is not None and not in_scope(os.path.relpath(p, top), only):
+                continue
             st = os.lstat(p)
             if stat.S_ISLNK(st.st_mode):
                 body = 'link ' + os.readlink(p)
@@ -132,11 +141,33 @@ def content_sha256(top):
     return h.hexdigest()
 
 
-def row_sha256(p):
-    """What a row's sha256 column says about PATH: the file's sha256 or the folder's content_sha256."""
+def row_sha256(p, only=None):
+    """What a row's sha256 column says about PATH: the file's sha256 or the folder's content_sha256 (of ONLY)."""
     if os.path.isdir(p):
-        return content_sha256(p)
+        return content_sha256(p, only)
     return sha256(p)
+
+
+HASH_SCOPE = re.compile(r'^#\s*hash:\s*release-files(\s|$)')
+
+
+def scope(lock, name):
+    """The files a folder row's sha256 covers, or None (all of them). A row file with a `# hash: release-files` line
+    covers what a release can give a user's Mac for it: its pipeline/release-classes.json `include` (the published
+    files) plus its `made_on_mac_files` (the Apple-derived ones the user's Mac adds), so a store made from a release
+    holds the same row hash as the store it was cut from."""
+    f = os.path.join(lock, name)
+    if not os.path.isdir(lock) or not os.path.isfile(f) or not any(HASH_SCOPE.match(l.rstrip('\n')) for l in open(f)):
+        return None
+    entry = json.load(open(os.path.join(TOP, 'pipeline', 'release-classes.json')))['rows'].get(name) or {}
+    if not entry.get('include'):
+        sys.exit('%s: "# hash: release-files", but release-classes.json gives %s no include list' % (f, name))
+    return list(entry['include']) + [m['path'] for m in entry.get('made_on_mac_files', [])]
+
+
+def row_hash(lock, name, p):
+    """Row NAME's sha256 as its lock folder LOCK defines it, for the thing at P."""
+    return row_sha256(p, scope(lock, name))
 
 
 def in_checkout(p):
@@ -155,7 +186,7 @@ def seal(lock, name):
         sys.exit('%s already has a sha256' % f)
     if not os.path.exists(p):
         sys.exit('%s: %s is not there' % (f, p))
-    h = row_sha256(p)
+    h = row_hash(lock, name, p)
     lines = open(f).read().splitlines()
     i = next(i for i, l in enumerate(lines) if l.split() and not l.lstrip().startswith('#'))
     lines[i] = h + lines[i].lstrip()[1:]
@@ -171,7 +202,7 @@ def path(lock, name):
     want, p = r[name]
     if want != '-' and not os.path.exists(p):
         sys.exit('%s: %s is not there (%s)' % (lock, p, name))
-    if want != '-' and row_sha256(p) != want:
+    if want != '-' and (row_sha256(p) if lock.endswith('.json') else row_hash(lock, name, p)) != want:
         sys.exit('%s: %s is not %s (%s)' % (lock, p, want, name))
     bad = check_row(lock, name, p)
     if bad:

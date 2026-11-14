@@ -74,6 +74,7 @@ fixture on the laptop's HD 4000 on 2026-11-09 and Photos loaded the helpers, but
 Photos' Live Text was never seen working. Not yet built into an image or booted with 26B131.
 
 ## Revisions
+- r8 2026-11-14 Input row `live_text_framework` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.
 
 - r7 2026-11-13 Input row `live_text_framework` (26B131) now names framework/ of live-text-26B131-20261113-fa444101, rebuilt from a clean fa444101 so its build.json files name inputs as `store/...` paths instead of the builder's home folder (the row can be published). Installed bytes that change: `/usr/lib/hao-live-text/build.json` (commit, date, input paths, gpu-client.dylib's hash, cache/metallib revision 56) and `/usr/lib/hao-live-text/gpu-client.dylib`: its LC_UUID and ad hoc signature differ, every other byte is identical (ld derived the UUID from the build folder's absolute path, which cache/metallib translation-build used as the install name before tools/live-text sets the final one). libhelloblur, LiveText.dylib, the other helpers, MPSNDArray.metallib and the detector are byte-identical.
 - r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
