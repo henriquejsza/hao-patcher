@@ -84,7 +84,7 @@ def allocate_metadata(plan, baseline, inventory, transfer, *, program_pool_size,
     require(cursor+extent+region['max_slide'] <= region['start']+region['size'], 'fresh metadata allocation exceeds shared region')
     if swift_code_anchor is not None:
         require(cursor+prefix-swift_code_anchor<(1<<31),'witness runtime allocation exceeds rel32 entry reach')
-    layout = dict(schema=1,classification='FACT: current-run measured reservations; content fit and final oracles required',
+    layout = dict(schema=1,classification='current-run measured reservations; content fit and final oracles required',
                   prefix_size=prefix,final_images=count,final_subcaches=plan['main_updates']['final_cache_file_count'],
                   subcache_suffix=f".{plan['main_updates']['final_cache_file_count']:02d}",
                   selector_base=baseline['selector_base'],legacy_objc_root=baseline['legacy_objc_root'],mappings=[])
@@ -222,7 +222,7 @@ def prepare_metadata(preparation_report, structural_manifest, output, *, prepara
     for record in structural_pins: _verified(record)
     outputs = {str(p.relative_to(out)):pin(p) for p in sorted(out.rglob('*')) if p.is_file()}
     report = dict(schema=1,kind='dyld-cache-build/metadata-preparation',build=prep['build'],
-                  classification='FACT: checked current-run ObjC recipe and name pools; independent emission/output oracles OPEN',
+                  classification='checked current-run ObjC recipe and name pools; independent emission/output oracles not checked here',
                   outputs=outputs,geometry=geometry,preparation=pin(preparation_report),structural=pin(structural_manifest),
                   source_modules={p.name:pin(p) for p in Path(__file__).parent.glob('*.py')},certification_complete=False)
     return dict(report=_json(out/'metadata-preparation.json',report),artifacts=outputs)

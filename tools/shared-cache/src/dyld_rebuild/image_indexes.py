@@ -65,8 +65,8 @@ def swift_roots(family):
 
 def descriptors(family, reader, base, roots, order):
     """Descriptor-map slots with their owners. The u16 aux value is an ObjC header-info index (MH order), as in the
-    conformance tables, so `order` must be the ObjC image order. FACT on 262FA161 (26B131): all 365,361 occupied
-    slots' aux values name the address owner in header-info order; none match the dyld image table."""
+    conformance tables, so `order` must be the ObjC image order. In Apple's 26B131 cache every occupied slot's aux value
+    names the address owner in header-info order; none matches the dyld image table."""
     data=base+roots['prespecialization']
     require(struct.unpack('<II',family.read(data,8)) in PRESPECIALIZATION_ABIS,'unsupported prespecialization data')
     descriptor=reader.ptr(data+40)

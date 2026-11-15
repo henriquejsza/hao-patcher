@@ -131,7 +131,7 @@ def producer_plan(family, pins, provider_inputs, prepared_inputs, provider_manif
     subcache_table_size = (len(family.files)-1 + len(plans)) * 56
     require(subcache_table_offset + subcache_table_size <= main.mappings[0].size + 0x40000,
             'expanded main subcache table collides with scratch extension end')
-    result = {'schema': 1, 'status': 'FACT: representable provider input/placement plan; cache writer and target acceptance OPEN',
+    result = {'schema': 1, 'status': 'representable provider input/placement plan; cache writer and target acceptance not checked here',
         'provider_inputs': {'path': str(provider_manifest), 'sha256': pin(provider_manifest)['sha256']},
         'metadata_reserved_for_later': metadata_reservations,
         'inputs': verified, 'normalization': normalization,
@@ -218,7 +218,7 @@ def import_closure(family, providers):
             resolution = resolve_import(graph, provider.image, imported)
             require(resolution['status'] == 'resolved', 'provider import unresolved: '+key+' '+imported.symbol)
             rows.append(dict(key=key, image=provider.canonical, **{'import':asdict(imported)}, resolution=resolution))
-    return dict(schema=1, classification='FACT: complete current-run provider import resolution; ABI acceptance OPEN',
+    return dict(schema=1, classification='complete current-run provider import resolution; ABI acceptance not checked here',
                 imports=rows, import_count=len(rows), provider_count=len(providers))
 
 
@@ -304,7 +304,7 @@ def source_metadata(family, output):
                        sha256=hashlib.sha256(raw).hexdigest(),decoded=decoded))
         records.append(dict(pool_offset=relative, **record))
     _json(output/'program-inventory.json',dict(schema=1,entries=entries,required_paths=paths,sets=records,
-          complete_final_filesystem=False,classification='FACT: source Apple program inventory; final filesystem closure OPEN'))
+          complete_final_filesystem=False,classification='source Apple program inventory; final filesystem closure not checked here'))
     signatures = [dict(path=str(f.path),signature=signature_info(f.data,verify_pages=True)) for f in family.files]
     slides = []
     for file, mapping, slide in family_slides(family):
@@ -313,7 +313,7 @@ def source_metadata(family, output):
             members += len(slide.page(i)); slide.pages.clear()
         slides.append(dict(file=str(file.path),address=mapping.address,size=mapping.size,chain_members=members))
     _json(output/'source-audit.json',dict(schema=1,signatures=signatures,slides=slides,
-          classification='FACT: complete source signature pages and supported slide chains decoded; final-output gates OPEN'))
+          classification='complete source signature pages and supported slide chains decoded; final-output gates not checked here'))
 
 
 def prepare_producer(intake_directory, output, *, intake_pins, build=None):
@@ -387,7 +387,7 @@ def prepare_producer(intake_directory, output, *, intake_pins, build=None):
     for row in intake_pins.values(): _verified(row)
     artifacts = {str(p.relative_to(out)):pin(p) for p in sorted(out.rglob('*')) if p.is_file()}
     report = dict(schema=1,kind='dyld-cache-build/producer-preparation',build=build,
-                  classification='FACT: current-run preparation only; cache build and acceptance OPEN',
+                  classification='current-run preparation only; cache build and acceptance not checked here',
                   intake_pins=intake_pins,
                   source_modules={p.name:pin(p) for p in Path(__file__).parent.glob('*.py')},
                   artifacts=artifacts)

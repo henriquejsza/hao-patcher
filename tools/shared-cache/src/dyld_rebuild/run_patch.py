@@ -32,9 +32,9 @@ def missing_use_policy(row):
     """What a use of an export the replacement lacks holds. 'marker': a non-weak GOT gets dyld's missing-export
     marker (as before); 'weak-null': a weak import is null, dyld's value for a missing weak import; 'retained': an
     ObjC class/metaclass pointer (PATCH) keeps the original class bytes, like the ObjC recipe's retained external
-    class references (r83) and like Apple's images with the image overridden on disk. Anything else: None (refused).
-    FACT (fold-in 26B131): 61 uses of Apple 27 Metal's tensor API absent from OCLP's Metal wrapper; the 32 class
-    pointers are isa/superclass fields of the Apple-silicon AGX drivers."""
+    class references and like Apple's images with the image overridden on disk. Anything else: None (refused).
+    Example: Apple 27 Metal's tensor API, which OCLP's Metal wrapper lacks; its class uses are isa/superclass fields
+    of the Apple-silicon AGX drivers."""
     if row['addend'] or row['high8']:
         return None
     if row['kind']=='GOT':
@@ -47,7 +47,7 @@ def missing_use_policy(row):
 def missing_policy(rows, target_dyld, output, proof):
     """Require complete current-use evidence and a current target semantic proof."""
     # Evidence first, so a refusal below leaves the rows it refused on disk.
-    _json(output/'current-missing-uses.json',dict(schema=1,classification='FACT: current absent exports and retained source pointer uses; native caller behavior OPEN',
+    _json(output/'current-missing-uses.json',dict(schema=1,classification='current absent exports and retained source pointer uses; native caller behavior not checked here',
           target_dyld=target_dyld,missing=rows,caller_settling='OPEN: normal-mode execution of each retained caller'))
     identities=set()
     for row in rows:
@@ -84,7 +84,7 @@ def lookup_controls(original,candidate,layout,output,original_pins,candidate_pin
         (output/name).write_bytes(data)
     (output/'aliases.tsv').write_text(''.join(f'{name}\t{index}\n' for name,index in sorted(aliases.items())))
     _json(output/'final-images.json',candidate.images)
-    result=dict(schema=1,classification='FACT: current complete aliases and raw patch serialization controls; final semantic graph separate',
+    result=dict(schema=1,classification='current complete aliases and raw patch serialization controls; final semantic graph separate',
         original_inputs=original_pins,candidate_inputs=candidate_pins,allocation_sha256=allocation_pin['sha256'],
         final_identity_input=next(p for p in candidate_pins if p['path']==str(candidate.main.path)),
         path_trie=dict(address=layout['path_trie']['address'],reserve=layout['path_trie']['reserve'],size=len(trie),
@@ -200,7 +200,7 @@ def patch_graph(original,candidate,plan,layout,arrays,raw,patch_address,output,*
     output.mkdir()
     _json(output/'current-reference-audit.json',dict(schema=1,source_patch_sha256=hashlib.sha256(raw).hexdigest(),
           replaced_indexes=sorted(replaced),references=source_rows,source_pins=original_pins,provider_plan=plan_pin,
-          classification='FACT: complete retained external-use inventory from current PatchTableV4; source API oracle separate'))
+          classification='complete retained external-use inventory from current PatchTableV4; source API oracle separate'))
     policy=missing_policy(missing,target_dyld,output,marker_proof)
     new_uses=[];own_calls_through=0
     hooks={(h['original_provider'],h['symbol']):h for h in plan.get('interpositions',[])}
@@ -231,7 +231,7 @@ def patch_graph(original,candidate,plan,layout,arrays,raw,patch_address,output,*
     blob,decoded=serialize_patch_arrays(final_arrays,layout['patch_table']['address'],len(candidate.images),reserve=layout['patch_table']['reserve'])
     (output/'patch-table.bin').write_bytes(blob)
     _json(output/'pointer-edits.json',edits);_json(output/'new-uses.json',new_uses)
-    result=dict(schema=1,classification='FACT: current final semantic patch graph; independent source reader and pointer application separate',
+    result=dict(schema=1,classification='current final semantic patch graph; independent source reader and pointer application separate',
         original_inputs=original_pins,candidate_inputs=candidate_pins,provider_plan_sha256=plan_pin['sha256'],
         allocation_sha256=allocation_pin['sha256'],provider_import_closure=closure_pin,original_graph_byte_equal=True,
         control=control_stats,stats=stats,patchable_objects=object_counts,pointer_edits=len(edits),fixed_literals=len(missing),

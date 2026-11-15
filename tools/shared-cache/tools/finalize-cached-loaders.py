@@ -111,7 +111,7 @@ def main():
             require(candidate.read(pbl_address, len(blob)) == blob, 'installed cached loaders differ')
         finally: candidate.close()
         result = dict(bootstrap);result['graph_contract']=graph
-        result.update(classification='FACT: integrated cached loaders and ObjC links; required program loaders/image gates remain OPEN',
+        result.update(classification='integrated cached loaders and ObjC links; required program loaders/image gates not checked here',
                       stage='cached-loaders-integrated', complete_candidate=False,
                       original_files=[dict(file=f.path.name, size=(output / f.path.name).stat().st_size,
                                            sha256=sha(output / f.path.name)) for f in source.files], outputs=[],

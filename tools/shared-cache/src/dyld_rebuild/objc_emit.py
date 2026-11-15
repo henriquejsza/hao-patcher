@@ -514,7 +514,7 @@ def emit_recipe(family,original,layout,transfer,inventory,allocation,selectors,c
         if not image['image_info']:continue
         info=image['image_info'];flags=info['source_flags']|9
         recipe.byte(info['address']+4,struct.pack('<I',flags),'optimized image and complete preattached category flags')
-    result=recipe.finish();result.update({'schema':1,'classification':'FACT: concrete checked ObjC byte/pointer/blob recipe; final integration and runtime acceptance OPEN',
+    result=recipe.finish();result.update({'schema':1,'classification':'concrete checked ObjC byte/pointer/blob recipe; final integration and runtime acceptance not checked here',
         'category_transfer':cats,'ivar_growth':growth,'new_canonical_protocol':canonical,'retained_external_class_references':retained,
         'counts':{'provider_classes':len(inventory['classes']),'protocol_records':len(inventory['protocols']),
             'provider_method_lists':len(inventory['method_lists']),'small_lists':sum(r['small'] for r in inventory['method_lists']),

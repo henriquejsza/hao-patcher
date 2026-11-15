@@ -6,6 +6,7 @@ those bytes and resolves program bindings; it never executes target code.
 from __future__ import annotations
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import struct
 import subprocess
@@ -432,7 +433,7 @@ def build_helper(directory):
     for record in manifest['files']:
         verify_file(ROOT / record['path'], record)
     directory.mkdir()
-    base = ROOT / 'research/astra-1378-bounded'
+    base = Path(os.environ['CACHE_TOOLCHAIN'])  # a toolchain/make output
     source = base / 'source'
     adapted = prepare_adapter((source / 'dyld/JustInTimeLoader.cpp').read_text())
     (directory / 'JustInTimeLoader.cpp').write_text(adapted)
@@ -458,7 +459,7 @@ def build_helper(directory):
         (directory / f'build-{index}.txt').write_text(process.stdout + process.stderr)
         results.append({'command': command, 'exit': process.returncode})
         require(process.returncode == 0, f'helper compile/link failed; see {directory}/build-{index}.txt')
-    report = {'classification': 'FACT: host-only ARM helper links genuine Apple serializers; target code is never executed.',
+    report = {'classification': 'host-only ARM helper links genuine Apple serializers; target code is never executed.',
               'manifest_sha256': sha(manifest_path), 'compiler': subprocess.check_output(['xcrun', 'clang++', '--version'], text=True),
               'commands': results, 'generator_sha256': sha(directory / 'generator'), 'adapter_sha256': sha(directory / 'JustInTimeLoader.cpp'), 'cache_path_adapter_sha256': sha(directory/'DyldProcessConfig.cpp')}
     (directory / 'build.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -507,7 +508,7 @@ def check_target_schema(path):
     require(failure is None and instructions[-1].data == b'\xc3', 'target schema function shape changed')
     require(any(i.data == bytes.fromhex('813f64347073') for i in instructions) and
             any(i.data == bytes.fromhex('81fa01c4ff1b') for i in instructions), 'target rejects expected loader magic/version')
-    return {'classification': 'FACT: target1387 validHeader compares the serialized magic and version. Full runtime acceptance remains OPEN.',
+    return {'classification': 'target1387 validHeader compares the serialized magic and version. Full runtime acceptance not checked here.',
             'path': str(path), 'sha256': sha(path), 'symbol': hex(address), 'code_sha256': hashlib.sha256(code).hexdigest(),
             'instructions': [{'address': hex(i.address), 'bytes': i.data.hex(), 'text': i.text.strip()} for i in instructions]}
 
@@ -644,7 +645,7 @@ def run_generation(cache_pins, root_pins, output, *, mode, target_dyld, control_
             generated.append({'path': program, 'file': path.name, 'size': path.stat().st_size, 'sha256': sha(path),
                               'cdhash': check['validation']['cdhash'], 'bind_count': len(check['bind_comparisons']),
                               'objc_maps': check['set']['objc_maps'], 'swift_maps': check['set']['swift_maps'], 'command': command})
-        report = {'schema': 1, 'classification': 'FACT: actual Apple serializer output with independent structural and bind checks; target acceptance remains OPEN.',
+        report = {'schema': 1, 'classification': 'actual Apple serializer output with independent structural and bind checks; target acceptance not checked here.',
                   'mode': mode, 'cache_inputs': cache_inputs, 'root_inputs': files, 'required_program_path_count': len(needed),
                   'unprovided_required_programs': missing, 'complete_candidate': False,
                   'cached_set': {'file': cached_output.name, 'size': len(generated_cached), 'sha256': sha(cached_output),

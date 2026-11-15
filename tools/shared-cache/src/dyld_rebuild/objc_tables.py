@@ -12,7 +12,7 @@ from .exports import require, span
 # dyld's ObjC optimization header (main cache header +464: offset, size). 26 (dyld-1378): v2, 72 bytes. 27 (26B131): v4,
 # 136 bytes; its first 72 bytes keep v2's fields except +0x38 (v2: selector buffer size; v4: class-name string base),
 # then two arrays of four cumulative name-region offsets (from +0x30 and +0x38) and +0x80 (16-byte msgSend record).
-# FACT on 262FA161 (research docs/cache27-objc-header.md; dyld 27 reads +0x08..+0x28 and +0x80). Only the root fields
+# As read from Apple's 26B131 cache; dyld 27 reads +0x08..+0x28 and +0x80. Only the root fields
 # 2-6 are ever rewritten; the rest is carried unchanged.
 OBJC_HEADER_FORMS = {72: (2, 6), 136: (4, 6)}
 

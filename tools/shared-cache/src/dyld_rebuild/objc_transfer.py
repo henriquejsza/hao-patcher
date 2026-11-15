@@ -74,7 +74,7 @@ class Reader:
         stride = flags & 0xfffc
         require(count <= 100000 and stride == (12 if small else 24), 'unsupported method list layout')
         # 0x20000000 methodListUsesTypeOffsets (dyld-1378 ObjCVisitor.h): types are u32 offsets from the selector base
-        # (the method-types buffer follows the selectors). FACT on 26B131's cache: set on its small lists.
+        # (the method-types buffer follows the selectors). 26B131's cache sets it on its small lists.
         type_offsets = bool(flags & 0x20000000)
         require(flags & ~0xe000ffff == 0, f'unknown method-list flags {flags:#x} at {address:#x}')
         require(not flags & 0x40000000 or small, 'direct selector flag on big method list')
@@ -660,7 +660,7 @@ def inspect(family, providers, provider_readers, targets):
                 'instance_start': source.number(child_ro + 4, '<I'),
                 'instance_size': source.number(child_ro + 8, '<I')}
     return {'schema': 1, 'ivar_audit': ivar_audit, 'new_provider_categories': supplemental_categories,
-            'status': 'FACT: checked symbolic transfer plan; writer and runtime acceptance OPEN',
+            'status': 'checked symbolic transfer plan; writer and runtime acceptance not checked here',
             'categories_scanned': scanned, 'incoming': inventory, 'class_plans': plans,
             'external_class_references': references, 'target_class_and_metaclass_count': len(target_classes),
             'source_objc_header_count': len(source.objc_images),

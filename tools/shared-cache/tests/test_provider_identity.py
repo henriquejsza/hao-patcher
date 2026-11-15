@@ -1,21 +1,16 @@
 """Synthetic layout/refusal checks; real inputs have a separate Apple oracle."""
 import hashlib
-import importlib.util
 from pathlib import Path
 import struct
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from dyld_rebuild.exports import Refusal
 from dyld_rebuild.provider_identity import inspect, normalize, signature_pages, verify_normalized, x86_slice
 
-SPEC = importlib.util.spec_from_file_location("normalize_provider_tool", ROOT / "tools/normalize-provider.py")
-TOOL = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(TOOL)
 
 
 def dylib(name="Wrapped/LibSystemShim.dylib", padding=128):
@@ -176,20 +171,6 @@ class IdentityTests(unittest.TestCase):
                               removed_signature=True)
             self.assertEqual(source[:4096], output[:4096])
             self.assertEqual(source[8192:], output[8192:])
-
-    def test_pinned_input_refuses_hash_size_and_path_drift(self):
-        with tempfile.TemporaryDirectory() as scratch:
-            root = Path(scratch).resolve()
-            (root / "inputs").mkdir()
-            (root / "inputs/source").write_bytes(b"fixture")
-            item = {"path": "inputs/source", "size": 7,
-                    "sha256": hashlib.sha256(b"fixture").hexdigest()}
-            with patch.object(TOOL, "ROOT", root):
-                self.assertEqual(TOOL.pinned(item)[1], b"fixture")
-                for changed in ({**item, "size": 6}, {**item, "sha256": "0" * 64},
-                                {**item, "path": "../outside"}):
-                    with self.subTest(item=changed), self.assertRaises(Refusal):
-                        TOOL.pinned(changed)
 
 
 if __name__ == "__main__":

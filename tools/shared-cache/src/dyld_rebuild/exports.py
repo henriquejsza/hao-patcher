@@ -180,7 +180,7 @@ def read_image(data, *, bundle_path=None):
             span(data, fileoff, filesize)
             segments.append((vm, vmsize, fileoff, filesize))
         elif cmd == 0x12:
-            # LC_SUB_FRAMEWORK (umbrella name): link-time only, copied unchanged. FACT on 26B131: Apple's cache keeps it in
+            # LC_SUB_FRAMEWORK (umbrella name): link-time only, copied unchanged. Apple's 26B131 cache keeps it in
             # 67 images, libsystem_kernel/platform/pthread ("System") among them.
             require(length >= 12 and struct.unpack_from("<I", command, 8)[0] >= 12, "invalid sub-framework command")
         elif cmd in (0x10, 0x13, 0x14, 0x15, 0x3a):

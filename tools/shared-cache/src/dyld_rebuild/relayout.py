@@ -13,7 +13,7 @@ from .exports import require, span
 # Observed no-file-offset load commands in the pinned family. Unknowns refuse.
 NO_OFFSETS = {0xd, 0x1b, 0x32, 0x2a, 0xc, 0x80000018, 0x80000023,
               0x12, 0xf, 0x5, 0x24, 0x8000001f, 0x14}
-# 0x3a: new on 27, not in dyld-1378's loader.h (meaning OPEN). FACT on 26B131: 90 commands in 31 cache images, all
+# 0x3a: new on 27, not in dyld-1378's loader.h. In 26B131's cache: 90 commands in 31 images, all
 # 16-byte (offset, size) pairs inside the image's LINKEDIT, so they move with LINKEDIT like the others.
 LINKEDIT_DATA = {0x26, 0x29, 0x80000033, 0x80000034, 0x1d, 0x1e, 0x3a}
 

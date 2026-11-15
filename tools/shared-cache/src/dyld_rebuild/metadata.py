@@ -76,7 +76,7 @@ def validate(layout, family, provider_plan):
     if 'swift_runtime_code' in slots:
         require(rows[0]['address']+header_end<=slots['swift_runtime_code']['address'],
                 'witness runtime overlaps metadata image lists')
-    return {'classification':'FACT: allocation geometry checked; metadata content and target acceptance OPEN',
+    return {'classification':'allocation geometry checked; metadata content and target acceptance not checked here',
             'header_used_end':header_end,'slot_count':len(slots),'mapping_count':len(rows),
             'signed_content_bytes':rows[-1]['file_offset']+rows[-1]['size'],
             'provider_headers_unchanged':len(provider_plan['providers'])}

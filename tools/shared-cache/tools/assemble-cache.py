@@ -298,7 +298,7 @@ def main():
                 require(actual == value, 'assembled metadata blob differs')
         finally:
             candidate.close()
-        result = {'schema': 1, 'classification': 'FACT: assembled ObjC/Swift/patch/trie bootstrap; not a complete boot candidate',
+        result = {'schema': 1, 'classification': 'assembled ObjC/Swift/patch/trie bootstrap; not a complete boot candidate',
                   'stage': 'metadata-bootstrap', 'complete_candidate': False, 'images': image_count,
                   'producer_plan_sha256': sha(args.plan), 'producer_plan': dict(path=str(args.plan.resolve()),sha256=sha(args.plan)),
                   'graph_contract': graph, 'original_files': original_files, 'outputs': [metadata_record],

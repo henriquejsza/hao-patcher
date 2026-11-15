@@ -222,7 +222,7 @@ def main():
         (output / 'patch-table.bin').write_bytes(blob)
         (output / 'pointer-edits.json').write_text(json.dumps(edits, indent=2) + '\n')
         (output / 'new-uses.json').write_text(json.dumps(new_uses, indent=2) + '\n')
-        result = {'schema': 1, 'classification': 'FACT: final semantic table emitted; pointer edits remain unapplied',
+        result = {'schema': 1, 'classification': 'final semantic table emitted; pointer edits remain unapplied',
                   'original_inputs': original_pins, 'candidate_inputs': candidate_pins,
                   'provider_plan_sha256': sha(args.plan), 'allocation_sha256': sha(args.allocation),
                   'extra_audit': None if args.extra_audit is None else {'path': str(args.extra_audit), 'sha256': sha(args.extra_audit)},

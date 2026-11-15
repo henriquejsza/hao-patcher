@@ -171,7 +171,7 @@ def prepare_inputs(pristine_os, patched_system, build, output, *, pristine_ident
                       provider_count=len(selected), provider_sources=provider_sources, target_dyld=dyld,
                       source_module=pin(Path(__file__)),
                       certification_complete=False, program_root_inventory_complete=False,
-                      scope='FACT: input identity and provenance only; all producer/certifier gates still required')
+                      scope='input identity and provenance only; all producer/certifier gates still required')
     if profile is not None:
         provider_manifest['provider_profile'] = profile
         provenance['provider_profile'] = profile

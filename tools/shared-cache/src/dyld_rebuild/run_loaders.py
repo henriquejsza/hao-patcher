@@ -315,7 +315,7 @@ def collect_program_inputs(source_manifest, candidate_manifest, views, output):
     out.mkdir(parents=True)
     root=dict(schema=1,coverage='explicit-inputs',files=list(files.values()),programs=programs,
               original_required_path_count=len(required),retired_programs=retired)
-    closure=dict(schema=1,classification='FACT: fresh complete explicit-view recursive closure; no host fallback',
+    closure=dict(schema=1,classification='fresh complete explicit-view recursive closure; no host fallback',
                  program_count=len(programs),edges=list(edges.values()),unresolved=unresolved,
                  views=views.provenance(),lookups=lookups,cache_inputs=candidate_pins)
     inventory=dict(schema=1,required_program_paths=sorted(required),original_programs=required,original_keys=keys,
@@ -492,7 +492,7 @@ def generate_programs(cache_manifest_path, root_manifest, closure_report, invent
     evidence=[Path(root_manifest),Path(closure_report),Path(inventory_report),regeneration_path,validator,
               out/'input-pins.json',out/'batch-generation.txt',validation_path,
               out/'codesign-all-disk-loaders.json',out/'missing-paths-source-check.json',Path(__file__)]
-    report=dict(schema=1,classification='FACT: fresh current-run complete program generation and independent binding/CodeDirectory/absence checks; native OPEN',
+    report=dict(schema=1,classification='fresh current-run complete program generation and independent binding/CodeDirectory/absence checks; native not checked here',
                 cache_inputs=pins,required_program_paths=required,retired_programs=retired,programs=rows,
                 program_trie_entries=entries,checks=checks,
                 original_program_inventory=dict(path=str(Path(inventory_report).resolve()),sha256=sha(inventory_report)),

@@ -44,7 +44,7 @@ def reconcile(requests, coverage, catalog, selected=()):
                                            if not r['state'].startswith('retained'))),
             address_normalized_names=len({re.sub(r'\$[0-9a-fA-F]+', '$ADDRESS', name) for name in rows}),
             requests=sorted(values, key=lambda row: row['name']))
-    return dict(classification='FACT', catalog_records=len(catalog['records']), processes=report,
+    return dict(classification='checked', catalog_records=len(catalog['records']), processes=report,
         installed_misses=None, absent_lookup_keys=None, construction_seconds=None,
         scope='Exact names and saved canonical aliases, not installed pointer-key lookups. '
               'Address normalization only measures count inflation; it does not establish type identity. '

@@ -163,7 +163,7 @@ def build_providers(plan, output, plan_digest, stage_kind='providers', *, source
             original_reports, family_checks = [], None
             if stage_kind=='family':
                 original_reports,family_checks=assemble_family(stage,family,plan,records,reports)
-            result = {'schema':1,'classification':'FACT: emitted scratch components; metadata integration incomplete',
+            result = {'schema':1,'classification':'emitted scratch components; metadata integration incomplete',
                       'stage':stage_kind,'producer_plan_sha256':plan_digest,'images':len(records),
                       'outputs':reports,'complete_candidate':False,
                       'original_files':original_reports,'family_checks':family_checks,

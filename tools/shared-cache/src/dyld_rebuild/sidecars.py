@@ -80,8 +80,8 @@ def images(family):
                 if size:
                     family.locate(vm, size)
                 segments.append(dict(name=name, padr=vm, size=size, foff=offset, fsze=file_size,
-                    # 27 (568-byte headers) records each segment's maximum protection (FACT on 26B131: 18,114 of
-                    # 18,114 atlas segments); 26's atlas fits the name rule.
+                    # 27 (568-byte headers) records each segment's maximum protection (every atlas segment of
+                    # 26B131); 26's atlas fits the name rule.
                     perm=maximum if family.main.mapping_offset == 568 else 5 if name == '__TEXT' else 1 if name == '__LINKEDIT' else 3,
                     maximum=maximum, initial=initial, sections=sections, flags=flags,
                     raw_name=bytes(raw[8:24]).hex(), command=command_address))
@@ -214,10 +214,10 @@ def derive(family, exclusions):
     cache_uuid = bytes(main.data[88:104])
     cache = dict(uuid=cache_uuid, padr=start, size=region_size, dscs=[], psze=4, imgs=[])
     if map_only:
-        # 27: cput = cputype << 32 | cpusubtype (FACT on 26B131: 0x0100000700000003 for the cache and all 3,945 images).
+        # 27: cput = cputype << 32 | cpusubtype (26B131: 0x0100000700000003 for the cache and every image).
         cpu, sub = struct.unpack_from('<II', main.data, 552)
         cache['cput'] = cpu << 32 | sub
-        cache['psze'] = 8   # FACT on 26B131's atlas (26: 4); meaning OPEN
+        cache['psze'] = 8   # as in 26B131's atlas (26: 4)
     lines, omitted, anomalies = [], [], []
     for file in family.files:
         first = file.mappings[0].address

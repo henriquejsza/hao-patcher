@@ -8,12 +8,15 @@ family it writes are the user's own files and keep Apple's terms.
   Licence 3.1 (`vendor/frida-gum/COPYING`; provenance in `source.json`).
 - `vendor/swift-remote-mirror/`: headers from [Swift](https://github.com/swiftlang/swift) at caab90f, Apache License
   2.0 with Runtime Library Exception (`vendor/swift-remote-mirror/LICENSE.txt`; provenance in `source.json`).
-- `toolchain/added-source/` and `toolchain/source.patch`: headers from Apple's open-source
-  releases (libc, xnu, libpthread, CommonCrypto and others) and a patch against Apple's published dyld source
+- `toolchain/added-source/include/` and `toolchain/source.patch`: headers from Apple's open-source releases (libc,
+  xnu, libplatform, libpthread, CommonCrypto; sources in `toolchain/inherited-header-provenance.json`) and a patch
+  against Apple's published dyld source
   ([dyld-1378](https://github.com/apple-oss-distributions/dyld/tree/dyld-1378)), under the Apple Public Source
-  License 2.0 or the Apache License 2.0 as stated in each file. The dyld source itself is downloaded by the user and
-  is not stored here.
-- `toolchain/availability/availability` and `availability.dsl`: from Apple's open-source
-  [AvailabilityVersions](https://github.com/apple-oss-distributions/AvailabilityVersions) (the script as in tag
-  AvailabilityVersions-157.2; the data file as in its current main). That repository and these files state no
-  license; they are published by Apple with its other open-source releases. `VersionMap.h` is generated from them.
+  License 2.0 (`APPLE_LICENSE_HEADER` and xnu's `APPLE_OSREFERENCE_LICENSE_HEADER`) or the Apache License 2.0 as
+  stated in each file.
+- `toolchain/added-source/include/System/atexit.h`: from Apple's Libc (FreeBSD `stdlib/atexit.h`), Copyright (c)
+  1990, 1993 The Regents of the University of California, under the BSD license stated in the file.
+- Not stored here, downloaded when the toolchain is built: Apple's dyld source (tag dyld-1378, given by the user to
+  `toolchain/make`) and Apple's
+  [AvailabilityVersions](https://github.com/apple-oss-distributions/AvailabilityVersions) (tag
+  AvailabilityVersions-157.2, cloned by `toolchain/make`, which generates dyld's `VersionMap.h` from it).

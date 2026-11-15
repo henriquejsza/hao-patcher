@@ -72,7 +72,7 @@ class WitnessRuntimeTests(unittest.TestCase):
                 self.assertEqual(dis.decode((out/'patch').read_bytes(),0x100000).direct_target,0x110000)
             finally:dis.close()
             blob,symbols,_=link(toolchain,0x100000,0x110000,out)
-            entry=symbols['_astra_witness_lookup']
+            entry=symbols['_hao_witness_lookup']
             self.assertLess(0x100000,entry);self.assertLess(entry,0x100000+len(blob))
 
     @unittest.skipUnless(os.environ.get('SWIFT_WITNESS_RUNTIME_TOOLCHAIN'),'set SWIFT_WITNESS_RUNTIME_TOOLCHAIN for native policy tests')
@@ -114,39 +114,39 @@ static const void *originalMetadata(const void *key,const void *const *args) {
   (void)key;(void)args;misses++;return exactMetadata;
 }
 int main(void) {
-  astra_witness_runtime=(struct WitnessRuntime){&once,initialize,&mode,&hit,lookup,original};
-  assert(astra_witness_lookup(&descriptor,&type,arguments)==&hit);
+  hao_witness_runtime=(struct WitnessRuntime){&once,initialize,&mode,&hit,lookup,original};
+  assert(hao_witness_lookup(&descriptor,&type,arguments)==&hit);
   assert(initialized==1 && lookups==1 && misses==0);
-  assert(astra_witness_lookup(&descriptor,&argument,arguments)==&miss);
+  assert(hao_witness_lookup(&descriptor,&argument,arguments)==&miss);
   assert(initialized==1 && lookups==2 && misses==1);
   const uint32_t disabled[]={0,1,3,4};
-  for(unsigned i=0;i<4;i++) { mode=disabled[i];assert(astra_witness_lookup(&descriptor,&type,arguments)==&miss); }
+  for(unsigned i=0;i<4;i++) { mode=disabled[i];assert(hao_witness_lookup(&descriptor,&type,arguments)==&miss); }
   assert(initialized==1 && lookups==2 && misses==5);
-  astra_metatype_runtime=(struct MetatypeRuntime){&once,initialize,&mode,&metatypeHit,lookup,&metatypeKey,originalMetatype};
+  hao_metatype_runtime=(struct MetatypeRuntime){&once,initialize,&mode,&metatypeHit,lookup,&metatypeKey,originalMetatype};
   once=0;
-  assert(astra_metatype_lookup(&type)==&metatypeHit);
+  assert(hao_metatype_lookup(&type)==&metatypeHit);
   assert(initialized==2 && lookups==3 && misses==5);
-  assert(astra_metatype_lookup(&argument)==&miss);
+  assert(hao_metatype_lookup(&argument)==&miss);
   assert(initialized==2 && lookups==4 && misses==6);
-  for(unsigned i=0;i<4;i++) { mode=disabled[i];assert(astra_metatype_lookup(&type)==&miss); }
+  for(unsigned i=0;i<4;i++) { mode=disabled[i];assert(hao_metatype_lookup(&type)==&miss); }
   assert(initialized==2 && lookups==4 && misses==10);
   const void *witnessA[]={&conformance},*witnessB[]={&conformance},*witnessOther[]={&otherConformance};
   const void *metadataArgs[]={&type,witnessA};
   const struct MetadataShape shapes[]={{&descriptor,1,2}};
-  astra_metadata_runtime=(struct MetadataRuntime){&mode,&normalizedHit,lookup,originalMetadata,shapes,1};
+  hao_metadata_runtime=(struct MetadataRuntime){&mode,&normalizedHit,lookup,originalMetadata,shapes,1};
   mode=2;
-  assert(astra_metadata_lookup(&descriptor,metadataArgs)==&normalizedHit);
+  assert(hao_metadata_lookup(&descriptor,metadataArgs)==&normalizedHit);
   metadataArgs[1]=witnessB;
-  assert(astra_metadata_lookup(&descriptor,metadataArgs)==&normalizedHit);
+  assert(hao_metadata_lookup(&descriptor,metadataArgs)==&normalizedHit);
   metadataArgs[1]=witnessOther;
-  assert(astra_metadata_lookup(&descriptor,metadataArgs)==0);
-  assert(astra_metadata_lookup(&argument,metadataArgs)==0);
+  assert(hao_metadata_lookup(&descriptor,metadataArgs)==0);
+  assert(hao_metadata_lookup(&argument,metadataArgs)==0);
   unsigned prior=lookups;
   exactMetadata=&hit;
-  assert(astra_metadata_lookup(&descriptor,metadataArgs)==&hit);
+  assert(hao_metadata_lookup(&descriptor,metadataArgs)==&hit);
   assert(lookups==prior);
   exactMetadata=0;metadataArgs[1]=witnessA;
-  for(unsigned i=0;i<4;i++) { mode=disabled[i];assert(astra_metadata_lookup(&descriptor,metadataArgs)==0); }
+  for(unsigned i=0;i<4;i++) { mode=disabled[i];assert(hao_metadata_lookup(&descriptor,metadataArgs)==0); }
   assert(lookups==prior);
   return 0;
 }

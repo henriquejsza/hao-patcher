@@ -141,7 +141,7 @@ def audit(root, pins):
             }
     return {
         "result": "BLOCKED" if blockers or absent or install_name_changes else "PASS_INCOMING_EXPORTS_ONLY",
-        "classification": "FACT", "pins": pins, "providers": inventory,
+        "classification": "checked", "pins": pins, "providers": inventory,
         "counts": counts, "dependencies_absent_from_supplied_inputs": absent,
         "install_name_changes_required": install_name_changes,
         "blockers": blockers, "references": rows,

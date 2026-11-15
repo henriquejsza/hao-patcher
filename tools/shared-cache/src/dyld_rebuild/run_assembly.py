@@ -38,7 +38,7 @@ def _run(out,name,tool,*argv):
 
 
 def _record(out,kind,inputs,results):
-    record=dict(schema=1,kind=kind,classification='FACT: current-run checked offline stage; final certification and target acceptance OPEN',
+    record=dict(schema=1,kind=kind,classification='current-run checked offline stage; final certification and target acceptance not checked here',
                 inputs=inputs,results=results,certification_complete=False,
                 source_modules={p.name:pin(p) for p in Path(__file__).parent.glob('*.py')})
     return dict(report=_json(out/'stage.json',record),**results)

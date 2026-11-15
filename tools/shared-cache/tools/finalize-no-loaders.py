@@ -83,8 +83,8 @@ def main():
     finally:
         candidate.close()
     result = dict(bootstrap)
-    result.update(classification='FACT: no prebuilt loaders; dyld JIT-loader acceptance and the header-info loader '
-                                 'field on 27 are OPEN',
+    result.update(classification='no prebuilt loaders; dyld JIT-loader acceptance and the header-info loader '
+                                 'field on 27 are not checked here',
                   stage='no-prebuilt-loaders', complete_candidate=False, prebuilt_loaders=False,
                   cleared_header_fields=dict(zip(('dylibs_pbl_set', 'program_pool', 'program_pool_size', 'program_trie',
                                                   'program_trie_size'), (hex(v) for v in old))),

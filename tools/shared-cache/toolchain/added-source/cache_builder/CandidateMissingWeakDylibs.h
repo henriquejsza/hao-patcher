@@ -1,5 +1,5 @@
-// Astra 2026-10-24: EXPERIMENTAL inventory-derived candidate, not recovered Apple policy.
-// Absent-cache/absent-disk edges usually exit before this check. See weak-target-inventory.json.
+// Experimental: a list derived from an inventory of weak links, not Apple's own policy.
+// Absent-cache/absent-disk edges usually exit before this check.
 static const std::unordered_set<std::string_view> allowedMissingWeakDylibs = {
     "/AppleInternal/Library/Frameworks/CalDAVServerSimulator.framework/Versions/A/CalDAVServerSimulator",
     "/AppleInternal/Library/Frameworks/VisualLogger.framework/Versions/A/VisualLogger",
