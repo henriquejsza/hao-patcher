@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Build the host serializers from published dyld source and the local adaptations."""
+import argparse
+import json
+import platform
+from pathlib import Path
+import plistlib
+import shutil
+import subprocess
+
+HERE = Path(__file__).resolve().parent
+
+
+def build(source, output, arch):
+    output = output.resolve()
+    tree = output / 'source'
+    shutil.copytree(source, tree)
+    subprocess.run(['patch', '-p1', '-i', str(HERE / 'source.patch')], cwd=tree, check=True)
+    shutil.copytree(HERE / 'added-source', tree, dirs_exist_ok=True)
+    shutil.copytree(HERE / 'availability', output / 'availability')
+    project = tree / 'dyld.xcodeproj/project.pbxproj'
+    data = json.loads(subprocess.check_output(['plutil', '-convert', 'json', '-o', '-', str(project)]))
+    for change in json.loads((HERE / 'project-semantic-changes.json').read_text()):
+        node = data
+        for key in change['path'][:-1]:
+            node = node[key]
+        node[change['path'][-1]] = change['after']
+    project.write_bytes(plistlib.dumps(data, sort_keys=False))
+    # The original availability header used a research directory in an include.
+    for path in tree.rglob('*'):
+        if path.is_file() and path.suffix in ('.h', '.xcconfig', '.sh'):
+            value = path.read_text()
+            value = value.replace('/private/tmp/astra-1378-bounded', str(output))
+            path.write_text(value)
+    sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+    subprocess.run(['xcodebuild', '-project', 'dyld.xcodeproj', '-target', 'libslc_builder.dylib',
+                    '-configuration', 'Release', '-sdk', 'macosx', f'ARCHS={arch}',
+                    'MACOSX_DEPLOYMENT_TARGET=13.0', 'CODE_SIGNING_ALLOWED=NO',
+                    'ENABLE_MODULE_VERIFIER=NO', f'ARM_SDK={sdk}',
+                    f'SYMROOT={output}/products', f'OBJROOT={output}/objects',
+                    f'CLANG_MODULE_CACHE_PATH={output}/modules'], cwd=tree, check=True)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source', type=Path)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--arch', choices=('arm64', 'x86_64'), default=platform.machine(),
+                        help='architecture of the serializers and host adapters (default: this Mac\'s)')
+    args = parser.parse_args()
+    build(args.source, args.output, args.arch)

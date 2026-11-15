@@ -1,0 +1,132 @@
+[
+  {
+    "path": [
+      "objects",
+      "2D7F1D9D2B33889800886295",
+      "files"
+    ],
+    "before": [
+      "2DC9F7BC2D6FDBE400447AC4",
+      "2DB261682DD3B9C700187B2F",
+      "2D4B88042CB8354D006D7F44"
+    ],
+    "after": []
+  },
+  {
+    "path": [
+      "objects",
+      "2D7F1D9E2B33889800886295",
+      "files"
+    ],
+    "before": [
+      "2D4B88082CB83551006D7F44",
+      "F9CD69C02DC46BA500A3E59B",
+      "2D7F1DA92B3388DF00886295",
+      "2D7F1DAA2B3388DF00886295",
+      "2D7F1DAB2B3388DF00886295",
+      "2D7F1DAC2B3388DF00886295",
+      "2D7F1DAD2B3388DF00886295",
+      "2D7F1DAE2B3388DF00886295",
+      "2D7F1DAF2B3388DF00886295",
+      "2D7F1DB02B3388DF00886295",
+      "2D7F1DB12B3388DF00886295",
+      "2D7F1DB22B3388DF00886295",
+      "2D7F1DB32B3388DF00886295",
+      "2D7F1DB42B3388DF00886295",
+      "2DC9F7C22D6FDBE900447AC4",
+      "2D7F1DB52B3388DF00886295",
+      "2DC4C9CE2B339C9A00746DC4",
+      "2D4A7B6B2BBC95F500FDDFA1",
+      "2D7F1DB62B3388DF00886295",
+      "2D7F1DB72B3388DF00886295",
+      "2D7F1DB82B3388DF00886295",
+      "2D7F1DB92B3388DF00886295",
+      "2D7F1DBA2B3388DF00886295",
+      "2D7F1DBB2B3388DF00886295",
+      "2D7F1DBC2B3388DF00886295",
+      "2D7F1DBD2B3388DF00886295",
+      "2D7F1DBE2B3388DF00886295",
+      "2D7F1DBF2B3388DF00886295",
+      "2D7F1DC02B3388DF00886295",
+      "2D7F1DC12B3388DF00886295",
+      "2D7F1DC22B3388DF00886295",
+      "2D7F1DC32B3388DF00886295",
+      "2D7F1DC42B3388DF00886295",
+      "2D7F1DC52B3388DF00886295",
+      "2D7F1DC62B3388DF00886295",
+      "2DFAEC092C828BE9001DB560",
+      "2D7F1DC72B3388DF00886295",
+      "2D7F1DC82B3388DF00886295",
+      "2D7F1DC92B3388DF00886295",
+      "F975D7412C93881A00CFE689",
+      "2D8C24DC2EAC2F5800185F20",
+      "2D7F1DCA2B3388DF00886295",
+      "2D7F1DCB2B3388DF00886295",
+      "2DC9EE252D6AD48300447AC4",
+      "2D56178A2E415FAF000A5071",
+      "2D7F1DCC2B3388DF00886295",
+      "2DB261692DD3B9C700187B2F",
+      "2D7F1DCD2B3388DF00886295",
+      "F9843F292DDBFC7C00AFE0B0",
+      "2D7F1DCE2B3388DF00886295",
+      "2D7F1DCF2B3388DF00886295",
+      "2D889C382E42690E0063249F",
+      "2D7F1DD02B3388DF00886295",
+      "2DED223A2D7F4C8B00ED669D"
+    ],
+    "after": []
+  },
+  {
+    "path": [
+      "objects",
+      "2D7F1D9F2B33889800886295",
+      "files"
+    ],
+    "before": [
+      "C15909912C7D3A6B00ACC584",
+      "C15909922C7D3A6E00ACC584"
+    ],
+    "after": []
+  },
+  {
+    "path": [
+      "objects",
+      "2D7F1DA12B33889800886295",
+      "dependencies"
+    ],
+    "before": [
+      "C18A03842C7D706F00EF2E70",
+      "C18A03862C7D706F00EF2E70"
+    ],
+    "after": []
+  },
+  {
+    "path": [
+      "objects",
+      "C18F00192D72995B009E49DD",
+      "membershipExceptions"
+    ],
+    "before": [
+      "Algorithm.cpp",
+      "Diagnostics.cpp",
+      "JSONReader.mm",
+      "TargetPolicy.cpp",
+      "Utilities.cpp"
+    ],
+    "after": []
+  },
+  {
+    "path": [
+      "objects",
+      "C18F02852D729A6A009E49DD",
+      "membershipExceptions"
+    ],
+    "before": [
+      "shared_cache_linker.exp"
+    ],
+    "after": [
+      "shared_cache_linker.exp",
+      "SharedCacheLinker_private.h"
+    ]
+  }
+]

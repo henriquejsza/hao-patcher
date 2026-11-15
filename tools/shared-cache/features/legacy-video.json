@@ -1,0 +1,10 @@
+{
+  "providers": {
+    "AppleGVA": "/System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA",
+    "AppleGVACore": "/System/Library/PrivateFrameworks/AppleGVACore.framework/Versions/A/AppleGVACore"
+  },
+  "applies": {
+    "architecture": "x86_64",
+    "gpu": "Intel Ivy Bridge"
+  }
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/libplatform/2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3/private/_simple.h",
+    "destination": "include/_simple.h"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/libkern/os/atomic_private.h",
+    "destination": "include/os/atomic_private.h"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/libplatform/main/private/os/lock_private.h",
+    "destination": "include/os/lock_private.h"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/libkern/os/atomic_private_impl.h",
+    "destination": "include/os/atomic_private_impl.h"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/libkern/os/atomic_private_arch.h",
+    "destination": "include/os/atomic_private_arch.h"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/libkern/os/base_private.h",
+    "destination": "include/os/base_private.h"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/kdebug_private.h",
+    "destination": "include/sys/kdebug_private.h",
+    "sha256": "96647ce7e511e567e9c2640074adc92f5427cbb356b23110872aa5964f341db2"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/CommonCrypto/main/include/Private/CommonDigestSPI.h",
+    "destination": "include/CommonCrypto/CommonDigestSPI.h",
+    "sha256": "2a92cebc6051ea436346055a27b718424a5c5356198f11262735613b31314aaf"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/csr.h",
+    "destination": "include/System/sys/csr.h",
+    "sha256": "1787401f91a9d294b6ae18b49595c2d0a56ade74206707260dae42d0abf5d5a3"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/fsgetpath.h",
+    "destination": "include/System/sys/fsgetpath.h",
+    "sha256": "709afe8ffc7c6ea53050968cc3777652d5c1f864a3b9a9645f671e384b7d16b5"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/reason.h",
+    "destination": "include/System/sys/reason.h",
+    "sha256": "9ebd75ba6afd899dc096f7cf6e82c391d38afbc29d5d2e14b3ce652e3873a6ec"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/kdebug.h",
+    "destination": "include/System/sys/kdebug.h",
+    "sha256": "7ce58095c34a1a0e7a675ce675202d95e2921192d58e87ef07d1b3ab6fffd787"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/main/stdlib/FreeBSD/atexit.h",
+    "destination": "include/System/atexit.h",
+    "sha256": "d9aa143cf5c5af250b3a6451bfe963996e7c1a4eb1fdfc74ee2e0f3773f47961"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/main/darwin/libc_private.h",
+    "destination": "include/libc_private.h",
+    "sha256": "602255858bbcb7bdbd7e6fcefc254e4af401b92ed81d51b7d5d14adef9764885"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/swiftlang/swift",
+  "commit": "caab90f7f930e77ac7e460151754f73cb3a848bc",
+  "files": [
+    {
+      "path": "include/swift/SwiftRemoteMirror/SwiftRemoteMirror.h",
+      "sha256": "df536a5d1da9fc0571f0f5776ada47c144e0e0178e8e5da4c56390e95dfd9f29"
+    },
+    {
+      "path": "include/swift/SwiftRemoteMirror/SwiftRemoteMirrorTypes.h",
+      "sha256": "81bab9f98a60810cd3865bf413ae557a777cc10e040ed0a2f890ec4929b3dc0c"
+    },
+    {
+      "path": "include/swift/SwiftRemoteMirror/MemoryReaderInterface.h",
+      "sha256": "cabd8eee48df2970980c25b66d893e22184ff934eb74989a4d42fbc490c952a3"
+    },
+    {
+      "path": "include/swift/SwiftRemoteMirror/Platform.h",
+      "sha256": "bad043e3cd2c643210247bd6e7117cf49306441652c80ef723299b0c424108fe"
+    },
+    {
+      "path": "LICENSE.txt",
+      "sha256": "770af8291f708538d8ff885a0bbc4e045cd700531741c4f99528d435c14d7f55"
+    }
+  ]
+}

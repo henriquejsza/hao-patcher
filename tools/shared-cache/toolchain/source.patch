@@ -1,0 +1,1116 @@
+diff --git a/build-scripts/prebuilt-loader-hash.sh b/build-scripts/prebuilt-loader-hash.sh
+index 98b0119..e75ffde 100755
+--- a/build-scripts/prebuilt-loader-hash.sh
++++ b/build-scripts/prebuilt-loader-hash.sh
+@@ -5,7 +5,7 @@ echo -e "#include \"PrebuiltLoader.h\"\n#include \"PrebuiltObjC.h\"\n#include \"
+ 
+ # always preprocess headers using macOS SDK
+ # use "env -i" to remove other env vars set by xcode to keep side-channel info about real platform away from xcrun and clang
+-env -i DEVELOPER_DIR=${DEVELOPER_DIR} xcrun -v -sdk macosx.internal clang++ -target arm64-apple-macos13.0 -DBUILDING_DYLD=1 -std=c++2a -w -Wno-incompatible-sysroot -fsyntax-only -Xclang -fdump-record-layouts -Icommon -Idyld -Iinclude -Icache_builder -Ilsl -Imach_o -Iinclude/mach-o ${DERIVED_FILE_DIR}/test.cpp >${DERIVED_FILE_DIR}/test.out
++env -i DEVELOPER_DIR=${DEVELOPER_DIR} xcrun -v -sdk macosx clang++ -target arm64-apple-macos13.0 -DBUILDING_DYLD=1 -std=c++2a -w -Wno-incompatible-sysroot -fsyntax-only -Xclang -fdump-record-layouts -Icommon -Idyld -Iinclude -Icache_builder -Ilsl -Imach_o -Iinclude/mach-o ${DERIVED_FILE_DIR}/test.cpp >${DERIVED_FILE_DIR}/test.out
+ 
+ grep -A100 "class dyld4::PrebuiltLoader"                                            ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/pbl.ast
+ grep -A100 "struct dyld4::PrebuiltLoaderSet"                                        ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/pbls.ast
+diff --git a/cache_builder/NewSharedCacheBuilder.cpp b/cache_builder/NewSharedCacheBuilder.cpp
+index 6ddc1c4..f15fb5b 100644
+--- a/cache_builder/NewSharedCacheBuilder.cpp
++++ b/cache_builder/NewSharedCacheBuilder.cpp
+@@ -884,6 +884,8 @@ void SharedCacheBuilder::categorizeInputs()
+     }
+ }
+ 
++#include "CandidateMissingWeakDylibs.h"
++
+ void SharedCacheBuilder::verifySelfContained()
+ {
+     Timer::Scope timedScope(this->config, "verifySelfContained time");
+diff --git a/cache_builder/mrm_shared_cache_builder.cpp b/cache_builder/mrm_shared_cache_builder.cpp
+index 19e0488..3d35db0 100644
+--- a/cache_builder/mrm_shared_cache_builder.cpp
++++ b/cache_builder/mrm_shared_cache_builder.cpp
+@@ -3220,6 +3220,12 @@ bool runSharedCacheBuilder(struct MRMSharedCacheBuilder* builder) {
+         if ( !createBuilders(builder) )
+             return;
+         
++        for ( const auto& instance : builder->builders ) {
++            if ( instance.options->platform.isSimulator() || !instance.options->swiftGenericMetadataFile.empty() ) {
++                builder->error("unsupported: bounded published-source build cannot synthesize Swift metadata or simulator host dylibs");
++                return;
++            }
++        }
+         runBuilders(builder);
+ 
+ 
+diff --git a/common/Array.h b/common/Array.h
+index d816fe2..ea9cf44 100644
+--- a/common/Array.h
++++ b/common/Array.h
+@@ -191,7 +191,11 @@ inline void OverflowSafeArray<T,MAXCOUNT>::growTo(uint64_t n)
+         snprintf(crashString, sizeof(crashString), "OverflowSafeArray failed to allocate %llu bytes, vm_allocate returned: %d\n",
+                  (uint64_t)_overflowBufferSize, kr);
+ #endif
++#if __has_include(<CrashReporterClient.h>)
+         CRSetCrashLogMessage(crashString);
++#else
++        fputs(crashString, stderr); // public-SDK allocation-failure diagnostic
++#endif
+ #endif
+         assert(0);
+     }
+diff --git a/common/FileManager.cpp b/common/FileManager.cpp
+index c541e04..9e7636a 100644
+--- a/common/FileManager.cpp
++++ b/common/FileManager.cpp
+@@ -36,6 +36,8 @@
+ #include <System/sys/fsgetpath.h>
+ 
+ #include "FileManager.h"
++// Exact kernel ABI and caller/export verification recorded in candidate-policy-oracle/openbyid-abi.txt.
++extern "C" int openbyid_np(fsid_t*, fsobj_id_t*, int);
+ 
+ namespace dyld4 {
+ 
+diff --git a/common/MachOFile.cpp b/common/MachOFile.cpp
+index 4e4fcc1..00c5b8e 100644
+--- a/common/MachOFile.cpp
++++ b/common/MachOFile.cpp
+@@ -46,9 +46,6 @@
+   #include <mach-o/x86_64/reloc.h>
+ #endif
+ extern "C" {
+-  #include <corecrypto/ccdigest.h>
+-  #include <corecrypto/ccsha1.h>
+-  #include <corecrypto/ccsha2.h>
+ }
+ #endif
+ 
+@@ -67,6 +64,7 @@ extern "C" {
+ #include "Array.h"
+ #include "UnsafeHeader.h"
+ #include "MachOFile.h"
++#include <CommonCrypto/CommonDigest.h>
+ #include "Platform.h"
+ #include "SupportedArchs.h"
+ #include "Universal.h"
+@@ -2237,26 +2235,16 @@ void MachOFile::forEachCDHashOfCodeSignature(const void* codeSigStart, size_t co
+         uint32_t cdLength = htonl(cd->length);
+         uint8_t cdHash[20];
+         if ( cd->hashType == CS_HASHTYPE_SHA384 ) {
+-            uint8_t digest[CCSHA384_OUTPUT_SIZE];
+-            const struct ccdigest_info* di = ccsha384_di();
+-            ccdigest_di_decl(di, tempBuf); // declares tempBuf array in stack
+-            ccdigest_init(di, tempBuf);
+-            ccdigest_update(di, tempBuf, cdLength, cd);
+-            ccdigest_final(di, tempBuf, digest);
+-            ccdigest_di_clear(di, tempBuf);
++            uint8_t digest[CC_SHA384_DIGEST_LENGTH];
++            CC_SHA384(cd, cdLength, digest);
+             // cd-hash of sigs that use SHA384 is the first 20 bytes of the SHA384 of the code digest
+             memcpy(cdHash, digest, 20);
+             callback(cdHash);
+             return;
+         }
+         else if ( (cd->hashType == CS_HASHTYPE_SHA256) || (cd->hashType == CS_HASHTYPE_SHA256_TRUNCATED) ) {
+-            uint8_t digest[CCSHA256_OUTPUT_SIZE];
+-            const struct ccdigest_info* di = ccsha256_di();
+-            ccdigest_di_decl(di, tempBuf); // declares tempBuf array in stack
+-            ccdigest_init(di, tempBuf);
+-            ccdigest_update(di, tempBuf, cdLength, cd);
+-            ccdigest_final(di, tempBuf, digest);
+-            ccdigest_di_clear(di, tempBuf);
++            uint8_t digest[CC_SHA256_DIGEST_LENGTH];
++            CC_SHA256(cd, cdLength, digest);
+             // cd-hash of sigs that use SHA256 is the first 20 bytes of the SHA256 of the code digest
+             memcpy(cdHash, digest, 20);
+             callback(cdHash);
+@@ -2264,12 +2252,7 @@ void MachOFile::forEachCDHashOfCodeSignature(const void* codeSigStart, size_t co
+         }
+         else if ( cd->hashType == CS_HASHTYPE_SHA1 ) {
+             // compute hash directly into return buffer
+-            const struct ccdigest_info* di = ccsha1_di();
+-            ccdigest_di_decl(di, tempBuf); // declares tempBuf array in stack
+-            ccdigest_init(di, tempBuf);
+-            ccdigest_update(di, tempBuf, cdLength, cd);
+-            ccdigest_final(di, tempBuf, cdHash);
+-            ccdigest_di_clear(di, tempBuf);
++            CC_SHA1(cd, cdLength, cdHash);
+             callback(cdHash);
+             return;
+         }
+diff --git a/common/MachOLoaded.cpp b/common/MachOLoaded.cpp
+index 2dcf7e1..6b40ebb 100644
+--- a/common/MachOLoaded.cpp
++++ b/common/MachOLoaded.cpp
+@@ -41,9 +41,6 @@
+ 
+ #if !TARGET_OS_EXCLAVEKIT
+ extern "C" {
+-  #include <corecrypto/ccdigest.h>
+-  #include <corecrypto/ccsha1.h>
+-  #include <corecrypto/ccsha2.h>
+ }
+ #endif
+ 
+diff --git a/common/Utilities.cpp b/common/Utilities.cpp
+index 0543743..f2a9b82 100644
+--- a/common/Utilities.cpp
++++ b/common/Utilities.cpp
+@@ -31,8 +31,8 @@
+ #endif
+ 
+ extern "C" {
+-#include <corecrypto/ccdigest.h>
+-#include <corecrypto/ccsha2.h>
++#include <CommonCrypto/CommonDigest.h>
++
+ }
+ 
+ #include "Utilities.h"
+@@ -164,12 +164,15 @@ ssize_t write64(int fd, const void* buf, size_t nbyte)
+ #if !TARGET_OS_EXCLAVEKIT
+ void sha256(std::span<const uint8_t> inputBuffer, std::span<uint8_t,32> result)
+ {
+-    const struct ccdigest_info* di = ccsha256_di();
+-    ccdigest_di_decl(di, tempBuf); // declares tempBuf array in stack
+-    ccdigest_init(di, tempBuf);
+-    ccdigest_update(di, tempBuf, inputBuffer.size(), inputBuffer.data());
+-    ccdigest_final(di, tempBuf, result.data());
+-    ccdigest_di_clear(di, tempBuf);
++    CC_SHA256_CTX context;
++    CC_SHA256_Init(&context);
++    size_t offset = 0;
++    while ( offset < inputBuffer.size() ) {
++        CC_LONG count = (CC_LONG)std::min<size_t>(inputBuffer.size() - offset, UINT32_MAX);
++        CC_SHA256_Update(&context, inputBuffer.data() + offset, count);
++        offset += count;
++    }
++    CC_SHA256_Final(result.data(), &context);
+ }
+ #endif
+ 
+diff --git a/configs/shared_cache_builder_base.xcconfig b/configs/shared_cache_builder_base.xcconfig
+index 00cbdce..0bf4579 100644
+--- a/configs/shared_cache_builder_base.xcconfig
++++ b/configs/shared_cache_builder_base.xcconfig
+@@ -3,6 +3,6 @@
+ ARCHS                     = arm64 x86_64
+ EXCLUDED_ARCHS            = arm64e
+ 
+-OTHER_LDFLAGS=$(inherited) -L${SRCROOT}/cache_builder -lCrashReporterClient
++OTHER_LDFLAGS=$(inherited) -L${SRCROOT}/cache_builder 
+ 
+ LD_RUNPATH_SEARCH_PATHS=$(inherited) @loader_path/ @loader_path/../lib/swift @loader_path/../lib
+diff --git a/configs/shared_cache_linker.xcconfig b/configs/shared_cache_linker.xcconfig
+index b54ffb1..c903b6a 100644
+--- a/configs/shared_cache_linker.xcconfig
++++ b/configs/shared_cache_linker.xcconfig
+@@ -13,7 +13,7 @@ GCC_SYMBOLS_PRIVATE_EXTERN = YES
+ VERSION_INFO_STRING = "@(#)PROGRAM:SharedCacheLinker PROJECT:ld-$(CURRENT_PROJECT_VERSION)"
+ 
+ SUPPORTS_TEXT_BASED_API = YES
+-TAPI_ENABLE_PROJECT_HEADERS = YES
++TAPI_ENABLE_PROJECT_HEADERS = NO
+ TAPI_LANGUAGE = c++
+ TAPI_LANGUAGE_STANDARD = ${CLANG_CXX_LANGUAGE_STANDARD}
+ TAPI_VERIFY_MODE = Pedantic
+@@ -21,7 +21,7 @@ TAPI_VERIFY_MODE = Pedantic
+ GCC_SYMBOLS_PRIVATE_EXTERN = YES
+ OTHER_TAPI_FLAGS = -fvisibility=hidden
+ 
+-OTHER_LDFLAGS = $(inherited) -lCrashReporterClient
++OTHER_LDFLAGS =
+ 
+ // rdar://123474729 (-fvisibility=hidden doesn't hide all <filesystem> symbols)
+ EXPORTED_SYMBOLS_FILE = shared_cache_linker/shared_cache_linker.exp
+diff --git a/dyld/DyldDelegates.cpp b/dyld/DyldDelegates.cpp
+index 5195e66..72b67f6 100644
+--- a/dyld/DyldDelegates.cpp
++++ b/dyld/DyldDelegates.cpp
+@@ -35,7 +35,7 @@
+     #include <sys/uio.h>
+     #include <sys/un.h>
+     #if __arm64__
+-        #include <System/sys/mman.h>
++        #include <sys/mman.h>
+     #else
+         #include <sys/mman.h>
+     #endif
+@@ -51,14 +51,16 @@
+     #include <System/sys/reason.h>
+     #include <kern/kcdata.h>
+     //FIXME: Hack to avoid <sys/commpage.h> being included by <System/machine/cpu_capabilities.h>
++    #if BUILDING_DYLD // references below are runtime-only
+     #include <System/sys/commpage.h>
+     #include <System/machine/cpu_capabilities.h>
+     #include <System/sys/content_protection.h>
+     #include <sandbox/private.h>
++    #endif
+     #include <sys/syscall.h>
+     #include <sys/attr.h>
+     #include <sys/vnode.h>
+-    #if !TARGET_OS_DRIVERKIT
++    #if BUILDING_DYLD && !TARGET_OS_DRIVERKIT
+         #include <vproc_priv.h>
+     #endif
+     // no libc header for send() syscall interface
+diff --git a/dyld/DyldProcessConfig.cpp b/dyld/DyldProcessConfig.cpp
+index fd28975..9b7bb38 100644
+--- a/dyld/DyldProcessConfig.cpp
++++ b/dyld/DyldProcessConfig.cpp
+@@ -941,7 +941,7 @@ ProcessConfig::Security::Security(Process& process, SyscallDelegate& syscall)
+     // env vars are only pruned on macOS
+     switch ( process.platform.value() ) {
+         case PLATFORM_MACOS:
+-        case PLATFORM_IOSMAC:
++        case PLATFORM_MACCATALYST:
+         case PLATFORM_DRIVERKIT:
+             break;
+         default:
+@@ -1897,7 +1897,11 @@ ProcessConfig::PathOverrides::PathOverrides(const Process& process, const Securi
+         if ( strlen(crashMsg) > 15 ) {
+             // if there is a crash, have DYLD_ env vars show up in crash log as secondary string
+             // main string is missing symbol/dylib message
++#if __has_include(<CrashReporterClient.h>)
+             CRSetCrashLogMessage2(allocator.strdup(crashMsg));
++#else
++            fputs(crashMsg, stderr); // public-SDK host diagnostic; no config behavior changes
++#endif
+         }
+     }
+     else if ( log.searching ) {
+diff --git a/include/mach-o/dyld.h b/include/mach-o/dyld.h
+index 7bf19c0..de6aa56 100644
+--- a/include/mach-o/dyld.h
++++ b/include/mach-o/dyld.h
+@@ -1,3 +1,6 @@
++#ifndef DYLD_EXCLAVEKIT_UNAVAILABLE
++#define DYLD_EXCLAVEKIT_UNAVAILABLE
++#endif
+ /*
+  * Copyright (c) 1999-2008 Apple Inc. All rights reserved.
+  *
+@@ -119,7 +122,7 @@ extern void _tlv_bootstrap(void)                                             __A
+  * cannot stat() the file to see if it "exists".  This function is like a stat() call that checks if a
+  * path is to a dylib that was removed from disk and is incorporated into the active dyld cache.
+  */
+-extern bool _dyld_shared_cache_contains_path(const char* path)               __API_AVAILABLE(macos(11.0), ios(14.0), watchos(7.0), tvos(14.0), bridgeos(5.0)) DYLD_DRIVERKIT_UNAVAILABLE;
++extern bool _dyld_shared_cache_contains_path(const char* path)               __API_AVAILABLE(macos(11.0), ios(14.0), watchos(7.0), tvos(14.0)) DYLD_DRIVERKIT_UNAVAILABLE;
+ 
+ 
+ /*
+@@ -163,22 +166,22 @@ typedef struct __NSObjectFileImage* NSObjectFileImage;
+ 
+ 
+ /* NSObjectFileImage can only be used with MH_BUNDLE files */
+-extern NSObjectFileImageReturnCode NSCreateObjectFileImageFromFile(const char* pathName, NSObjectFileImage *objectFileImage)               __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen()");
+-extern NSObjectFileImageReturnCode NSCreateObjectFileImageFromMemory(const void *address, size_t size, NSObjectFileImage *objectFileImage) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern bool                        NSDestroyObjectFileImage(NSObjectFileImage objectFileImage)                                             __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlclose()");
++extern NSObjectFileImageReturnCode NSCreateObjectFileImageFromFile(const char* pathName, NSObjectFileImage *objectFileImage)               __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen()");
++extern NSObjectFileImageReturnCode NSCreateObjectFileImageFromMemory(const void *address, size_t size, NSObjectFileImage *objectFileImage) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern bool                        NSDestroyObjectFileImage(NSObjectFileImage objectFileImage)                                             __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlclose()");
+ 
+-extern uint32_t     NSSymbolDefinitionCountInObjectFileImage(NSObjectFileImage objectFileImage)                   __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern const char*  NSSymbolDefinitionNameInObjectFileImage(NSObjectFileImage objectFileImage, uint32_t ordinal)  __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern uint32_t     NSSymbolReferenceCountInObjectFileImage(NSObjectFileImage objectFileImage)                    __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern const char*  NSSymbolReferenceNameInObjectFileImage(NSObjectFileImage objectFileImage, uint32_t ordinal, bool *tentative_definition) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern bool         NSIsSymbolDefinedInObjectFileImage(NSObjectFileImage objectFileImage, const char* symbolName) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern void*        NSGetSectionDataInObjectFileImage(NSObjectFileImage objectFileImage, const char* segmentName, const char* sectionName, size_t *size) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "getsectiondata()");
++extern uint32_t     NSSymbolDefinitionCountInObjectFileImage(NSObjectFileImage objectFileImage)                   __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern const char*  NSSymbolDefinitionNameInObjectFileImage(NSObjectFileImage objectFileImage, uint32_t ordinal)  __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern uint32_t     NSSymbolReferenceCountInObjectFileImage(NSObjectFileImage objectFileImage)                    __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern const char*  NSSymbolReferenceNameInObjectFileImage(NSObjectFileImage objectFileImage, uint32_t ordinal, bool *tentative_definition) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern bool         NSIsSymbolDefinedInObjectFileImage(NSObjectFileImage objectFileImage, const char* symbolName) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern void*        NSGetSectionDataInObjectFileImage(NSObjectFileImage objectFileImage, const char* segmentName, const char* sectionName, size_t *size) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "getsectiondata()");
+ 
+ typedef struct __NSModule* NSModule;
+-extern const char*  NSNameOfModule(NSModule m)         __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern const char*  NSLibraryNameForModule(NSModule m) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern const char*  NSNameOfModule(NSModule m)         __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern const char*  NSLibraryNameForModule(NSModule m) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+ 
+-extern NSModule NSLinkModule(NSObjectFileImage objectFileImage, const char* moduleName, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen()");
++extern NSModule NSLinkModule(NSObjectFileImage objectFileImage, const char* moduleName, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen()");
+ #define NSLINKMODULE_OPTION_NONE                         0x0
+ #define NSLINKMODULE_OPTION_BINDNOW                      0x1
+ #define NSLINKMODULE_OPTION_PRIVATE                      0x2
+@@ -186,27 +189,27 @@ extern NSModule NSLinkModule(NSObjectFileImage objectFileImage, const char* modu
+ #define NSLINKMODULE_OPTION_DONT_CALL_MOD_INIT_ROUTINES  0x8
+ #define NSLINKMODULE_OPTION_TRAILING_PHYS_NAME          0x10
+ 
+-extern bool NSUnLinkModule(NSModule module, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern bool NSUnLinkModule(NSModule module, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+ #define NSUNLINKMODULE_OPTION_NONE                  0x0
+ #define NSUNLINKMODULE_OPTION_KEEP_MEMORY_MAPPED    0x1
+ #define NSUNLINKMODULE_OPTION_RESET_LAZY_REFERENCES	0x2
+ 
+ /* symbol API */
+ typedef struct __NSSymbol* NSSymbol;
+-extern bool     NSIsSymbolNameDefined(const char* symbolName)                                                    __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern bool     NSIsSymbolNameDefinedWithHint(const char* symbolName, const char* libraryNameHint)               __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern bool     NSIsSymbolNameDefinedInImage(const struct mach_header* image, const char* symbolName)            __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern NSSymbol NSLookupAndBindSymbol(const char* symbolName)                                                    __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern NSSymbol NSLookupAndBindSymbolWithHint(const char* symbolName, const char* libraryNameHint)               __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern NSSymbol NSLookupSymbolInModule(NSModule module, const char* symbolName)                                  __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
+-extern NSSymbol NSLookupSymbolInImage(const struct mach_header* image, const char* symbolName, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
++extern bool     NSIsSymbolNameDefined(const char* symbolName)                                                    __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern bool     NSIsSymbolNameDefinedWithHint(const char* symbolName, const char* libraryNameHint)               __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern bool     NSIsSymbolNameDefinedInImage(const struct mach_header* image, const char* symbolName)            __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern NSSymbol NSLookupAndBindSymbol(const char* symbolName)                                                    __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern NSSymbol NSLookupAndBindSymbolWithHint(const char* symbolName, const char* libraryNameHint)               __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern NSSymbol NSLookupSymbolInModule(NSModule module, const char* symbolName)                                  __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
++extern NSSymbol NSLookupSymbolInImage(const struct mach_header* image, const char* symbolName, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
+ #define NSLOOKUPSYMBOLINIMAGE_OPTION_BIND            0x0
+ #define NSLOOKUPSYMBOLINIMAGE_OPTION_BIND_NOW        0x1
+ #define NSLOOKUPSYMBOLINIMAGE_OPTION_BIND_FULLY      0x2
+ #define NSLOOKUPSYMBOLINIMAGE_OPTION_RETURN_ON_ERROR 0x4
+-extern const char*  NSNameOfSymbol(NSSymbol symbol)    __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+-extern void *       NSAddressOfSymbol(NSSymbol symbol) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
+-extern NSModule     NSModuleForSymbol(NSSymbol symbol) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dladdr()");
++extern const char*  NSNameOfSymbol(NSSymbol symbol)    __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern void *       NSAddressOfSymbol(NSSymbol symbol) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
++extern NSModule     NSModuleForSymbol(NSSymbol symbol) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dladdr()");
+ 
+ /* error handling API */
+ typedef enum {
+@@ -234,7 +237,7 @@ typedef enum {
+     NSOtherErrorInvalidArgs
+ } NSOtherErrorNumbers;
+ 
+-extern void NSLinkEditError(NSLinkEditErrors *c, int *errorNumber, const char** fileName, const char** errorString) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlerror()");
++extern void NSLinkEditError(NSLinkEditErrors *c, int *errorNumber, const char** fileName, const char** errorString) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlerror()");
+ 
+ typedef struct {
+      void     (*undefined)(const char* symbolName);
+@@ -243,27 +246,27 @@ typedef struct {
+                           const char* fileName, const char* errorString);
+ } NSLinkEditErrorHandlers;
+ 
+-extern void NSInstallLinkEditErrorHandlers(const NSLinkEditErrorHandlers *handlers) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
++extern void NSInstallLinkEditErrorHandlers(const NSLinkEditErrorHandlers *handlers) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "");
+ 
+-extern bool                      NSAddLibrary(const char* pathName)                   __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlopen()");
+-extern bool                      NSAddLibraryWithSearching(const char* pathName)      __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlopen()");
+-extern const struct mach_header* NSAddImage(const char* image_name, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen()");
++extern bool                      NSAddLibrary(const char* pathName)                   __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlopen()");
++extern bool                      NSAddLibraryWithSearching(const char* pathName)      __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlopen()");
++extern const struct mach_header* NSAddImage(const char* image_name, uint32_t options) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen()");
+ #define NSADDIMAGE_OPTION_NONE                  	0x0
+ #define NSADDIMAGE_OPTION_RETURN_ON_ERROR       	0x1
+ #define NSADDIMAGE_OPTION_WITH_SEARCHING        	0x2
+ #define NSADDIMAGE_OPTION_RETURN_ONLY_IF_LOADED 	0x4
+ #define NSADDIMAGE_OPTION_MATCH_FILENAME_BY_INSTALLNAME	0x8
+ 
+-extern bool _dyld_present(void)                                                              __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "always true");
+-extern bool _dyld_launched_prebound(void)                                                    __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "moot");
+-extern bool _dyld_all_twolevel_modules_prebound(void)                                        __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.3, 10.5, "moot");
+-extern bool _dyld_bind_fully_image_containing_address(const void* address)                   __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen(RTLD_NOW)");
+-extern bool _dyld_image_containing_address(const void* address)                              __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.3, 10.5, "dladdr()");
+-extern void _dyld_lookup_and_bind(const char* symbol_name, void **address, NSModule* module) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern void _dyld_lookup_and_bind_with_hint(const char* symbol_name, const char* library_name_hint, void** address, NSModule* module) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
+-extern void _dyld_lookup_and_bind_fully(const char* symbol_name, void** address, NSModule* module) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
++extern bool _dyld_present(void)                                                              __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "always true");
++extern bool _dyld_launched_prebound(void)                                                    __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "moot");
++extern bool _dyld_all_twolevel_modules_prebound(void)                                        __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.3, 10.5, "moot");
++extern bool _dyld_bind_fully_image_containing_address(const void* address)                   __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlopen(RTLD_NOW)");
++extern bool _dyld_image_containing_address(const void* address)                              __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.3, 10.5, "dladdr()");
++extern void _dyld_lookup_and_bind(const char* symbol_name, void **address, NSModule* module) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern void _dyld_lookup_and_bind_with_hint(const char* symbol_name, const char* library_name_hint, void** address, NSModule* module) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.4, "dlsym()");
++extern void _dyld_lookup_and_bind_fully(const char* symbol_name, void** address, NSModule* module) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.1, 10.5, "dlsym()");
+ 
+-extern const struct mach_header*  _dyld_get_image_header_containing_address(const void* address) __API_UNAVAILABLE(ios, tvos, watchos) __API_UNAVAILABLE(bridgeos) DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.3, 10.5, "dladdr()");
++extern const struct mach_header*  _dyld_get_image_header_containing_address(const void* address) __API_UNAVAILABLE(ios, tvos, watchos)  DYLD_DRIVERKIT_UNAVAILABLE DYLD_EXCLAVEKIT_UNAVAILABLE __OSX_DEPRECATED(10.3, 10.5, "dladdr()");
+ 
+ 
+ #if __cplusplus
+diff --git a/include/mach-o/dyld_priv.h b/include/mach-o/dyld_priv.h
+index dc5c632..a9d604d 100644
+--- a/include/mach-o/dyld_priv.h
++++ b/include/mach-o/dyld_priv.h
+@@ -1,3 +1,6 @@
++#ifndef DYLD_EXCLAVEKIT_UNAVAILABLE
++#define DYLD_EXCLAVEKIT_UNAVAILABLE
++#endif
+ /* -*- mode: C++; c-basic-offset: 4; tab-width: 4 -*-
+  *
+  * Copyright (c) 2003-2010 Apple Inc. All rights reserved.
+@@ -255,7 +258,7 @@ typedef struct {
+ } dyld_build_version_t;
+ 
+ // Returns the active platform of the process
+-extern dyld_platform_t dyld_get_active_platform(void) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern dyld_platform_t dyld_get_active_platform(void) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // Base platforms are platforms that have version numbers (macOS, iOS, watchos, tvOS, bridgeOS)
+ // All other platforms are mapped to a base platform for version checks
+@@ -281,36 +284,36 @@ extern dyld_platform_t dyld_get_active_platform(void) __API_AVAILABLE(macos(10.1
+ //      Old behaviour all other platforms, as well as older iOSes and watchOSes
+ //  }
+ 
+-extern dyld_platform_t dyld_get_base_platform(dyld_platform_t platform) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern dyld_platform_t dyld_get_base_platform(dyld_platform_t platform) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // SPI to ask if a platform is a simulation platform
+-extern bool dyld_is_simulator_platform(dyld_platform_t platform) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern bool dyld_is_simulator_platform(dyld_platform_t platform) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // Takes a version and returns if the image was built against that SDK or newer
+ // In the case of multi_platform mach-o's it tests against the active platform
+-extern bool dyld_sdk_at_least(const struct mach_header* mh, dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern bool dyld_sdk_at_least(const struct mach_header* mh, dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // Takes a version and returns if the image was built with that minos version or newer
+ // In the case of multi_plaform mach-o's it tests against the active platform
+-extern bool dyld_minos_at_least(const struct mach_header* mh, dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern bool dyld_minos_at_least(const struct mach_header* mh, dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // Convenience versions of the previous two functions that run against the the main executable
+-extern bool dyld_program_sdk_at_least(dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
+-extern bool dyld_program_minos_at_least(dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern bool dyld_program_sdk_at_least(dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
++extern bool dyld_program_minos_at_least(dyld_build_version_t version) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // Returns a token that can be used for version compares. This is intend to be used by frameworks that
+ // must send the information over to a daemon which performs the compare. These values should not be stored and
+ // are not guaranteed to be stable between OS releases.
+ 
+-extern uint64_t dyld_get_program_sdk_version_token()  __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0), bridgeos(9.0));
+-extern uint64_t dyld_get_program_minos_version_token()  __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0), bridgeos(9.0));
+-extern dyld_platform_t dyld_version_token_get_platform(uint64_t token) __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0), bridgeos(9.0));
+-extern bool dyld_version_token_at_least(uint64_t token, dyld_build_version_t version) __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0), bridgeos(9.0));
++extern uint64_t dyld_get_program_sdk_version_token()  __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0));
++extern uint64_t dyld_get_program_minos_version_token()  __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0));
++extern dyld_platform_t dyld_version_token_get_platform(uint64_t token) __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0));
++extern bool dyld_version_token_at_least(uint64_t token, dyld_build_version_t version) __SPI_AVAILABLE(macos(15.0), ios(18.0), watchos(11.0), tvos(18.0));
+ 
+ // Function that walks through the load commands and calls the internal block for every version found
+ // Intended as a fallback for very complex (and rare) version checks, or for tools that need to
+ // print our everything for diagnostic reasons
+-extern void dyld_get_image_versions(const struct mach_header* mh, void (^callback)(dyld_platform_t platform, uint32_t sdk_version, uint32_t min_version)) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0), bridgeos(3.0));
++extern void dyld_get_image_versions(const struct mach_header* mh, void (^callback)(dyld_platform_t platform, uint32_t sdk_version, uint32_t min_version)) __API_AVAILABLE(macos(10.14), ios(12.0), watchos(5.0), tvos(12.0));
+ 
+ // Convenience constants for dyld version SPIs.
+ 
+diff --git a/libdyld/LibSystemHelpers.h b/libdyld/LibSystemHelpers.h
+index b8f3b0a..0a75f53 100644
+--- a/libdyld/LibSystemHelpers.h
++++ b/libdyld/LibSystemHelpers.h
+@@ -53,7 +53,8 @@
+   #define OS_UNFAIR_LOCK_NONE 0
+ #else
+   #include <pthread.h>
+-  #include <pthread/tsd_private.h>
++  // Exact declaration from Apple libpthread/private/pthread/tsd_private.h:264; exported by SDK libsystem_pthread.
++  extern "C" int pthread_key_init_np(int, void (*)(void *));
+   #include <unistd.h>
+   #include <malloc/malloc.h>
+   #include <os/lock_private.h>
+diff --git a/lsl/Allocator.cpp b/lsl/Allocator.cpp
+index 0b69036..347f7f6 100644
+--- a/lsl/Allocator.cpp
++++ b/lsl/Allocator.cpp
+@@ -371,7 +371,12 @@ void MemoryManager::vm_deallocate_bytes(void* p, uint64_t size) {
+         appendHexToString(&buffer[0], requestedTargetAlignment, 1024);
+         strlcat(&buffer[0], "\n\tkern return: 0x", 1024);
+         appendHexToString(&buffer[0], kr, 1024);
++#if __has_include(<CrashReporterClient.h>)
+         CRSetCrashLogMessage2(buffer);
++#else
++        // Public-SDK host: preserve allocation-failure diagnostic on stderr.
++        fputs(buffer, stderr);
++#endif
+         assert(0 && "vm_allocate failed");
+         return {nullptr, 0};
+     }
+diff --git a/lsl/Allocator.h b/lsl/Allocator.h
+index 36a17f3..f1f4bcd 100644
+--- a/lsl/Allocator.h
++++ b/lsl/Allocator.h
+@@ -50,8 +50,10 @@
+ 
+ 
+ #if ENABLE_CRASH_REPORTER
++#if __has_include(<CrashReporterClient.h>)
+ #include <CrashReporterClient.h>
+ #endif
++#endif
+ 
+ #include <new>
+ #include <stdio.h>
+diff --git a/mach_o/LinkerOptimizationHints.cpp b/mach_o/LinkerOptimizationHints.cpp
+index f18535f..d8ac685 100644
+--- a/mach_o/LinkerOptimizationHints.cpp
++++ b/mach_o/LinkerOptimizationHints.cpp
+@@ -122,7 +122,7 @@ static Error validFPAC(const char* name, std::span<const uint64_t> addrs,
+ Error LinkerOptimizationHints::valid(std::span<const MappedSegment> segments, uint64_t loadAddress) const
+ {
+ 
+-    return std::move(lohErr);
++    return Error("unsupported: published dyld1378 omits LOH validation implementation");
+ }
+ 
+ } // namespace mach_o
+diff --git a/shared_cache_linker/SharedCacheLinker.cpp b/shared_cache_linker/SharedCacheLinker.cpp
+index 6373f26..0caf9d7 100644
+--- a/shared_cache_linker/SharedCacheLinker.cpp
++++ b/shared_cache_linker/SharedCacheLinker.cpp
+@@ -1,559 +1,2 @@
+-/*
+- * Copyright (c) 2024 Apple Inc. All rights reserved.
+- *
+- * @APPLE_LICENSE_HEADER_START@
+- *
+- * This file contains Original Code and/or Modifications of Original Code
+- * as defined in and that are subject to the Apple Public Source License
+- * Version 2.0 (the 'License'). You may not use this file except in
+- * compliance with the License. Please obtain a copy of the License at
+- * http://www.opensource.apple.com/apsl/ and read it before using this
+- * file.
+- *
+- * The Original Code and all software distributed under the License are
+- * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+- * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+- * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+- * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+- * Please see the License for the specific language governing rights and
+- * limitations under the License.
+- *
+- * @APPLE_LICENSE_HEADER_END@
+- */
+-
+ #include "SharedCacheLinker.h"
+-#include "AtomFileFormat.h"
+-#include "SharedCacheLinker_private.h"
+-
+-// mach-o
+-#include "Architecture.h"
+-#include "Atom.h"
+-#include "Containers.h"
+-#include "Diagnostics.h"
+-#include "StringUtils.h"
+-
+-// ld
+-#include "Layout.h"
+-#include "AtomFileConsolidator.h"
+-#include "DynamicAtom.h"
+-#include "JSONReader.h"
+-#include "Linker.h"
+-
+-// Darwin
+-#include <mach-o/loader.h>
+-#include <sys/mman.h>
+-
+-using namespace ld;
+-using namespace mach_o;
+-using namespace json;
+-
+-struct JSONHeader
+-{
+-    uint64_t            version;
+-    PlatformAndVersions pvs;
+-    Architecture        arch;
+-    std::string         installName;
+-    std::string         options;
+-    const Node*         atoms=nullptr;
+-    const Node*         dylibs=nullptr;
+-    const Node*         customSections=nullptr;
+-};
+-
+-// map to fill references to dylibIndex fixups
+-using DylibIndexMap = StringViewMap<uint16_t>;
+-
+-static const Fixup::Kind fixupKindAndSizeFromString(CString str, uint32_t& size)
+-{
+-    if ( str == "ptr64" ) {
+-        size = 8;
+-        return Fixup::Kind::ptr64;
+-    }
+-
+-    if ( str == "ptr32" ) {
+-        size = 4;
+-        return Fixup::Kind::ptr32;
+-    }
+-
+-    if ( str == "arm64_auth_ptr" ) {
+-        size = 8;
+-        return Fixup::Kind::arm64_auth_ptr;
+-    }
+-
+-    if ( str == "dylibIndex" ) {
+-        size = 2;
+-        return Fixup::Kind::dylibIndex;
+-    }
+-
+-    return Fixup::Kind::none;
+-}
+-
+-static Atom::ContentType contentTypeFromString(CString str)
+-{
+-    if ( str == "constText" )
+-        return Atom::ContentType::constText;
+-    if ( str == "cstring" )
+-        return Atom::ContentType::cstringLiteral;
+-    if ( str == "data" )
+-        return Atom::ContentType::data;
+-    if ( str == "constData" )
+-        return Atom::ContentType::constData;
+-    if ( str == "objcData" )
+-        return Atom::ContentType::objcData;
+-    if ( str == "objcConst" )
+-        return Atom::ContentType::objcConst;
+-    if ( str == "function" )
+-        return Atom::ContentType::function;
+-    if ( str == "custom" )
+-        return Atom::ContentType::custom;
+-    // ld-prime doesn't need to understand these content types (yet)
+-    // so this uses a custom type with a custom section
+-    if ( str == "pointerHashTable" )
+-        return Atom::ContentType::custom;
+-    if ( str == "pointerHashTableKey" )
+-        return Atom::ContentType::custom;
+-
+-    return Atom::ContentType::invalid;
+-}
+-
+-
+-static void parseHeader(Diagnostics& diag, JSONHeader& header, const Node& rootNode)
+-{
+-    header.version = parseRequiredInt(diag, getRequiredValue(diag, rootNode, "version"));
+-    if ( diag.hasError() )
+-        return;
+-
+-    if ( header.version != 1 ) {
+-        diag.error("JSON version not supported: %llu", header.version);
+-        return;
+-    }
+-
+-    uint32_t           rawPlatform = (uint32_t)parseRequiredInt(diag, getRequiredValue(diag, rootNode, "platform"));
+-    const std::string& rawPlatformVersion = parseRequiredString(diag, getRequiredValue(diag, rootNode, "platformVersion"));
+-    const std::string& rawArch = parseRequiredString(diag, getRequiredValue(diag, rootNode, "arch"));
+-    header.installName  = parseRequiredString(diag, getRequiredValue(diag, rootNode, "installName"));
+-    if ( diag.hasError() )
+-        return;
+-
+-    header.arch = Architecture::byName(rawArch);
+-    if ( header.arch == Architecture::invalid  ) {
+-        diag.error("%s is not a valid architecture name", rawArch.c_str());
+-        return;
+-    }
+-
+-    Platform platform(rawPlatform);
+-    if ( Error err = platform.valid() ) {
+-        diag.error(err);
+-        return;
+-    }
+-
+-    Version32 ver;
+-    if ( Error err = Version32::fromString(rawPlatformVersion, ver) ) {
+-        diag.error(err);
+-        return;
+-    }
+-
+-    header.pvs.platform = platform;
+-    header.pvs.minOS    = ver;
+-    header.pvs.sdk      = ver;
+-
+-    header.atoms  = &getRequiredValue(diag, rootNode, "atoms");
+-    header.dylibs = getOptionalValue(diag, rootNode, "dylibs");
+-    header.customSections = getOptionalValue(diag, rootNode, "customSections");
+-
+-    if ( const Node* node = getOptionalValue(diag, rootNode, "options") ) {
+-        header.options = parseRequiredString(diag, *node);
+-    }
+-}
+-
+-static DynamicAtomFile* addDylib(Diagnostics& diag, File::Ordinal ordinal, AtomGroup atomGroup, const Node& node)
+-{
+-    const std::string& installName  = parseRequiredString(diag, getRequiredValue(diag, node, "installName"));
+-    Node        exports      = getRequiredValue(diag, node, "exports");
+-    if ( diag.hasError() )
+-        return nullptr;
+-
+-    // TODO: explicit versions?
+-    Version32 curVer;
+-    Version32 compatVer;
+-    DynamicAtomFile* af = new DynamicAtomFile(ordinal, CString::dup(installName), atomGroup);
+-
+-    __block std::vector<uint32_t> rawPlatforms;
+-    atomGroup.pvs.unzip(^(PlatformAndVersions pvs) {
+-        rawPlatforms.push_back(pvs.platform.value());
+-    });
+-    af->setDylibFileInfo(DylibFileInfo::makeDylibFileInfo(installName, curVer, compatVer, rawPlatforms, {}, {}, {}));
+-
+-    DylibExportsBuilder exportsBuilder(af, curVer, compatVer);
+-    for ( const Node& exportNode : exports.array ) {
+-        const std::string& name     = parseRequiredString(diag, getRequiredValue(diag, exportNode, "name"));
+-        bool               weakDef  = false;
+-
+-        if ( const Node* weakDefNode = getOptionalValue(diag, exportNode, "weakDef") )
+-            weakDef = parseRequiredBool(diag, *weakDefNode);
+-
+-        if ( diag.hasError() )
+-            return nullptr;
+-
+-        exportsBuilder.addDylibExport(name, weakDef);
+-    }
+-    exportsBuilder.finalize();
+-    af->setActive(false, true);
+-    af->reclaimAllocatorResources();
+-    return af;
+-}
+-
+-static void addFixup(Diagnostics& diag, const Architecture& arch, bool usesAuthPtrs,
+-                     DynamicAtom* atom, uint32_t offset, Fixup::Kind kind, const Atom* targetAtom,
+-                     const Node* addendNode, const Node* authPtrNode)
+-{
+-    int64_t addend = 0;
+-    if ( addendNode )
+-        addend = parseRequiredInt(diag, *addendNode);
+-
+-    if ( authPtrNode && kind != Fixup::Kind::arm64_auth_ptr ) {
+-       diag.error("only arm64_auth_ptr fixups can have 'authPtr' data");
+-       return;
+-    }
+-
+-    if ( kind == Fixup::Kind::arm64_auth_ptr ) {
+-        uint8_t  key = 0;
+-        bool     addr = false;
+-        uint16_t diversity = 0;
+-
+-        if ( !usesAuthPtrs ) {
+-            diag.error("arm64_auth_ptr fixup can't be used with %s architecture", arch.name());
+-            return;
+-        }
+-
+-        if ( authPtrNode ) {
+-            if ( const Node* keyNode = getOptionalValue(diag, *authPtrNode, "key") )
+-                key = (uint8_t)parseRequiredInt(diag, *keyNode);
+-            if ( const Node* addrNode = getOptionalValue(diag, *authPtrNode, "addr") )
+-                addr = parseRequiredBool(diag, *addrNode);
+-            if ( const Node* divNode = getOptionalValue(diag, *authPtrNode, "diversity") )
+-                diversity = (uint16_t)parseRequiredInt(diag, *divNode);
+-        }
+-
+-        atom->addFixupAuthPointer(offset, targetAtom, key, addr, diversity, (int32_t)addend);
+-        return;
+-    }
+-
+-
+-    // regular fixup
+-    atom->addFixup(kind, offset, targetAtom, addend);
+-}
+-
+-static void addAtoms(Diagnostics& diag, DynamicAtomFile* af, const Node& atomsNode, const DylibIndexMap& dylibIndexMap,
+-        std::span<const DynamicCustomSection> customSections, size_t pointerHashTableSectIndex, size_t pointerHashTableKeySectIndex)
+-{
+-    assert(af->atoms().empty());
+-
+-    // keep track of defined/undefined atom indexes in the atom file
+-    // indexes are needed to setup fixup targets
+-    StringViewMap<uint32_t> atomNameToTargetIndex;
+-    StringViewMap<uint32_t> dylibNameToTargetIndex;
+-
+-    // atom defaults
+-    const Atom::Alignment ptrSizeAlign(af->is64() ? 3 : 2);
+-    Architecture          arch = af->arch();
+-    bool                  usesAuthPtrs = arch.usesArm64AuthPointers();
+-
+-    // in first pass create all defined atoms to fill the name map
+-    for ( const Node& atomNode : atomsNode.array ) {
+-        const std::string& name = parseRequiredString(diag, getRequiredValue(diag, atomNode, "name"));
+-        const std::string& ctName = parseRequiredString(diag, getRequiredValue(diag, atomNode, "contentType"));
+-
+-        if ( diag.hasError() )
+-            return;
+-
+-        Atom::Scope         scope   = Atom::Scope::global;
+-        bool                weakDef = false;
+-        Atom::ContentType   ct      = contentTypeFromString(ctName);
+-        Atom::Alignment     align   = ptrSizeAlign;
+-
+-        if ( ct == Atom::ContentType::invalid ) {
+-            diag.error("unknown content type: %s", ctName.c_str());
+-            return;
+-        }
+-
+-        if ( const Node* alignNode = getOptionalValue(diag, atomNode, "p2align") ) {
+-            align = Atom::Alignment((int)parseRequiredInt(diag, *alignNode));
+-
+-            if ( diag.hasError() )
+-                return;
+-        }
+-
+-        if ( const Node* weakDefNode = getOptionalValue(diag, atomNode, "weakDef") )
+-            weakDef = parseRequiredBool(diag, *weakDefNode);
+-
+-        // default to 1-byte alignment for string literals
+-        if ( ct == Atom::ContentType::cstringLiteral )
+-            align = Atom::Alignment(0);
+-
+-        DynamicAtom* atom   = af->makeSymbolAtom(name, ct, scope, weakDef);
+-        atom->setAlignment(align);
+-        if ( atomNameToTargetIndex.find(atom->name().str()) != atomNameToTargetIndex.end() ) {
+-            diag.error("duplicate atom name: %s", name.c_str());
+-        } else {
+-            atomNameToTargetIndex[atom->name().str()] = atom->atomOrdinal();
+-        }
+-
+-        std::optional<uint64_t> customSectIndex;
+-        if ( const Node* customSection = getOptionalValue(diag, atomNode, "section") ) {
+-            uint64_t sectIndex = parseRequiredInt(diag, *customSection);
+-            if ( diag.hasError() )
+-                return;
+-            customSectIndex = sectIndex;
+-        } else {
+-            if ( ctName == "pointerHashTable" ) {
+-                customSectIndex = pointerHashTableSectIndex;
+-            } else if ( ctName == "pointerHashTableKey" ) {
+-                customSectIndex = pointerHashTableKeySectIndex;;
+-            }
+-        }
+-
+-        if ( customSectIndex ) {
+-            if ( *customSectIndex > customSections.size() ) {
+-                diag.error("Invalid section index (%llu) in atom %s, max allowed: %lu\n", *customSectIndex, name.c_str(), customSections.size());
+-                return;
+-            }
+-
+-            atom->setCustomSection(customSections[*customSectIndex]);
+-        }
+-    }
+-
+-    // now parse all atom contents and their fixups
+-    for ( size_t atomIndex = 0; atomIndex < atomsNode.array.size(); ++atomIndex ) {
+-        const Node&        atomNode = atomsNode.array[atomIndex];
+-        const Node&        contents = getRequiredValue(diag, atomNode, "contents");
+-        if ( diag.hasError() )
+-            return;
+-
+-        // note: atoms vector of the atom file can be modified in this loop, so call atoms() each time
+-        DynamicAtom* atom = (DynamicAtom*)af->atoms()[atomIndex];
+-        std::vector<uint8_t> bytes;
+-
+-        for ( const Node& contentEntry : contents.array ) {
+-            if ( contentEntry.map.empty() ) {
+-                // content bytes string
+-                std::string bytesFrag = parseRequiredString(diag, contentEntry);
+-                if ( bytesFrag.size() & 0x1 ) {
+-                    diag.error("odd length (%lu) of content hex string for atom: %s",
+-                               bytesFrag.size(),
+-                               atom->name().c_str());
+-                    return;
+-                }
+-
+-                for ( size_t i = 0; i < bytesFrag.size() / 2; ++i ) {
+-                    uint8_t high;
+-                    uint8_t low;
+-                    if ( !hexCharToUInt(bytesFrag[i * 2], high) || !hexCharToUInt(bytesFrag[(i * 2) + 1], low) ) {
+-                        diag.error("invalid hex content");
+-                        return;
+-                    }
+-
+-                    bytes.push_back((high << 4) | low);
+-                }
+-                continue;
+-            }
+-
+-            // handle fixup
+-            uint32_t targetIndex;
+-            const std::string& targetName = parseRequiredString(diag, getRequiredValue(diag, contentEntry, "target"));
+-            const std::string& kindStr = parseRequiredString(diag, getRequiredValue(diag, contentEntry, "kind"));
+-            if ( diag.hasError() )
+-                return;
+-
+-            uint32_t fixupSize = 0;
+-            Fixup::Kind kind = fixupKindAndSizeFromString(kindStr, fixupSize);
+-            if ( kind == Fixup::Kind::none ) {
+-                diag.error("unsupported fixup kind: %s", kindStr.c_str());
+-                return;
+-            }
+-
+-            // special case dylibIndex fixups
+-            // use anon placeholder atoms to turn dylib index fixups into constant values
+-            // note: alternative could be to use real fixups, but we'd need to teach shared cache builder to patch them too then
+-            if ( kind == Fixup::Kind::dylibIndex ) {
+-                if ( auto targetIt = dylibNameToTargetIndex.find(targetName); targetIt != dylibNameToTargetIndex.end() ) {
+-                    targetIndex = targetIt->second;
+-                } else {
+-                    uint16_t dylibIndex = 0;
+-                    if ( auto dylibIt = dylibIndexMap.find(targetName); dylibIt != dylibIndexMap.end() )
+-                        dylibIndex = dylibIt->second;
+-                    else {
+-                        diag.error("dylib index not found: %s", targetName.c_str());
+-                        return;
+-                    }
+-                    Atom* target = af->makeAnonPlaceholder(dylibIndex);
+-                    targetIndex = target->atomOrdinal();
+-                }
+-            } else if ( auto targetIt = atomNameToTargetIndex.find(targetName); targetIt != atomNameToTargetIndex.end() ) {
+-                targetIndex = targetIt->second;
+-            } else {
+-                Atom* target = af->makeUndefine(targetName);
+-                targetIndex = target->atomOrdinal();
+-                atomNameToTargetIndex[target->name().str()] = targetIndex;
+-            }
+-
+-            const Node* addendNode = getOptionalValue(diag, contentEntry, "addend");
+-            const Node* authPtrNode = getOptionalValue(diag, contentEntry, "authPtr");
+-            size_t newAtomSize = bytes.size() + fixupSize;
+-            atom->setContentAsZeros(newAtomSize);
+-            addFixup(diag, arch, usesAuthPtrs, atom, (uint32_t)bytes.size(), kind,
+-                     af->atoms()[targetIndex], addendNode, authPtrNode);
+-            if ( diag.hasError() )
+-                return;
+-
+-            // resize atom's byte to make place for the fixup content
+-            bytes.resize(newAtomSize);
+-
+-            if ( diag.hasError() )
+-                return;
+-        }
+-        atom->setRawContentBytes(bytes);
+-    }
+-}
+-
+-Error linkerMakeFromJSON(Linker& linker, std::span<const char> jsonData, std::span<const char*> dylibList, const char* outputPath)
+-{
+-    // read input JSON
+-    Diagnostics jsonDiag;
+-    Node rootNode = readJSON(jsonDiag, jsonData.data(), jsonData.size(), false /* useJSON5 */);
+-    if ( jsonDiag.hasError() )
+-        return jsonDiag.toError();
+-
+-    // parse JSON header to construct linker options and get root atom nodes
+-    JSONHeader header;
+-    parseHeader(jsonDiag, header, rootNode);
+-    if ( jsonDiag.hasError() )
+-        return jsonDiag.toError();
+-
+-    // configure linker
+-    char verStr[32];
+-    header.pvs.minOS.toString(verStr);
+-    std::vector<CString> rawArgv{"-arch", header.arch.name(),
+-        "-platform_version", header.pvs.platform.name(), verStr, verStr,
+-        "-dylib", "-o", outputPath,
+-        "-install_name", strdup(header.installName.data()),
+-        "-add_lldb_no_nlist_section" // rdar://146167046 (Please add `__TEXT,__lldb_no_nlist` section to libswiftPrespecialized.dylib)
+-    };
+-    // convert raw options string into options vector
+-    // this only splits options by a whitespace, no special logic to escape quotes or so
+-    CString extraArgv = header.options;
+-    while ( !extraArgv.empty() ) {
+-        if ( auto spacePos = extraArgv.find(' '); spacePos != CString::npos ) {
+-            rawArgv.push_back(extraArgv.dupSubstr(0, spacePos));
+-            extraArgv = extraArgv.substr(spacePos + 1);
+-        } else {
+-            rawArgv.push_back(extraArgv.dup());
+-            extraArgv = CString();
+-        }
+-    }
+-
+-    ArgVector argv(std::move(rawArgv));
+-    File::Ordinal baseOrdinal = argv.nextFileOrdinal();
+-    if ( Error err = linker.setOptions(std::move(argv)) )
+-        return jsonDiag.toError();
+-
+-    // create atom file to hold all content atoms
+-    baseOrdinal = baseOrdinal.nextFileListOrdinal();
+-    DynamicAtomFile* af = new DynamicAtomFile(baseOrdinal, "json.o",
+-                                              {linker.options().output.arch, linker.options().output.pvs});
+-
+-    // create dylib atom files and their exports
+-    bool hasLibSystem = false;
+-    baseOrdinal = baseOrdinal.nextFileListOrdinal();
+-    File::Ordinal reservedLibSystemOrdinal = baseOrdinal;
+-
+-    if ( header.dylibs ) {
+-        for ( const Node& dylib : header.dylibs->array ) {
+-            baseOrdinal = baseOrdinal.nextFileListOrdinal();
+-
+-            DynamicAtomFile* dylibAf = addDylib(jsonDiag, baseOrdinal, af->atomsGroup(), dylib);
+-            if ( jsonDiag.hasError() )
+-                return jsonDiag.toError();
+-
+-            assert(dylibAf);
+-            linker.addAtomFile(dylibAf);
+-
+-            if ( const DylibFileInfo* dylibInfo = dylibAf->dylibFileInfo() )
+-                hasLibSystem |= dylibInfo->installName().contains("libSystem");
+-        }
+-    }
+-    
+-    // always link with libSystem
+-    if ( !hasLibSystem ) {
+-        DynamicAtomFile* libSystem = new DynamicAtomFile(reservedLibSystemOrdinal, "/usr/lib/libSystem.B.dylib", af->atomsGroup());
+-
+-        __block std::vector<uint32_t> rawPlatforms;
+-        af->atomsGroup().pvs.unzip(^(PlatformAndVersions pvs) {
+-            rawPlatforms.push_back(pvs.platform.value());
+-        });
+-        libSystem->setDylibFileInfo(DylibFileInfo::makeDylibFileInfo("/usr/lib/libSystem.B.dylib",
+-                                    Version32(), Version32(), rawPlatforms, {}, {}, {}));
+-        linker.addAtomFile(libSystem);
+-    }
+-
+-    DylibIndexMap dylibIndexMap;
+-    for ( uint16_t i = 0; i < dylibList.size(); ++i )
+-        dylibIndexMap[dylibList[i]] = i;
+-
+-    std::vector<DynamicCustomSection> customSections;
+-    if ( header.customSections ) {
+-        if ( header.customSections->array.empty() ) {
+-            return Error("customSections can't be an empty, either add sections or remove the field entirely");
+-        }
+-
+-        for ( const Node& sectNode : header.customSections->array ) {
+-            const std::string& perms = parseRequiredString(jsonDiag, getRequiredValue(jsonDiag, sectNode, "segPerms"));
+-            const std::string& segName = parseRequiredString(jsonDiag, getRequiredValue(jsonDiag, sectNode, "segName"));
+-            const std::string& sectName = parseRequiredString(jsonDiag, getRequiredValue(jsonDiag, sectNode, "sectName"));
+-            if ( jsonDiag.hasError() )
+-                return jsonDiag.toError();
+-
+-            uint32_t segPerms = 0;
+-            if ( perms.find('r') != std::string::npos )
+-                segPerms |= PROT_READ;
+-            if ( perms.find('w') != std::string::npos )
+-                segPerms |= PROT_WRITE;
+-            if ( perms.find('x') != std::string::npos )
+-                segPerms |= PROT_EXEC;
+-
+-            uint32_t sectionFlags = S_REGULAR;
+-            if ( const Node* flagsNode = getOptionalValue(jsonDiag, sectNode, "sectFlags") )
+-                sectionFlags = (uint32_t)parseRequiredInt(jsonDiag, *flagsNode);
+-            if ( jsonDiag.hasError() )
+-                return jsonDiag.toError();
+-
+-            customSections.push_back(af->makeCustomSection(segPerms, sectionFlags, strdup(segName.c_str()), strdup(sectName.c_str())));
+-        }
+-    }
+-
+-    // reserve slots for pointer hash table sections
+-    size_t pointerHashTableSectIndex = customSections.size();
+-    customSections.push_back(af->makeCustomSection(PROT_READ | PROT_WRITE, S_REGULAR, "__DATA_CONST", "__ptrhashtab"));
+-    size_t pointerHashTableKeySectIndex = customSections.size();
+-    customSections.push_back(af->makeCustomSection(PROT_READ | PROT_WRITE, S_REGULAR, "__DATA_CONST", "__ptrhashtabkey"));
+-
+-    // add all content atoms
+-    addAtoms(jsonDiag, af, *header.atoms, dylibIndexMap, customSections, pointerHashTableSectIndex, pointerHashTableKeySectIndex);
+-    if ( jsonDiag.hasError() )
+-        return jsonDiag.toError();
+-
+-    linker.addAtomFile(af);
+-    return Error::none();
+-}
+-
+-const char* ldMakeDylibFromJSON(std::span<const char> jsonData, std::span<const char*> dylibList, const char* outputPath)
+-{
+-    Linker linker;
+-
+-    if ( Error err = linkerMakeFromJSON(linker, jsonData, dylibList, outputPath) )
+-        return strdup(err.message());
+-
+-    if ( Error err = linker.run() )
+-        return strdup(err.message());
+-
+-    return nullptr;
+-}
++const char* ldMakeDylibFromJSON(std::span<const char>, std::span<const char*>, const char*) { return "unsupported: published dyld1378 lacks required Apple linker sources"; }
