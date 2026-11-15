@@ -291,8 +291,8 @@ def neutral(path):
 
 
 def home_relative(path):
-    """PATH with a home folder (/Users/NAME or /var/root) written as ~, for records that ship: an artifact names no
-    account of the harvest laptop."""
+    """PATH with a home folder (an account folder under Users, or /var/root) written as ~, for records that ship: an
+    artifact names no account of the harvest laptop."""
     return re.sub(r'^(?:/Users/[^/]+|/var/root)(?=/|$)', '~', path)
 
 
