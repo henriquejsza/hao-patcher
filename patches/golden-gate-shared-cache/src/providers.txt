@@ -2,6 +2,8 @@
 # The artifact's retired-roots.txt must list every R line and may list C lines; any other root stops the build.
 #   R  an image of Apple's x86_64 cache family that the image has on disk (dyld counts it as overridden)
 #   C  a companion a provider loads, not in Apple's cache
+#   N  a cache image (fnmatch pattern) that may stay on disk after the fold because no process loads it on this Mac;
+#      the last gate skips it and lists it in the build record. Not a root: it is neither checked nor removed.
 # Apple's own (same build as the cache image; on disk in Apple's 26B131 root)
 R usr/lib/system/libsystem_kernel.dylib
 R usr/lib/system/libsystem_platform.dylib
@@ -35,3 +37,6 @@ C System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/LibSystem
 R System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA
 R System/Library/PrivateFrameworks/AppleGVACore.framework/Versions/A/AppleGVACore
 R System/Library/Extensions/AppleMultitouchDriver.kext/Contents/PlugIns/MultitouchHID.plugin/Contents/MacOS/MultitouchHID
+# patcher (with golden-gate-userspace r78): 27.x's Apple-silicon GPU drivers. Metal on this Mac loads only the HD 4000
+# driver its accelerator names, so no process opens these; the image keeps them on disk as Apple ships them.
+N System/Library/Extensions/AGXMetal*.bundle/Contents/MacOS/AGXMetal*

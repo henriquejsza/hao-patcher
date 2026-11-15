@@ -1,0 +1,4 @@
+# Shared-cache fold-in, family B+catalog (golden-gate-shared-cache-catalog, set dev-bs-test-fold-catalog): family B
+# (row rebuilt_cache) built with runtime-perf's catalog of 320 Swift records; cache UUID b3c88154. Same
+# generator commit 86dd72e, same System, roots and provider bytes as B; interpose-check 24/24.
+d56244eab2a7006d3131685e91fc7cd7c9be9e286be6e660b9bd58ee2ae15c14 store/artifacts/rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e

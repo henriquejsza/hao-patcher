@@ -5,15 +5,19 @@ cryptex's x86_64 shared cache becomes a rebuilt family that holds the libraries 
 cache install paths, and those files leave System. dyld then loads nothing from disk that the cache also has,
 `_dyld_shared_cache_some_image_overridden()` is false, and libswiftCore keeps its prespecialized metadata on with no
 cache edit. This is the 26B131 port of Tahoe's `shared-cache` recipe (19 providers, installed acceptance on
-Tahoe images). Only `pipeline/sets/dev-bs-test-fold.txt` has it. The A image (golden-gate-userspace r75: the switch
+Tahoe images). Only `pipeline/sets/dev-bs-test-fold.txt` has it; `golden-gate-shared-cache-catalog` runs the same
+code on the B+catalog family (set `dev-bs-test-fold-catalog`). The A image (golden-gate-userspace r75: the switch
 reads false, 113 descriptor slots nulled) stays as it is.
 
 ## Input
 
-`rebuilt_cache` (`pipeline/inputs/25G342/`): the shared-cache generator's artifact, made from a dev-bs-test image's OS cryptex and System. The recipe reads:
+`rebuilt_cache` (`pipeline/inputs/25G342/`): the shared-cache generator's artifact, made from a dev-bs-test image's
+OS cryptex and System (`rebuilt-cache-fold-in-26B131-20261114-86dd72e`, cache UUID 7c4bc5cb, from image 8fb92d5).
+The recipe reads:
 - `dyld_shared_cache_x86_64*`: the family (main, subcaches, `.map`, `.atlas`);
 - `retired-roots.txt`: the providers' install paths, one per line;
-- `provider-provenance.json`: `path` (under `build.json` `system`) and `sha256` of every provider;
+- `provider-provenance.json` (schema 1): `provider_sources`, per provider its `install_path`, `origin` (`system`: read
+  from the artifact's System view, under `build.json` `system`; `file`: a recipe's own built file) and `sha256`;
 - `build.json` `inputs`: each input cache file (`.../System/Library/dyld/dyld_shared_cache_x86_64*`) and its sha256;
   `revision`, `git_commit` and `git_dirty` go into the record.
 
@@ -37,17 +41,26 @@ build, seal, 4 KiB re-sign and Swift reference check are that recipe's own code.
 3. **Input cache.** The artifact must have been made from this image's cache. Its recorded input files must equal
    the x86_64 files of the OS cryptex golden-gate-userspace just built. They may match as built, or with that
    recipe's prespecialization edits (`src/prespecialization-26B131.json`) taken back out and the file re-signed:
-   that is the cache of an image from before r75. Either way the rebuilt family already carries every other
+   that is the cache of an image from before r75. Likewise r77's model gates (three one-byte renames in `.01`,
+   planned by golden-gate-userspace's `model_gates.py` on the artifact's family) may be taken back out; step 4 then
+   renames them in the new family, so B keeps Sidecar, AirPlay to Mac and Continuity Camera. Any combination of the
+   two groups may be out, per file; the record lists which. Either way the rebuilt family already carries every other
    in-cache repair of golden-gate-userspace (trackpad V3, EndpointSecurity selectors, CoreRoutine, MPSMatrix,
    audiomxd, Swift conformance references, the code identity carrier). The record says which one matched.
 4. **Cryptex.** A new raw image gets the current OS cryptex's files with the x86_64 family replaced as a whole
    (Apple's arm64e cache and DriverKit's cache are untouched). Each file takes the old main file's owner, mode and
-   flags and is re-signed with 4 KiB pages if it is not already. Every Swift metadata reference is checked, then
+   flags and is re-signed with 4 KiB pages if it is not already (a file the model gates changed always is). Every Swift metadata reference is checked, then
    the image is sealed and installed as `os.dmg` and `os.clone.dmg`. Rosetta's cache directory still links to it.
 5. **Retirement and gate.** The roots are removed from System. The build stops if any image of the new family is
-   still a file on System (`/usr/lib/dyld` aside).
+   still a file on System (`/usr/lib/dyld` aside), unless an `N` pattern of `src/providers.txt` names it: images no
+   process loads on this Mac, kept as Apple ships them and listed in the record (`left_on_disk_not_loaded`). The one
+   pattern is 27.x's 14 Apple-silicon `AGXMetal*.bundle` drivers (Metal here loads only the HD 4000 driver), as in
+   golden-gate-userspace r78.
 
-The record is `System/Library/CoreServices/golden-gate-shared-cache.json`.
+The record is `System/Library/CoreServices/golden-gate-shared-cache.json` (root:wheel 0644, written after retirement).
+Its `providers` field is a stable interface for later recipes (golden-gate-live-text-service reads it): `{root:
+sha256}` for every retired root, the root an install path without the leading slash, the sha256 the bytes this
+recipe checked on System in step 2 before removing the file.
 
 **Composition with golden-gate-userspace.** On the B image, golden-gate-userspace still builds its cryptex (with the
 r75 edits, its gate passes because the providers are still on disk then); this recipe replaces that cryptex's
@@ -60,7 +73,7 @@ cryptex build that step 3 compares against. The compat libraries (`io80211_compa
 ## Verify
 
 - `python3.14 -I -B -m unittest discover -s patches/golden-gate-shared-cache/tests`: a stand-in artifact in the
-  generator's format (and the Tahoe artifact's `build.json`, when it is in the store).
+  generator's format, and both 26B131 rows' artifacts when they are in the store (roots, inputs, model gate sites).
 - `python3.14 -I patches/golden-gate-shared-cache/src/fold.py check SYSTEM ARTIFACT` (read-only): steps 1 and 2 on
   a mounted System.
 - Build log: `golden-gate-shared-cache: removed /PATH` per root and one JSON line (input match, files, 4 KiB
@@ -71,10 +84,13 @@ cryptex build that step 3 compares against. The compat libraries (`io80211_compa
 
 ## Validation
 
-NEEDS VALIDATION: not built or booted. Host tests pass with a stand-in artifact; the generator's artifact for
-26B131 does not exist yet, so the row `rebuilt_cache` does not either and `status` is `unfinished`. It becomes
-`experiment` (r2) in the commit that adds the row.
+NEEDS VALIDATION: not built or booted. Host tests pass, with the real B and B+catalog artifacts read. Read against
+the System of image 8fb92d5 (the artifacts' source): roots and the 22 System providers match; the 4 Live Text
+providers match golden-gate-live-text-shared's fold-in build (row `live_text_framework` at live-text 679d5b1b, metal's),
+not main's older one, so a fold build needs that row; after retirement only the 14 AGXMetal drivers stay on disk.
+Both fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), one payload for both families.
 
 ## Revisions
+- r3 2026-11-15 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261114-86dd72e (status experiment). Reads the generator's provider-provenance schema 1 (by install path). Step 3 may also take r77's model gates out, and step 4 then renames them in the new family. The last gate skips the reviewed `N` pattern (the 14 Apple-silicon AGXMetal drivers). Set dev-bs-test-fold takes hao-runtime-fold.
 - r2 2026-11-14 Seven more reviewed companions (metal): libhelloblur and the six /usr/lib/hao-live-text dylibs; MTLCompiler 3802 stays on disk. Nothing installed changes on existing sets.
 - r1 2026-11-14 New: the 26B131 B image's OS cryptex gets the rebuilt x86_64 family with the on-disk providers folded in, after checking the reviewed roots, the provider bytes and the input cache; the roots leave System and no cache image may stay on disk.

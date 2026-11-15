@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
+  "arch": "x86_64",
+  "origin": {
+    "kind": "apple",
+    "name": "appstoreagent 26B131"
+  },
+  "applied_by": "installer",
+  "edits": [
+    {
+      "id": "legacy-preflight-accept-either-architecture",
+      "kind": "literal",
+      "section": "__TEXT,__text",
+      "find": "0f be 4d c8 41 0f be d6 41 0f be f4 48 89 c7 49 89 d8 e8 87 ab 06 00",
+      "replace": "41 0f be d6 41 0f be f4 09 d6 90 90 48 89 c7 49 89 d8 e8 87 ab 06 00",
+      "reason": "edit"
+    },
+    {
+      "id": "media-api-preflight-accept-either-architecture",
+      "kind": "literal",
+      "section": "__TEXT,__text",
+      "find": "8b 75 b0 8b 55 a0 44 89 f9 4c 8b 45 d0 e8 cf b8 f6 ff",
+      "replace": "8b 75 b0 8b 55 a0 09 d6 90 4c 8b 45 d0 e8 cf b8 f6 ff",
+      "reason": "edit"
+    },
+    {
+      "id": "accept-native-mac-ipa-overlay",
+      "kind": "literal",
+      "section": "__TEXT,__text",
+      "find": "49 8b bf a0 00 00 00 48 8d 05 2f 9d 51 00 49 89 87 a0 00 00 00 ff 15 8a b8 52 00",
+      "replace": "49 8b bf a0 00 00 00 31 c0 90 90 90 90 90 49 89 87 a0 00 00 00 ff 15 8a b8 52 00",
+      "reason": "edit"
+    },
+    {
+      "id": "load-store-policy",
+      "kind": "op",
+      "op": "macho.add-dylib",
+      "args": {
+        "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+      },
+      "reason": "edit"
+    }
+  ],
+  "sign": {
+    "mode": "adhoc",
+    "preserve": [
+      "identifier",
+      "entitlements",
+      "requirements",
+      "flags",
+      "runtime"
+    ]
+  }
+}

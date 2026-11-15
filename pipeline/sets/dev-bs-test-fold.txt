@@ -1,11 +1,12 @@
 # dev-bs-test-fold: the B image of the shared-cache fold-in (macOS 27.2.1, 26B131) = dev-bs-test, in its order, with
-# golden-gate-shared-cache before golden-gate-native-identities. Needs the row rebuilt_cache (inputs/25G342): the
-# shared-cache generator's artifact made from a dev-bs-test image's OS cryptex and System. Keep in step with dev-bs-test.txt.
+# hao-runtime-fold in hao-runtime's place and golden-gate-shared-cache before golden-gate-native-identities. Rows:
+# rebuilt_cache (inputs/25G342, family B) and hao_runtime_fold (runtime's payload for that family). Keep in step with
+# dev-bs-test.txt and dev-bs-test-fold-catalog.txt.
 #
 # oclp-hook entries (src/kc-hook.sh, System writable, before the snapshot):
 darwin27-kernel                   # Boot/System kernel collections around the 27 x86_64 kernel and the Intel kexts. First: everything after edits on top of them
 golden-gate-userspace             # combined OS cryptex (x86_64 dyld cache, Tahoe DriverKit, cache repairs, code identity carrier in Security), IO80211/WiFiPeerToPeer/CoreWiFi compat, display shim. Second, same reason
-hao-runtime                       # hao, plus an x86_64 launch slice in every arm64-only 27 program so it runs on Intel
+hao-runtime-fold                  # fold-in only, in hao-runtime's place: the same installation with the payload built for the rebuilt family (row hao_runtime_fold, its cache UUID)
 golden-gate-dyld-internal         # dyld alone counts as an internal install (internalInstall() edit), so OCLP's Metal roots load without ic_csr_internal; after hao-runtime (its dyld)
 golden-gate-launchd-warm          # launchd starts kernelmanager_helper (RunAtLoad) for the OpenCore kexts' load reports and, until Setup is done, mbsystemadministration for loginwindow, both Interactive; after golden-gate-userspace (same launchd job cache)
 golden-gate-metal-libraries       # the build's own RenderBox/Tungsten/MPS/MetalFX/CoreRE metallibs repaired for the HD 4000 compiler; deliberately supersedes OCLP's Tahoe RenderBox/Tungsten copies
@@ -30,6 +31,6 @@ golden-gate-user-template          # first-login containers, chronod widget desc
 golden-gate-font-registry         # fontd registries of this build: Setup's in place, the user seed into PerUserSeed/fonts
 golden-gate-shader-caches         # HD 4000 Metal caches harvested from this build: system accounts in place, user trees into PerUserSeed/metal
 golden-gate-icon-caches           # IconServices store and root/Setup indexes harvested from this build; user index into PerUserSeed/is
-golden-gate-appstore-slices       # App Store slice guard: logs each Mach-O without x86_64 in a universal App Store app after install or update (Data: tool + LaunchDaemon)
+golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
 dev-diagnostics                   # dev only: hao-runtime measurement boot-args and the OpenCore file log (after hao-opencore)

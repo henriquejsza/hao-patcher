@@ -1,0 +1,17 @@
+{
+ "revision": 1,
+ "stage": "oclp-hook",
+ "applies": {
+  "models": [
+   "MacBookPro9,2"
+  ],
+  "builds": [
+   "25G342"
+  ]
+ },
+ "inputs": [
+  "rebuilt_cache_catalog"
+ ],
+ "status": "experiment",
+ "validated": false
+}

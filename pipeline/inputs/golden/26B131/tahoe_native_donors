@@ -1,6 +1,8 @@
-# Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json. tools/tahoe-donors r11 `native` (cache-dylib r3) over the
-# same donor-inputs output as minimal-native-25G342-26B131 (recipe-cache-images.json = its recipe.json plus intel-donors'
-# os_cache/cache_images) with --cache = row tahoe_os_cache_x86_64h: identical entries plus Tahoe's CoreWiFi, cut from the
-# x86_64h OS cache at its own path (cache-images.json holds the extraction and check.py records).
+# Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json. tools/tahoe-donors r13 `native` (cache-dylib r3) over the
+# same donor-inputs output as minimal-native-25G342-26B131 (recipe-cache-images-awdl.json = its recipe.json plus intel-donors'
+# os_cache/cache_images and the awdl_d2d.bundle system root) with --cache = row tahoe_os_cache_x86_64h: the previous row's
+# entries (minimal-native-25G342-26B131-corewifi-r3, every file byte for byte) plus Tahoe's DeviceToDeviceManager AWDL plugin
+# (x86_64 + arm64e): 27.x ships it arm64e only, so the native mDNSResponder never loaded it and AirDrop discovery over AWDL
+# never started (diag#0044). Tahoe's CoreWiFi is cut from the x86_64h OS cache at its own path (cache-images.json).
 # hash: without build.json  # build records and intermediates: a remake of the same payload matches
-a227bc59e35b72b6d909afe16735225bd2a4cb882b120d1d24917b3642273416 store/artifacts/minimal-native-25G342-26B131-corewifi-r3
+3b1692f216671b43e653d33cc8027a39ef9974cbb7aba1c6e50b3ee20911f549 store/artifacts/minimal-native-25G342-26B131-corewifi-awdl-r4

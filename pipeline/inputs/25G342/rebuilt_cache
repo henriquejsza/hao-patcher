@@ -1,0 +1,5 @@
+# Shared-cache fold-in, family B (golden-gate-shared-cache, set dev-bs-test-fold): the shared-cache generator's rebuilt
+# x86_64 family for 26B131 (cache UUID 7c4bc5cb), made at its commit 86dd72e from a dev-bs-test image's OS cryptex and
+# System, with the 26 reviewed roots of src/providers.txt folded in; interpose-check 24/24. build.json, retired-roots.txt
+# and provider-provenance.json name its inputs, roots and provider bytes.
+a8a847b632dc0fd714ecae26480056bcdf616b758cc8a2a7a65740c7397f6d9e store/artifacts/rebuilt-cache-fold-in-26B131-20261114-86dd72e

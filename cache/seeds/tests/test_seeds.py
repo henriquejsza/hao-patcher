@@ -184,6 +184,9 @@ class MakeTest(unittest.TestCase):
             self.assertIn(SETUP_C + '/com.apple.FontRegistry/fontregistry.user', t.getnames())
         user = a / 'user/fontregistry.user'
         self.assertEqual(user.read_bytes().count(b'/Users/benchtest'), 0)
+        record = (a / 'build.json').read_text()
+        self.assertNotIn('/Users/', record)                       # the record ships too: no harvest account in it
+        self.assertEqual(json.loads(record)['replaced_user_dirs'], ['~/Library/Fonts'])
         db = sqlite3.connect(user)
         self.assertEqual(db.execute('SELECT path_column, flags_column, bookmark_ref_column FROM dir_table '
                                     'WHERE domain_column = 1').fetchall(), [('/var/empty/Library/Fonts', 0, None)])

@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-40 of 44 patches declare their files so far.
+40 of 46 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -64,7 +64,7 @@ Revision r1, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
 ## golden-gate-appstore-slices
 
-Revision r1, status product. [Recipe](../patches/golden-gate-appstore-slices/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-appstore-slices/README.md)
 
 - `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
 - `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
@@ -91,7 +91,7 @@ Revision r1, status experiment. [Recipe](../patches/golden-gate-dyld-internal/RE
 
 ## golden-gate-font-registry
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
 
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
 - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
@@ -570,4 +570,4 @@ Revision r2, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-golden-gate-hd4000-planes, golden-gate-metal-argbuf, golden-gate-shared-cache, golden-gate-user-template
+golden-gate-hd4000-planes, golden-gate-metal-argbuf, golden-gate-shared-cache, golden-gate-shared-cache-catalog, golden-gate-user-template, hao-runtime-fold

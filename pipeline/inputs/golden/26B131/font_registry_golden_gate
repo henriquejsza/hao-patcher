@@ -1,2 +1,3 @@
 # fontd registries of 26B131 (Setup's, and an account-neutral user seed) made by cache/seeds/make from the 4d1c48c laptop harvest harvest-26B131-4d1c48c-20261111-1627.tar.
-6ab998e8eb1cde83eccca3362782a67330d7cc7da0ba5c47ef6308c9e324d9ec store/artifacts/font-registry-26B131-20261111-25f4e41dc24a
+# cache/seeds r3 remake of font-registry-26B131-20261111-25f4e41dc24a: setup.tar and user/fontregistry.user byte for byte; build.json names the reset folder as ~/Library/Fonts.
+5bf6a3d356f875a7b4ed338510c0aa872c22c8afaceea6bf8980dfac7941688d store/artifacts/font-registry-26B131-20261115-e09b952363a1
