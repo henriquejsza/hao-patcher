@@ -249,9 +249,11 @@ def split(swaps):
     """{swaps: those still on the laptop (or not checked), cleared: how many --verify found gone or replaced}: the
     record keeps only what is there."""
     on = [s for s in swaps if s.get('now') not in ('gone', 'replaced')]
-    resolved = _swaps()['resolutions']()
+    S = _swaps()
+    resolved, public = S['resolutions'](), S['resolutions'](private=False)
     shown = [s for s in on if listed(s, resolved)]
-    return {'swaps': shown, 'cleared': len(swaps) - len(on), 'trials': len(on) - len(shown)}
+    hidden = sum(1 for s in on if s not in shown and resolution_text(s, resolved) and not resolution_text(s, public))
+    return {'swaps': shown, 'cleared': len(swaps) - len(on), 'trials': len(on) - len(shown), 'private': hidden}
 
 
 def listed(swap, resolved):
@@ -424,7 +426,8 @@ def generate():
         on, off = [s for s in v['swaps'] if listed(s, resolved)], v.get('cleared', 0)
         trials = v.get('trials', 0) + len(v['swaps']) - len(on)
         if trials:
-            md += ['%d trial swap%s not listed.' % (trials, '' if trials == 1 else 's'), '']
+            md += ['%d trial swap%s not listed%s.' % (trials, '' if trials == 1 else 's', ' (%d resolved in the private '
+                   'resolution file)' % v['private'] if v.get('private') else ''), '']
         if not on:
             md += ['No swapped files on it%s.' % (' (%d since the push are no longer there)' % off if off else ''), '']
             continue

@@ -19,7 +19,8 @@ golden-run and release-cut refuse to start a build (owner, 2026-11-14: a proven 
 or never converted to a build ... That's nonsense"). There is no override: resolve it, or mark it "dropped: WHY".
 
 A swap is resolved when:
-  - pipeline/live-swaps.tsv has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it (a path on the EFI partition as
+  - pipeline/live-swaps.tsv, or the private file outside the repository (HAO_SWAP_PRIVATE, default
+    ~/.config/hao/live-swaps-private.tsv), has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it (a path on the EFI partition as
     the ledger names it: "ESP diskNsM EFI/..."), RESOLUTION being
     "row NAME" or "recipe NAME" (the fix now ships in images that way) or "dropped: WHY" (not wanted), or
   - its path is under /usr/lib/hao/ and the hao_runtime row's payload holds the same bytes at root/<path> (hao-runtime
@@ -35,6 +36,7 @@ import sys
 TOP = Path(__file__).resolve().parents[1]
 LEDGER = Path(os.environ.get('HAO_SWAP_LEDGER') or Path.home() / 'mac-image/store/laptop-swaps/ledger.tsv')
 RESOLUTIONS = TOP / 'pipeline' / 'live-swaps.tsv'
+PRIVATE = Path(os.environ.get('HAO_SWAP_PRIVATE') or Path.home() / '.config/hao/live-swaps-private.tsv')
 RUNTIME_ROWS = (TOP / 'pipeline/inputs/golden/26B131', 'hao_runtime')
 KINDS = ('row ', 'recipe ', 'dropped: ')
 FIELDS = ('date', 'path', 'sha256', 'mode', 'source', 'who', 'laptop')
@@ -57,9 +59,14 @@ def ledger(path=LEDGER, proofs=False):
     return out
 
 
-def resolutions(path=RESOLUTIONS):
-    """{(sha256, laptop path): resolution} from the tracked file; malformed lines raise."""
+def resolutions(path=RESOLUTIONS, private=None):
+    """{(sha256, laptop path): resolution} from the tracked file and, for the repository's file, the private one
+    (PRIVATE: same format, outside the repository; private=False leaves it out); malformed lines raise."""
     out = {}
+    if private is None:
+        private = PRIVATE if Path(path) == RESOLUTIONS else False
+    if private and Path(private).is_file():
+        out.update(resolutions(private, False))
     if not Path(path).is_file():
         return out
     for n, line in enumerate(Path(path).read_text().splitlines(), 1):

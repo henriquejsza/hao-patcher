@@ -419,7 +419,7 @@ No swapped files on it.
 
 Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3, set dev-bs-test).
 
-21 trial swaps not listed.
+21 trial swaps not listed (18 resolved in the private resolution file).
 
 5 more swaps since the push are no longer there (restored or removed; read over SSH).
 

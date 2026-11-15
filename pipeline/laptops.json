@@ -3,6 +3,7 @@
   "cleared": 0,
   "image": "b124c40",
   "label": "Test machine A",
+  "private": 0,
   "pushed": "2026-11-14 20:21:50",
   "swaps": [],
   "trials": 0
@@ -11,6 +12,7 @@
   "cleared": 5,
   "image": "8fb92d5",
   "label": "Test machine B",
+  "private": 18,
   "pushed": "2026-11-14 10:11:23",
   "swaps": [
    {
