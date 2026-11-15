@@ -14,6 +14,8 @@ sys() { put 755 "$1" "$2"; chflags restricted "$2"; }
 put 644 "$S/$D/appstoreagent" "$S/usr/lib/hao/store-policy-original-appstoreagent"
 put 644 "$S/$D/appstored" "$S/usr/lib/hao/store-policy-original-appstored"
 put 755 "$IN/libhao-appstore-policy.dylib" "$S/usr/lib/hao/libhao-appstore-policy.dylib"
+[ -f "$S/usr/lib/hao/libhao-imessage-wifi-test.dylib" ]
+put 755 "$IN/libhao-ios-coordinator-test.dylib" "$S/usr/lib/hao/libhao-ios-coordinator-test.dylib"
 sys "$IN/appstoreagent" "$S/$D/appstoreagent"
 sys "$IN/appstored" "$S/$D/appstored"
 sys "$IN/app-store-ui" "$S/$U"

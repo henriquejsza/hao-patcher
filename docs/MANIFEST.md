@@ -38,7 +38,7 @@ Undeclared: golden-gate-metal-argbuf.
 | golden-gate-shader-caches | r14 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
 | golden-gate-shared-cache | r4 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache a8a847b6 rebuilt-cache-fold-in-26B131-20261114-86dd72e |
 | golden-gate-shared-cache-catalog | r2 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog d56244ea rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e |
-| golden-gate-store | r1 | product | oclp-hook | yes | dev-beta-candidate-fold | store_service 10e1c5e4 store-26B131-20261115-abaa0356 |
+| golden-gate-store | r2 | product | oclp-hook | yes | dev-beta-candidate-fold | store_service a44cce90 store-26B131-20261115-abaa0356 |
 | golden-gate-user-seed | r9 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-user-template | r6 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
 | golden-gate-userspace | r79 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime e29b10e5 payload |
@@ -169,8 +169,9 @@ Undeclared: golden-gate-metal-argbuf.
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache_catalog)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from hao (row rebuilt_cache_catalog)
   - `System/Library/CoreServices/golden-gate-shared-cache.json`: from hao
-- **golden-gate-store** r1
+- **golden-gate-store** r2
   - `usr/lib/hao/libhao-appstore-policy.dylib`: from hao (row store_service)
+  - `usr/lib/hao/libhao-ios-coordinator-test.dylib`: from hao (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from hao (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from hao (row store_service)
   - `System/Applications/App Store.app/Contents/MacOS/App Store`: from hao (row store_service)
@@ -356,7 +357,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-shader-caches | r14 | r14 | r14 | r14 | r14 | r14 |
 | golden-gate-shared-cache | - | - | - | r3* | - | r4 |
 | golden-gate-shared-cache-catalog | - | - | - | - | r1* | - |
-| golden-gate-store | - | - | - | - | - | r1 |
+| golden-gate-store | - | - | - | - | - | r1* |
 | golden-gate-user-seed | r9 | r9 | r9 | r9 | r9 | r9 |
 | golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6 |
 | golden-gate-userspace | r74* | r79 | r79 | r79 | r79 | r79 |
@@ -408,7 +409,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | rebuilt_cache_catalog | - | - | - | - | d56244ea | - |
 | screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 |
 | shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
-| store_service | - | - | - | - | - | 10e1c5e4 |
+| store_service | - | - | - | - | - | 10e1c5e4* |
 | tahoe_boot_donors | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a |
 | tahoe_driverkit_donors | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b |
 | tahoe_extensions_donors | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 |
@@ -461,6 +462,8 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 ## 4. Drift
 
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
+- golden-gate-store r2 is newer than every image built with it (newest r1).
+- row store_service a44cce90 is in no image yet (images have 10e1c5e4).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.

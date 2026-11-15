@@ -260,9 +260,10 @@ Revision r2, status experiment. [Recipe](../patches/golden-gate-shared-cache-cat
 
 ## golden-gate-store
 
-Revision r1, status product. [Recipe](../patches/golden-gate-store/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 - `usr/lib/hao/libhao-appstore-policy.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/libhao-ios-coordinator-test.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Applications/App Store.app/Contents/MacOS/App Store`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
