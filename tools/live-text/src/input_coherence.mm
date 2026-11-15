@@ -31,11 +31,11 @@ int e5rt_execution_stream_submit_async(void*,Completion) __attribute__((weak_imp
 int e5rt_execution_stream_submit_async_with_timeout(void*,Completion,uint64_t) __attribute__((weak_import));
 int e5rt_execution_stream_encode_operation(void*,void*) __attribute__((weak_import));
 }
-extern "C" bool hao_live_text_recognition_active(void) __attribute__((weak_import));
+extern "C" bool hao_live_text_recognition_active(void);   // libLiveTextConfig (linked)
 using State=CoherenceState<__IOSurface>;
 static State &state(){static State value;return value;}
 static bool opted_in(){const char *root=getenv("HAO_LIVE_TEXT_ROOT");return root&&*root&&strcmp(root,"0");}
-static bool enabled(){return hao_live_text_recognition_active&&hao_live_text_recognition_active();}
+static bool enabled(){return hao_live_text_recognition_active();}
 static void diagnostic(CoherenceDiagnosticCounts::Event event){
  static const bool requested=[](){const char *v=getenv("HAO_LIVE_TEXT_DIAGNOSTICS");return v&&!strcmp(v,"1");}();
  if(!requested)return;

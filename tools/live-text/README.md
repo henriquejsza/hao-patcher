@@ -41,9 +41,18 @@ applies it to the x86_64 dyld cache through `tools/metal-fixes`.
 | `lib/detector.py` | the detector copy and its two-statement `model.mil` rewrite |
 | `lib/macho_edit.py` | appends load commands to an ad hoc x86_64 image and refreshes its code-page hashes |
 | `src/` | `config.c` (settings), `policy.mm` (E5 compiles), `input_coherence.mm`, `library.m` (MPSNDArray redirect) |
+| `interpose-check` | on a rebuilt x86_64 cache family that holds the runtime: every `__interpose` entry is applied as cache patches, and the hooks' own calls through still reach Espresso |
 
 Every helper is x86_64, ad hoc signed, and loads in every Metal client; none requests a GPU or loads MPSGraph or
 Espresso until a TextRecognition model compiles. Only Intel HD Graphics 4000 devices get the library redirect.
+
+**In a rebuilt shared cache.** `libLiveTextPolicy` and `libhao_input_coherence` replace Espresso's `e5rt_*` calls
+through `__interpose`. dyld ignores interpose entries in a cache image (dyld-1378 `DyldRuntimeState.cpp:1310`), so when
+the runtime is folded into a cache, the producer applies the entries as cache patches and leaves the two libraries' own
+calls through on Espresso. Their only flat imports are those `e5rt_*` names (the producer resolves them by name). Every
+other import is two-level: the recognition flag lives in `libLiveTextConfig`, which both link. Calls through can't use
+`dlsym`, because dyld interposes its result as well (the hook would call itself). On the family:
+`python3.14 -I interpose-check FAMILY/dyld_shared_cache_x86_64 BUILD/framework/runtime`.
 
 ## Build
 

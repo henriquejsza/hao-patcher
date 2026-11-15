@@ -76,7 +76,11 @@ def build(output, install_root, compat, metallib, detector, source_metallib):
         run('xcrun', 'clang++' if str(source).endswith('.mm') else 'clang', '-arch', 'x86_64',
             '-mmacosx-version-min=13.0', '-O2', '-dynamiclib', source, *extra,
             # A /usr/lib install name makes ld treat the library as shared-cache eligible and refuse
-            # -undefined dynamic_lookup; these helpers are never in a dyld cache.
+            # -undefined dynamic_lookup. The two interposers keep flat imports only for their __interpose
+            # originals (e5rt_*) and their calls through to them; a rebuilt cache's producer resolves those by
+            # name, applies the entries as cache patches and leaves these libraries' own uses on the originals
+            # (interpose-check verifies it). Calls through cannot use dlsym: dyld interposes dlsym's result too.
+            # Every other import is two-level.
             '-Wl,-install_name,' + root + '/' + name, '-Wl,-not_for_dyld_shared_cache', '-o', out/name)
         # An unsigned x86_64 image hangs in exec on Apple silicon hosts; sign every output.
         run('codesign', '-f', '-s', '-', out/name)
@@ -85,10 +89,11 @@ def build(output, install_root, compat, metallib, detector, source_metallib):
     config = out/'libLiveTextConfig.dylib'
     compile(config.name, src/'config.c', '-DLIVE_TEXT_ROOT=' + json.dumps(root))
     first = ('-Wl,-needed_library,' + str(config),)
-    compile('libLiveTextPolicy.dylib', src/'policy.mm', '-std=c++17', '-fobjc-arc', '-undefined', 'dynamic_lookup',
-            '-framework', 'Foundation', '-framework', 'IOSurface', *first)
     compile('libhao_input_coherence.dylib', src/'input_coherence.mm', '-std=c++17', '-fobjc-arc', '-fblocks',
             '-undefined', 'dynamic_lookup', '-framework', 'IOSurface', '-framework', 'CoreFoundation', *first)
+    compile('libLiveTextPolicy.dylib', src/'policy.mm', '-std=c++17', '-fobjc-arc', '-undefined', 'dynamic_lookup',
+            '-framework', 'Foundation', '-framework', 'IOSurface', *first,
+            '-Wl,-needed_library,' + str(out/'libhao_input_coherence.dylib'))
     compile('libLiveTextLibrary.dylib', src/'library.m', '-fobjc-arc', '-fblocks', '-framework', 'Foundation',
             '-framework', 'Metal', *first)
     run('install_name_tool', '-id', root + '/gpu-client.dylib', out/'gpu-client.dylib')
