@@ -114,7 +114,11 @@ class StandIn(unittest.TestCase):
 
     def test_provider_bytes_must_be_the_folded_ones(self):
         art = fold.load_artifact(self.artifact)
-        self.assertEqual(fold.check_providers(self.system, art['roots'], art['providers']), art['providers'])
+        found = fold.check_providers(self.system, art['roots'], art['providers'])
+        self.assertEqual(found, art['providers'])
+        # the record's providers (a stable interface: golden-gate-live-text-service reads it): every root, no leading
+        # slash, the sha256 of its bytes on this System
+        self.assertEqual(found, {r: sha((self.system/r).read_bytes()) for r in self.roots})
         changed = self.system/self.roots[0]
         changed.write_bytes(b'rebuilt since')
         os.unlink(self.system/self.roots[1])

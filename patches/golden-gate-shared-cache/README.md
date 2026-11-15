@@ -57,7 +57,10 @@ build, seal, 4 KiB re-sign and Swift reference check are that recipe's own code.
    pattern is 27.x's 14 Apple-silicon `AGXMetal*.bundle` drivers (Metal here loads only the HD 4000 driver), as in
    golden-gate-userspace r78.
 
-The record is `System/Library/CoreServices/golden-gate-shared-cache.json`.
+The record is `System/Library/CoreServices/golden-gate-shared-cache.json` (root:wheel 0644, written after retirement).
+Its `providers` field is a stable interface for later recipes (golden-gate-live-text-service reads it): `{root:
+sha256}` for every retired root, the root an install path without the leading slash, the sha256 the bytes this
+recipe checked on System in step 2 before removing the file.
 
 **Composition with golden-gate-userspace.** On the B image, golden-gate-userspace still builds its cryptex (with the
 r75 edits, its gate passes because the providers are still on disk then); this recipe replaces that cryptex's
