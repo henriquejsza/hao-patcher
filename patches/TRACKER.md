@@ -37,7 +37,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r64 | post | experiment |  | x | x |  |  | **needs** | r64 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
 | hao-runtime | r79 | oclp-hook | experiment |  | x | x |  |  | **needs** | r79 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
-| hao-runtime-fold | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Row `hao_runtime_fold`: hao-runtime-26B131-20261115-96870dd3f441-B (hao-runtime 96870dd, both fo |
+| hao-runtime-fold | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-15 Row `hao_runtime_fold`: the units set 2 payload (-B2: same hao-runtime 96870dd and libhao; 16 mo |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |

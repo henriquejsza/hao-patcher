@@ -419,7 +419,7 @@
    "class": "ours",
    "publish": "file",
    "source": "../hao-runtime-26B131-96870dd3f441-public.tar.gz",
-   "source_sha256": "14dbe9ebf5669a33683adc89672704f16fcc904f8e881079a33e16a22072102e",
+   "source_sha256": "cfe27394e71a40b02485dbe5170d12cf8305fcc83ea133f41af21f3dd7a9a0a2",
    "reason": "hao-runtime's public archive of the 96870dd fold-in payload (its make-public-archive.py, deterministic), as hao_runtime's: hao's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
    "made_on_mac_files": [
     {

@@ -1,9 +1,9 @@
 # hao runtime payload for the shared-cache fold-in images (sets dev-bs-test-fold and dev-bs-test-fold-catalog), from
 # hao-runtime 96870dd (build.json names it) = c66997a plus the generated lock checked against the rebuilt x86_64
 # caches 7c4bc5cb (B) and b3c88154 (B+catalog): one payload for both (their 3961 images have the same UUIDs).
-# libhao b8f0480f and libhao_identity 752fd35f are hao_runtime's c66997a bytes. Units 1893 (hao_runtime's 1896 less
-# the 4 replaced libraries' units, plus MetalOld's), matched 1893/1893 on both caches; 963 embedded, 965 of 969 AOT.
-# Known limit: 13 records (CoreWiFiTahoe 8, MetalOld 1, IO80211Old 4) bridge as with no unit; 21 Swift helper records
-# have no definer on B.
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=21f927895a50096aee138786cd771a6863e54cd8d4e822c02230b3161d215b5c
-eace40de85d440430ef489db71b3775215c6422a5aba3ab1f4547053ea77cb49 store/artifacts/hao-runtime-26B131-20261115-96870dd3f441-B/payload
+# Units set 2 (-B2, supersedes -B): hao_runtime's 1896 less the 4 replaced libraries' units, plus research's
+# re-export-aware provider units for MetalOld, CoreWiFiTahoe and IO80211Old = 1895, matched 1895/1895 on both caches.
+# libhao b8f0480f and libhao_identity 752fd35f are hao_runtime's c66997a bytes; 963 embedded, 965 of 969 AOT.
+# Known limit: one CoreWiFi record bridges as with no unit; 21 Swift helper records have no definer on B.
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=f0642337f2d8f85ecd8478a95c1f5ebf84a077bd3d0b7541ca6facea6ab154ce
+3e4feeb70f25375987599d9eb44ef28f661fd8b95d59a5faa9708e2c495cb749 store/artifacts/hao-runtime-26B131-20261115-96870dd3f441-B2/payload
