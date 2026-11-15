@@ -137,6 +137,17 @@ class Archive(unittest.TestCase):
         self.assertEqual(R['make_asset']('x', hit, {'publish': 'tar', 'include': ['b.dylib', 'sub']})[1:3],
                          (size, digest))                  # hashed without staging: the same archive
 
+    def test_a_tar_asset_must_carry_everything_its_row_sha256_covers(self):
+        d = self.folder()
+        (d / 'build.json').write_text('{}')
+        lk = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
+        entry = {'publish': 'tar', 'include': ['b.dylib', 'sub']}
+        whole = lk['row_sha256'](str(d))                       # a row without "# hash: release-files"
+        bad = R['make_asset']('x', (TOP, (whole, str(d))), entry)[3]
+        self.assertTrue(any('release-files' in b for b in bad), bad)
+        scoped = lk['row_sha256'](str(d), ['b.dylib', 'sub'])  # the same row with it
+        self.assertEqual(R['make_asset']('x', (TOP, (scoped, str(d))), entry)[3], [])
+
     def test_a_file_asset_must_be_the_pinned_file(self):
         d = self.folder()
         hit = (TOP, ('0' * 64, str(d / 'b.dylib')))

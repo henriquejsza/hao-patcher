@@ -344,6 +344,14 @@ def make_asset(row, hit, entry, stage=None):
             (Path(stage) / name).write_bytes(data)
         return name, len(data), digest, problems
     name = row + '.tar'
+    if entry.get('include') and sha != '-' and hit[0] is not None:
+        # a user's Mac checks the unpacked asset (plus its made-on-Mac files) against this same row: a sha256 that
+        # covers files the asset leaves out (a build record, say) can never match there
+        lk = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
+        only = list(entry['include']) + [m['path'] for m in entry.get('made_on_mac_files', [])]
+        if lk['row_sha256'](str(path), only, lk['without'](str(hit[0]), row)) != sha:
+            return name, None, None, ['%s: its sha256 covers files the asset leaves out, so a user\'s Mac cannot match '
+                                      'it (the row wants "# hash: release-files" and that sha256)' % row]
     for rel, p in archive_members(path, entry.get('include')):
         if p.is_file() and not p.is_symlink():
             refs = private_refs(p.read_bytes(), bool(entry.get('upstream')))
