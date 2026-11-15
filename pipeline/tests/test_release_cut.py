@@ -180,8 +180,10 @@ class HarvestedAssets(unittest.TestCase):
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': True}}, 'mbp121'))
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': 'yes'}}, 'mbp92'))
 
-    def test_the_checked_in_setting_is_off_until_the_owner_chooses(self):
-        self.assertIs(R['settings']()['harvested_assets']['mbp92'], False)
+    def test_the_checked_in_setting_ships_them_for_the_9_2_only(self):
+        # owner 2026-11-15: all four harvested rows, as public assets, for MacBookPro9,2 only
+        targets = {k: v for k, v in R['settings']()['harvested_assets'].items() if not k.startswith('_')}
+        self.assertEqual(targets, {'mbp92': True})
 
 
 class Write(unittest.TestCase):
