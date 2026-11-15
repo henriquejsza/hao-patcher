@@ -17,6 +17,8 @@
   patches.py explain [NAME | PATH]   what each declared file comes from and every edit to it, with reasons (one patch,
                                      or every file whose path is or ends with /PATH); no argument: every patch
   patches.py catalog [OUT]           the patch catalog (docs/PATCHES.md): explain for every patch, as Markdown
+  patches.py manifest [...]          what is installable, what each built image has and what is on the test laptops
+                                     (docs/MANIFEST.md, and the records it is made from): pipeline/manifest.py
 
 patches/NAME/patch.json: {"revision": N, "stage": "oclp-hook" | "post" | "recovery", "applies": "any" | {"models":
 [...], "builds": [...]}, "inputs": [inputs-lock row names], "status": STATUS, "validated": true | false}. revision counts
@@ -653,6 +655,9 @@ if __name__ == '__main__':
         out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(TOP, 'docs', 'PATCHES.md')
         open(out, 'w').write(catalog())
         sys.exit(0)
+    if sys.argv[1:2] == ['manifest']:
+        import runpy
+        sys.exit(runpy.run_path(os.path.join(TOP, 'pipeline', 'manifest.py'))['main'](sys.argv[2:]))
     if sys.argv[1:2] == ['explain'] and len(sys.argv) <= 3:
         try:
             print(explain(sys.argv[2] if len(sys.argv) == 3 else None))

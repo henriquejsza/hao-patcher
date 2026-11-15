@@ -1,0 +1,51 @@
+{
+ "laptop1": {
+  "cleared": 0,
+  "image": "b124c40",
+  "label": "Test machine A",
+  "pushed": "2026-11-14 20:21:50",
+  "swaps": [],
+  "trials": 0
+ },
+ "laptop2": {
+  "cleared": 5,
+  "image": "8fb92d5",
+  "label": "Test machine B",
+  "pushed": "2026-11-14 10:11:23",
+  "swaps": [
+   {
+    "date": "2026-11-14 16:04:23",
+    "now": "there",
+    "path": "/usr/lib/hao/libhao.dylib",
+    "payload": false,
+    "proven": true,
+    "sha256": "b8f0480f5e50738fc0ab12c52c9ebee8e15de5a009be99cafb2d7761d3e19b0d"
+   },
+   {
+    "date": "2026-11-14 16:17:41",
+    "now": "there",
+    "path": "/Library/LaunchDaemons/org.hao.slice-guard.plist",
+    "payload": false,
+    "proven": false,
+    "sha256": "a53b4de746ac7bde88014686e3490c3a46a19918171475d4028aded0313b0c4a"
+   },
+   {
+    "date": "2026-11-14 16:17:41",
+    "now": "there",
+    "path": "/usr/local/libexec/hao-slice-guard",
+    "payload": false,
+    "proven": false,
+    "sha256": "45466f53d8f9f1f0cbf66019b21e4e8ea2849f76bf78ec45c188d70061a92d3e"
+   },
+   {
+    "date": "2026-11-14 19:57:09",
+    "now": "there",
+    "path": "/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources",
+    "payload": false,
+    "proven": true,
+    "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378"
+   }
+  ],
+  "trials": 21
+ }
+}
