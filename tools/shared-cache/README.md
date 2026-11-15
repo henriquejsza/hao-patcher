@@ -109,7 +109,11 @@ Tests that need a real cache, a built toolchain or a target runtime skip unless 
 `CACHE_TOOLCHAIN` (a `toolchain/make` output), `SHARED_CACHE_STORE` (a store with saved catalogs),
 `SWIFT_WITNESS_RUNTIME_TOOLCHAIN`, `SWIFT_WITNESS_CONSUMER_BUNDLE`.
 
-FACT: the build from a fresh checkout reproduces the reference fold-in family (see Validation).
+FACT (2026-11-15): from a fresh clone (6abda8e6 and ff6708d2), with a toolchain built from GitHub's `dyld-1378` both
+for arm64 and for x86_64 (its adapters run under Rosetta on an Apple silicon host), the fold-in build reproduces the
+reference family made by r83 (cache UUID 7c4bc5cb): 39 of its 40 files byte for byte. `build.json` differs only in
+date, commit, revision, input paths and the toolchain's compiled objects (they embed their build folder). OPEN: a
+build on an Intel Mac itself.
 
 ## Validation
 
