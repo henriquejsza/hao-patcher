@@ -84,7 +84,7 @@ Revision r1, status experiment. [Recipe](../patches/golden-gate-dyld-internal/RE
 
 ## golden-gate-font-registry
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
 
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
 - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
