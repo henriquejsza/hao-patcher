@@ -68,9 +68,9 @@
    "result": "identical"
   },
   "metal_argbuf": {
-   "artifact": "metal-argbuf-26B131-20261112-48bd596235e9",
+   "artifact": "metal-argbuf-26B131-20261114-547557ae",
    "repo": "hao-patcher",
-   "commit": "9e30dace",
+   "commit": "547557ae",
    "result": "identical"
   }
  }
