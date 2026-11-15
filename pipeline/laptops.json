@@ -12,7 +12,7 @@
   "cleared": 5,
   "image": "8fb92d5",
   "label": "Test machine B",
-  "private": 13,
+  "private": 15,
   "pushed": "2026-11-14 10:11:23",
   "swaps": [
    {
@@ -88,6 +88,14 @@
     "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378"
    },
    {
+    "date": "2026-11-14 20:36:39",
+    "now": "there",
+    "path": "/usr/lib/hao/libhao-ios-coordinator-test.dylib",
+    "payload": false,
+    "proven": false,
+    "sha256": "f2a4a2bbc89f906067acd0d43fc832b059f841ac29c4bc28c077f0019e592901"
+   },
+   {
     "date": "2026-11-14 20:55:30",
     "now": "there",
     "path": "/System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd",
@@ -112,6 +120,6 @@
     "sha256": "d5aa7a8c7e8e0e021378886337324a4b61ea7733fb4b7739751f3038d9c28dd4"
    }
   ],
-  "trials": 13
+  "trials": 15
  }
 }
