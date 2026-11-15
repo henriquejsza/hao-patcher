@@ -549,7 +549,8 @@
   "oclp_source": {
    "class": "ours",
    "publish": "file",
-   "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
+   "upstream": "https://github.com/dortania/OpenCore-Legacy-Patcher",
+  "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
   }
  }
 }

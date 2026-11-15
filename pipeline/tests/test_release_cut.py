@@ -254,3 +254,15 @@ class Write(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class UpstreamAssets(unittest.TestCase):
+    def test_upstream_source_keeps_its_authors_home_folders_but_not_our_private_names(self):
+        home = ('/' 'Users/' 'someone/Downloads/tool').encode()
+        self.assertEqual(R['private_refs'](home), ['home folder'])
+        self.assertEqual(R['private_refs'](home, upstream=True), [])
+
+    def test_only_oclp_source_is_declared_upstream(self):
+        classes = json.loads((TOP / 'pipeline/release-classes.json').read_text())
+        rows = classes.get('rows', classes)
+        self.assertEqual(sorted(k for k, v in rows.items() if isinstance(v, dict) and v.get('upstream')), ['oclp_source'])

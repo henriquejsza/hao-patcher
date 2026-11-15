@@ -247,13 +247,16 @@ def producer_of(row, hit):
     return repo, full.stdout.strip() if full.returncode == 0 else str(commit)
 
 
-def private_refs(data):
-    """Private references in DATA (bytes), by the contract's patterns (home folders, private repositories)."""
+def private_refs(data, upstream=False):
+    """Private references in DATA (bytes), by the contract's patterns (home folders, private repositories).
+    UPSTREAM (a row's "upstream": third-party source redistributed unmodified) skips the home-folder pattern only:
+    the paths in it are its authors' own, already public in the upstream repository; our private names still count."""
     contract = runpy.run_path(str(TOP / 'tools' / 'hao-contract' / 'hao_contract.py'))
     text = data.decode('latin-1')
     # home folders always; private names from the local list (tools/hao-contract: $HAO_CONTRACT_PRIVATE or
     # ~/.config/hao-contract/private-names), which the checker no longer carries in its code
-    return sorted({label for label, pattern in contract['private_names']() if pattern.search(text)})
+    return sorted({label for label, pattern in contract['private_names']()
+                   if not (upstream and label == contract['HOME'][0]) and pattern.search(text)})
 
 
 def archive_members(folder, include=None):
@@ -334,7 +337,7 @@ def make_asset(row, hit, entry, stage=None):
         digest = __import__('hashlib').sha256(data).hexdigest()
         if sha != '-' and digest != sha:
             problems.append('%s: %s is not the row\'s pinned file' % (row, path.name))
-        refs = private_refs(data)
+        refs = private_refs(data, bool(entry.get('upstream')))
         if refs:
             problems.append('%s: %s holds a %s' % (row, path.name, ', '.join(refs)))
         if stage is not None and not problems:
@@ -343,7 +346,7 @@ def make_asset(row, hit, entry, stage=None):
     name = row + '.tar'
     for rel, p in archive_members(path, entry.get('include')):
         if p.is_file() and not p.is_symlink():
-            refs = private_refs(p.read_bytes())
+            refs = private_refs(p.read_bytes(), bool(entry.get('upstream')))
             if refs:
                 problems.append('%s: %s holds a %s' % (row, rel, ', '.join(refs)))
     if problems:
