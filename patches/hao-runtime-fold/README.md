@@ -8,8 +8,10 @@ other set (and `pipeline/latest`, `swaps.py` and release-cut read that row by na
 
 ## Input
 
-`hao_runtime_fold` (`pipeline/inputs/25G342/` or `golden/26B131/`): a hao-runtime payload folder, as `hao_runtime`.
-Not there yet, so `status` is `unfinished`; the row commit makes it `experiment`.
+`hao_runtime_fold` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261115-96870dd3f441-B, a payload folder as
+`hao_runtime` (payload-manifest sha256 checked by the row). One payload serves both fold families: their images have
+the same UUIDs. libhao and libhao_identity are `hao_runtime`'s c66997a bytes; what differs is the units (the four
+libraries the fold replaces lose theirs, MetalOld gains one) and the cache UUID in its records.
 
 ## How it works
 
@@ -24,7 +26,10 @@ What it installs is hao-runtime's `files` list; it is not declared again here (t
 
 ## Validation
 
-NEEDS VALIDATION: the row does not exist yet.
+NEEDS VALIDATION: not built or booted. The payload's own checks (in its README): units 1893/1893 matched on both
+caches, 963 embedded, 965 of 969 AOT caches; 13 records bridge without a unit and 21 Swift helper records have no
+definer on B (runtime's known limits).
 
 ## Revisions
+- r2 2026-11-15 Row `hao_runtime_fold`: hao-runtime-26B131-20261115-96870dd3f441-B (hao-runtime 96870dd, both fold families); status experiment.
 - r1 2026-11-15 New: hao-runtime's installation on row hao_runtime_fold (the payload for the fold-in family), for the two fold sets.

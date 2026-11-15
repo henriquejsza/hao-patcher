@@ -26,8 +26,8 @@ A change to that recipe's code reaches this one at the next build without a revi
 
 ## Validation
 
-NEEDS VALIDATION: not built or booted. Host tests only. The set waits on row `hao_runtime_fold`; whether this
-family's cache UUID needs its own payload is open (see the B recipe's Validation).
+NEEDS VALIDATION: not built or booted. Host tests only. The set takes the same `hao_runtime_fold` payload as B
+(runtime: the two families' images have the same UUIDs).
 
 ## Revisions
 - r1 2026-11-15 New: golden-gate-shared-cache's fold on the B+catalog family (row rebuilt_cache_catalog), for set dev-bs-test-fold-catalog.

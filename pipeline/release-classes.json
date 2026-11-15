@@ -415,6 +415,30 @@
    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-apple-darwin-install_only.tar.gz",
    "reason": "python-build-standalone CPython 3.12.14 x86_64 (third-party; size checked)"
   },
+  "hao_runtime_fold": {
+   "class": "ours",
+   "publish": "file",
+   "source": "../hao-runtime-26B131-96870dd3f441-public.tar.gz",
+   "source_sha256": "14dbe9ebf5669a33683adc89672704f16fcc904f8e881079a33e16a22072102e",
+   "reason": "hao-runtime's public archive of the 96870dd fold-in payload (its make-public-archive.py, deterministic), as hao_runtime's: hao's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
+   "made_on_mac_files": [
+    {
+     "path": "payload/embed/stubs",
+     "producer": "tools/hao-embed --skeletons payload/embed/skeletons (GENERATE.md): fills each stub from the 26B131 program, Python and codesign only; must equal stub_sha256 in embed/manifest.json",
+     "from_row": "golden_gate_userspace"
+    },
+    {
+     "path": "payload/replace/dyld",
+     "producer": "tools/dyld-ignition-fix.py ROOT/usr/lib/dyld payload/replace/dyld (GENERATE.md)",
+     "from_row": "golden_gate_userspace"
+    },
+    {
+     "path": "payload/root/usr/lib/hao/aot",
+     "producer": "optional, after the first boot of the installed Mac: sudo /usr/libexec/hao --aot PROGRAM... (writes /private/var/db/hao)",
+     "from_row": "golden_gate_userspace"
+    }
+   ]
+  },
   "rebuilt_cache": {
    "class": "pending",
    "reason": "shared-cache fold-in family B: Apple's x86_64 cache rebuilt with the image's providers (Apple-derived, never published); dev fold sets only, until the fold-in has a user-side producer"

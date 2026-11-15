@@ -85,7 +85,7 @@ NEEDS VALIDATION: not built or booted. Host tests pass, with the real B and B+ca
 the System of image 8fb92d5 (the artifacts' source): roots and the 22 System providers match; the 4 Live Text
 providers match golden-gate-live-text-shared's fold-in build (row `live_text_framework` at live-text 679d5b1b, metal's),
 not main's older one, so a fold build needs that row; after retirement only the 14 AGXMetal drivers stay on disk.
-The fold sets wait on row `hao_runtime_fold` (recipe hao-runtime-fold, unfinished until it exists).
+Both fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), one payload for both families.
 
 ## Revisions
 - r3 2026-11-15 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261114-86dd72e (status experiment). Reads the generator's provider-provenance schema 1 (by install path). Step 3 may also take r77's model gates out, and step 4 then renames them in the new family. The last gate skips the reviewed `N` pattern (the 14 Apple-silicon AGXMetal drivers). Set dev-bs-test-fold takes hao-runtime-fold.
