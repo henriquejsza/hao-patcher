@@ -14,7 +14,8 @@ adds the fixes under [What's new](#whats-new).
 - Accelerated graphics (HD 4000); hardware video decoding (YouTube 1080p H.264, no dropped frames).
 - Wi-Fi: joining from Setup or Settings, and automatic joining of remembered networks,
   also at startup.
-- Speakers, brightness, keyboard, trackpad, Bluetooth; AirPlay displays are discovered.
+- Speakers, brightness, keyboard, trackpad, Bluetooth; AirPlay displays are discovered, and sound plays on
+  AirPlay speakers.
 - Safari (including YouTube), Calendar, Terminal, System Settings, Preview, App Store, Books, Calculator,
   Automator.
 - iPad-style apps: Stocks (watchlist, interactive charts, news) and News (Today feed with images); Home opens
