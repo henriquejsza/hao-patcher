@@ -440,7 +440,7 @@ No swapped files on it.
 
 Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3, set dev-bs-test).
 
-13 trial swaps not listed (13 resolved in the private resolution file).
+15 trial swaps not listed (15 resolved in the private resolution file).
 
 5 more swaps since the push are no longer there (restored or removed; read over SSH).
 
@@ -455,6 +455,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 | 2026-11-14 19:26:40 | `/System/Applications/App Store.app/Contents/MacOS/App Store` | 8c4079fc | trial, recipe golden-gate-store | there |
 | 2026-11-14 19:28:31 | `/usr/lib/hao/libhao-appstore-policy.dylib` | abaa0356 | trial, recipe golden-gate-store | there |
 | 2026-11-14 19:57:09 | `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` | 54c07b4c | proven, row tahoe_native_donors | there |
+| 2026-11-14 20:36:39 | `/usr/lib/hao/libhao-ios-coordinator-test.dylib` | f2a4a2bb | trial, recipe golden-gate-store | there |
 | 2026-11-14 20:55:30 | `/System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd` | e57e1af0 | trial, recipe golden-gate-ids | there |
 | 2026-11-14 21:21:33 | `/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent` | 7acb0e02 | trial, recipe golden-gate-store | there |
 | 2026-11-15 16:25:50 | `/usr/lib/hao/libhao-imessage-wifi-test.dylib` | d5aa7a8c | trial, recipe golden-gate-ids | there |
@@ -473,6 +474,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - Test machine B: `/System/Applications/App Store.app/Contents/MacOS/App Store` (8c4079fc) differs from image 8fb92d5: recipe golden-gate-store.
 - Test machine B: `/usr/lib/hao/libhao-appstore-policy.dylib` (abaa0356) differs from image 8fb92d5: recipe golden-gate-store.
 - Test machine B: `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` (54c07b4c) differs from image 8fb92d5: row tahoe_native_donors.
+- Test machine B: `/usr/lib/hao/libhao-ios-coordinator-test.dylib` (f2a4a2bb) differs from image 8fb92d5: recipe golden-gate-store.
 - Test machine B: `/System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd` (e57e1af0) differs from image 8fb92d5: recipe golden-gate-ids.
 - Test machine B: `/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent` (7acb0e02) differs from image 8fb92d5: recipe golden-gate-store.
 - Test machine B: `/usr/lib/hao/libhao-imessage-wifi-test.dylib` (d5aa7a8c) differs from image 8fb92d5: recipe golden-gate-ids.
