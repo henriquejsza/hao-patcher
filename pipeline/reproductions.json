@@ -84,6 +84,13 @@
    "repo": "hao-patcher",
    "commit": "6ce955ec",
    "result": "identical"
+  },
+  "tahoe_native_donors": {
+   "artifact": "minimal-native-25G342-26B131-corewifi-awdl-r4",
+   "repo": "hao-patcher",
+   "commit": "b6a91076",
+   "result": "identical",
+   "note": "tools/tahoe-donors make native with the row's recipe and inputs; cache-dylib r3, as the artifact recorded"
   }
  }
 }
