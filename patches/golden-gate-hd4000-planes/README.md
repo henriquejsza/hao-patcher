@@ -77,5 +77,6 @@ phase D passed all five cases through the driver, and the `HD4000_PLANES=0` cont
 recipe has booted.
 
 ## Revisions
+- r3 2026-11-15 Row hd4000_planes hashes the published file only (`# hash: release-files`), so a store made from a release matches it. Installed bytes unchanged.
 - r2 2026-11-14 Wording: the probe is named without its repository. Installed bytes unchanged.
 - r1 2026-11-14 Initial recipe: libhd4000-planes.dylib and its weak load in the HD 4000 Metal driver (diag#0025).

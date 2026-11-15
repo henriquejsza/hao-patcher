@@ -12,11 +12,11 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | darwin27-sandbox-disk-space | r3 | oclp-hook | experiment |  |  | x |  |  | **needs** | r3 2026-11-12 Declare the system.sb rule in `edits/system-sb.json` (edit-engine text.insert, unless already pr |
 | dev-access | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-14 Screen Sharing for the test account from the first boot (owner's decision): system LaunchDaemon  |
 | dev-diagnostics | r4 | post | dev |  |  |  |  |  | **needs** | r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestrict |
-| golden-gate-appstore-slices | r1 | post | product |  | x | x |  |  | **needs** | r1 2026-11-14 New: hao-slice-guard and its LaunchDaemon log each Mach-O without x86_64 in a universal App Stor |
+| golden-gate-appstore-slices | r2 | post | product |  | x | x |  |  | **needs** | r2 2026-11-15 Row hash scope. |
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e |
-| golden-gate-hd4000-planes | r2 | oclp-hook | product |  | x |  |  |  | **needs** | r2 2026-11-14 Wording: the probe is named without its repository. Installed bytes unchanged. |
+| golden-gate-hd4000-planes | r3 | oclp-hook | product |  | x |  |  |  | **needs** | r3 2026-11-15 Row hd4000_planes hashes the published file only (`# hash: release-files`), so a store made from |
 | golden-gate-hello | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |

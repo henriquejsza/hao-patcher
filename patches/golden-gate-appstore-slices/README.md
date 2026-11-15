@@ -57,4 +57,5 @@ others: `main=universal`, `missing_x86_64=0`; Xcode `main=arm64`, thinned for th
 logged nothing.
 
 ## Revisions
+- r2 2026-11-15 Row hash scope.
 - r1 2026-11-14 New: hao-slice-guard and its LaunchDaemon log each Mach-O without x86_64 in a universal App Store app after install or update.

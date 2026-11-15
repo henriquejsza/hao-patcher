@@ -1,4 +1,5 @@
 # HD 4000 plane-texture fix (diag#0025/#0024): libhd4000-planes.dylib (fee66603...) built by
 # patches/golden-gate-hd4000-planes/build/make from build/hd4000_planes.m (3030c66c...); the same bytes ran on laptop 1
 # (live swap, persisted 2026-11-14). build.json names source, compiler and command.
-a9769034bef00b8f13e207b76fb9f6d9de2179066136a18a7cbe7659d43254d7 store/artifacts/hd4000-planes-20261114-3030c66cd852
+# hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
+bae5502e9beb38650adb983f12dac79c4d514fbcfb274335a5d815e5abc325ec store/artifacts/hd4000-planes-20261114-3030c66cd852
