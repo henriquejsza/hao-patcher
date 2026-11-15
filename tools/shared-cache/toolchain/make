@@ -14,7 +14,7 @@ HERE = Path(__file__).resolve().parent
 def build(source, output, arch):
     output = output.resolve()
     tree = output / 'source'
-    shutil.copytree(source, tree)
+    shutil.copytree(source, tree, ignore=shutil.ignore_patterns('.git'))  # a git clone's metadata is not source
     subprocess.run(['patch', '-p1', '-i', str(HERE / 'source.patch')], cwd=tree, check=True)
     shutil.copytree(HERE / 'added-source', tree, dirs_exist_ok=True)
     shutil.copytree(HERE / 'availability', output / 'availability')

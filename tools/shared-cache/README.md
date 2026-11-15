@@ -126,7 +126,8 @@ against dyld keep their own licences. The rest is covered by the repository's MI
   builds Apple's cache builder for the Mac it runs on (arm64 or x86_64; before, arm64 only) and the host adapters
   link for the toolchain's architecture (`host_tools.toolchain_arch`); no default path outside the repository (store:
   `SHARED_CACHE_STORE`, else the repository's `store/`; image tool: `SSDIMG`, else `tools/bin/ssdimg`); this README
-  rewritten for an end user. The family's bytes are unchanged (Validation).
+  rewritten for an end user; a `.git` folder in DYLD_SOURCE (a clone) is not copied into the toolchain. The family's
+  bytes are unchanged (Validation).
 - r83 2026-11-15 A reference from an Apple image to a class of a replaced image that the replacement does not define
   keeps its original pointer (to the old class bytes, which stay in the cache) instead of stopping the ObjC recipe;
   the metadata report lists them (`retained_external_class_references`). FACT: OCLP's Metal wrapper (re-exporting
