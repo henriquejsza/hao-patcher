@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""stub-edit: edit the x86_64 stub hao-install generated for a program, and refresh its stub identity.
+
+  stub-edit SYSTEM SPEC [--record FILE]
+
+For a recipe's kc-hook that runs after hao-runtime in the set: SPEC is an edit spec (format 1) whose `path` is a
+program of SYSTEM listed in SYSTEM/usr/lib/hao/stub-identities, whose `arch` is x86_64 and whose `origin.kind` is
+`hao`. In one pass, refusing before anything is written when a check fails:
+
+  1. Lineage. The program's x86_64 CDHash is the stub CDHash its stub-identities line records (the stub this
+     image's hao-install embedded, not a copy from another payload), and its Apple arm64 slice has the line's
+     Apple CDHash. Exactly one line names the program.
+  2. The x86_64 slice alone is cut out, SPEC's edits are applied (tools/edit-engine) and it is signed as SPEC's
+     `sign` says. The stub binds its bundle (code-signature special slots -1 Info.plist and -3 resources); codesign
+     on a lone slice cannot compute them, so the stub's own values are carried into the new CodeDirectory.
+  3. The new slice replaces the old one; every other slice is kept byte for byte (checked), and the file is written
+     in place (same inode, owner, mode and flags).
+  4. The program's stub-identities line gets the new stub CDHash; every other line is unchanged.
+
+--record writes what was done (input and output sha256 and CDHashes, the spec's sha256, the edit record). Exit 0
+edited, 1 refused, 2 usage. The hook runs in the builder VM against the offline System (macOS codesign).
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import struct
+import sys
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / 'src'))
+import engine   # noqa: E402
+import signing   # noqa: E402
+import spec as S   # noqa: E402
+
+STUBS = 'usr/lib/hao/stub-identities'
+CPU_X86_64 = 0x01000007
+
+
+class Refused(Exception):
+    pass
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def fat_slices(data):
+    """[(cpu, subtype, align, bytes)] of a universal file, in table order."""
+    magic, count = struct.unpack_from('>II', data)
+    if magic not in (0xcafebabe, 0xcafebabf) or not 0 < count <= 64:
+        raise Refused('not a universal Mach-O (a stub is a slice next to Apple\'s)')
+    wide, out = magic == 0xcafebabf, []
+    for i in range(count):
+        at = 8 + i * (32 if wide else 20)
+        cpu, sub = struct.unpack_from('>II', data, at)
+        if wide:
+            start, length, align = struct.unpack_from('>QQI', data, at + 8)
+        else:
+            start, length, align = struct.unpack_from('>III', data, at + 8)
+        if start + length > len(data):
+            raise Refused('universal slice past the end of the file')
+        out.append((cpu, sub, align, data[start:start + length]))
+    return out, wide
+
+
+def fat_join(parts, wide):
+    """A universal file of PARTS [(cpu, subtype, align, bytes)], each at the next offset its alignment allows."""
+    entry = 32 if wide else 20
+    at = 8 + entry * len(parts)
+    table, body = bytearray(struct.pack('>II', 0xcafebabf if wide else 0xcafebabe, len(parts))), []
+    for cpu, sub, align, blob in parts:
+        start = -(-at // (1 << align)) * (1 << align)
+        body.append((start, blob))
+        table += struct.pack('>IIQQII', cpu, sub, start, len(blob), align, 0) if wide else \
+            struct.pack('>IIIII', cpu, sub, start, len(blob), align)
+        at = start + len(blob)
+    out = bytearray(at)
+    out[:len(table)] = table
+    for start, blob in body:
+        out[start:start + len(blob)] = blob
+    return bytes(out)
+
+
+def code_directories(data):
+    """{hash type: CodeDirectory offset} of a thin Mach-O's embedded signature."""
+    if data[:4] != b'\xcf\xfa\xed\xfe':
+        raise Refused('expected a thin 64-bit Mach-O')
+    at = 32
+    for _ in range(struct.unpack_from('<I', data, 16)[0]):
+        cmd, size = struct.unpack_from('<II', data, at)
+        if size < 8 or at + size > len(data):
+            raise Refused('invalid load command')
+        if cmd == 0x1d:
+            start, length = struct.unpack_from('<II', data, at + 8)
+            magic, total, count = struct.unpack_from('>III', data, start)
+            if magic != 0xfade0cc0 or total > length or start + length > len(data):
+                raise Refused('invalid embedded signature')
+            out = {}
+            for i in range(count):
+                slot, offset = struct.unpack_from('>II', data, start + 12 + 8 * i)
+                if slot == 0 or 0x1000 <= slot < 0x1006:
+                    cd = start + offset
+                    if struct.unpack_from('>I', data, cd)[0] != 0xfade0c02:
+                        raise Refused('invalid CodeDirectory')
+                    out[data[cd + 37]] = cd
+            return out
+        at += size
+    raise Refused('the slice is not signed')
+
+
+def carry_bundle_slots(original, edited):
+    """EDITED with ORIGINAL's special slots -1 (Info.plist) and -3 (resources) in each of its CodeDirectories."""
+    target = bytearray(edited)
+    old, new = code_directories(original), code_directories(target)
+    for kind, before in old.items():
+        p_hash, p_count = struct.unpack_from('>I', original, before + 16)[0], struct.unpack_from('>I', original, before + 24)[0]
+        size = original[before + 36]
+        for slot in (1, 3):
+            value = original[before + p_hash - slot * size:before + p_hash - (slot - 1) * size] if slot <= p_count else b''
+            if not any(value):
+                continue
+            cd = new.get(kind)
+            if cd is None or not struct.unpack_from('>I', target, cd + 12)[0] & 2:   # CS_ADHOC
+                raise Refused('the new signature cannot carry the bundle slot (not ad hoc, or no such hash type)')
+            t_hash, t_count = struct.unpack_from('>I', target, cd + 16)[0], struct.unpack_from('>I', target, cd + 24)[0]
+            if target[cd + 36] != size or slot > t_count:
+                raise Refused('the new CodeDirectory has no room for bundle slot -%d' % slot)
+            begin = cd + t_hash - slot * size
+            target[begin:begin + size] = value
+    return bytes(target)
+
+
+def cdhashes(data):
+    return {name: (cd or {}).get('cdhash') for name, cd in signing.read(data).items()}
+
+
+def stub_line(lines, path):
+    hits = [i for i, l in enumerate(lines) if not l.startswith('#') and len(l.split(None, 3)) == 4
+            and l.split(None, 3)[3] == path]
+    if len(hits) != 1:
+        raise Refused('%s: %d stub-identities lines name it (expected 1)' % (path, len(hits)))
+    return hits[0]
+
+
+def write_in_place(target, data):
+    with open(target, 'r+b') as f:
+        f.truncate(0)
+        f.write(data)
+
+
+def stub_edit(system, spec_path, record_path=None):
+    system = Path(system)
+    spec = S.load(str(spec_path))
+    path = spec.get('path', '')
+    if spec.get('arch') != 'x86_64' or (spec.get('origin') or {}).get('kind') != 'hao':
+        raise Refused('the spec must say arch x86_64 and origin kind hao (a stub hao generated)')
+    if not path or path.startswith('/') or '..' in Path(path).parts:
+        raise Refused('the spec path must be relative to the System root')
+    target, stubs = system / path, system / STUBS
+    if target.is_symlink() or not target.is_file():
+        raise Refused('%s is not a file' % path)
+    lines = stubs.read_text().splitlines()
+    at = stub_line(lines, path)
+    stub_cd, apple_cd, arch = lines[at].split(None, 3)[:3]
+    data = target.read_bytes()
+    parts, wide = fat_slices(data)
+    names = {signing.slice_name(cpu, sub): i for i, (cpu, sub, _, _) in enumerate(parts)}
+    seen = cdhashes(data)
+    x86 = [i for i, p in enumerate(parts) if p[0] == CPU_X86_64]
+    if len(x86) != 1:
+        raise Refused('%s: %d x86_64 slices (a stub is exactly one)' % (path, len(x86)))
+    x86_name = signing.slice_name(parts[x86[0]][0], parts[x86[0]][1])
+    if seen.get(x86_name) != stub_cd:
+        raise Refused('%s: x86_64 CDHash %s is not the stub-identities stub %s (not the stub this image embedded)'
+                      % (path, seen.get(x86_name), stub_cd))
+    if arch not in names or seen.get(arch) != apple_cd:
+        raise Refused('%s: %s CDHash %s is not Apple\'s %s from stub-identities' % (path, arch, seen.get(arch), apple_cd))
+    thin = parts[x86[0]][3]
+    try:
+        edited, record = engine.apply(spec, thin, repo=str(HERE.parents[1]))
+    except engine.EditError as x:
+        raise Refused('edit refused: %s' % x)
+    if not spec.get('sign'):
+        raise Refused('the spec must sign the edited stub')
+    try:
+        edited = signing.sign(edited, spec['sign'], thin, None, S.codesign_args)
+    except signing.SignatureError as x:
+        raise Refused(str(x))
+    edited = carry_bundle_slots(thin, edited)
+    new_parts = list(parts)
+    cpu, sub, align, _ = parts[x86[0]]
+    new_parts[x86[0]] = (cpu, sub, align, edited)
+    out = fat_join(new_parts, wide)
+    check, _ = fat_slices(out)
+    for i, (a, b) in enumerate(zip(parts, check)):
+        if i != x86[0] and a[3] != b[3]:
+            raise Refused('%s: slice %d changed (only the x86_64 stub may)' % (path, i))
+    after = cdhashes(out)[x86_name]
+    lines[at] = '  '.join([after, apple_cd, arch, path])
+    write_in_place(target, out)
+    write_in_place(stubs, ('\n'.join(lines) + '\n').encode())
+    result = {'path': path, 'spec_sha256': sha256(Path(spec_path).read_bytes()),
+              'before': {'sha256': sha256(data), 'stub_cdhash': stub_cd},
+              'after': {'sha256': sha256(out), 'stub_cdhash': after},
+              'apple': {'arch': arch, 'cdhash': apple_cd},
+              'kept_slices': {signing.slice_name(c, s): sha256(b) for i, (c, s, _, b) in enumerate(parts) if i != x86[0]},
+              'edits': record}
+    if record_path:
+        Path(record_path).write_text(json.dumps(result, indent=1) + '\n')
+    return result
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    p.add_argument('system')
+    p.add_argument('spec')
+    p.add_argument('--record')
+    a = p.parse_args()
+    try:
+        r = stub_edit(a.system, a.spec, a.record)
+    except (Refused, OSError, ValueError) as x:
+        print('stub-edit: refused: %s' % x, file=sys.stderr)
+        return 1
+    print('stub-edit: %s: stub %s -> %s; other slices unchanged; stub-identities updated'
+          % (r['path'], r['before']['stub_cdhash'][:12], r['after']['stub_cdhash'][:12]))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
