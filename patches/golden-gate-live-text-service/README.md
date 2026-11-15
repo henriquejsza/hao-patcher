@@ -30,7 +30,10 @@ EPERM for the daemon's exact path when the value contains `media`.
 
 It refuses unless the image's System has an intact runtime in `/usr/lib/hao-live-text` and `libhelloblur` loads
 it (`golden-gate-live-text-shared`): without the runtime the daemon would run Vision on the HD 4000 without the
-repairs.
+repairs. In a fold-in image (`golden-gate-shared-cache` moved both libraries into the rebuilt shared cache and
+removed the files), it accepts that recipe's record `/System/Library/CoreServices/golden-gate-shared-cache.json`
+instead: its `providers` must list `libhelloblur` and `LiveText.dylib`, the latter with the runtime manifest's hash
+(the fold checked those bytes on disk before removing them). Exactly one of the two on disk is refused.
 
 Why not `"disable_mediaanalysisd": false` in the target: that changes the EFI of every MacBookPro9,2 image built from
 this target (the golden-gate set and the Recovery too), including images without the runtime; this recipe unblocks
@@ -62,6 +65,7 @@ an image or booted; background analysis load on the HD 4000 is unmeasured.
 
 ## Revisions
 
+- r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the rebuilt shared cache: golden-gate-shared-cache's record must list both, LiveText at its manifest hash. Config bytes unchanged.
 - r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, arm64 or x86_64), falling back to the builder VM's share copy; same Python version and bytes written.
 - r3 2026-11-12 Declare the config edit in edits/config.json; the hook is unchanged.
 - r2 2026-11-11 Checks the runtime in System (/usr/lib/hao-live-text/LiveText.dylib) on the read-only System instead of a Data alias; selected by dev-bs-test after hao-opencore.

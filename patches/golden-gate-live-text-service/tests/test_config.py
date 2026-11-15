@@ -72,6 +72,35 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'differs'):
                 m.installed_runtime(system)
 
+    def test_runtime_folded_into_the_shared_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            system = Path(tmp).resolve()
+            runtime = system/m.RUNTIME
+            runtime.mkdir(parents=True)
+            want = hashlib.sha256(b'umbrella').hexdigest()
+            (runtime/'build.json').write_text(json.dumps(dict(
+                unit='tools/live-text', compiler_mode='shared', install_root='/' + m.RUNTIME, load_paths=[UMBRELLA],
+                files={m.UMBRELLA: want})))
+            (system/m.STARTUP).parent.mkdir(parents=True, exist_ok=True)
+            with self.assertRaisesRegex(ValueError, 'neither on disk nor folded with'):
+                m.installed_runtime(system)
+            record = system/m.FOLD_RECORD
+            record.parent.mkdir(parents=True)
+            providers = {UMBRELLA.lstrip('/'): want}
+            record.write_text(json.dumps(dict(providers=providers)))
+            with self.assertRaisesRegex(ValueError, 'libhelloblur.dylib is neither'):
+                m.installed_runtime(system)
+            providers[m.STARTUP] = '0' * 64
+            record.write_text(json.dumps(dict(providers=providers)))
+            self.assertEqual(m.installed_runtime(system), '/' + m.RUNTIME)
+            providers[UMBRELLA.lstrip('/')] = '1' * 64
+            record.write_text(json.dumps(dict(providers=providers)))
+            with self.assertRaisesRegex(ValueError, 'folded with its manifest bytes'):
+                m.installed_runtime(system)
+            (system/m.STARTUP).write_bytes(b'header ' + UMBRELLA.encode() + b'\0 tail')
+            with self.assertRaisesRegex(ValueError, 'only /usr/lib/libhelloblur.dylib is on disk'):
+                m.installed_runtime(system)
+
 
 if __name__ == '__main__':
     unittest.main()
