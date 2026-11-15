@@ -1,1 +1,54 @@
-{"revision": 5, "stage": "post", "applies": {"models": ["MacBookPro9,2"], "builds": ["25G342"]}, "inputs": ["user_template_golden_gate"], "status": "experiment", "validated": false}
+{
+ "revision": 6,
+ "stage": "post",
+ "applies": {
+  "models": [
+   "MacBookPro9,2"
+  ],
+  "builds": [
+   "25G342"
+  ]
+ },
+ "inputs": [
+  "user_template_golden_gate"
+ ],
+ "status": "experiment",
+ "validated": false,
+ "files": [
+  {
+   "path": "Library/User Template/Non_localized/Library/Containers",
+   "tree": true,
+   "origin": {
+    "kind": "hao",
+    "row": "user_template_golden_gate",
+    "note": "app and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation"
+   },
+   "install": {
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "Library/User Template/Non_localized/Library/Group Containers",
+   "tree": true,
+   "origin": {
+    "kind": "hao",
+    "row": "user_template_golden_gate",
+    "note": "group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation"
+   },
+   "install": {
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist",
+   "origin": {
+    "kind": "hao",
+    "row": "user_template_golden_gate",
+    "note": "chronod's preferences without per-boot keys; Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation"
+   },
+   "install": {
+    "owner": "root:wheel"
+   }
+  }
+ ]
+}

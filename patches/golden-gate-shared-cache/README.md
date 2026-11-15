@@ -91,6 +91,7 @@ not main's older one, so a fold build needs that row; after retirement only the 
 Both fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), one payload for both families.
 
 ## Revisions
+- r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r3 2026-11-15 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261114-86dd72e (status experiment). Reads the generator's provider-provenance schema 1 (by install path). Step 3 may also take r77's model gates out, and step 4 then renames them in the new family. The last gate skips the reviewed `N` pattern (the 14 Apple-silicon AGXMetal drivers). Set dev-bs-test-fold takes hao-runtime-fold.
 - r2 2026-11-14 Seven more reviewed companions (metal): libhelloblur and the six /usr/lib/hao-live-text dylibs; MTLCompiler 3802 stays on disk. Nothing installed changes on existing sets.
 - r1 2026-11-14 New: the 26B131 B image's OS cryptex gets the rebuilt x86_64 family with the on-disk providers folded in, after checking the reviewed roots, the provider bytes and the input cache; the roots leave System and no cache image may stay on disk.

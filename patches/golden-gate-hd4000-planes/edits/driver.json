@@ -1,0 +1,13 @@
+{
+ "format": 1,
+ "path": "System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver",
+ "arch": "x86_64",
+ "origin": {"kind": "oclp", "name": "AppleIntelHD4000GraphicsMTLDriver", "note": "after golden-gate-metal-argbuf: OCLP's HD 4000 Metal driver with the earlier Metal recipes' weak load commands already added"},
+ "applied_by": "installer",
+ "edits": [
+  {"id": "weak-load-hd4000-planes", "kind": "op", "op": "macho.add-dylib",
+   "args": {"path": "/usr/lib/libhd4000-planes.dylib", "weak": true, "timestamp": 2, "current_version": 0, "compat_version": 0},
+   "reason": "the driver loads the plane-texture fix, so planar (video and camera) surfaces draw on the HD 4000; weak, so the driver still loads without the library"}
+ ],
+ "sign": {"mode": "adhoc", "identifier": "AppleIntelHD4000GraphicsMTLDriver"}
+}

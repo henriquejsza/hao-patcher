@@ -16,7 +16,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e |
-| golden-gate-hd4000-planes | r3 | oclp-hook | product |  | x |  |  |  | **needs** | r3 2026-11-15 Row hd4000_planes hashes the published file only (`# hash: release-files`), so a store made from |
+| golden-gate-hd4000-planes | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-hello | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
@@ -29,15 +29,15 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-shared-cache | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-15 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261114-86dd72e (status experiment). Reads th |
-| golden-gate-shared-cache-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-15 New: golden-gate-shared-cache's fold on the B+catalog family (row rebuilt_cache_catalog), for se |
+| golden-gate-shared-cache | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
+| golden-gate-shared-cache-catalog | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
-| golden-gate-user-template | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh |
+| golden-gate-user-template | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-userspace | r78 | oclp-hook | experiment |  | x | x |  |  | **needs** | r78 2026-11-14 The prespecialization gate counts an image the overridden set gains or loses only if it carries |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r64 | post | experiment |  | x | x |  |  | **needs** | r64 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
 | hao-runtime | r79 | oclp-hook | experiment |  | x | x |  |  | **needs** | r79 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
-| hao-runtime-fold | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-15 Row `hao_runtime_fold`: the units set 2 payload (-B2: same hao-runtime 96870dd and libhao; 16 mo |
+| hao-runtime-fold | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |

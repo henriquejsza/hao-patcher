@@ -32,6 +32,7 @@ caches, 963 embedded, 965 of 969 AOT caches; one CoreWiFi record bridges without
 have no definer on B (runtime's known limits).
 
 ## Revisions
+- r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r3 2026-11-15 Row `hao_runtime_fold`: the units set 2 payload (-B2: same hao-runtime 96870dd and libhao; 16 more B records typed). No recipe change.
 - r2 2026-11-15 Row `hao_runtime_fold`: hao-runtime-26B131-20261115-96870dd3f441-B (hao-runtime 96870dd, both fold families); status experiment.
 - r1 2026-11-15 New: hao-runtime's installation on row hao_runtime_fold (the payload for the fold-in family), for the two fold sets.
