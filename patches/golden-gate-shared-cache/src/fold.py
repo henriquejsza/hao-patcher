@@ -7,16 +7,19 @@ retired-roots.txt as cache images. This recipe:
 2. checks every root's bytes on this System against the artifact's provider-provenance.json: the cache must hold the
    bytes this image would otherwise load from disk;
 3. checks that the artifact was made from this image's cache: its recorded input files equal the x86_64 files of the
-   OS cryptex golden-gate-userspace built, either as built or with that recipe's Swift prespecialization edits taken
-   back out (the edits a cache without overridden images does not need);
-4. builds a new sealed OS cryptex: the current one's files with the x86_64 family replaced by the artifact's,
-   4 KiB code pages, every Swift metadata reference checked;
-5. removes the roots from System and stops unless no image of the new family is left on disk (dyld itself aside).
+   OS cryptex golden-gate-userspace built, as built or with any of that recipe's later edit groups taken back out
+   (LATER_EDITS: the Swift prespecialization edits, which a cache without overridden images does not need, and the
+   model gates, which step 4 applies again);
+4. builds a new sealed OS cryptex: the current one's files with the x86_64 family replaced by the artifact's, the
+   model gates renamed in it when the image had them, 4 KiB code pages, every Swift metadata reference checked;
+5. removes the roots from System and stops unless no image of the new family is left on disk (dyld itself aside, and
+   the N patterns of src/providers.txt: images no process loads on this Mac, listed in the record).
 
     python3.14 -I fold.py install SYSTEM ARTIFACT        in the builder VM (env GRP, PBU), from src/kc-hook.sh
     python3.14 -I fold.py check SYSTEM ARTIFACT          steps 1-2 only, read-only
 """
 from contextlib import ExitStack
+import fnmatch
 import hashlib
 import json
 import os
@@ -30,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 # staged: build/userspace (make.sh); in the checkout: golden-gate-userspace's own src
 USERSPACE = HERE/'build/userspace' if (HERE/'build/userspace').is_dir() else HERE.parents[1]/'golden-gate-userspace/src'
 sys.path.insert(0, str(USERSPACE))
+import model_gates  # noqa: E402
 import prespecialization  # noqa: E402
 import swift_refs  # noqa: E402
 
@@ -52,15 +56,26 @@ def sha256(path, chunk=1 << 24):
     return h.hexdigest()
 
 
-def reviewed(path=PROVIDERS):
-    """(required, companions): install paths without the leading slash."""
-    required, companions = set(), set()
+def reviewed_lines(path=PROVIDERS):
+    """{kind: set of install paths or patterns, without the leading slash} of the R, C and N lines."""
+    kinds = {'R': set(), 'C': set(), 'N': set()}
     for line in Path(path).read_text().splitlines():
         if not line.strip() or line.startswith('#'):
             continue
         kind, rel = line.split(None, 1)
-        {'R': required, 'C': companions}[kind].add(rel.strip().lstrip('/'))
-    return required, companions
+        kinds[kind].add(rel.strip().lstrip('/'))
+    return kinds
+
+
+def reviewed(path=PROVIDERS):
+    """(required, companions): install paths without the leading slash."""
+    kinds = reviewed_lines(path)
+    return kinds['R'], kinds['C']
+
+
+def not_loaded(path=PROVIDERS):
+    """The N patterns: cache images allowed to stay on disk because no process loads them on this Mac."""
+    return sorted(reviewed_lines(path)['N'])
 
 
 def cache_files(directory):
@@ -76,12 +91,21 @@ def load_artifact(artifact):
     system = str(build['system']).rstrip('/') + '/'
     roots = [line.strip().lstrip('/') for line in (artifact/'retired-roots.txt').read_text().splitlines()
              if line.strip() and not line.startswith('#')]
+    provenance = json.loads((artifact/'provider-provenance.json').read_text())
+    if not isinstance(provenance, dict) or provenance.get('schema') != 1 \
+            or not isinstance(provenance.get('provider_sources'), dict):
+        raise Refused('provider-provenance.json is not schema 1 with provider_sources')
     providers = {}
-    for entry in json.loads((artifact/'provider-provenance.json').read_text()):
-        path = str(entry['path'])
-        if not path.startswith(system):
-            raise Refused(f'provider {entry.get("provider")}: {path} is not under the artifact system {system}')
-        providers[path[len(system):]] = entry['sha256']
+    for name, entry in provenance['provider_sources'].items():
+        # origin "system": read from the artifact's System view; "file": a recipe's own built file (e.g. Live Text),
+        # which the image installs at install_path. Either way the root on this System must have its bytes.
+        if entry.get('origin') == 'system' and not str(entry['path']).startswith(system):
+            raise Refused(f'provider {name}: {entry["path"]} is not under the artifact system {system}')
+        if entry.get('origin') not in ('system', 'file'):
+            raise Refused(f'provider {name}: unknown origin {entry.get("origin")!r}')
+        root = str(entry['install_path']).lstrip('/')
+        if providers.setdefault(root, entry['sha256']) != entry['sha256']:
+            raise Refused(f'provider-provenance.json names /{root} twice with different bytes')
     inputs = {}
     for entry in build.get('inputs', []):
         path = Path(entry['path'])
@@ -158,9 +182,26 @@ def prespecialization_edits(directory):
             for name, entry in data['files'].items() if (Path(directory)/name).is_file()}
 
 
+def model_gate_edits(directory):
+    """{file name: [(offset, before, after, reason)]} of golden-gate-userspace's model gates planned on the cache family
+    in DIRECTORY (one that still lists this Mac, e.g. the artifact's); {} when it does not list it once per image."""
+    try:
+        plan = model_gates.plan_cache_family(Path(directory))
+    except ValueError:
+        return {}
+    return {Path(path).name: changes for path, changes in plan.items()}
+
+
+def later_edits(directory, artifact):
+    """golden-gate-userspace's edit groups an artifact may predate, by group: the prespecialization edits (from that
+    recipe's data, for the cache in DIRECTORY) and the model gates (planned on the ARTIFACT's family)."""
+    return {'prespecialization': prespecialization_edits(directory), 'model-gates': model_gate_edits(artifact)}
+
+
 def match_input(directory, inputs, workspace, resign, edits=None):
-    """How the cache family in DIRECTORY relates to the artifact's INPUTS {name: sha256}: 'as-built' or
-    'without-prespecialization'; refuses otherwise."""
+    """How the cache family in DIRECTORY relates to the artifact's INPUTS {name: sha256}: 'as-built', or the sorted
+    list of the EDITS groups ({group: {file name: [(offset, before, after, reason)]}}) that had to be taken back out of
+    it (each differing file may lose any combination of the groups that edit it); refuses otherwise."""
     directory = Path(directory)
     current = cache_files(directory)
     if sorted(inputs) != current:
@@ -169,12 +210,31 @@ def match_input(directory, inputs, workspace, resign, edits=None):
     differ = sorted(n for n in current if have[n] != inputs[n])
     if not differ:
         return 'as-built'
-    edits = prespecialization_edits(directory) if edits is None else edits
-    if set(differ) <= set(edits) and all(unedited(directory/n, edits[n], workspace, resign) == inputs[n]
-                                          for n in differ):
-        return 'without-prespecialization'
-    raise Refused(f'the artifact was made from another cache (differs: {differ}); rebuild it from this image\'s '
-                  'OS cryptex')
+    edits = {} if edits is None else edits
+    taken = set()
+    for name in differ:
+        groups = sorted(g for g, files in edits.items() if files.get(name))
+        combinations = [[g for i, g in enumerate(groups) if mask >> i & 1] for mask in range(1, 1 << len(groups))]
+        found = next((c for c in sorted(combinations, key=len, reverse=True)
+                      if unedited(directory/name, [e for g in c for e in edits[g][name]], workspace, resign)
+                      == inputs[name]), None)
+        if found is None:
+            raise Refused(f'the artifact was made from another cache (differs: {differ}; {name} matches with no '
+                          f'combination of {groups or "no later edits"} taken out); rebuild it from this image\'s '
+                          'OS cryptex')
+        taken.update(found)
+    return sorted(taken)
+
+
+def apply_edits(path, edits):
+    """Write EDITS [(offset, before, after, reason)] into PATH, each only over its BEFORE bytes."""
+    with open(path, 'r+b') as stream:
+        for offset, before, after, reason in edits:
+            stream.seek(offset)
+            if stream.read(len(before)) != before:
+                raise Refused(f'{Path(path).name}: {reason}: the bytes at {offset} are not the expected ones')
+            stream.seek(offset)
+            stream.write(after)
 
 
 def replace_cache(dyld, artifact, files):
@@ -206,12 +266,16 @@ def retire(system, roots):
         print(f'golden-gate-shared-cache: removed /{root}', flush=True)
 
 
-def gate(system, image_paths):
-    """Refuse unless no image of the cache family (IMAGE_PATHS, install paths) is a file on SYSTEM, dyld aside."""
-    left = prespecialization.overridden(system, image_paths)
+def gate(system, image_paths, allowed=None):
+    """Refuse unless no image of the cache family (IMAGE_PATHS, install paths) is a file on SYSTEM, dyld aside and
+    those matching ALLOWED (the N patterns); returns the sorted list of the allowed ones found."""
+    allowed = not_loaded() if allowed is None else allowed
+    found = prespecialization.overridden(system, image_paths)
+    kept = [p for p in found if any(fnmatch.fnmatchcase(p.lstrip('/'), pattern) for pattern in allowed)]
+    left = [p for p in found if p not in kept]
     if left:
         raise Refused(f'{len(left)} cache image(s) still on disk, dyld would load them: {left}')
-    return 0
+    return kept
 
 
 def install(system, artifact):   # pragma: no cover - builder VM only (APFS images, Preboot)
@@ -234,15 +298,25 @@ def install(system, artifact):   # pragma: no cover - builder VM only (APFS imag
         work = current/'.golden-gate-shared-cache-os.dmg'
         remove(work)
         with image_mount(current/'os.dmg', workspace/'built-os') as built:
-            record['input'] = match_input(built/DYLD, art['inputs'], workspace, resign_file)
+            record['input'] = match_input(built/DYLD, art['inputs'], workspace, resign_file,
+                                          later_edits(built/DYLD, artifact))
             size = logical_size(built) + sum((artifact/n).stat().st_size for n in art['files']) + (2 << 30)
             new_image(work, size, built)
             metadata = built.stat()
             with image_mount(work, workspace/'folded-os', writable=True) as mount:
                 replace_tree(built, mount, CRYPTEX_KEEP)
                 record['removed'], record['installed'] = replace_cache(mount/DYLD, artifact, art['files'])
+                # The image's cache had the model gates and the artifact predates them: rename them in the new family.
+                regate = isinstance(record['input'], list) and 'model-gates' in record['input']
+                gates = model_gate_edits(mount/DYLD) if regate else {}
+                if regate and not gates:
+                    raise Refused('the image has the model gates but the rebuilt family does not list this Mac')
+                for name, changes in gates.items():
+                    apply_edits(mount/DYLD/name, changes)
+                    resign_file(mount/DYLD/name, force=True)
+                record['model_gates'] = {n: [r for *_, r in c] for n, c in gates.items()}
                 record['resigned_4k'] = [n for n in art['files'] if not n.endswith(('.map', '.atlas'))
-                                         and resign_file(mount/DYLD/n)]
+                                         and n not in gates and resign_file(mount/DYLD/n)] + sorted(gates)
                 images, totals, issues = swift_refs.verify(mount/DYLD, 'x86_64')
                 if issues:
                     raise Refused(f'{len(issues)} bad Swift metadata references, first: {issues[0]}')
@@ -257,7 +331,7 @@ def install(system, artifact):   # pragma: no cover - builder VM only (APFS imag
         os.replace(work, current/'os.dmg')
         run('cp', '-c', current/'os.dmg', current/'os.clone.dmg')
     retire(system, art['roots'])
-    record['overridden'] = gate(system, image_paths)
+    record['left_on_disk_not_loaded'] = gate(system, image_paths)
     record['seconds'] = round(time.monotonic() - started, 1)
     out = system/RECORD
     out.write_text(json.dumps(record, indent=2) + '\n')

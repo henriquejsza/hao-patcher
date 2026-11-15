@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-39 of 43 patches declare their files so far.
+39 of 45 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -563,4 +563,4 @@ Revision r2, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-golden-gate-hd4000-planes, golden-gate-metal-argbuf, golden-gate-shared-cache, golden-gate-user-template
+golden-gate-hd4000-planes, golden-gate-metal-argbuf, golden-gate-shared-cache, golden-gate-shared-cache-catalog, golden-gate-user-template, hao-runtime-fold

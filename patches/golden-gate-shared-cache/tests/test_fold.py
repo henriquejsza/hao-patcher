@@ -19,7 +19,14 @@ import fold  # noqa: E402
 
 REQUIRED, COMPANIONS = fold.reviewed()
 SYSTEM_AT = '/work/cache-system'
-TAHOE = TOP/'store/artifacts/rebuilt-cache-photos-weather-25G332-20261102-d0adc4df8216'
+ROWS = TOP/'pipeline/inputs/25G342'
+
+
+def row_folder(name):
+    """The folder a row names, when the row and its artifact are here (not hash-checked: lock.py does that)."""
+    lines = [l for l in (ROWS/name).read_text().splitlines() if l.strip() and not l.startswith('#')] \
+        if (ROWS/name).is_file() else []
+    return TOP/lines[0].split(None, 1)[1] if lines and (TOP/lines[0].split(None, 1)[1]).is_dir() else None
 
 
 def sha(data):
@@ -55,10 +62,11 @@ class StandIn(unittest.TestCase):
                      'dyld_shared_cache_x86_64.atlas'):
             (a/name).write_bytes(b'folded ' + name.encode())
         (a/'retired-roots.txt').write_text(''.join(r + '\n' for r in roots))
-        provenance = [dict(provider=Path(r).name, source='/oclp/' + r, path=f'{SYSTEM_AT}/{r}',
-                           sha256=sha((self.system/r).read_bytes()) if (self.system/r).exists() else '0' * 64)
-                      for r in roots] if providers is None else providers
-        (a/'provider-provenance.json').write_text(json.dumps(provenance))
+        # the generator's format (schema 1): provider name -> install path, origin, where it read the bytes, sha256
+        sources = {Path(r).name: dict(install_path='/' + r, origin='system', path=f'{SYSTEM_AT}/{r}',
+                                      sha256=sha((self.system/r).read_bytes()) if (self.system/r).exists() else '0' * 64)
+                   for r in roots} if providers is None else providers
+        (a/'provider-provenance.json').write_text(json.dumps(dict(build='26B131', schema=1, provider_sources=sources)))
         inputs = [dict(path=f'/Volumes/OS/System/Library/dyld/{n}', sha256=h, size=1) for n, h in self.inputs.items()]
         inputs += [dict(path='/Volumes/OS/System/DriverKit/System/Library/dyld/dyld_shared_cache_x86_64',
                         sha256='f' * 64, size=1), dict(path='/toolchain/relocate', sha256='e' * 64, size=1)]
@@ -114,9 +122,27 @@ class StandIn(unittest.TestCase):
             fold.check_providers(self.system, art['roots'], art['providers'])
 
     def test_a_provider_outside_the_artifact_system_stops(self):
-        bad = [dict(provider='x', path='/elsewhere/' + self.roots[0], sha256='0' * 64)]
+        bad = dict(x=dict(install_path='/' + self.roots[0], origin='system', path='/elsewhere/' + self.roots[0],
+                          sha256='0' * 64))
         with self.assertRaisesRegex(SystemExit, 'not under the artifact system'):
             self.make_artifact(providers=bad)
+
+    def test_a_file_provider_is_keyed_by_its_install_path(self):
+        root = self.roots[-1]
+        sources = {Path(r).name: dict(install_path='/' + r, origin='system', path=f'{SYSTEM_AT}/{r}',
+                                      sha256=sha((self.system/r).read_bytes())) for r in self.roots}
+        sources[Path(root).name] = dict(install_path='/' + root, origin='file', path='/artifacts/live-text/' + root,
+                                        sha256=sha((self.system/root).read_bytes()))
+        art = self.make_artifact(providers=sources)
+        self.assertEqual(fold.check_providers(self.system, art['roots'], art['providers']), art['providers'])
+        sources['y'] = dict(sources[Path(root).name], origin='download')
+        with self.assertRaisesRegex(SystemExit, 'unknown origin'):
+            self.make_artifact(providers=sources)
+
+    def test_the_old_list_format_is_refused(self):
+        (self.artifact/'provider-provenance.json').write_text('[]')
+        with self.assertRaisesRegex(SystemExit, 'not schema 1'):
+            fold.load_artifact(self.artifact)
 
     # 3. input cache
     def test_the_artifact_must_come_from_this_cache(self):
@@ -135,12 +161,12 @@ class StandIn(unittest.TestCase):
         before = bytes(data[10:13])
         data[10:13] = b'\x31\xc0\x90'                          # the edit, as golden-gate-userspace applied it
         main.write_bytes(bytes(data))
-        edits = {main.name: [(10, before, b'\x31\xc0\x90', 'switch')]}
+        edits = {'prespecialization': {main.name: [(10, before, b'\x31\xc0\x90', 'switch')]}}
         signed = []
         art = fold.load_artifact(self.artifact)
         self.assertEqual(fold.match_input(self.built, art['inputs'], self.tmp.name,
                                           lambda p, force: signed.append(force), edits=edits),
-                         'without-prespecialization')
+                         ['prespecialization'])
         self.assertEqual(signed, [True])
         self.assertEqual(sorted(p.name for p in Path(self.tmp.name).iterdir()),
                          ['System', 'artifact', 'built-dyld'])  # the scratch copy is gone
@@ -148,6 +174,38 @@ class StandIn(unittest.TestCase):
         main.write_bytes(bytes(data))
         with self.assertRaisesRegex(SystemExit, 'another cache'):
             fold.match_input(self.built, art['inputs'], self.tmp.name, lambda p, force: None, edits=edits)
+
+    def test_an_artifact_from_before_the_model_gates_matches_with_both_groups_out(self):
+        # an image with r75's prespecialization edit and r77's model gate in one file; the artifact predates both
+        main = self.built/'dyld_shared_cache_x86_64.01'
+        data = bytearray(main.read_bytes())
+        p_before, g_before = bytes(data[10:13]), bytes(data[30:31])
+        data[10:13] = b'\x31\xc0\x90'
+        data[30:31] = b'N'
+        main.write_bytes(bytes(data))
+        edits = {'prespecialization': {main.name: [(10, p_before, b'\x31\xc0\x90', 'switch')]},
+                 'model-gates': {main.name: [(30, g_before, b'N', 'Sidecar')]}}
+        art = fold.load_artifact(self.artifact)
+        self.assertEqual(fold.match_input(self.built, art['inputs'], self.tmp.name, lambda p, force: None, edits=edits),
+                         ['model-gates', 'prespecialization'])
+        data[10:13] = p_before                                 # only the model gate: one group is enough
+        main.write_bytes(bytes(data))
+        self.assertEqual(fold.match_input(self.built, art['inputs'], self.tmp.name, lambda p, force: None, edits=edits),
+                         ['model-gates'])
+        with self.assertRaisesRegex(SystemExit, r'another cache.*\[\'prespecialization\'\]'):
+            fold.match_input(self.built, art['inputs'], self.tmp.name, lambda p, force: None,
+                             edits={'prespecialization': edits['prespecialization']})
+
+    def test_model_gates_are_applied_only_over_the_listed_bytes(self):
+        path = Path(self.tmp.name)/'family.01'
+        path.write_bytes(b'\0MacBookPro9,2\0MacBookPro10,1\0')
+        fold.apply_edits(path, [(1, b'M', b'N', 'Sidecar')])
+        self.assertEqual(path.read_bytes(), b'\0NacBookPro9,2\0MacBookPro10,1\0')
+        with self.assertRaisesRegex(SystemExit, 'not the expected ones'):
+            fold.apply_edits(path, [(1, b'M', b'N', 'Sidecar')])
+
+    def test_model_gate_edits_are_empty_for_a_family_without_the_lists(self):
+        self.assertEqual(fold.model_gate_edits(self.built), {})
 
     def test_the_userspace_prespecialization_data_reads_as_edits(self):
         names = ('dyld_shared_cache_x86_64', 'dyld_shared_cache_x86_64.06')
@@ -185,10 +243,22 @@ class StandIn(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, r'10 cache image\(s\) still on disk'):
             fold.gate(self.system, images)
         fold.retire(self.system, self.roots)
-        self.assertEqual(fold.gate(self.system, images), 0)
+        self.assertEqual(fold.gate(self.system, images), [])
         for r in self.roots:
             self.assertFalse((self.system/r).exists())
         self.assertTrue((self.system/'usr/lib/dyld').exists())       # dyld is never loaded from the cache
+
+    def test_the_apple_silicon_gpu_drivers_may_stay_on_disk_and_are_recorded(self):
+        agx = '/System/Library/Extensions/AGXMetalG13X.bundle/Contents/MacOS/AGXMetalG13X'
+        other = '/System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/Driver'
+        for p in (agx, other):
+            (self.system/p.lstrip('/')).parent.mkdir(parents=True, exist_ok=True)
+            (self.system/p.lstrip('/')).write_bytes(b'driver')
+        self.assertEqual(fold.not_loaded(), ['System/Library/Extensions/AGXMetal*.bundle/Contents/MacOS/AGXMetal*'])
+        self.assertEqual(fold.gate(self.system, [agx]), [agx])
+        with self.assertRaisesRegex(SystemExit, r'1 cache image\(s\) still on disk.*HD4000'):
+            fold.gate(self.system, [agx, other])
+        self.assertEqual(fold.reviewed()[0] & set(fold.not_loaded()), set())    # an N line is never a root
 
     def test_check_command_is_read_only(self):
         out = subprocess.run([sys.executable, '-I', str(PATCH/'src/fold.py'), 'check', str(self.system),
@@ -198,13 +268,26 @@ class StandIn(unittest.TestCase):
 
 
 class Format(unittest.TestCase):
-    @unittest.skipUnless(TAHOE.is_dir(), 'Tahoe artifact not in the store')
-    def test_the_generator_artifact_format_reads(self):
-        art = fold.load_artifact(TAHOE)
-        self.assertEqual(len(art['roots']), 19)
-        self.assertEqual(set(art['roots']), set(art['providers']))
-        self.assertIn('dyld_shared_cache_x86_64.map', art['inputs'])
-        self.assertEqual(len(art['files']), 29)
+    def test_the_generator_artifacts_read(self):
+        """Both 26B131 families (rows rebuilt_cache and rebuilt_cache_catalog) in the generator's own format."""
+        found = 0
+        for row in ('rebuilt_cache', 'rebuilt_cache_catalog'):
+            folder = row_folder(row)
+            if folder is None:
+                continue
+            found += 1
+            art = fold.load_artifact(folder)
+            required, companions = fold.reviewed()
+            fold.check_roots(art['roots'], required, companions)
+            self.assertEqual(set(art['roots']), set(art['providers']))
+            self.assertEqual(len(art['roots']), 26)
+            self.assertIn('dyld_shared_cache_x86_64.map', art['inputs'])
+            self.assertEqual(len(art['files']), 36)
+            gates = fold.model_gate_edits(folder)            # made before the model gates: step 4 renames them
+            self.assertEqual({n: [e[0] for e in c] for n, c in gates.items()},
+                             {'dyld_shared_cache_x86_64.01': [197117575, 646027599, 508183874]})
+        if not found:
+            self.skipTest('fold-in artifacts not in the store')
 
 
 class Recipe(unittest.TestCase):
@@ -219,13 +302,18 @@ class Recipe(unittest.TestCase):
                            'prespecialization-26B131.json'):
                 self.assertTrue(Path(d, 'build/userspace', module).is_file(), module)
 
-    def test_only_in_the_b_set_before_native_identities(self):
+    def test_the_two_fold_sets_are_dev_bs_test_with_their_fold_before_native_identities(self):
         sets = {p.name: [l.split()[0] for l in p.read_text().splitlines() if l.strip() and not l.startswith('#')]
                 for p in (TOP/'pipeline/sets').glob('*.txt')}
-        self.assertEqual([n for n, s in sets.items() if 'golden-gate-shared-cache' in s], ['dev-bs-test-fold.txt'])
-        b = sets['dev-bs-test-fold.txt']
-        self.assertEqual(b.index('golden-gate-shared-cache') + 1, b.index('golden-gate-native-identities'))
-        self.assertEqual([n for n in b if n != 'golden-gate-shared-cache'], sets['dev-bs-test.txt'])
+        folds = {'dev-bs-test-fold.txt': 'golden-gate-shared-cache',
+                 'dev-bs-test-fold-catalog.txt': 'golden-gate-shared-cache-catalog'}
+        for recipe in folds.values():
+            self.assertEqual([n for n, s in sets.items() if recipe in s], [k for k, v in folds.items() if v == recipe])
+        for name, recipe in folds.items():
+            b = sets[name]
+            self.assertEqual(b.index(recipe) + 1, b.index('golden-gate-native-identities'), name)
+            expect = ['hao-runtime-fold' if n == 'hao-runtime' else n for n in sets['dev-bs-test.txt']]
+            self.assertEqual([n for n in b if n != recipe], expect, name)
 
 
 if __name__ == '__main__':

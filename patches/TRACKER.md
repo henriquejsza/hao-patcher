@@ -29,13 +29,15 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-shared-cache | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-14 Seven more reviewed companions (metal): libhelloblur and the six /usr/lib/hao-live-text dylibs;  |
+| golden-gate-shared-cache | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-15 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261114-86dd72e (status experiment). Reads th |
+| golden-gate-shared-cache-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-15 New: golden-gate-shared-cache's fold on the B+catalog family (row rebuilt_cache_catalog), for se |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh |
 | golden-gate-userspace | r78 | oclp-hook | experiment |  | x | x |  |  | **needs** | r78 2026-11-14 The prespecialization gate counts an image the overridden set gains or loses only if it carries |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r64 | post | experiment |  | x | x |  |  | **needs** | r64 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
 | hao-runtime | r79 | oclp-hook | experiment |  | x | x |  |  | **needs** | r79 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
+| hao-runtime-fold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-15 New: hao-runtime's installation on row hao_runtime_fold (the payload for the fold-in family), fo |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |

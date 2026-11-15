@@ -415,6 +415,14 @@
    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-apple-darwin-install_only.tar.gz",
    "reason": "python-build-standalone CPython 3.12.14 x86_64 (third-party; size checked)"
   },
+  "rebuilt_cache": {
+   "class": "pending",
+   "reason": "shared-cache fold-in family B: Apple's x86_64 cache rebuilt with the image's providers (Apple-derived, never published); dev fold sets only, until the fold-in has a user-side producer"
+  },
+  "rebuilt_cache_catalog": {
+   "class": "pending",
+   "reason": "shared-cache fold-in family B+catalog: Apple's x86_64 cache rebuilt with the image's providers and runtime-perf's Swift record catalog (Apple-derived, never published); dev fold sets only, until the fold-in has a user-side producer"
+  },
   "font_registry_golden_gate": {
    "class": "harvested",
    "reason": "fontd registries harvested from the running laptop"
