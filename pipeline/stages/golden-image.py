@@ -42,6 +42,15 @@ import time
 # extended attributes and ACLs, so ditto's --rsrc/--extattr/--acl (and its defaults) fail there with "Attribute not
 # found" (bench2 rerun3: boot-and-esp, 90 min into a QEMU install). A full macOS writes them as ._ files instead.
 FAT_COPY = ('ditto', '--norsrc', '--noextattr', '--noacl')
+def snapshot_command(system, machine=None):
+    """bless that snapshots SYSTEM and makes the snapshot the boot root. Intel bless (a stick's Recovery) refuses
+    --create-snapshot without --bootefi ("Can't use snapshot options without --bootefi"), so it takes OCLP's form,
+    which also finds the Preboot volume itself; the arm64 builder VM keeps --mount."""
+    if (machine or os.uname().machine) == 'x86_64':
+        return ('bless', '--folder', Path(system)/'System/Library/CoreServices', '--bootefi', '--create-snapshot')
+    return ('bless', '--mount', system, '--create-snapshot')
+
+
 # The steps a failed run can be resumed at (golden-image.py --resume), and why running them again over what the
 # failed attempt left is safe. The steps before one must all have completed. Every other step edits files in place
 # (the recipes, the snapshot, the posts) or makes the volumes (layout, group-volumes): those start from an empty disk.
@@ -569,7 +578,7 @@ class Assembler:
             path.write_text(value);path.chmod(0o644)
         self.run('diskutil','unmount',self.mounts['preboot'])
         self.mounted.remove('preboot')
-        self.run('bless','--mount',system,'--create-snapshot')
+        self.run(*snapshot_command(system))
 
     def posts(self):
         self.refresh_mount('preboot')

@@ -242,6 +242,12 @@ class GoldenImageTests(unittest.TestCase):
         self.assertTrue(any(i>snapshot and x[:2]==['diskutil','mount'] and x[-1]==record['volumes']['preboot'] for i,x in enumerate(a)))
         self.assertEqual(record['status'],'assembled');self.assertIsNone(record['attached_device'])
 
+    def test_snapshot_bless_takes_the_intel_form_on_x86_64(self):
+        system=Path('/w/mnt/system')
+        self.assertEqual(golden.snapshot_command(system,'arm64'),('bless','--mount',system,'--create-snapshot'))
+        self.assertEqual(golden.snapshot_command(system,'x86_64'),
+                         ('bless','--folder',system/'System/Library/CoreServices','--bootefi','--create-snapshot'))
+
     def test_existing_image_is_not_overwritten_or_attached(self):
         image=Path(self.config['image']);image.write_bytes(b'preserved')
         with self.assertRaises(FileExistsError):golden.assemble(self.config,self.fake)
