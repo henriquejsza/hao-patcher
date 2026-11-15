@@ -48,6 +48,10 @@ adds the fixes under [What's new](#whats-new).
 
 ## What's new
 
+- **2026-11-15:** in the next image: Swift's prespecialized metadata stays on in the Intel shared cache
+  (`golden-gate-userspace` r75-r78); macOS 27's model lists no longer switch off Sidecar, AirPlay to Mac and
+  Continuity Camera on this Mac (r77); App Store apps are checked for missing Intel code after each install or
+  update (`golden-gate-appstore-slices`).
 - **2026-11-14:** in the next image: Photos' zoom to the full-size view reads the HD 4000's image planes with
   their own row pitch (`golden-gate-hd4000-planes`); Weather's precipitation map no longer aborts and Safari's
   WebGPU uniforms compile (`golden-gate-metal-argbuf` r4, r5); hao-runtime keeps Finder and Spotlight's indexer
