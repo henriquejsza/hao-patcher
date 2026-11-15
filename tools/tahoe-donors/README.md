@@ -90,6 +90,7 @@ the native row's `-corewifi-r3` artifact was made with. No separate per-build re
 file exists or is needed.
 
 ## Revisions
+- r13 2026-11-15 `recipes/intel-donors.json` adds DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle to the system roots: 27.x ships the AWDL D2D plugin arm64e only, so the native x86_64 mDNSResponder could not load it and AirDrop never discovered peers over AWDL (diag#0044). Tahoe's copy carries x86_64 with the same plugin interface. Row tahoe_native_donors (26B131) remade with it; every other entry unchanged.
 - r12 2026-11-11 cache-dylib is no longer kept in this repository: found next to it or through `CACHE_DYLIB`; a missing copy is an error before extracting.
 - r11 2026-11-11 `native --cache`: the recipe's `cache_images` (Tahoe CoreWiFi from the x86_64h OS cache) are cut out with tools/cache-dylib, verified and added to the system role at their own path; extraction records in `cache-images.json`.
 - r10 2026-11-11 Select positively identified native target roots before extracting the Tahoe payload; support fat64 Mach-O headers. DriverKit fixture metadata now follows the actual optional metadata argument.

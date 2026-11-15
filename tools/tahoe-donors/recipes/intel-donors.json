@@ -27,6 +27,7 @@
     "System/Library/OpenDirectory/Modules/proxy.bundle",
     "System/Library/PrivateFrameworks/AppleGVA.framework",
     "System/Library/PrivateFrameworks/AppleGVACore.framework",
+    "System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle",
     "System/Library/PrivateFrameworks/DiskImages2.framework/Versions/A/XPCServices/diskimagescontroller.xpc",
     "System/Library/PrivateFrameworks/GPUCompiler.framework",
     "System/Library/PrivateFrameworks/IO80211.framework",
