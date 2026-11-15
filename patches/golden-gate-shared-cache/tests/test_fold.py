@@ -310,14 +310,20 @@ class Recipe(unittest.TestCase):
         sets = {p.name: [l.split()[0] for l in p.read_text().splitlines() if l.strip() and not l.startswith('#')]
                 for p in (TOP/'pipeline/sets').glob('*.txt')}
         folds = {'dev-bs-test-fold.txt': 'golden-gate-shared-cache',
-                 'dev-bs-test-fold-catalog.txt': 'golden-gate-shared-cache-catalog'}
-        for recipe in folds.values():
-            self.assertEqual([n for n, s in sets.items() if recipe in s], [k for k, v in folds.items() if v == recipe])
+                 'dev-bs-test-fold-catalog.txt': 'golden-gate-shared-cache-catalog',
+                 'dev-beta-candidate-fold.txt': 'golden-gate-shared-cache'}
+        extra = {'dev-beta-candidate-fold.txt': ['golden-gate-ids', 'golden-gate-store']}
+        dropped = {'dev-beta-candidate-fold.txt': ['dev-diagnostics', 'dev-keepawake']}
+        for recipe in set(folds.values()):
+            self.assertEqual(sorted(n for n, s in sets.items() if recipe in s),
+                             sorted(k for k, v in folds.items() if v == recipe))
         for name, recipe in folds.items():
             b = sets[name]
             self.assertEqual(b.index(recipe) + 1, b.index('golden-gate-native-identities'), name)
-            expect = ['hao-runtime-fold' if n == 'hao-runtime' else n for n in sets['dev-bs-test.txt']]
-            self.assertEqual([n for n in b if n != recipe], expect, name)
+            self.assertEqual(b[b.index(recipe) - len(extra.get(name, [])):b.index(recipe)], extra.get(name, []), name)
+            expect = ['hao-runtime-fold' if n == 'hao-runtime' else n for n in sets['dev-bs-test.txt']
+                      if n not in dropped.get(name, [])]
+            self.assertEqual([n for n in b if n != recipe and n not in extra.get(name, [])], expect, name)
 
 
 if __name__ == '__main__':

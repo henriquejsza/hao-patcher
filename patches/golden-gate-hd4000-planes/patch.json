@@ -1,5 +1,5 @@
 {
- "revision": 3,
+ "revision": 4,
  "stage": "oclp-hook",
  "applies": {
   "models": [
@@ -13,5 +13,34 @@
   "hd4000_planes"
  ],
  "status": "product",
- "validated": false
+ "validated": false,
+ "files": [
+  {
+   "path": "usr/lib/libhd4000-planes.dylib",
+   "origin": {
+    "kind": "hao",
+    "row": "hd4000_planes",
+    "note": "x86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch"
+   },
+   "source": "libhd4000-planes.dylib",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel",
+    "flags": [
+     "restricted"
+    ]
+   }
+  },
+  {
+   "path": "System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver",
+   "edits": "edits/driver.json",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel",
+    "flags": [
+     "restricted"
+    ]
+   }
+  }
+ ]
 }

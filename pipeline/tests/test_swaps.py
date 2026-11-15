@@ -51,6 +51,17 @@ class Swaps(unittest.TestCase):
         self.res.write_text('%s\t/x\tdropped: experiment only\n' % SHA(b''))
         self.assertEqual(S['resolutions'](self.res), {(SHA(b''), '/x'): 'dropped: experiment only'})
 
+    def test_private_file_resolves_and_the_tracked_file_wins(self):
+        priv = self.d / 'private.tsv'
+        priv.write_text('# p\n%s\t/x\tdropped: one\n%s\t/y\tdropped: two\n' % (SHA(b'a'), SHA(b'b')))
+        self.res.write_text('%s\t/y\trecipe r\n' % SHA(b'b'))
+        self.assertEqual(S['resolutions'](self.res, priv), {(SHA(b'a'), '/x'): 'dropped: one', (SHA(b'b'), '/y'): 'recipe r'})
+        self.assertEqual(S['resolutions'](self.res), {(SHA(b'b'), '/y'): 'recipe r'})
+        self.assertEqual(S['resolutions'](self.res, False), {(SHA(b'b'), '/y'): 'recipe r'})
+        self.put('2026-01-01 00:00:00', '/x', b'a')
+        self.assertEqual([r['resolution'] for r in S['status'](S['ledger'](self.ledger), S['resolutions'](self.res, priv))],
+                         ['dropped: one'])
+
     def test_no_ledger_is_clean(self):
         self.assertEqual(S['unresolved'](self.d / 'none.tsv', self.res, payload=self.d), [])
 

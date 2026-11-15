@@ -104,6 +104,7 @@ the 26B131 sets; not built into an image or booted yet. Before that: the rule is
 cpio). Not built into an image or booted.
 
 ## Revisions
+- r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh unchanged.
 - r4 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r3 2026-11-13 26B131 input row user_template_golden_gate (harvest of benchtest's first login on image 3b2291a: 336 containers, 31 chronod descriptors, 3 Reminders stores) and status experiment; in golden-gate-26B131, dev-bs-test and dev-metal27 after golden-gate-user-seed. apply.sh unchanged.

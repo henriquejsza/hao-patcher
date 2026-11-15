@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-40 of 46 patches declare their files so far.
+47 of 48 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -96,6 +96,15 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-font-registry/RE
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
 - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
 
+## golden-gate-hd4000-planes
+
+Revision r4, status product. [Recipe](../patches/golden-gate-hd4000-planes/README.md)
+
+- `usr/lib/libhd4000-planes.dylib`: whole file from hao (row hd4000_planes). X86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `weak-load-hd4000-planes`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libhd4000-planes.dylib.
+     The driver loads the plane-texture fix, so planar (video and camera) surfaces draw on the HD 4000; weak, so the driver still loads without the library.
+
 ## golden-gate-hello
 
 Revision r8, status experiment. [Recipe](../patches/golden-gate-hello/README.md)
@@ -117,6 +126,13 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-icon-caches/READ
 - 673 whole files from hao (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
 - `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
 - `Library/Application Support/PerUserSeed/is/store.index`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
+
+## golden-gate-ids
+
+Revision r1, status product. [Recipe](../patches/golden-gate-ids/README.md)
+
+- `usr/lib/hao/libhao-imessage-wifi-test.dylib`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
+- `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
 
 ## golden-gate-launchd-warm
 
@@ -222,12 +238,51 @@ Revision r14, status experiment. [Recipe](../patches/golden-gate-shader-caches/R
 - 72 whole files from hao (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
 - 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Listed by `patches.py explain golden-gate-shader-caches`.
 
+## golden-gate-shared-cache
+
+Revision r4, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
+
+- 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+
+## golden-gate-shared-cache-catalog
+
+Revision r2, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
+
+- 33 whole files from hao (row rebuilt_cache_catalog), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache-catalog`.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+
+## golden-gate-store
+
+Revision r1, status product. [Recipe](../patches/golden-gate-store/README.md)
+
+- `usr/lib/hao/libhao-appstore-policy.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
+- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Applications/App Store.app/Contents/MacOS/App Store`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/hao/store-policy-original-appstoreagent`: whole file from hao. Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/store-policy-original-appstored`: whole file from hao. Installed mode 0644, owner root:wheel.
+
 ## golden-gate-user-seed
 
 Revision r9, status experiment. [Recipe](../patches/golden-gate-user-seed/README.md)
 
 - `Library/LaunchDaemons/local.peruser-seed.plist`: whole file from hao. Launchd daemon made at install by src/plist.sh, which escapes src/seed.zsh into the plist (root 644): places the seeded caches into each new account.
 - `Library/Application Support/PerUserSeed/build`: whole file from hao. The System's ProductBuildVersion written at install (root 644): seed.zsh places nothing on another build.
+
+## golden-gate-user-template
+
+Revision r6, status experiment. [Recipe](../patches/golden-gate-user-template/README.md)
+
+- `Library/User Template/Non_localized/Library/Containers`: whole file from every file under it from hao (row user_template_golden_gate). App and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
+- `Library/User Template/Non_localized/Library/Group Containers`: whole file from every file under it from hao (row user_template_golden_gate). Group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
+- `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: whole file from hao (row user_template_golden_gate). Chronod's preferences without per-boot keys; Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
 
 ## golden-gate-userspace
 
@@ -441,6 +496,22 @@ Revision r80, status experiment. [Recipe](../patches/hao-runtime/README.md)
 - `usr/lib/dyld`: whole file from hao (row hao_runtime). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
+## hao-runtime-fold
+
+Revision r4, status experiment. [Recipe](../patches/hao-runtime-fold/README.md)
+
+- `usr/libexec/hao`: whole file from hao (row hao_runtime_fold). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/libhao_identity.dylib`: whole file from hao (row hao_runtime_fold). Hao code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/libhao_async_contract.dylib`: whole file from hao (row hao_runtime_fold). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/async-contract.json`: whole file from hao (row hao_runtime_fold). Which async contract provider hao loads (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/stub-identities`: whole file from hao (row hao_runtime_fold). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/trusted-cdhashes`: whole file from hao (row hao_runtime_fold). Cdhashes hao trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime_fold). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime_fold). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
+- `usr/lib/dyld`: whole file from hao (row hao_runtime_fold). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
+
 ## metal-compiler-compat
 
 Revision r7, status experiment. [Recipe](../patches/metal-compiler-compat/README.md)
@@ -570,4 +641,4 @@ Revision r2, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-golden-gate-hd4000-planes, golden-gate-metal-argbuf, golden-gate-shared-cache, golden-gate-shared-cache-catalog, golden-gate-user-template, hao-runtime-fold
+golden-gate-metal-argbuf

@@ -1,0 +1,117 @@
+{
+ "laptop1": {
+  "cleared": 0,
+  "image": "b124c40",
+  "label": "Test machine A",
+  "private": 0,
+  "pushed": "2026-11-14 20:21:50",
+  "swaps": [],
+  "trials": 0
+ },
+ "laptop2": {
+  "cleared": 5,
+  "image": "8fb92d5",
+  "label": "Test machine B",
+  "private": 13,
+  "pushed": "2026-11-14 10:11:23",
+  "swaps": [
+   {
+    "date": "2026-11-14 16:04:23",
+    "now": "there",
+    "path": "/usr/lib/hao/libhao.dylib",
+    "payload": false,
+    "proven": true,
+    "sha256": "b8f0480f5e50738fc0ab12c52c9ebee8e15de5a009be99cafb2d7761d3e19b0d"
+   },
+   {
+    "date": "2026-11-14 16:17:41",
+    "now": "there",
+    "path": "/Library/LaunchDaemons/org.hao.slice-guard.plist",
+    "payload": false,
+    "proven": false,
+    "sha256": "a53b4de746ac7bde88014686e3490c3a46a19918171475d4028aded0313b0c4a"
+   },
+   {
+    "date": "2026-11-14 16:17:41",
+    "now": "there",
+    "path": "/usr/local/libexec/hao-slice-guard",
+    "payload": false,
+    "proven": false,
+    "sha256": "45466f53d8f9f1f0cbf66019b21e4e8ea2849f76bf78ec45c188d70061a92d3e"
+   },
+   {
+    "date": "2026-11-14 19:26:05",
+    "now": "there",
+    "path": "/usr/lib/hao/store-policy-original-appstoreagent",
+    "payload": false,
+    "proven": false,
+    "sha256": "99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8"
+   },
+   {
+    "date": "2026-11-14 19:26:10",
+    "now": "there",
+    "path": "/usr/lib/hao/store-policy-original-appstored",
+    "payload": false,
+    "proven": false,
+    "sha256": "3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35"
+   },
+   {
+    "date": "2026-11-14 19:26:25",
+    "now": "there",
+    "path": "/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
+    "payload": false,
+    "proven": false,
+    "sha256": "51f40097d8164ba13fa350b31172761dc366a56cc99946783d6eb1f13d822a5f"
+   },
+   {
+    "date": "2026-11-14 19:26:40",
+    "now": "there",
+    "path": "/System/Applications/App Store.app/Contents/MacOS/App Store",
+    "payload": false,
+    "proven": false,
+    "sha256": "8c4079fc2595ccb494a49ae785a5ab452cb2b4ce62081a309e1d62c368902c80"
+   },
+   {
+    "date": "2026-11-14 19:28:31",
+    "now": "there",
+    "path": "/usr/lib/hao/libhao-appstore-policy.dylib",
+    "payload": false,
+    "proven": false,
+    "sha256": "abaa035649659ca8a6dd865eb621f7c90d869653157117d4d5d4caa9f723a561"
+   },
+   {
+    "date": "2026-11-14 19:57:09",
+    "now": "there",
+    "path": "/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources",
+    "payload": false,
+    "proven": true,
+    "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378"
+   },
+   {
+    "date": "2026-11-14 20:55:30",
+    "now": "there",
+    "path": "/System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd",
+    "payload": false,
+    "proven": false,
+    "sha256": "e57e1af01db31de4acc4256de53fb39e4595478bec90f2a6e8866b741f5c7465"
+   },
+   {
+    "date": "2026-11-14 21:21:33",
+    "now": "there",
+    "path": "/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
+    "payload": false,
+    "proven": false,
+    "sha256": "7acb0e02f39bf83281ecf4a7f108007eb4fe4ed337cf1a9b44b34fb10caf8c8a"
+   },
+   {
+    "date": "2026-11-15 16:25:50",
+    "now": "there",
+    "path": "/usr/lib/hao/libhao-imessage-wifi-test.dylib",
+    "payload": false,
+    "proven": false,
+    "sha256": "d5aa7a8c7e8e0e021378886337324a4b61ea7733fb4b7739751f3038d9c28dd4"
+   }
+  ],
+  "trials": 13
+ }
+}

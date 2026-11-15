@@ -30,6 +30,10 @@
    "publish": "file",
    "reason": "x86_64 dylib compiled from patches/golden-gate-userspace/src/corewifi (our source), ad hoc signed"
   },
+  "ids_service": {
+   "class": "pending",
+   "reason": "pending"
+  },
   "io80211_compat": {
    "class": "ours",
    "publish": "file",
@@ -330,6 +334,10 @@
     "pipeline/unpack/donor-inputs {installer} {work}/donor-inputs --requirements tools/tahoe-donors/recipes/intel-donors.json --kdk {kdk} --ripatch {ripatch} --target-system <that mount> --target-cache-images {work}/gg-cache-images.txt",
     "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
    ]
+  },
+  "store_service": {
+   "class": "pending",
+   "reason": "pending"
   },
   "tahoe_boot_donors": {
    "class": "made-on-mac",

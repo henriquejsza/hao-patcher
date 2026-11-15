@@ -2,6 +2,7 @@
 # SHA256<TAB>/LAPTOP/PATH<TAB>row NAME | recipe NAME | dropped: WHY
 # "row"/"recipe": the fix now ships in images that way. "dropped": the swap was an experiment not to keep.
 # hao-runtime files under /usr/lib/hao/ need no line when the hao_runtime row's payload has the same bytes.
+# 19 more lines are in the private resolution file outside the repository (pipeline/swaps.py PRIVATE).
 f74e17a02eabf305cb080df84a5412a402a57897fdbad1bced702fab75725bce	/usr/lib/hao/libhao.dylib	dropped: ControlCenter bisect step (hao-runtime 7c68d7f = c6657a0~1), superseded by the dev-26B131 push
 25ea0603466f802f83f1521d0e9132bd3a7bc2ed82b9679e99a80f8aae0a59c0	/System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib	dropped: argbuf-off test for the lock-screen corruption (not argbuf), ended by the reboot
 b0462c4482f9c6e0f6d6d93e34f67d7a1baa2413d9ba8d5383e8cd8c629d92d2	/System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib	dropped: argbuf-off test for the lock-screen corruption (not argbuf), ended by the reboot
@@ -46,6 +47,7 @@ c3015a0dd42833a8e4d68c6d7e403993ff5a1b02c57d9cf7a8464b2a02252565	/private/var/db
 19df1da97e2e5f202ab356a7d5037468c254b61bdf0e5a3564caa2e3e7b1733d	/private/var/db/hao/874c581c6de93cf0ab35ed0783f59398.aot	dropped: SystemUIServer AOT cache generated on laptop 1 for the e2b7ad9 swap; payloads carry their own caches
 7638cb32d1d752f4428416c9f14d8d389c37eaba1c24258d046f8c3d62c6da8a	/private/var/tmp/libwebtrace.dylib	dropped: diagnostic library for diag#0016, not shipped
 58936da27242e44b63bf535529e115da23c971e81e63e7ff1aff6b6c16005520	/private/var/tmp/libnettrace.dylib	dropped: diagnostic library for diag#0002, not shipped
+23292c22807339fd37c070e3db33057686b234c42ffe5b51dbd6625e1ddf6197	/private/var/tmp/libwebtrace.dylib	dropped: diagnostic library for diag#0002, not shipped
 7ce1936a2ee215b0f72bb9add2f8240e3bb190d626685ff28efebca83d89c875	/private/var/tmp/libwebtrace.dylib	dropped: diagnostic library for diag#0002, not shipped
 45466f53d8f9f1f0cbf66019b21e4e8ea2849f76bf78ec45c188d70061a92d3e	/usr/local/libexec/hao-slice-guard	recipe golden-gate-appstore-slices
 a53b4de746ac7bde88014686e3490c3a46a19918171475d4028aded0313b0c4a	/Library/LaunchDaemons/org.hao.slice-guard.plist	recipe golden-gate-appstore-slices
@@ -61,8 +63,9 @@ a5f9e8a811294be180f10be671dd74524dc429c41a18018e7e942a07cae3fe4e	/private/var/db
 303a156781ec5f9397a76b4251105e2b8043d3b4f6b4d1ced1ae39d2f8165a47	/private/var/db/hao/a11351ab1e983221ae60474cfb639cc2.aot	dropped: AOT cache for Xcode generated with libhao 498f9dc for the Xcode X1 rerun; AOT caches are bound to their libhao and every payload generates its own
 23292c22807339fd37c070e3db33057686b234c42ffe5b51dbd6625e1ddf6197	/private/var/tmp/libwebtrace.dylib	dropped: diagnostic library for diag#0002, not shipped
 6f538c43328aa2fdc43ddd19dc1087915c86a22241fe719ae53eeac2d211e38b	/private/var/tmp/patcher-awdl-trace.d	dropped: dtrace script for diag#0044, not shipped
-99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8	/usr/lib/hao/store-policy-original-appstoreagent	dropped: not shipped
-3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35	/usr/lib/hao/store-policy-original-appstored	dropped: not shipped
+99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8	/usr/lib/hao/store-policy-original-appstoreagent	recipe golden-gate-store
+3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35	/usr/lib/hao/store-policy-original-appstored	recipe golden-gate-store
+abaa035649659ca8a6dd865eb621f7c90d869653157117d4d5d4caa9f723a561	/usr/lib/hao/libhao-appstore-policy.dylib	recipe golden-gate-store
 3650372593a2db579895bbd992c7d633206e1cc1c17caccb36263e59fa9cb314	/usr/lib/hao/native-identities	dropped: not shipped
 ca73e04aba7c6c023cbb5d2076ac316c4fa47fe08fb915b28702a013763a479d	/usr/lib/hao/stub-identities	dropped: not shipped
 96b6631bb37addd157d21f9fa11214aadafdb1ba87b98039322e020b0f7b1c2d	/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent	dropped: not shipped
