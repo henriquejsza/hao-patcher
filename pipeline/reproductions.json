@@ -72,6 +72,18 @@
    "repo": "hao-patcher",
    "commit": "9e30dace",
    "result": "identical"
+  },
+  "appstore_slice_guard": {
+   "artifact": "appstore-slices-20261114-5b3f353e7405",
+   "repo": "hao-patcher",
+   "commit": "1ee6d4a8",
+   "result": "identical"
+  },
+  "hd4000_planes": {
+   "artifact": "hd4000-planes-20261114-3030c66cd852",
+   "repo": "hao-patcher",
+   "commit": "6ce955ec",
+   "result": "identical"
   }
  }
 }
