@@ -42,7 +42,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-UNIT, REVISION = 'cache/seeds', 2
+UNIT, REVISION = 'cache/seeds', 3
 SEED = 'Library/Application Support/PerUserSeed'
 STORE = 'Library/Caches/com.apple.iconservices.store'
 METAL = ('com.apple.metal', 'com.apple.metalfe')
@@ -290,6 +290,12 @@ def neutral(path):
     return replaced
 
 
+def home_relative(path):
+    """PATH with a home folder (/Users/NAME or /var/root) written as ~, for records that ship: an artifact names no
+    account of the harvest laptop."""
+    return re.sub(r'^(?:/Users/[^/]+|/var/root)(?=/|$)', '~', path)
+
+
 def registry_summary(path):
     db = sqlite3.connect('file:%s?immutable=1' % path, uri=True)
     r = {'version': list(db.execute('SELECT * FROM version_table').fetchone() or []),
@@ -335,7 +341,8 @@ def font_members(h, work):
     registry(h.uid, user_db)
     replaced = neutral(user_db)
     report = {'setup': registry_summary(setup_db), 'user_seed': registry_summary(user_db),
-              'replaced_user_dirs': replaced, 'placeholder': PLACEHOLDER, 'setup_members': sorted(names)}
+              'replaced_user_dirs': [home_relative(d) for d in replaced], 'placeholder': PLACEHOLDER,
+              'setup_members': sorted(names)}
     homes = {d.rsplit('/Library/Fonts', 1)[0] for d in replaced if d.endswith('/Library/Fonts')}
     report['home_path_bytes_left'] = sum(user_db.read_bytes().count(x.encode()) for x in homes)
     if report['home_path_bytes_left']:
