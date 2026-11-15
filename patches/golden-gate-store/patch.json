@@ -1,0 +1,96 @@
+{
+ "revision": 1,
+ "stage": "oclp-hook",
+ "applies": {
+  "models": [
+   "MacBookPro9,2"
+  ],
+  "builds": [
+   "25G342"
+  ]
+ },
+ "status": "product",
+ "validated": false,
+ "inputs": [
+  "store_service"
+ ],
+ "files": [
+  {
+   "path": "usr/lib/hao/libhao-appstore-policy.dylib",
+   "origin": {
+    "kind": "hao",
+    "row": "store_service"
+   },
+   "source": "libhao-appstore-policy.dylib",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
+   "origin": {
+    "kind": "hao",
+    "row": "store_service"
+   },
+   "source": "appstoreagent",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel",
+    "flags": [
+     "restricted"
+    ]
+   }
+  },
+  {
+   "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
+   "origin": {
+    "kind": "hao",
+    "row": "store_service"
+   },
+   "source": "appstored",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel",
+    "flags": [
+     "restricted"
+    ]
+   }
+  },
+  {
+   "path": "System/Applications/App Store.app/Contents/MacOS/App Store",
+   "origin": {
+    "kind": "hao",
+    "row": "store_service"
+   },
+   "source": "app-store-ui",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel",
+    "flags": [
+     "restricted"
+    ]
+   }
+  },
+  {
+   "path": "usr/lib/hao/store-policy-original-appstoreagent",
+   "origin": {
+    "kind": "hao"
+   },
+   "install": {
+    "mode": "0644",
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "usr/lib/hao/store-policy-original-appstored",
+   "origin": {
+    "kind": "hao"
+   },
+   "install": {
+    "mode": "0644",
+    "owner": "root:wheel"
+   }
+  }
+ ]
+}

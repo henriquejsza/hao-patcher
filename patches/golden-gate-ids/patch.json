@@ -1,0 +1,43 @@
+{
+ "revision": 1,
+ "stage": "oclp-hook",
+ "applies": {
+  "models": [
+   "MacBookPro9,2"
+  ],
+  "builds": [
+   "25G342"
+  ]
+ },
+ "status": "product",
+ "validated": false,
+ "inputs": [
+  "ids_service"
+ ],
+ "files": [
+  {
+   "path": "usr/lib/hao/libhao-imessage-wifi-test.dylib",
+   "origin": {
+    "kind": "hao",
+    "row": "ids_service"
+   },
+   "source": "libhao-imessage-wifi-test.dylib",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd",
+   "origin": {
+    "kind": "hao",
+    "row": "ids_service"
+   },
+   "source": "identityservicesd",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel"
+   }
+  }
+ ]
+}

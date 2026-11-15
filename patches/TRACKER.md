@@ -19,6 +19,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-hd4000-planes | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-hello | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
+| golden-gate-ids | r1 | oclp-hook | product |  |  |  |  |  | **needs** | r1 2026-11-15 New. |
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
 | golden-gate-live-text-service | r4 | post | experiment |  | x |  |  |  | **needs** | r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, ar |
 | golden-gate-live-text-shared | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-14 Input row `live_text_framework` now hashes only the files a release can give a user's Mac (`# ha |
@@ -31,6 +32,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
 | golden-gate-shared-cache | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-shared-cache-catalog | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
+| golden-gate-store | r1 | oclp-hook | product |  |  |  |  |  | **needs** | r1 2026-11-15 New. |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-userspace | r78 | oclp-hook | experiment |  | x | x |  |  | **needs** | r78 2026-11-14 The prespecialization gate counts an image the overridden set gains or loses only if it carries |

@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-44 of 45 patches declare their files so far.
+46 of 47 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -119,6 +119,13 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-icon-caches/READ
 - 673 whole files from hao (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
 - `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
 - `Library/Application Support/PerUserSeed/is/store.index`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
+
+## golden-gate-ids
+
+Revision r1, status product. [Recipe](../patches/golden-gate-ids/README.md)
+
+- `usr/lib/hao/libhao-imessage-wifi-test.dylib`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
+- `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
 
 ## golden-gate-launchd-warm
 
@@ -243,6 +250,17 @@ Revision r2, status experiment. [Recipe](../patches/golden-gate-shared-cache-cat
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
 - `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+
+## golden-gate-store
+
+Revision r1, status product. [Recipe](../patches/golden-gate-store/README.md)
+
+- `usr/lib/hao/libhao-appstore-policy.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
+- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Applications/App Store.app/Contents/MacOS/App Store`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/hao/store-policy-original-appstoreagent`: whole file from hao. Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/store-policy-original-appstored`: whole file from hao. Installed mode 0644, owner root:wheel.
 
 ## golden-gate-user-seed
 
