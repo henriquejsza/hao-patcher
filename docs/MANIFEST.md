@@ -7,16 +7,17 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-47 patches: 44 installable, 1 undeclared (files not declared), 2 with a row missing.
+48 patches: 45 installable, 1 undeclared (files not declared), 2 with a row missing.
 
 Undeclared: golden-gate-metal-argbuf.
 
 | Patch | Rev | Status | Stage | Installable | Sets | Rows (sha256, artifact, source commit) |
 |---|---|---|---|---|---|---|
-| darwin27-kernel | r9 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
+| darwin27-kernel | r10 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
 | darwin27-sandbox-disk-space | r3 | experiment | oclp-hook | yes | golden-gate | - |
 | dev-access | r5 | dev | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
 | dev-diagnostics | r4 | dev | post | yes | dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
+| dev-keepawake | r1 | dev | post | yes | dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | golden-gate-appstore-slices | r2 | product | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
 | golden-gate-corespotlight-compat | r6 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (hao-patcher 177dc8a1) |
 | golden-gate-dyld-internal | r1 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
@@ -26,9 +27,9 @@ Undeclared: golden-gate-metal-argbuf.
 | golden-gate-icon-caches | r6 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | icon_caches_golden_gate 788ba7d6 icon-caches-26B131-20261111-de36690716f3 |
 | golden-gate-ids | r1 | product | oclp-hook | yes | dev-beta-candidate-fold | ids_service 6458b30d ids-26B131-20261115-d5aa7a8c |
 | golden-gate-launchd-warm | r3 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-live-text-service | r4 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-live-text-shared | r8 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | live_text_framework 99675b0a framework |
-| golden-gate-metal-argbuf | r5 | product | oclp-hook | undeclared | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_argbuf d43d2253 metal-argbuf-26B131-20261114-547557ae (hao-patcher 9e30dace) |
+| golden-gate-live-text-service | r5 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
+| golden-gate-live-text-shared | r9 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | live_text_framework 4434cab6 framework |
+| golden-gate-metal-argbuf | r5 | product | oclp-hook | undeclared | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_argbuf d43d2253 metal-argbuf-26B131-20261114-547557ae (hao-patcher 547557ae) |
 | golden-gate-metal-framebuffer | r8 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 166aa56b metal-framebuffer-26A428-20261105-f8ff3547ed3c |
 | golden-gate-metal-libraries | r21 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
 | golden-gate-metal27 | r3 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
@@ -40,10 +41,10 @@ Undeclared: golden-gate-metal-argbuf.
 | golden-gate-store | r1 | product | oclp-hook | yes | dev-beta-candidate-fold | store_service 10e1c5e4 store-26B131-20261115-abaa0356 |
 | golden-gate-user-seed | r9 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-user-template | r6 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
-| golden-gate-userspace | r78 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 5888543b payload |
+| golden-gate-userspace | r79 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime e29b10e5 payload |
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
-| hao-opencore | r64 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 5888543b payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
-| hao-runtime | r79 | experiment | oclp-hook | yes | dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 5888543b payload |
+| hao-opencore | r65 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime e29b10e5 payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| hao-runtime | r80 | experiment | oclp-hook | yes | dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime e29b10e5 payload |
 | hao-runtime-fold | r4 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 3e4feeb7 payload |
 | metal-compiler-compat | r7 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat 66e1e6dd compiler-service |
 | metal-metalold | r1 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
@@ -63,7 +64,7 @@ Undeclared: golden-gate-metal-argbuf.
 
 ### Files each patch installs
 
-- **darwin27-kernel** r9
+- **darwin27-kernel** r10
   - `System/Library/Kernels/kernel`: from Apple (row darwin27_kernel)
   - `System/Library/KernelCollections/BootKernelExtensions.kc`: edited (1 edit) from hao · no earlier file
   - `System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from hao · Boot collection member list
@@ -81,6 +82,9 @@ Undeclared: golden-gate-metal-argbuf.
   - `Library/LaunchDaemons/dev.hao.screensharing.plist`: from hao
 - **dev-diagnostics** r4
   - `EFI/OC/config.plist`: edited (3 edits) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service)
+- **dev-keepawake** r1
+  - `Library/LaunchDaemons/dev.hao.keepawake.plist`: from hao
+  - `Library/LaunchDaemons/dev.hao.power.plist`: from hao
 - **golden-gate-appstore-slices** r2
   - `usr/local/libexec/hao-slice-guard`: from hao (row appstore_slice_guard)
   - `Library/LaunchDaemons/org.hao.slice-guard.plist`: from hao
@@ -111,9 +115,9 @@ Undeclared: golden-gate-metal-argbuf.
   - `System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist`: edited (2 edits) from Apple · Golden Gate System volume
   - `System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist`: edited (2 edits) from Apple · Golden Gate System volume
   - `System/Library/xpc/launchd.plist`: edited (4 edits) from Apple · Golden Gate System volume, after golden-gate-userspace (hybridsearchd disabled)
-- **golden-gate-live-text-service** r4
+- **golden-gate-live-text-service** r5
   - `EFI/OC/config.plist`: edited (1 edit) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore
-- **golden-gate-live-text-shared** r8
+- **golden-gate-live-text-shared** r9
   - `usr/lib/libhelloblur.dylib`: edited (1 edit) from hao · libhelloblur
   - `usr/lib/hao-live-text/LiveText.dylib`: from hao (row live_text_framework)
   - `usr/lib/hao-live-text/MPSNDArray.metallib`: from hao (row live_text_framework)
@@ -179,7 +183,7 @@ Undeclared: golden-gate-metal-argbuf.
   - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from hao (row user_template_golden_gate)
-- **golden-gate-userspace** r78
+- **golden-gate-userspace** r79
   - `usr/lib/dss_shim.dylib`: from hao (row display_state_shim)
   - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: from hao (row io80211_compat)
   - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: from hao (row wifip2p_compat)
@@ -228,12 +232,12 @@ Undeclared: golden-gate-metal-argbuf.
 - **golden-gate-windowserver-filter** r7
   - `usr/lib/dss_shim.dylib`: edited (1 edit) from hao (row display_state_shim)
   - `usr/lib/windowserver_filter.dylib`: from hao (row windowserver_filter_shim)
-- **hao-opencore** r64
+- **hao-opencore** r65
   - `EFI/OC/config.plist`: edited (5 edits) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it
   - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi)
   - `EFI/OC/Kexts/HaoExec.kext`/ (folder): from every file under it from hao · HaoExec.kext (row hao_runtime)
   - `EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec`: edited (1 edit) from hao · HaoExec.kext's executable (row hao_runtime)
-- **hao-runtime** r79
+- **hao-runtime** r80
   - `usr/libexec/hao`: from hao (row hao_runtime)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime)
@@ -330,10 +334,10 @@ hashes it has. A cell marked * differs from the current one (section 1).
 
 | Patch | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 |
 |---|---|---|---|---|---|
-| darwin27-kernel | r9 | r10* | r10* | r10* | r10* |
+| darwin27-kernel | r9* | r10 | r10 | r10 | r10 |
 | dev-access | r4* | r5 | r5 | r5 | r5 |
 | dev-diagnostics | r4 | r4 | r4 | r4 | r4 |
-| dev-keepawake | - | r1* | r1* | - | - |
+| dev-keepawake | - | r1 | r1 | - | - |
 | golden-gate-appstore-slices | - | r1* | r1* | r1* | r1* |
 | golden-gate-corespotlight-compat | r6 | r6 | r6 | r6 | r6 |
 | golden-gate-dyld-internal | r1 | r1 | r1 | r1 | r1 |
@@ -342,8 +346,8 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-hello | r8 | r8 | r8 | r8 | r8 |
 | golden-gate-icon-caches | r6 | r6 | r6 | r6 | r6 |
 | golden-gate-launchd-warm | r3 | r3 | r3 | r3 | r3 |
-| golden-gate-live-text-service | r4 | r4 | r4 | r5* | r5* |
-| golden-gate-live-text-shared | r8 | r9* | r9* | r9* | r9* |
+| golden-gate-live-text-service | r4* | r4* | r4* | r5 | r5 |
+| golden-gate-live-text-shared | r8* | r9 | r9 | r9 | r9 |
 | golden-gate-metal-argbuf | r5 | r5 | r5 | r5 | r5 |
 | golden-gate-metal-framebuffer | r8 | r8 | r8 | r8 | r8 |
 | golden-gate-metal-libraries | r21 | r21 | r21 | r21 | r21 |
@@ -353,10 +357,10 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-shared-cache-catalog | - | - | - | - | r1* |
 | golden-gate-user-seed | r9 | r9 | r9 | r9 | r9 |
 | golden-gate-user-template | r5* | r5* | r5* | r5* | r5* |
-| golden-gate-userspace | r74* | r79* | r79* | r79* | r79* |
+| golden-gate-userspace | r74* | r79 | r79 | r79 | r79 |
 | golden-gate-windowserver-filter | r7 | r7 | r7 | r7 | r7 |
-| hao-opencore | r63* | r65* | r65* | r65* | r65* |
-| hao-runtime | r78* | r80* | r80* | - | - |
+| hao-opencore | r63* | r65 | r65 | r65 | r65 |
+| hao-runtime | r78* | r80 | r80 | - | - |
 | hao-runtime-fold | - | - | - | r3* | r3* |
 | metal-compiler-compat | r7 | r7 | r7 | r7 | r7 |
 | metalold-selectors | r7 | r7 | r7 | r7 | r7 |
@@ -373,7 +377,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
 | font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 |
 | golden_gate_userspace | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b |
-| hao_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* |
+| hao_runtime | d4f8aab6* | e29b10e5 | e29b10e5 | e29b10e5 | e29b10e5 |
 | hao_runtime_fold | - | - | - | 3e4feeb7 | 3e4feeb7 |
 | hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* |
 | hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
@@ -384,7 +388,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | kernel_repair_binding | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 |
 | kernel_repair_efi | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f |
 | libhelloblur | d471519b | d471519b | d471519b | d471519b | d471519b |
-| live_text_framework | 99675b0a | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* |
+| live_text_framework | 99675b0a* | 4434cab6 | 4434cab6 | 4434cab6 | 4434cab6 |
 | metal_argbuf | d43d2253 | d43d2253 | d43d2253 | d43d2253 | d43d2253 |
 | metal_compiler_compat | 66e1e6dd | 66e1e6dd | 66e1e6dd | 66e1e6dd | 66e1e6dd |
 | metal_framebuffer | 166aa56b | 166aa56b | 166aa56b | 166aa56b | 166aa56b |
@@ -459,7 +463,6 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-user-template r6 is newer than every image built with it (newest r5).
 - hao-runtime-fold r4 is newer than every image built with it (newest r3).
 - row appstore_slice_guard f61a65ee is in no image yet (images have 21df0a67).
-- row hao_runtime 5888543b is in no image yet (images have d4f8aab6, e29b10e5).
 - row hd4000_planes bae5502e is in no image yet (images have a9769034).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
