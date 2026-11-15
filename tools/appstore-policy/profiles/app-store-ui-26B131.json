@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "path": "System/Applications/App Store.app/Contents/MacOS/App Store",
+  "arch": "x86_64",
+  "origin": {
+    "kind": "hao",
+    "name": "26B131 App Store with embedded native HAO stub"
+  },
+  "applied_by": "installer",
+  "edits": [
+    {
+      "id": "load-store-catalog-policy",
+      "kind": "op",
+      "op": "macho.add-dylib",
+      "args": {
+        "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+      },
+      "reason": "edit"
+    }
+  ],
+  "sign": {
+    "mode": "adhoc",
+    "preserve": [
+      "identifier",
+      "entitlements",
+      "requirements",
+      "flags",
+      "runtime"
+    ]
+  }
+}
