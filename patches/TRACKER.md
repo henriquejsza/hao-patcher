@@ -32,7 +32,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
 | golden-gate-shared-cache | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-shared-cache-catalog | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
-| golden-gate-store | r1 | oclp-hook | product |  |  |  |  |  | **needs** | r1 2026-11-15 New. |
+| golden-gate-store | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-15 Adds libhao-ios-coordinator-test.dylib, which the replaced appstoreagent loads. |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-userspace | r78 | oclp-hook | experiment |  | x | x |  |  | **needs** | r78 2026-11-14 The prespecialization gate counts an image the overridden set gains or loses only if it carries |

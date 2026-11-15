@@ -1,5 +1,5 @@
 {
- "revision": 1,
+ "revision": 2,
  "stage": "oclp-hook",
  "applies": {
   "models": [
@@ -22,6 +22,18 @@
     "row": "store_service"
    },
    "source": "libhao-appstore-policy.dylib",
+   "install": {
+    "mode": "0755",
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "usr/lib/hao/libhao-ios-coordinator-test.dylib",
+   "origin": {
+    "kind": "hao",
+    "row": "store_service"
+   },
+   "source": "libhao-ios-coordinator-test.dylib",
    "install": {
     "mode": "0755",
     "owner": "root:wheel"

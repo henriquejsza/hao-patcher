@@ -37,7 +37,7 @@ Undeclared: golden-gate-metal-argbuf.
 | golden-gate-shader-caches | r14 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
 | golden-gate-shared-cache | r4 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache a8a847b6 rebuilt-cache-fold-in-26B131-20261114-86dd72e |
 | golden-gate-shared-cache-catalog | r2 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog d56244ea rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e |
-| golden-gate-store | r1 | product | oclp-hook | yes | dev-beta-candidate-fold | store_service 10e1c5e4 store-26B131-20261115-abaa0356 |
+| golden-gate-store | r2 | product | oclp-hook | yes | dev-beta-candidate-fold | store_service a44cce90 store-26B131-20261115-abaa0356 |
 | golden-gate-user-seed | r9 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-user-template | r6 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
 | golden-gate-userspace | r78 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 5888543b payload |
@@ -165,8 +165,9 @@ Undeclared: golden-gate-metal-argbuf.
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache_catalog)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from hao (row rebuilt_cache_catalog)
   - `System/Library/CoreServices/golden-gate-shared-cache.json`: from hao
-- **golden-gate-store** r1
+- **golden-gate-store** r2
   - `usr/lib/hao/libhao-appstore-policy.dylib`: from hao (row store_service)
+  - `usr/lib/hao/libhao-ios-coordinator-test.dylib`: from hao (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from hao (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from hao (row store_service)
   - `System/Applications/App Store.app/Contents/MacOS/App Store`: from hao (row store_service)
