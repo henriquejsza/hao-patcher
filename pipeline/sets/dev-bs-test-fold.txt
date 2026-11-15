@@ -34,3 +34,4 @@ golden-gate-icon-caches           # IconServices store and root/Setup indexes ha
 golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
 dev-diagnostics                   # dev only: hao-runtime measurement boot-args and the OpenCore file log (after hao-opencore)
+dev-keepawake                     # dev only: never sleeps, from the first boot on (system LaunchDaemons: caffeinate, power settings)
