@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-47 of 48 patches declare their files so far.
+48 of 48 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -187,6 +187,17 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-live-text-shared
 - `usr/lib/hao-live-text/libhao_input_coherence.dylib`: whole file from hao (row live_text_framework). Locks and unlocks the detector's input IOSurfaces before each execution.
 - `usr/lib/hao-live-text/build.json`: whole file from hao (row live_text_framework). The runtime's manifest (file hashes, load paths); golden-gate-live-text-service reads it.
 
+## golden-gate-metal-argbuf
+
+Revision r6, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
+
+- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
+     The driver loads libargbuf, so argument buffers, ASTC textures and the render-target adaptations work on the HD 4000; weak, so the driver still loads without the library.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: whole file from hao (row metal_argbuf). New file: device side of tools/metal-argbuf (argument buffers, ASTC, render-target adaptations). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: whole file from hao (row metal_argbuf). Replaces the repaired iCBE (golden-gate-metal-libraries) with the tools/metal-argbuf wrapper, which re-exports iCBE-real.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: whole file from hao (row metal_argbuf). New file: the repaired iCBE the wrapper was linked against; the hook refuses unless the installed iCBE has these bytes. Installed mode 0755, owner root:wheel, flags restricted.
+
 ## golden-gate-metal-framebuffer
 
 Revision r8, status experiment. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
@@ -287,7 +298,7 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-user-template/RE
 
 ## golden-gate-userspace
 
-Revision r78, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r79, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -462,7 +473,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-windowserver-fil
 
 ## hao-opencore
 
-Revision r64, status experiment. [Recipe](../patches/hao-opencore/README.md)
+Revision r65, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -483,7 +494,7 @@ Revision r64, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r79, status experiment. [Recipe](../patches/hao-runtime/README.md)
+Revision r80, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -642,4 +653,4 @@ Revision r2, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-golden-gate-metal-argbuf
+None.

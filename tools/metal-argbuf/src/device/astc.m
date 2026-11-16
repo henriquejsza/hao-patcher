@@ -84,7 +84,7 @@ static void hook_texture_class(Class c) {
     }));
 }
 
-typedef id (*NewTexIMP)(id, SEL, MTLTextureDescriptor *);
+typedef id (*NewTexIMP)(id, SEL, MTLTextureDescriptor *) __attribute__((ns_returns_retained));
 static void hook_new_texture(Class c) {
     SEL s = @selector(newTextureWithDescriptor:);
     Method m = class_getInstanceMethod(c, s); if (!m) return;

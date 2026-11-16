@@ -91,9 +91,9 @@ def make(out, locks):
     out.mkdir(parents=True, exist_ok=False)
     written = make_site(rows, out / 'site')
     lock = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
-    git = lambda *a: subprocess.run(['git', '-C', str(TOP), *a], capture_output=True, text=True).stdout.strip()
-    record = dict(unit='pipeline/python-site', operation='make', commit=git('rev-parse', 'HEAD'),
-                  dirty=bool(git('status', '--porcelain', '--', 'pipeline/python-site')),
+    source = runpy.run_path(str(TOP / 'pipeline' / 'source_commit.py'))
+    record = dict(unit='pipeline/python-site', operation='make', commit=source['commit'](TOP),
+                  dirty=source['dirty'](TOP, 'pipeline/python-site'),
                   date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   wheels={name: dict(file=path.name, sha256=sha) for name, sha, path in rows},
                   files=len(written), content_sha256=lock['content_sha256'](str(out / 'site')))

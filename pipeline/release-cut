@@ -3,14 +3,15 @@
 
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
   release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z [--stage DIR]
-              [--allow-pending]
+              [--allow-pending | --allow-pending-row ROW ...]
         the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
         hao-assets contract's release schema, format 2), release version VERSION (e.g. v0.1.0) on CHANNEL: downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
         the rows made on the user's Mac (producer, Apple input rows), harvested rows, plus pending rows, recipe
         revisions and packs. With --stage, every asset file is written into DIR (new or empty) and checked against
         release.json after. Refused while the release is incomplete (a pending row, an ours row without a clean
         producer, a row with no content class), unless --allow-pending, which writes it with "state": "incomplete";
-        a beta is never written incomplete. Every channel is a prerelease (there is no final channel yet).
+        a beta is never written incomplete. --allow-pending-row ROW (repeatable) allows only those rows' own
+        problems (each still marked pending, the release incomplete); any other problem still refuses. Every channel is a prerelease (there is no final channel yet).
         Promotion (alpha -> beta) is a new --write from the same commits with the new --channel: the release.json
         then differs only in channel (and state/prerelease where the channel rules change them).
 
@@ -247,13 +248,16 @@ def producer_of(row, hit):
     return repo, full.stdout.strip() if full.returncode == 0 else str(commit)
 
 
-def private_refs(data):
-    """Private references in DATA (bytes), by the contract's patterns (home folders, private repositories)."""
+def private_refs(data, upstream=False):
+    """Private references in DATA (bytes), by the contract's patterns (home folders, private repositories).
+    UPSTREAM (a row's "upstream": third-party source redistributed unmodified) skips the home-folder pattern only:
+    the paths in it are its authors' own, already public in the upstream repository; our private names still count."""
     contract = runpy.run_path(str(TOP / 'tools' / 'hao-contract' / 'hao_contract.py'))
     text = data.decode('latin-1')
     # home folders always; private names from the local list (tools/hao-contract: $HAO_CONTRACT_PRIVATE or
     # ~/.config/hao-contract/private-names), which the checker no longer carries in its code
-    return sorted({label for label, pattern in contract['private_names']() if pattern.search(text)})
+    return sorted({label for label, pattern in contract['private_names']()
+                   if not (upstream and label == contract['HOME'][0]) and pattern.search(text)})
 
 
 def archive_members(folder, include=None):
@@ -334,16 +338,24 @@ def make_asset(row, hit, entry, stage=None):
         digest = __import__('hashlib').sha256(data).hexdigest()
         if sha != '-' and digest != sha:
             problems.append('%s: %s is not the row\'s pinned file' % (row, path.name))
-        refs = private_refs(data)
+        refs = private_refs(data, bool(entry.get('upstream')))
         if refs:
             problems.append('%s: %s holds a %s' % (row, path.name, ', '.join(refs)))
         if stage is not None and not problems:
             (Path(stage) / name).write_bytes(data)
         return name, len(data), digest, problems
     name = row + '.tar'
+    if entry.get('include') and sha != '-' and hit[0] is not None:
+        # a user's Mac checks the unpacked asset (plus its made-on-Mac files) against this same row: a sha256 that
+        # covers files the asset leaves out (a build record, say) can never match there
+        lk = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
+        only = list(entry['include']) + [m['path'] for m in entry.get('made_on_mac_files', [])]
+        if lk['row_sha256'](str(path), only, lk['without'](str(hit[0]), row)) != sha:
+            return name, None, None, ['%s: its sha256 covers files the asset leaves out, so a user\'s Mac cannot match '
+                                      'it (the row wants "# hash: release-files" and that sha256)' % row]
     for rel, p in archive_members(path, entry.get('include')):
         if p.is_file() and not p.is_symlink():
-            refs = private_refs(p.read_bytes())
+            refs = private_refs(p.read_bytes(), bool(entry.get('upstream')))
             if refs:
                 problems.append('%s: %s holds a %s' % (row, rel, ', '.join(refs)))
     if problems:
@@ -500,6 +512,11 @@ def main(argv):
                 j = argv.index(flag)
                 opts[flag] = argv[j + 1]
                 argv = argv[:j] + argv[j + 2:]
+        allowed = []
+        while '--allow-pending-row' in argv:
+            j = argv.index('--allow-pending-row')
+            allowed.append(argv[j + 1])
+            argv = argv[:j] + argv[j + 2:]
         if not all(f in opts for f in ('--release', '--channel', '--version')):
             sys.exit(__doc__)
         if '--final' in argv:
@@ -523,11 +540,18 @@ def main(argv):
         except ValueError as x:
             print('release-cut: %s' % x, file=sys.stderr)
             return 2
-        if problems and ('--allow-pending' not in argv or rel['channel'] in COMPLETE_CHANNELS):
+        if '--allow-pending' in argv:
+            blocked = problems if rel['channel'] in COMPLETE_CHANNELS else []
+        elif allowed:   # only the named rows may be pending; a complete channel still allows none
+            blocked = problems if rel['channel'] in COMPLETE_CHANNELS else \
+                [p for p in problems if not any(p.startswith(r + ':') for r in allowed)]
+        else:
+            blocked = problems
+        if blocked:
             print('release-cut: refused, the release is incomplete%s:' % (
                   ' (a %s is never written incomplete)' % rel['channel'] if rel['channel'] in COMPLETE_CHANNELS
                   else ' (--allow-pending writes it, marked incomplete)'), file=sys.stderr)
-            for p in problems:
+            for p in blocked:
                 print('  ' + p, file=sys.stderr)
             if stage is not None:
                 for x in rel['assets']:

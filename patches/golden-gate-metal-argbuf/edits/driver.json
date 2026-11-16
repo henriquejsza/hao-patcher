@@ -1,0 +1,14 @@
+{
+ "format": 1,
+ "path": "System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver",
+ "arch": "x86_64",
+ "origin": {"kind": "oclp", "name": "AppleIntelHD4000GraphicsMTLDriver", "note": "after golden-gate-metal-framebuffer: OCLP's HD 4000 Metal driver with metalold-selectors' and that recipe's weak load commands already added"},
+ "applied_by": "installer",
+ "edits": [
+  {"id": "weak-load-libargbuf", "kind": "op", "op": "macho.add-dylib",
+   "args": {"path": "/System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib", "weak": true, "timestamp": 2, "current_version": 0, "compat_version": 0},
+   "reason": "the driver loads libargbuf, so argument buffers, ASTC textures and the render-target adaptations work on the HD 4000; weak, so the driver still loads without the library"}
+ ],
+ "sign": {"mode": "adhoc", "identifier": "AppleIntelHD4000GraphicsMTLDriver"},
+ "expect": {"a9f430e2f4140149e0a36316012005c051d90e2b22534ced956c0608ff6fce7e": "9f1da327787151fb5ff22336a76108cc73bb470445f8d88f0a57afa5b988421b"}
+}

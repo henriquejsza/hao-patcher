@@ -137,6 +137,17 @@ class Archive(unittest.TestCase):
         self.assertEqual(R['make_asset']('x', hit, {'publish': 'tar', 'include': ['b.dylib', 'sub']})[1:3],
                          (size, digest))                  # hashed without staging: the same archive
 
+    def test_a_tar_asset_must_carry_everything_its_row_sha256_covers(self):
+        d = self.folder()
+        (d / 'build.json').write_text('{}')
+        lk = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
+        entry = {'publish': 'tar', 'include': ['b.dylib', 'sub']}
+        whole = lk['row_sha256'](str(d))                       # a row without "# hash: release-files"
+        bad = R['make_asset']('x', (TOP, (whole, str(d))), entry)[3]
+        self.assertTrue(any('release-files' in b for b in bad), bad)
+        scoped = lk['row_sha256'](str(d), ['b.dylib', 'sub'])  # the same row with it
+        self.assertEqual(R['make_asset']('x', (TOP, (scoped, str(d))), entry)[3], [])
+
     def test_a_file_asset_must_be_the_pinned_file(self):
         d = self.folder()
         hit = (TOP, ('0' * 64, str(d / 'b.dylib')))
@@ -180,8 +191,10 @@ class HarvestedAssets(unittest.TestCase):
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': True}}, 'mbp121'))
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': 'yes'}}, 'mbp92'))
 
-    def test_the_checked_in_setting_is_off_until_the_owner_chooses(self):
-        self.assertIs(R['settings']()['harvested_assets']['mbp92'], False)
+    def test_the_checked_in_setting_ships_them_for_the_9_2_only(self):
+        # owner 2026-11-15: all four harvested rows, as public assets, for MacBookPro9,2 only
+        targets = {k: v for k, v in R['settings']()['harvested_assets'].items() if not k.startswith('_')}
+        self.assertEqual(targets, {'mbp92': True})
 
 
 class Write(unittest.TestCase):
@@ -252,5 +265,41 @@ class Write(unittest.TestCase):
             R['build_release'](ASSEMBLY, '27.2.1')
 
 
+class PendingRows(unittest.TestCase):
+    """--allow-pending-row ROW lets only that row's problems through; anything else still refuses."""
+    def cut(self, channel, *extra):
+        g = R['main'].__globals__
+        saved = g['build_release']
+        rel = {'channel': channel, 'state': 'incomplete', 'downloads': [], 'assets': [], 'made_on_mac': [],
+               'harvested': [], 'pending': [{'row': 'a'}, {'row': 'b'}]}
+        g['build_release'] = lambda *a, **k: (rel, ['a: pending (x)', 'b: pending (y)'])
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                out = Path(d) / 'r.json'
+                rc = R['main'](['--write', str(out), str(ASSEMBLY), '--release', '27.2.1-26B131.0', '--channel',
+                                channel, '--version', 'v0.1.0', *extra])
+                return rc, out.exists()
+        finally:
+            g['build_release'] = saved
+
+    def test_only_the_named_rows_may_be_pending(self):
+        self.assertEqual(self.cut('alpha'), (1, False))
+        self.assertEqual(self.cut('alpha', '--allow-pending-row', 'a'), (1, False))
+        self.assertEqual(self.cut('alpha', '--allow-pending-row', 'a', '--allow-pending-row', 'b'), (0, True))
+        self.assertEqual(self.cut('beta', '--allow-pending-row', 'a', '--allow-pending-row', 'b'), (1, False))
+
+
 if __name__ == '__main__':
     unittest.main()
+
+
+class UpstreamAssets(unittest.TestCase):
+    def test_upstream_source_keeps_its_authors_home_folders_but_not_our_private_names(self):
+        home = ('/' 'Users/' 'someone/Downloads/tool').encode()
+        self.assertEqual(R['private_refs'](home), ['home folder'])
+        self.assertEqual(R['private_refs'](home, upstream=True), [])
+
+    def test_only_oclp_source_is_declared_upstream(self):
+        classes = json.loads((TOP / 'pipeline/release-classes.json').read_text())
+        rows = classes.get('rows', classes)
+        self.assertEqual(sorted(k for k, v in rows.items() if isinstance(v, dict) and v.get('upstream')), ['oclp_source'])

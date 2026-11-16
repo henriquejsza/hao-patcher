@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""place: put what `hao fetch` downloaded where the pipeline's input rows read it (a fresh store, no copies).
+
+  place RELEASE.json CACHE [--dry-run]
+
+For every download and asset of RELEASE.json, the row of that name is found as release-cut found it (the assembly's
+pipeline/inputs/golden/BUILD, then the donor build, then common; first lock folder wins) and its file is put at the
+row's PATH: a file as an APFS clone of CACHE/sha256/SHA256 (a copy elsewhere), a folder row's tar asset unpacked into
+PATH. Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
+and matching is left alone; one in place that does not match is refused, never overwritten.
+
+Rows made on the Mac (the producers) and harvested rows are not downloads: they are listed as still missing. A placed
+row that waits for files made on this Mac is listed as waiting; a made-on-Mac file that is a plain copy out of another
+row (from_row + path_in_row, no producer) is copied here once that row is in place and checks, so running place again
+after the producers completes such rows.
+"""
+import argparse, json, os, shutil, subprocess, sys, tarfile
+from pathlib import Path
+
+TOP = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TOP / 'pipeline'))
+import lock  # noqa: E402
+
+CLASSES = json.loads((TOP / 'pipeline/release-classes.json').read_text())
+CLASSES = CLASSES.get('rows', CLASSES)
+
+
+def lock_folders(release):
+    a = json.loads((TOP / 'pipeline/assemblies' / (release['assembly'] + '.json')).read_text())
+    return [TOP / 'pipeline/inputs/golden' / a['golden_build'], TOP / 'pipeline/inputs' / a['donor_build'],
+            TOP / 'pipeline/inputs/common']
+
+
+def find_row(folders, name):
+    for f in folders:
+        if (f / name).is_file():
+            want, p = lock.rows(str(f))[name]
+            return f, want, Path(p)
+    return None
+
+
+def clone(src, dest):
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if subprocess.run(['cp', '-c', str(src), str(dest)], capture_output=True).returncode:
+        shutil.copy2(src, dest)
+
+
+def unpack(src, dest):
+    dest.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(src) as t:
+        t.extractall(dest, filter='data')
+
+
+def made_label(m):
+    return m.get('producer') or 'a copy out of row %s' % m['from_row']
+
+
+def copy_made(folders, name, dest):
+    """Copy the plain from-row files of row NAME into DEST; return the ones whose source row is not in place yet."""
+    pending = []
+    for m in CLASSES.get(name, {}).get('made_on_mac_files', []):
+        if m.get('producer') or not m.get('path_in_row'):
+            continue
+        found = find_row(folders, m['from_row'])
+        try:
+            if found is None or not found[2].exists():
+                raise SystemExit('not in place')
+            lock.path(str(found[0]), m['from_row'])
+        except SystemExit:
+            pending.append(m)
+            continue
+        clone(found[2] / m['path_in_row'], dest / m['path'])
+    return pending
+
+
+def check_or_wait(folders, folder, name, dest, waiting, problems):
+    """Check a placed row, after its plain copies; True if it matches, else it is listed as waiting or a problem."""
+    if dest.is_dir():
+        copy_made(folders, name, dest)
+    try:
+        lock.path(str(folder), name)
+        return True
+    except SystemExit as e:
+        made = CLASSES.get(name, {}).get('made_on_mac_files')
+        if made:
+            waiting.append('%s: placed; waits for %d file(s) made on this Mac (%s)'
+                           % (name, len(made), '; '.join(sorted({made_label(m) for m in made}))))
+        else:
+            problems.append('%s: placed, but the row check fails: %s' % (name, e))
+        return False
+
+
+def place(release_path, cache, dry_run=False, out=print):
+    release = json.loads(Path(release_path).read_text())
+    folders = lock_folders(release)
+    placed, kept, problems, waiting = [], [], [], []
+    entries = [(d, 'file') for d in release.get('downloads', [])] + \
+              [(a, a.get('format', 'file')) for a in release.get('assets', [])]
+    for entry, form in entries:
+        name = entry['row']
+        found = find_row(folders, name)
+        if found is None:
+            problems.append('%s: no input row of that name' % name)
+            continue
+        folder, want, dest = found
+        src = Path(cache) / 'sha256' / entry['sha256']
+        if not src.is_file():
+            problems.append('%s: not fetched (%s missing; run hao fetch)' % (name, src))
+            continue
+        if dest.exists():
+            if CLASSES.get(name, {}).get('made_on_mac_files'):
+                if not dry_run and check_or_wait(folders, folder, name, dest, waiting, problems):
+                    kept.append(name)
+                continue
+            try:
+                lock.path(str(folder), name)
+                kept.append(name)
+            except SystemExit as e:
+                problems.append('%s: %s is there and is not the row\'s bytes (%s); not overwritten' % (name, dest, e))
+            continue
+        if not dry_run:
+            (unpack if form == 'tar' else clone)(src, dest)
+            if not check_or_wait(folders, folder, name, dest, waiting, problems):
+                continue
+        placed.append(name)
+    made = [m['row'] for m in release.get('made_on_mac', [])]
+    harvested = [h if isinstance(h, str) else h.get('row') for h in release.get('harvested', [])]
+    missing = [r for r in made + harvested if find_row(folders, r) is None or not find_row(folders, r)[2].exists()]
+    out('placed %d, already there %d, waiting for made-on-Mac files %d, problems %d'
+        % (len(placed), len(kept), len(waiting), len(problems)))
+    for w in waiting:
+        out('  ~ ' + w)
+    for p in problems:
+        out('  ! ' + p)
+    if missing:
+        out('still missing (made on this Mac or harvested): ' + ' '.join(missing))
+    return placed, kept, problems, missing
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    p.add_argument('release'); p.add_argument('cache'); p.add_argument('--dry-run', action='store_true')
+    a = p.parse_args()
+    return 1 if place(a.release, a.cache, a.dry_run)[2] else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

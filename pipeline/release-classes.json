@@ -3,8 +3,8 @@
  "note": "What each input row of a release is, by its content (release-cut reads this; its build-record classes say only whether a row can be made again). ours: our own bytes, published as a release asset (a file row as the file, a folder row as one deterministic tar of the listed files). made-on-mac: made on the user's Mac by the named producer from the named input rows (Apple's files, or third-party downloads); never published. download: Apple or third-party bytes the user's Mac fetches from their own servers, pinned by url, size and sha256. harvested: made on a running laptop; not shipped, unless harvested_assets turns it on for the release's target (then a tar asset marked harvested; hao_contract.py allows that for mbp92 only). in-checkout: a tracked file of hao-patcher, delivered with the source at the release commit. pending: held out of this release for the reason given. made_on_mac_files: files of an ours row that are Apple-derived; the asset leaves them out and the user's Mac adds them from the named row.",
  "archive": "tar: POSIX pax, entries sorted by path, folders before their contents, mtime 0, uid and gid 0, no user or group names, mode 0755 for folders and executables and 0644 otherwise, symbolic links kept, no extended attributes, no compression; paths relative to the row's folder",
  "harvested_assets": {
-  "_note": "per target: true publishes its harvested rows (laptop-made caches) as release assets marked harvested. Owner, 2026-11-14: 'Ship the caches for 9,2'; how (public, font registry only, or a private testers' channel) is still the owner's to choose, so off until then. hao_contract.py allows it only for its HARVESTED_ASSET_TARGETS.",
-  "mbp92": false
+  "_note": "per target: true publishes its harvested rows (laptop-made caches) as release assets marked harvested. Owner, 2026-11-14: 'Ship the caches for 9,2'; how (public, font registry only, or a private testers' channel) is still the owner's to choose, answered 2026-11-15 when asked public / font registry only / private testers: \"Ship the caches for 9,2\" = all four rows, public assets, MacBookPro9,2 only (pm, 0050). Publishing a release still needs the owner's go-ahead at cut time. hao_contract.py allows it only for its HARVESTED_ASSET_TARGETS.",
+  "mbp92": true
  },
  "rows": {
   "appstore_slice_guard": {
@@ -174,9 +174,9 @@
   "hao_runtime": {
    "class": "ours",
    "publish": "file",
-   "source": "../hao-runtime-26B131-1de47eb87a7f-public.tar.gz",
-   "source_sha256": "990fcb1508a2cc0e66679b2c09d2248b672256d7c6c6ee0132531ede8d91b138",
-   "reason": "hao-runtime's public archive of the 1de47eb payload (its make-public-archive.py, deterministic): hao's own binaries (hao, libhao, libhao_identity, libhao_async_contract, HaoExec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
+   "source": "../hao-runtime-26B131-c66997a2a0bb-public.tar.gz",
+   "source_sha256": "b2bb589af682559ffcd412f4ccf5761ab333c5a23a8ccacaa71d6e66287b9626",
+   "reason": "hao-runtime's public archive of the c66997a payload (its make-public-archive.py, deterministic): hao's own binaries (hao, libhao, libhao_identity, libhao_async_contract, HaoExec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
    "made_on_mac_files": [
     {
      "path": "payload/embed/stubs",
@@ -557,7 +557,8 @@
   "oclp_source": {
    "class": "ours",
    "publish": "file",
-   "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
+   "upstream": "https://github.com/dortania/OpenCore-Legacy-Patcher",
+  "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
   }
  }
 }

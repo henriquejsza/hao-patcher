@@ -8,12 +8,21 @@
     "golden-gate-live-text-service"
    ]
   },
+  "System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib": {
+   "chain": "two-origins",
+   "writers": [
+    "oclp",
+    "golden-gate-metal-libraries",
+    "golden-gate-metal-argbuf"
+   ]
+  },
   "System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver": {
    "chain": "chain",
    "writers": [
     "oclp",
     "metalold-selectors",
     "golden-gate-metal-framebuffer",
+    "golden-gate-metal-argbuf",
     "golden-gate-hd4000-planes"
    ]
   },

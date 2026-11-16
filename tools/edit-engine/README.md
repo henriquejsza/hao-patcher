@@ -131,6 +131,27 @@ then the identifier, flags, entitlements and requirements. That is what equal me
   `"after": ["overlays"]`, and `pipeline/materialize.py` defers them and orders them after every overlay file and
   every other deferred step (`DIR/deferred.json`).
 
+## Editing a stub hao generated
+
+hao-runtime's installer gives each ARM64-only program an x86_64 stub slice and lists it in
+`usr/lib/hao/stub-identities` (stub CDHash, Apple's arm64 CDHash, arch, path). A recipe that must change such a stub
+(add a library to it, say) cannot ship a copy of the whole stub: the stub belongs to the payload of the image being
+built. `stub-edit` makes the change in that image, from the recipe's kc-hook, in a set position after hao-runtime:
+
+```sh
+"$OCLP_PYTHON" -I "$H/inputs/edit_engine/stub-edit" "$1" SPEC [--record FILE]   # recipe input row: edit_engine
+```
+
+SPEC is an ordinary spec with `arch` x86_64 and `origin.kind` hao. stub-edit refuses before writing anything unless
+the program's x86_64 CDHash is its stub-identities stub CDHash and its arm64 slice has the listed Apple CDHash (the
+stub this image's installer embedded). It then edits and signs the x86_64 slice alone, carries the stub's bundle
+binding (special slots -1 Info.plist and -3 resources, which codesign cannot compute for a lone slice) into the new
+signature, puts the slice back with every other slice byte for byte (checked), writes the file in place, and rewrites
+that one stub-identities line with the new stub CDHash. `usr/lib/hao/trusted-cdhashes` is keyed on Apple's arm64
+slices and does not change. Checked on a 26B131 application stub: every slice and the new CDHash equal the same
+edit made by hand with lipo (only the slice order differs: stub-edit keeps the installer's). Tests:
+`tests/test_stub_edit.py`.
+
 `src/signlint.py` is the static half: a recipe whose hook signs with another file's entitlements
 (`codesign … --entitlements FILE`) or keeps the input's metadata (`--preserve-metadata=…`) needs a signed spec that
 says so (`entitlements_from`, `preserve`). `verify-declaration` runs both: signlint on every changed recipe, and

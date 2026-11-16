@@ -53,6 +53,12 @@ python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json --repo /
 The [assembly](../pipeline/assemblies/mbp92-26B131.json) selects target, OS and donor
 builds, image sizes, donor rows and the patch set.
 
+Before writing anything, `golden-run`, `hao build-image --here`, `tools/qemu-vm` and the builder VM's start check the
+free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the
+image commit ~23 GB; an assembly can say more with `disk_need_gb`), a kit alone 90 GB, a QEMU run the size of the disks
+it boots, and each refuses when it would leave less than 150 GB free (`HAO_DISK_FLOOR_GB`). `HAO_DISK_CHECK=COMMAND`
+hands the decision to a host-wide guard (`COMMAND check --need GB --who NAME --what TEXT`, exit 3 = refused).
+
 `golden-run` (also with `--stage-kit`, which the stick's kit comes from) and `release-cut --write` refuse to start
 while a live swap proven on a laptop has no resolution. The swapper records the proof when a bench pass or the owner
 shows the swap works: `python3.14 -I pipeline/swaps.py proven LAPTOP-PATH --evidence "bench ITEM"` (or
