@@ -33,6 +33,7 @@ class DiskGuard(unittest.TestCase):
         (self.work / 'build/prepare').mkdir(parents=True)
         (self.work / 'build/prepare/big').write_bytes(b'x')
         (self.work / 'selection.json').write_text('{}')
+        (self.work / 'source.img').write_bytes(b'img')
         disk_guard.remove_intermediates(self.work)
         self.assertEqual(['selection.json'], sorted(p.name for p in self.work.iterdir()))
 

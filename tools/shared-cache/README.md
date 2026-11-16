@@ -50,10 +50,10 @@ cryptex and Data volume. Instead of the four, `make IMAGE` mounts a disk image (
 `target.img`) read-only itself; an image repository (a folder with `image.json`) is exported first with
 `tools/bin/ssdimg` (`SSDIMG` names another copy). `NEW_WORK` and `NEW_FAMILY` must not exist.
 
-Before writing, the build checks that the volumes of `NEW_WORK` and `NEW_FAMILY` have about 30 GB free and stops
-otherwise; `SHARED_CACHE_DISK_CHECK=COMMAND` adds a site check, run as `COMMAND check --need GB --who shared-cache
+Before writing, the build checks that the volumes of `NEW_WORK` and `NEW_FAMILY` have about 30 GB free (plus the
+image's size when an image repository is exported into `NEW_WORK`) and stops otherwise; `SHARED_CACHE_DISK_CHECK=COMMAND` adds a site check, run as `COMMAND check --need GB --who shared-cache
 --what TEXT`, whose non-zero exit stops the build too. When the family is written, `NEW_WORK/build` (the
-intermediates, about 21 GB) is removed; `--keep-work` keeps it.
+intermediates, about 21 GB) and an exported `source.img` are removed; `--keep-work` keeps them.
 
 A provider's bytes come from the System given, at the path its feature names. A feature file may instead name a
 file outside the System for a provider (`"sources": {"NAME": {"path": FILE, "sha256": HASH}}`), for example a

@@ -111,10 +111,14 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--work', type=Path, required=True)
     parser.add_argument('--keep-work', action='store_true',
-                        help='keep WORK/build (about 21 GB) after the family is written; by default it is removed')
+                        help='keep WORK/build (about 21 GB) and an exported source.img after the family is written; '
+                             'by default they are removed')
     args = parser.parse_args()
     os.environ['CACHE_TOOLCHAIN'] = str(args.toolchain.resolve())
-    disk_guard.check(args.work, args.output, f'fold {args.output.name}')
+    export_gb = 0                           # an image repository is exported whole into WORK first
+    if args.run and (args.run / 'image.json').is_file():
+        export_gb = -(-json.loads((args.run / 'image.json').read_text())['size'] // 10**9)
+    disk_guard.check(args.work, args.output, f'fold {args.output.name}', work_gb=disk_guard.WORK_GB + export_gb)
     args.work.mkdir(parents=True)
     if args.swift_recipe:
         if not args.swift_runtime_cache:
