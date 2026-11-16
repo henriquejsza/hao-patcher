@@ -33,10 +33,9 @@ import time
 Phase = collections.namedtuple('Phase', 'title note steps seconds')
 INSTALL = (
     Phase('Lay out the disk', None, ('layout',), 120),
-    Phase('Copy macOS 27', 'from Apple\'s macOS 27 installer', ('golden-system', 'group-volumes'), 380),
-    Phase('Add Intel support', 'Tahoe\'s kernel extensions and boot files, OCLP\'s legacy hardware support',
-          ('golden-finalize', 'boot-and-esp', 'hardware'), 170),
-    Phase('Link the kernel', 'Tahoe\'s kmutil', ('recipe darwin27-kernel',), 155),
+    Phase('Copy macOS 27', None, ('golden-system', 'group-volumes'), 380),
+    Phase('Add Intel support', None, ('golden-finalize', 'boot-and-esp', 'hardware'), 170),
+    Phase('Link the kernel', 'Tahoe kmutil', ('recipe darwin27-kernel',), 155),
     Phase('Apply packs', 'what each pack brings, from the kit', ('recipe', 'overlay'), 1615),
     Phase('Seal', None, ('snapshot',), 65),
     Phase('Make it bootable', None, ('posts', 'post', 'efi-bundle'), 35),
@@ -142,10 +141,9 @@ def recipe_folders(share):
 
 
 def pack_line(c, pack, files, size, extra=''):
-    """The mockups' pack line: name, file count and size in aligned columns."""
+    """The mockups' pack line: P(pack, 24), then the files and their size."""
     import console
-    return '%s %s %s%s' % (c.paint('bold', '%-22s' % pack_name(pack)), '%6s files' % format(files, ','),
-                           '%9s' % console.human_size(size), extra)
+    return '%-24s%s files · %s%s' % (pack_name(pack), format(files, ','), console.human_size(size), extra)
 
 
 TOP = Path(__file__).resolve().parents[3]
@@ -228,6 +226,8 @@ class Runner:
         self.tail = collections.deque(maxlen=40)
         self.error = None            # the last line that reads like an error
         self.stop = None             # an "@hao stop" event's fields
+        self.summary = {}            # what the last line counts: files from packs, kernel repairs
+        self.asm = None
         self.view = None
 
     def pack_of(self, recipe):
@@ -567,10 +567,21 @@ class Assembly:
             self.leave()
             self.index += 1
             ph = self.phases[self.index - 1]
-            note = 'done in the earlier attempt' if self.index < n and self.resumed else ph.note
+            note = 'done in the earlier attempt' if self.index < n and self.resumed else self.note(self.index, ph)
             c.step(ph.title, note=note, quiet=False)
             self.phase_started = time.monotonic()
             self.pace()
+
+    def note(self, n, ph):
+        """The header's subtitle: the origin of what the phase copies (the mockups' "origin: Apple 26B131")."""
+        asm = getattr(self.r, 'asm', None) or {}
+        c = self.c
+        if n == 2 and asm.get('golden_build'):
+            return c.paint('dim', 'origin:') + ' ' + c.paint('apple', 'Apple ' + asm['golden_build'])
+        if n == 3 and asm.get('donor_build'):
+            return c.paint('dim', 'origin:') + ' ' + c.paint('tahoe', 'Apple %s (Tahoe)' % asm['donor_build']) + \
+                ' · ' + c.paint('oclp', 'OCLP')
+        return ph.note
 
     def finish(self, ok=True):
         """End the line on screen; a recipe's line is not kept (its pack's line follows)."""
@@ -594,6 +605,7 @@ class Assembly:
                 self.c.paint('bold', '%-22s' % pack_name(pack)),
                 '%d recipe%s' % (len(names), '' if len(names) == 1 else 's'))
             self.c.item(text, ok=True, ev='pack.applied', pack=pack, recipes=names, files=files, bytes=size)
+            self.r.summary['files'] = self.r.summary.get('files', 0) + files
         self.packs = collections.OrderedDict()
         if self.posts:
             self.c.item('%s  %d recipes' % (SAY['posts'], len(self.posts)), ok=True, ev='posts.applied',
@@ -616,6 +628,7 @@ class Assembly:
         title = ph.title.lower() if ph else 'preparing'
         if self.bar is None:
             self.bar = self.c.task('Installing macOS 27', 'quiet', total=1000, unit='%')
+            self.bar.width = 30
         self.bar.update(done=int(1000 * (before + within) / total), tail=title[0].upper() + title[1:] + '…')
 
     # -- the backend's lines
@@ -693,6 +706,7 @@ class Assembly:
         if m:
             self.say('%s kernel repairs bound to this kernel, IntelCommpage added' % m.group(1), ok=True,
                      ev='kc.bind', repairs=int(m.group(1)))
+            self.r.summary['repairs'] = int(m.group(1))
             return
         m = self.STAMP.match(text)
         if m:
@@ -730,10 +744,14 @@ class Assembly:
                 self.bar.update(done=1000, tail='Done')
                 self.bar.end(True)
             return
+        why = self.c.paint('bad', self.r.error[:56]) if self.r.error else ''
         if self.task is None and self.c.at('steps'):
             # it stopped between lines (in a step that has no line of its own): mark that step
             import console
-            self.c.print(console.at_column('  ' + (SAY.get(self.last) or self.last or 'this step')) + self.c.bad)
+            self.c.print(console.at_column('  ' + (SAY.get(self.last) or self.last or 'this step'), self.c.col()) +
+                         self.c.bad + ('  ' + why if why else ''))
+        elif self.task is not None:
+            self.task.final_note = why or None
         self.finish(False)
         if self.bar:
             self.bar.end(False)

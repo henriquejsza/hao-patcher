@@ -84,7 +84,7 @@ def popen_of(text, rc=0, seen=None):
 
 def render(text=ASSEMBLY, rc=0, level='steps', out=None, env=None):
     out = out if out is not None else Pipe()
-    c = CON.Console(level, out=out, err=out, env=env if env is not None else {'TERM': 'xterm-256color'})
+    c = CON.Console(level, out=out, err=out, env=env if env is not None else {'TERM': 'xterm-256color', 'HAO_THEME': 'dark'})
     with tempfile.TemporaryDirectory() as d:
         log = Path(d) / 'install.log'
         r = PROG.Runner(c, 'install', groups=GROUPS, log=log, popen=popen_of(text, rc), env={})
@@ -139,7 +139,7 @@ class Steps(unittest.TestCase):
     def test_a_stop_between_lines_marks_its_step(self):
         text = ASSEMBLY.split('STEP post hao-opencore')[0] + 'unmount of /Volumes/macOS refused\n'
         _, out, _, _, _ = render(text, rc=1)
-        self.assertIn('  settings, caches and the OpenCore configuration  ✗', out.splitlines())
+        self.assertIn('  settings, caches and the OpenCore configuration  ✗  unmount of /Volumes/macOS refused', out.splitlines())
 
     def test_a_backend_stop_event_replaces_the_generic_report(self):
         text = 'STEP layout\n@hao {"ev": "stop", "what": "the disk is too small", "options": ["use a 256 GB disk"]}\n'
@@ -167,7 +167,7 @@ class Steps(unittest.TestCase):
         _, out, _, _, _ = render(out=Tty())
         self.assertIn('\r\033[K', out)
         self.assertIn('\033[1m[1/7] Lay out the disk\033[0m', out)
-        self.assertIn('\033[38;5;35m✓\033[0m', out)
+        self.assertIn('\033[38;5;78m✓\033[0m', out)
 
     def test_no_colour_and_dumb_terminal_are_plain(self):
         for env in ({'NO_COLOR': '1', 'TERM': 'xterm'}, {'TERM': 'dumb'}):
@@ -203,11 +203,11 @@ class Steps(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual([sq(l) for l in out.getvalue().splitlines()], [sq(l) for l in [
             "  stage each recipe's inputs, every one checked against its sha256  ✓",
-            '  base                        1 files    3.0 KB  ✓',
-            '  metal-3802                  1 files    1.0 KB  ✓',
-            '  intel-hd4000                1 files    2.0 KB  ✓',
-            '  other fixes                 1 files      10 B  ✓',
-            "  copy Tahoe's Intel system programs  ████████████████████ 5.0 KB / 5.0 KB  ✓",
+            '  base  1 files · 3.0 KB  ✓',
+            '  metal-3802  1 files · 1.0 KB  ✓',
+            '  intel-hd4000  1 files · 2.0 KB  ✓',
+            '  other fixes  1 files · 10 B  ✓',
+            "  copy Tahoe's Intel system programs  ████████████████████ 5.0 / 5.0 KB  ✓",
             '  OpenCore for this Mac  ✓']])
 
     def test_kernel_lines_and_the_proven_build(self):
@@ -259,7 +259,7 @@ class Downloads(unittest.TestCase):
         acq = PROG.download_view(c, {'fetch': fetch, 'load': None}, lambda r: 'apple' if 'apple' in r.get('url', '') else '')
         acq['fetch'](rows, '/cache', on_event=seen.append)
         lines = [sq(l) for l in out.getvalue().splitlines()]
-        self.assertEqual(lines, ['  Apple  InstallAssistant-26B131.pkg  ' + '█' * 20 + ' 2.0 KB / 2.0 KB  sha256 ✓',
+        self.assertEqual(lines, ['  Apple  InstallAssistant-26B131.pkg  ' + '█' * 20 + ' 2.0 / 2.0 KB  sha256 ✓',
                                  '         KDK_25G330.kdk  already downloaded, sha256 ✓'])
         self.assertEqual([e['ev'] for e in seen], ['fetch', 'ok', 'reused'])     # byte counts stay on the bar
         self.assertIs(acq['load'], None)
@@ -304,16 +304,37 @@ class Live(unittest.TestCase):
         c = CON.Console('steps', out=Pipe(), env={'HAO_ASCII': '1'})
         self.assertFalse(c.utf)
         self.assertEqual(CON.bar(0.5, 4, utf=False), '##..')
-        self.assertEqual(plain_task(c, 2, 4), '  x ##########.......... 2/4 files')
+        self.assertEqual(sq(plain_task(c, 2, 4)), '  x  ##########.......... 2/4 files')
 
     def test_palette_choice(self):
         c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_PALETTE': '8'})
         self.assertEqual(c.ok, '\033[32m✓\033[0m')
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_STICK': '/Volumes/HAO'})
-        self.assertEqual(c.ok, '\033[38;5;35m✓\033[0m')
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark'})
+        self.assertEqual(c.ok, '\033[38;5;78m✓\033[0m')
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'light'})
+        self.assertEqual(c.ok, '\033[38;5;29m✓\033[0m')
 
-    def test_spinner_glyphs_are_in_menlo_and_sf_mono(self):
-        self.assertTrue(set(CON.SPIN[True]) <= set('▖▘▝▗'))
+    def test_no_question_to_the_terminal_without_colour(self):
+        asked = []
+        saved = CON.ask_background
+        CON.ask_background = lambda timeout=0.2: asked.append(1)
+        try:
+            del CON._THEME[:]
+            CON.Console('steps', out=Pipe(), env={'TERM': 'xterm-256color'})
+            CON.Console('json', out=Tty(), env={'TERM': 'xterm-256color'})
+        finally:
+            CON.ask_background = saved
+        self.assertEqual(asked, [])
+
+    def test_theme_from_the_terminals_answer(self):
+        del CON._THEME[:]
+        self.assertEqual(CON.theme({}, ask=lambda: (1.0, 1.0, 1.0)), 'light')
+        del CON._THEME[:]
+        self.assertEqual(CON.theme({}, ask=lambda: None), 'dark')
+        del CON._THEME[:]
+
+    def test_spinner_is_the_mockups(self):
+        self.assertEqual(CON.SPIN[True], '-\\|/')
 
     def test_fit_keeps_a_redrawn_line_on_one_row(self):
         s = '\033[1mabcdefghij\033[0m'
@@ -343,7 +364,8 @@ class Hooks(unittest.TestCase):
         loader.exec_module(hao)
         calls = []
         build = types.SimpleNamespace(
-            resolve=lambda a, c, cmd: ('profile', 'path', 'asm', {'base': ['x']}),
+            resolve=lambda a, c, cmd: ({'model': 'MacBookPro9,2', 'packs': ['base']}, 'path', {'golden_build': '26B131'},
+                                       {'base': ['x']}),
             show_steps=lambda c, cmd, groups: calls.append(('plan', cmd)),
             STEPS={'install': ('a', 'b')})
         inst = types.SimpleNamespace(prepare_kit=lambda a, c, path, run=None: calls.append(('kit', run)))

@@ -27,17 +27,80 @@ import time
 LEVELS = ('quiet', 'steps', 'files', 'edits', 'json')
 
 
-# kind -> SGR parameters. 256 colours, the mockups' hues at a middle lightness so each reads on a dark Terminal (the
-# Recovery's) and on a light one: 35 green #00af5f, 167 red #d75f5f, 172 amber #d78700, 32 blue #0087d7, 245 grey
-# #8a8a8a for secondary text (not SGR 2, which some terminals draw too faint), 246 Apple grey, 173 Tahoe orange #d7875f,
-# 98 OCLP purple #875fd7, 36 hao teal #00af87.
-SGR_256 = {'ok': '38;5;35', 'bad': '1;38;5;167', 'warn': '38;5;172', 'bar': '38;5;32', 'bold': '1', 'dim': '38;5;245',
-           'apple': '38;5;246', 'tahoe': '38;5;173', 'oclp': '38;5;98', 'hao': '38;5;36'}
+# kind -> SGR parameters: the Hao Console Variations mockups' tokens at the nearest 256-colour values, one set for a
+# dark terminal (the Recovery's, the mockups' dark cards) and one for a light one (the mockups' white installer cards).
+#   kind   token  dark mockup -> 256          light mockup -> 256
+#   ok     g      #62d394 -> 78  #5fd787      #1a7f37 -> 29  #00875f
+#   bar    c      #6db7ff -> 75  #5fafff      #0a5fb4 -> 25  #005faf
+#   warn   y      #f1c453 -> 221 #ffd75f      #8f5d00 -> 94  #875f00
+#   bad    r      #ff7a7a -> 210 #ff8787 bold #c62828 -> 160 #d70000 bold
+#   dim    d      #8a8f99 -> 245 #8a8a8a      #6b7280 -> 243 #767676
+#   apple  a      #c3c8d0 -> 251 #c6c6c6      #4b5563 -> 240 #585858
+#   tahoe  t      #f0a54e -> 215 #ffaf5f      #9c5300 -> 130 #af5f00
+#   oclp   o      #c79dff -> 183 #d7afff      #7a3fb8 -> 97  #875faf
+#   hao    h      #5fd6b4 -> 79  #5fd7af      #0b7d5f -> 29  #00875f
+#   bold   b      bold
+SGR_DARK = {'ok': '38;5;78', 'bar': '38;5;75', 'warn': '38;5;221', 'bad': '1;38;5;210', 'dim': '38;5;245',
+            'apple': '38;5;251', 'tahoe': '38;5;215', 'oclp': '38;5;183', 'hao': '38;5;79', 'bold': '1'}
+SGR_LIGHT = {'ok': '38;5;29', 'bar': '38;5;25', 'warn': '38;5;94', 'bad': '1;38;5;160', 'dim': '38;5;243',
+             'apple': '38;5;240', 'tahoe': '38;5;130', 'oclp': '38;5;97', 'hao': '38;5;29', 'bold': '1'}
+SGR_256 = SGR_DARK
 SGR_8 = {'ok': '32', 'bad': '1;31', 'warn': '33', 'bar': '36', 'bold': '1', 'dim': '2',
          'apple': '90', 'tahoe': '33', 'oclp': '35', 'hao': '36'}
 ORIGINS = {'apple': 'Apple', 'tahoe': 'Tahoe', 'oclp': 'OCLP', 'hao': 'hao'}
 ANSI = re.compile(r'\033\[[0-9;]*m')
 ERASED = re.compile(r'([Ee]verything on (?:it|\S+(?: [^.?]*?)?) will be erased|will be erased)')
+
+
+_THEME = []
+
+
+def theme(env=None, ask=None):
+    """'dark' or 'light': HAO_THEME, else the terminal's background (an OSC 11 query, answered within 0.2 s by
+    Terminal, iTerm2 and xterm; asked once), else 'dark' (the Recovery's Terminal is dark)."""
+    env = os.environ if env is None else env
+    if env.get('HAO_THEME') in ('dark', 'light'):
+        return env['HAO_THEME']
+    if not _THEME:
+        rgb = (ask or ask_background)()
+        _THEME.append('dark' if rgb is None else ('light' if 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] > 0.5
+                                                  else 'dark'))
+    return _THEME[0]
+
+
+def ask_background(timeout=0.2):
+    """The terminal's background as (r, g, b) in 0..1, or None: OSC 11 on /dev/tty, its answer read raw."""
+    try:
+        import select
+        import termios
+        import tty
+        fd = os.open('/dev/tty', os.O_RDWR | os.O_NOCTTY)
+    except (OSError, ImportError):
+        return None
+    try:
+        old = termios.tcgetattr(fd)
+    except termios.error:
+        os.close(fd)
+        return None
+    answer = b''
+    try:
+        tty.setraw(fd)
+        os.write(fd, b'\033]11;?\033\\')
+        end = time.monotonic() + timeout
+        while time.monotonic() < end and not (answer.endswith(b'\007') or answer.endswith(b'\033\\')):
+            r, _, _ = select.select([fd], [], [], max(0, end - time.monotonic()))
+            if not r:
+                break
+            answer += os.read(fd, 64)
+    except OSError:
+        pass
+    finally:
+        termios.tcsetattr(fd, termios.TCSAFLUSH, old)
+        os.close(fd)
+    m = re.search(rb'rgb:([0-9a-fA-F]+)/([0-9a-fA-F]+)/([0-9a-fA-F]+)', answer)
+    if not m:
+        return None
+    return tuple(int(x, 16) / float(16 ** len(x) - 1) for x in m.groups())
 
 
 def colour_for(stream, env=None):
@@ -57,10 +120,15 @@ class Style:
     def __init__(self, on, env=None):
         env = os.environ if env is None else env
         self.on = on
-        # HAO_PALETTE=8|256 chooses; otherwise 256 colours where the terminal says it has them.
+        # HAO_PALETTE=8|256 chooses; otherwise 256 colours where the terminal says it has them, for its background
+        # (HAO_THEME=dark|light, else what the terminal answers when asked, else dark).
         palette = env.get('HAO_PALETTE', '')
-        self.codes = SGR_8 if palette == '8' else SGR_256 if palette == '256' or '256' in env.get('TERM', '') or \
-            env.get('COLORTERM') else SGR_8
+        if not on:
+            self.codes = SGR_8            # never drawn; and no question to the terminal when nothing is coloured
+        elif palette == '8' or (palette != '256' and '256' not in env.get('TERM', '') and not env.get('COLORTERM')):
+            self.codes = SGR_8
+        else:
+            self.codes = SGR_LIGHT if theme(env) == 'light' else SGR_DARK
 
     def __call__(self, kind, text):
         if not self.on or not text:
@@ -80,7 +148,7 @@ class Style:
 # Spinner frames and bar cells: quarter and full blocks on a UTF-8 terminal, ASCII where the stream is not UTF-8 or
 # HAO_ASCII is set. Only glyphs Menlo and SF Mono have themselves (✓ ✗ ▖ █ ░ … · →): a Recovery may lack the
 # fallback fonts a full macOS draws braille spinners with.
-SPIN = {True: '▖▘▝▗', False: '-\\|/'}
+SPIN = {True: '-\\|/', False: '-\\|/'}     # the mockups' spinner, in the bar colour
 CELLS = {True: ('█', '░'), False: ('#', '.')}
 TICK = 0.1                    # seconds between redraws of a live line
 HEARTBEAT = 30                # seconds between "still working" lines when the output is not a terminal
@@ -187,6 +255,12 @@ class Console:
         self.live = None          # the Task whose line is being redrawn, if any
         self.lock = threading.RLock()
         self.heartbeat = HEARTBEAT
+        self.column = MARK_COLUMN     # where ✓ stands (the mockups: 60 for create-installer, 78 for install)
+        self.bar_column = 46          # where a bar starts (the mockups' P(label, 44) after the two-space indent)
+        self.bar_width = 20
+        self.gap = False              # a blank line before each step header (create-installer's rhythm)
+        self.muted = False            # print nothing (events are still kept): a backend's own header is replaced
+        self.release = None           # the release (or dev COMMIT) the header names
 
     # -- plumbing
     @property
@@ -204,7 +278,7 @@ class Console:
         return self.level != 'json' and LEVELS.index(self.level) >= LEVELS.index(level)
 
     def print(self, text='', level='steps'):
-        if self.at(level):
+        if self.at(level) and not self.muted:
             with self.lock:
                 self._clear_live()
                 print(self.paint.erased(text), file=self.out, flush=True)
@@ -218,6 +292,10 @@ class Console:
         if self.live is not None and self.animate:
             self.out.write(fit(self.live.render(), self.width() - 1))
             self.out.flush()
+
+    def col(self):
+        """The check column, moved left on a narrow terminal so a line with its time still fits."""
+        return min(self.column, self.width() - 14) if self.animate else self.column
 
     def task(self, text, level='steps', total=None, unit=None, **fields):
         """A line that is being worked on: a spinner (or a bar, with TOTAL) and the time so far, redrawn in place on a
@@ -255,7 +333,10 @@ class Console:
             self.print(self.paint('bold', '%s...' % title), 'quiet')
         else:
             head = '[%d/%d] %s' % (self.index, self.total, title) if self.total else title
-            self.print(self.paint('bold', head) + ('  ' + self.paint('dim', note) if note else ''))
+            if self.gap and self.index > 1:
+                self.print('')
+            self.print(self.paint('bold', head) + ('  ' + (note if '\033[' in note or not self.paint.on
+                                                          else self.paint('dim', note)) if note else ''))
 
     def item(self, text, level='steps', ok=None, **fields):
         """One line under a step; OK True adds the check mark. Kept as an event when FIELDS are given."""
@@ -264,7 +345,7 @@ class Console:
         if ok and text.endswith('sha256'):   # "sha256 ✓" is one green check, as in the mockups
             self.print('  ' + text[:-6] + self.paint('ok', 'sha256 ') + self.ok, level)
             return
-        self.print((at_column('  ' + text) + self.ok) if ok else '  ' + text, level)
+        self.print((at_column('  ' + text, self.col()) + self.ok) if ok else '  ' + text, level)
 
     def detail(self, text, level='edits'):
         self.print('            ' + self.paint('dim', text), level)
@@ -295,11 +376,14 @@ class Console:
         """The time since the command started, as the last line says it ("in 41m 18s")."""
         return elapsed(self.clock() - self.started)
 
-    def done(self, text, **fields):
+    def done(self, text, lead=None, more=(), **fields):
+        """The last line: LEAD (default ✓) and TEXT, with the time it took unless TEXT says it; then MORE, dim."""
         took = self.clock() - self.started
         self.event('run.end', ok=True, text=text, seconds=round(took, 1), **fields)
-        self.print('%s %s%s' % (self.ok, text, '  ' + self.paint('dim', 'in ' + elapsed(took))
-                                if took >= 60 and ' in ' not in text else ''), 'quiet')
+        self.print('%s %s%s' % (lead or self.ok, text, '  ' + self.paint('dim', 'in ' + elapsed(took))
+                                if took >= 60 and ' in ' not in text and lead is None else ''), 'quiet')
+        for line in more:
+            self.print(self.paint('dim', line), 'quiet')
 
     def stopped(self, x):
         """The failure layout (variation 7): STOPPED and what was left untouched, then what happened, why it
@@ -317,9 +401,9 @@ class Console:
         print('\n%s\n' % ' '.join(x for x in (s('bad', 'STOPPED'), untouched) if x), file=w)
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
-                print('  %s%s' % (s('bold', '%-17s' % label), text), file=w)
+                print('  %-17s%s' % (label, text), file=w)
         if x.options:
-            print('\n  ' + s('bold', 'What you can do'), file=w)
+            print('\n  What you can do', file=w)
             for i, o in enumerate(x.options, 1):
                 print('    %d  %s' % (i, o), file=w)
         if x.log:
@@ -379,17 +463,19 @@ class Task:
         line = self.text
         if self.total:
             f = min(1.0, self.done / float(self.total)) if self.total else 0
-            line += ' ' + c.paint('bar', bar(f, 20, utf)) + ' ' + self.count()
+            line = at_column(line, c.bar_column) if len(plain(line)) < c.bar_column else line + ' '
+            line += c.paint('bar', bar(f, getattr(self, 'width', None) or c.bar_width, utf)) + ' ' + self.count()
         if self.tail and final is None:
             line += '  ' + c.paint('dim', self.tail)
         if final is None:
             spin = SPIN[utf]
-            line += '  ' + c.paint('bar', spin[self.frame % len(spin)]) + ' ' + c.paint('dim', elapsed(self.seconds()))
+            line = at_column(line, c.col()) + c.paint('bar', spin[self.frame % len(spin)]) + '  ' + \
+                c.paint('dim', elapsed(self.seconds()))
         return line
 
     def count(self):
         if self.unit == 'bytes':
-            return '%s / %s' % (human_size(self.done), human_size(self.total))
+            return size_pair(self.done, self.total)
         if self.unit == '%':
             return '%3d%%' % (100 * self.done // max(self.total, 1))
         return '%d/%d%s' % (self.done, self.total, ' ' + self.unit if self.unit else '')
@@ -445,7 +531,7 @@ class Task:
             mark = {True: c.ok, False: c.bad}.get(ok, '')
             line = self.render(final=True)
             note = note or getattr(self, 'final_note', None)
-            line = (at_column(line) + mark if mark else line) + ('  ' + note if note else '')
+            line = (at_column(line, c.col()) + mark if mark else line) + ('  ' + note if note else '')
             secs = self.seconds()
             if timed and secs >= 1:
                 line += '  ' + c.paint('dim', elapsed(secs))
@@ -457,6 +543,15 @@ class Task:
             c.event('task.end', text=self.text, ok=ok, note=note, seconds=round(secs, 1), **self.fields)
         if getattr(self, '_thread', None) is not None:
             self._stop.set()
+
+
+def size_pair(done, total):
+    """"14.8 / 14.8 GB": both in the total's unit, the unit once (the mockups' download lines)."""
+    for unit, scale in (('TB', 1e12), ('GB', 1e9), ('MB', 1e6), ('KB', 1e3)):
+        if total >= scale:
+            width = len('%.1f' % (total / scale))
+            return '%*.1f / %.1f %s' % (width, done / scale, total / scale, unit)
+    return '%d / %d B' % (done, total)
 
 
 def human_size(n):
