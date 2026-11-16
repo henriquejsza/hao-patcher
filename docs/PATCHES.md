@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-38 of 41 patches declare their files so far.
+39 of 41 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -154,6 +154,17 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-live-text-shared
 - `usr/lib/hao-live-text/libLiveTextPolicy.dylib`: whole file from hao (row live_text_framework). Compiles TextRecognition's models for the GPU with the runtime's detector.
 - `usr/lib/hao-live-text/libhao_input_coherence.dylib`: whole file from hao (row live_text_framework). Locks and unlocks the detector's input IOSurfaces before each execution.
 - `usr/lib/hao-live-text/build.json`: whole file from hao (row live_text_framework). The runtime's manifest (file hashes, load paths); golden-gate-live-text-service reads it.
+
+## golden-gate-metal-argbuf
+
+Revision r6, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
+
+- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
+     The driver loads libargbuf, so argument buffers, ASTC textures and the render-target adaptations work on the HD 4000; weak, so the driver still loads without the library.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: whole file from hao (row metal_argbuf). New file: device side of tools/metal-argbuf (argument buffers, ASTC, render-target adaptations). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: whole file from hao (row metal_argbuf). Replaces the repaired iCBE (golden-gate-metal-libraries) with the tools/metal-argbuf wrapper, which re-exports iCBE-real.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: whole file from hao (row metal_argbuf). New file: the repaired iCBE the wrapper was linked against; the hook refuses unless the installed iCBE has these bytes. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-metal-framebuffer
 
@@ -548,4 +559,4 @@ Revision r2, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-golden-gate-hd4000-planes, golden-gate-metal-argbuf, golden-gate-user-template
+golden-gate-hd4000-planes, golden-gate-user-template
