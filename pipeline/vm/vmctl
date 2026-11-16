@@ -470,6 +470,15 @@ def exec_cmd(vmdir, cmd, timeout=600, gui=False):
     sys.exit(f"vmctl: no reply within {timeout}s (agent running in the guest Terminal? try: vmctl VMDIR up)")
 
 
+def vnc_sock(vmdir):
+    """The broker's socket: VM/vnc.sock, or, when that path is longer than an AF_UNIX address holds (104 bytes on
+    macOS), /tmp/hao-vnc-<sha256 of the VM folder>.sock."""
+    sock = Path(vmdir) / "vnc.sock"
+    if len(os.fsencode(str(sock))) < 104:
+        return sock
+    return Path("/tmp") / ("hao-vnc-%s.sock" % hashlib.sha256(os.fsencode(str(Path(vmdir).resolve()))).hexdigest()[:16])
+
+
 def close_vnc(vmdir):
     marker = Path(str(Path(vmdir).resolve()) + '.run') / 'vncd.pid'
     if not marker.exists():
@@ -485,7 +494,7 @@ def close_vnc(vmdir):
 def vncd(vmdir):
     """Hold ONE VNC session for the VM's lifetime. Rapid connect/disconnect cycles tripped an assertion in
     _VZVNCServer (addAccessorObserver) that killed the whole VM, so all VNC traffic goes through this broker."""
-    sock = Path(vmdir) / "vnc.sock"
+    sock = vnc_sock(vmdir)
     sock.unlink(missing_ok=True)
     c = VNC(vmdir)
     c.start_reader()
@@ -529,7 +538,7 @@ def vncd(vmdir):
 
 
 def vnc_call(vmdir, op, *args):
-    sock = Path(vmdir) / "vnc.sock"
+    sock = vnc_sock(vmdir)
     for _ in range(100):                      # ssdvm writes vnc.json once the listener is confined to lo0
         if (Path(vmdir) / "vnc.json").exists():
             break

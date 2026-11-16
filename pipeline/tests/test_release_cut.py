@@ -191,6 +191,20 @@ class HarvestedAssets(unittest.TestCase):
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': True}}, 'mbp121'))
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': 'yes'}}, 'mbp92'))
 
+    def test_a_recipe_of_a_release_set_that_needs_a_harvested_row_is_optional(self):
+        # a cut without harvested assets must still build: every recipe that reads one is skipped like the caches
+        data = R['classes']()
+        harvested = {r for r, e in data.items() if isinstance(e, dict) and e.get('class') == 'harvested'}
+        for assembly in (TOP / 'pipeline/assemblies').glob('mbp92-26B131*.json'):
+            name = json.loads(assembly.read_text())['patch_set']
+            for line in (TOP / 'pipeline/sets' / (name + '.txt')).read_text().splitlines():
+                recipe = line.split('#')[0].strip()
+                if not recipe:
+                    continue
+                patch = json.loads((TOP / 'patches' / recipe / 'patch.json').read_text())
+                if harvested & set(patch.get('inputs', [])):
+                    self.assertTrue(patch.get('optional'), '%s in %s' % (recipe, name))
+
     def test_the_checked_in_setting_ships_them_for_the_9_2_only(self):
         # owner 2026-11-15: all four harvested rows, as public assets, for MacBookPro9,2 only
         targets = {k: v for k, v in R['settings']()['harvested_assets'].items() if not k.startswith('_')}

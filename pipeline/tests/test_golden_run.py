@@ -131,6 +131,7 @@ class GoldenRun(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             prepared=Path(folder)/'boot-efi';(prepared/'payload/EFI/OC').mkdir(parents=True)
             (prepared/'payload/EFI/OC/OpenCore.efi').write_bytes(b'oc');(prepared/'manifest.json').write_text('{}')
+            os.utime(prepared/'payload/EFI/OC/OpenCore.efi',(0,0))   # a release tar asset's mtime: written as 1980
             archive=RUN['boot_efi_archive'](prepared,Path(folder))
             with zipfile.ZipFile(archive) as bundle:
                 names=set(bundle.namelist())

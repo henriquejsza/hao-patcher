@@ -303,7 +303,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-user-seed/README
 
 ## golden-gate-user-template
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-user-template/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-user-template/README.md)
 
 - `Library/User Template/Non_localized/Library/Containers`: whole file from every file under it from hao (row user_template_golden_gate). App and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
 - `Library/User Template/Non_localized/Library/Group Containers`: whole file from every file under it from hao (row user_template_golden_gate). Group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.

@@ -6,7 +6,8 @@
 For every download and asset of RELEASE.json, the row of that name is found as release-cut found it (the assembly's
 pipeline/inputs/golden/BUILD, then the donor build, then common; first lock folder wins) and its file is put at the
 row's PATH: a file as an APFS clone of CACHE/sha256/SHA256 (a copy elsewhere), a folder row's tar asset unpacked into
-PATH. Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
+PATH, and an archive whose release class says `unpack` ({"strip": N, "into": "parent"}) unpacked with its first N path
+parts dropped, into PATH's parent when `into` is parent (hao-runtime's public archive: its payload/ is the row). Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
 and matching is left alone; one in place that does not match is refused, never overwritten.
 
 Rows made on the Mac (the producers) and harvested rows are not downloads: they are listed as still missing. A placed
@@ -39,16 +40,40 @@ def find_row(folders, name):
     return None
 
 
+MACHO = {b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf', b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe'}
+
+
 def clone(src, dest):
+    """Clone SRC to DEST; mode 0755 for a Mach-O file (thin or universal: programs and libraries, as the producers
+    leave them), 0644 otherwise. The fetch cache keeps every file 0644."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if subprocess.run(['cp', '-c', str(src), str(dest)], capture_output=True).returncode:
         shutil.copy2(src, dest)
+    with open(dest, 'rb') as f:
+        dest.chmod(0o755 if f.read(4) in MACHO else 0o644)
 
 
 def unpack(src, dest):
     dest.mkdir(parents=True, exist_ok=True)
     with tarfile.open(src) as t:
         t.extractall(dest, filter='data')
+
+
+def unpack_archive(src, dest, how):
+    """Unpack SRC (any tar, compressed or not) with its first `strip` path parts dropped, into DEST or its parent."""
+    strip, into = int(how.get('strip', 0)), dest.parent if how.get('into') == 'parent' else dest
+    into.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(src) as t:
+        members = []
+        for m in t.getmembers():
+            parts = Path(m.name).parts
+            if len(parts) <= strip:
+                continue
+            m.name = '/'.join(parts[strip:])
+            if m.islnk():
+                m.linkname = '/'.join(Path(m.linkname).parts[strip:])
+            members.append(m)
+        t.extractall(into, members=members, filter='data')
 
 
 def made_label(m):
@@ -119,7 +144,11 @@ def place(release_path, cache, dry_run=False, out=print):
                 problems.append('%s: %s is there and is not the row\'s bytes (%s); not overwritten' % (name, dest, e))
             continue
         if not dry_run:
-            (unpack if form == 'tar' else clone)(src, dest)
+            how = CLASSES.get(name, {}).get('unpack')
+            if how:
+                unpack_archive(src, dest, how)
+            else:
+                (unpack if form == 'tar' else clone)(src, dest)
             if not check_or_wait(folders, folder, name, dest, waiting, problems):
                 continue
         placed.append(name)

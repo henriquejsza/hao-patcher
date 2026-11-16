@@ -47,5 +47,31 @@ class Place(unittest.TestCase):
         self.assertEqual(P['made_label'](COPY), 'a copy out of row src')
 
 
+class Mode(unittest.TestCase):
+    def test_a_mach_o_is_placed_executable_and_data_is_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            for name, data, mode in (('fat', b'\xca\xfe\xba\xbe' + bytes(8), 0o755), ('lib', b'\xcf\xfa\xed\xfe' + bytes(8), 0o755),
+                                     ('dmg', b'koly' + bytes(8), 0o644)):
+                src = Path(d) / ('src-' + name); src.write_bytes(data); src.chmod(0o644)
+                dest = Path(d) / 'row' / name
+                P['clone'](src, dest)
+                self.assertEqual(dest.stat().st_mode & 0o777, mode, name)
+
+
+class Unpack(unittest.TestCase):
+    def test_an_archive_class_unpacks_its_payload_folder_as_the_row(self):
+        import io, tarfile
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / 'rt.tar.gz'
+            with tarfile.open(src, 'w:gz') as t:
+                for name, data in (('top/GENERATE.md', b'g'), ('top/payload/bin/hao', b'h')):
+                    info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
+            dest = Path(d) / 'row' / 'payload'
+            P['unpack_archive'](src, dest, {'strip': 1, 'into': 'parent'})
+            self.assertEqual((dest / 'bin/hao').read_bytes(), b'h')
+            self.assertEqual((dest.parent / 'GENERATE.md').read_bytes(), b'g')
+            self.assertFalse((dest.parent / 'top').exists())
+
+
 if __name__ == '__main__':
     unittest.main()

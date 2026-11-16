@@ -9,7 +9,12 @@ the inputs list.
 - Apple silicon Mac, Xcode command-line tools, Python 3.14. The image is 80 GiB and the
   workspace 160 GiB, both sparse.
 - Builder VM: [`tools/ssdvm`](../tools/ssdvm/README.md), `pipeline/vm/`. All formatting, APFS
-  writes and kernel-collection builds run in it, never on the host.
+  writes and kernel-collection builds run in it, never on the host. Build the launcher with
+  `tools/ssdvm/build.sh store/vm/bin`; each build runs in an APFS clone of the VM at `store/vm/base`
+  (made with `ssdvm install`, see its README; `pipeline/vm/clones.py` provisions each clone). Provisioning drives the
+  clone's screen with `pipeline/vm/vmctl`, which needs Pillow and cryptography in `store/cache/vmctl-venv`
+  (`python3.14 -m venv store/cache/vmctl-venv && store/cache/vmctl-venv/bin/python3 -m pip install pillow cryptography`;
+  `VMCTL_PYTHON` names another).
 - Inputs from [Build inputs](inputs.md).
 
 ## 1. Prepare the inputs
@@ -20,6 +25,31 @@ the inputs list.
    [`oclp-hardware`](../tools/oclp-hardware/README.md)).
 3. Point the rows in `pipeline/inputs/` at them ([Input rows](inputs.md#input-rows)).
 
+### From a release (developer alpha)
+
+A release (`release.json` on [hao-assets](https://github.com/lythka/hao-assets/releases)) pins every input. On an
+Apple silicon Mac with the builder VM's base at `store/vm/base` and its tools (Requirements), with the release's
+files downloaded into `ASSETS` (`gh release download TAG -R lythka/hao-assets -D ASSETS`):
+
+```sh
+git clone https://github.com/lythka/hao-patcher && cd hao-patcher && git checkout COMMIT   # release.json "hao_patcher"
+mkdir -p ../store && ln -s ../store store                                                 # an empty store
+python3.14 -I tools/hao/hao fetch ASSETS/release.json --cache ../fetch --assets-from ASSETS
+python3.14 -I pipeline/place ASSETS/release.json ../fetch
+tools/ssdvm/build.sh store/vm/bin
+python3.14 -I tools/hao/hao build-image ../image --model MacBookPro9,2 --assembly ASSEMBLY      # release.json "assembly"
+```
+
+- `fetch` downloads Apple's and the third-party files from their own servers and takes our assets from `ASSETS`,
+  each checked by size and sha256 (about 43 GB, 10 minutes on a fast line).
+- `place` puts each where its input row reads it and checks it. It ends by listing what is still missing: the
+  rows in the release's `made_on_mac` and the harvested caches. The harvested ones are optional and the build
+  skips them (Optional cache recipes, below). The made-on-Mac rows are made from Apple's files by the producer
+  each entry names; **the producers that read the IPSW cannot run from a release yet**, so for now those rows come
+  from a store that has them (the image build refuses any row whose sha256 differs). Run `place` again after
+  adding them: it completes the rows that wait for a copy out of another row.
+- `build-image` needs the release's `assembly`: without it, it takes the target's default assembly.
+
 `plan` prints a set's run order and every input it needs:
 
 ```sh
@@ -29,9 +59,9 @@ python3.14 -I pipeline/patches.py plan pipeline/sets/golden-gate-26B131.txt pipe
 
 ### Optional cache recipes
 
-`golden-gate-shader-caches`, `golden-gate-icon-caches` and `golden-gate-font-registry` install
-caches made by [`cache/seeds`](../cache/seeds/README.md) from a harvest of a running laptop;
-`golden-gate-user-seed` copies their per-user parts into new accounts. Their patch.json has
+`golden-gate-shader-caches`, `golden-gate-icon-caches`, `golden-gate-font-registry` and
+`golden-gate-user-template` install caches and templates made by [`cache/seeds`](../cache/seeds/README.md) from a
+harvest of a running laptop; `golden-gate-user-seed` copies their per-user parts into new accounts. Their patch.json has
 `"optional": "caches"`. Without these files the image still builds; first boot and each new
 account's first login are slower.
 
