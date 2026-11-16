@@ -1,5 +1,6 @@
 """src/progress.py: a backend's output goes to the log; the screen gets the install's phases in plain words."""
 import io
+import json
 import os
 from pathlib import Path
 import re
@@ -221,10 +222,10 @@ class Steps(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual([sq(l) for l in out.getvalue().splitlines()], [sq(l) for l in [
             "  stage each recipe's inputs, every one checked against its sha256  ✓",
-            '  base  1 files · 3.0 KB  ✓',
-            '  metal-3802  1 files · 1.0 KB  ✓',
-            '  intel-hd4000  1 files · 2.0 KB  ✓',
-            '  other fixes  1 files · 10 B  ✓',
+            '  base  1 files  ✓',
+            '  metal-3802  1 files  ✓',
+            '  intel-hd4000  1 files  ✓',
+            '  other fixes  1 files  ✓',
             "  copy Tahoe's Intel system programs  ████████████████████ 5.0 / 5.0 KB  ✓",
             '  OpenCore for this Mac  ✓']])
 
@@ -246,6 +247,48 @@ class Steps(unittest.TestCase):
         self.assertIn('  BootKC and SystemKC linked, Boot 875abf7d221c…  ✓  matches the proven build', got)
         self.assertIn('  HaoExec stamped for kernel 037e7b860ac8…  ✓', got)
         self.assertIn('  4 kernel repairs bound to this kernel, IntelCommpage added  ✓', got)
+
+
+class Round5(unittest.TestCase):
+    def test_binder_record_gives_the_bind_lines(self):
+        with tempfile.TemporaryDirectory() as d:
+            rec = Path(d) / 'local' / 'work' / 'post' / 'hao-opencore'
+            rec.mkdir(parents=True)
+            (rec / 'kc-binder.json').write_text(json.dumps({
+                'mode': 'binder', 'commpage_table': {'load_time': True},
+                'points': {'site': {'segment': '__TEXT', 'offset': '0x8ffa02', 'length': 104, 'fields': 9},
+                           'pv_addresses.pv_zone': {'segment': '__DATA_CONST', 'offset': '0x111a0'}},
+                'patches': [{'comment': 'Initialize early VM range', 'offset': '0x9efa02', 'length': 104}]}))
+            text = 'STEP posts\nSTEP post hao-opencore\nInstalled 4 recorded kernel repairs and IntelCommpage.kext\n'
+            for level, want, absent in (('steps', 'bind  4 kernel repairs against the BootKC just linked  ✓', 'early-vm.site'),
+                                        ('edits', 'early-vm.site  __TEXT +0x8ffa02  104 bytes  9 fields  ✓', None)):
+                out = Pipe()
+                c = CON.Console(level, out=out, env={})
+                PROG.Runner(c, 'install', groups=GROUPS, log=Path(d) / 'i.log', popen=popen_of(text), env={})(
+                    ['sh', 'golden-assemble.sh', str(Path(d) / 'kit'), str(Path(d) / 'local')])
+                got = sq(out.getvalue())
+                self.assertIn(want, got)
+                self.assertIn('→ 1 OpenCore patches written · HaoExec stamped · IntelCommpage table filled', got)
+                if absent:
+                    self.assertNotIn(absent, got)
+
+    def test_stopped_says_what_was_left_untouched(self):
+        text = 'STEP layout\nSTEP golden-system\nerror: copy failed\n'
+        _, _, _, r, _ = render(text, rc=1)
+        x = r.explain(CON.Stopped('the build onto /dev/disk0 failed (exit 1)'))
+        self.assertEqual(x.untouched, 'before anything was written to the EFI partition. This Mac will not start from disk0 yet.')
+
+    def test_commands_in_what_you_can_do_are_bold(self):
+        err = Tty()
+        c = CON.Console('steps', out=err, err=err, env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c.stopped(CON.Stopped('x', options=['run it again: sudo ./hao create-installer', 'save a report: /Volumes/HAO/report (attach it)']))
+        out = err.getvalue()
+        self.assertIn('\033[1msudo ./hao create-installer\033[0m', out)
+        self.assertIn('\033[1m/Volumes/HAO/report\033[0m (attach it)', out)
+
+    def test_truecolor_uses_the_mockups_colours(self):
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'COLORTERM': 'truecolor'})
+        self.assertEqual(c.ok, '\033[38;2;98;211;148m✓\033[0m')
 
 
 class Sizes(unittest.TestCase):
