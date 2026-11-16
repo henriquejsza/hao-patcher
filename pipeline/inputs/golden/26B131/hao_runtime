@@ -1,4 +1,5 @@
 # hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime 1a290d7 (public alpha
 # commit): libhao d6b9b712, libhao_identity 752fd35f; 1896 units, 963 embedded.
+# hash: without root/usr/lib/hao/aot  # made on the user's Mac after the first boot (made_on_mac_files)
 # check: payload os_build=26B131 layout_version=1 manifest_sha256=d6054d9cffafc416e77531435b302a05829fd2ea974d1ce987733a49816b9cbc
-0d579f6da0ee1ed472601649b50bfc330a5bc5beb60d06025da9af7346f0f650 store/artifacts/hao-runtime-26B131-20261115-1a290d7-alpha-A/payload
+52b89e0a44166c9c7976b73817b661c2cbe9d8454a580dbc85c1f2ba196f155a store/artifacts/hao-runtime-26B131-20261115-1a290d7-alpha-A/payload
