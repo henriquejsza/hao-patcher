@@ -47,6 +47,17 @@ class Place(unittest.TestCase):
         self.assertEqual(P['made_label'](COPY), 'a copy out of row src')
 
 
+class Mode(unittest.TestCase):
+    def test_a_mach_o_is_placed_executable_and_data_is_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            for name, data, mode in (('fat', b'\xca\xfe\xba\xbe' + bytes(8), 0o755), ('lib', b'\xcf\xfa\xed\xfe' + bytes(8), 0o755),
+                                     ('dmg', b'koly' + bytes(8), 0o644)):
+                src = Path(d) / ('src-' + name); src.write_bytes(data); src.chmod(0o644)
+                dest = Path(d) / 'row' / name
+                P['clone'](src, dest)
+                self.assertEqual(dest.stat().st_mode & 0o777, mode, name)
+
+
 class Unpack(unittest.TestCase):
     def test_an_archive_class_unpacks_its_payload_folder_as_the_row(self):
         import io, tarfile

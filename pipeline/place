@@ -40,10 +40,17 @@ def find_row(folders, name):
     return None
 
 
+MACHO = {b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf', b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe'}
+
+
 def clone(src, dest):
+    """Clone SRC to DEST; mode 0755 for a Mach-O file (thin or universal: programs and libraries, as the producers
+    leave them), 0644 otherwise. The fetch cache keeps every file 0644."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if subprocess.run(['cp', '-c', str(src), str(dest)], capture_output=True).returncode:
         shutil.copy2(src, dest)
+    with open(dest, 'rb') as f:
+        dest.chmod(0o755 if f.read(4) in MACHO else 0o644)
 
 
 def unpack(src, dest):
