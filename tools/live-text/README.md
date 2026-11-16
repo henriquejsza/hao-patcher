@@ -76,6 +76,14 @@ library or `libhelloblur` is not the one the build was made from.
 Every `build.json` names its inputs as the repository does (`store/artifacts/...`), or by file name when they lie
 outside it (`lib/paths.py`), never by an absolute path, so the rows can be published.
 
+A release publishes both rows without their Apple-derived files. On the user's Mac, `on-mac` makes them into the
+placed rows and checks each against the hash the row's `build.json` records (nothing is written on a mismatch):
+
+```sh
+python3.14 -I on-mac runtime LIVE_TEXT_FRAMEWORK_ROW --system APPLE_SYSTEM_ROOT   # Metal toolchain; about 5 min
+python3.14 -I on-mac compiler-service METAL_COMPILER_COMPAT_ROW --oclp-hardware OCLP_HARDWARE_ROW
+```
+
 ## Verify
 
 ```sh
