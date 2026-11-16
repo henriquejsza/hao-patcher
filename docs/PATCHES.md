@@ -168,7 +168,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-metal-argbuf/README
 
 ## golden-gate-metal-framebuffer
 
-Revision r8, status experiment. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
+Revision r9, status experiment. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metal-framebuffer`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetal-framebuffer.dylib.

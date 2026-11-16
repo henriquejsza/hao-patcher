@@ -54,6 +54,7 @@ Wi-Fi symbol correctly, and Setup renders with it installed. The full desktop
 remain open. Nothing has been checked on 26B131.
 
 ## Revisions
+- r9 2026-11-15 build/tests: the AIR version lookup's linearity test compares 4x the input against the base size instead of a fixed 5 s, so it holds on a loaded host. What the recipe installs is unchanged.
 - r8 2026-11-14 Input row `metal_framebuffer` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()), so its sha256 changed. The same artifact, so what this recipe installs is unchanged.
 - r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on the driver and the library), as the hook sets them, so overlays carry them; the hook is unchanged.

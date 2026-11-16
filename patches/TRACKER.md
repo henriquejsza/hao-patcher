@@ -22,7 +22,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-live-text-service | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the |
 | golden-gate-live-text-shared | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-14 Input row `live_text_framework` names framework/ of live-text-26B131-20261114-679d5b1b, so the r |
 | golden-gate-metal-argbuf | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-15 libargbuf from d9fa28e7 (fix 26c6afc6): the texture and render-pipeline factory hooks return the |
-| golden-gate-metal-framebuffer | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input row `metal_framebuffer` now hashes only the files a release can give a user's Mac (`# hash |
+| golden-gate-metal-framebuffer | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-15 build/tests: the AIR version lookup's linearity test compares 4x the input against the base size |
 | golden-gate-metal-libraries | r21 | oclp-hook | experiment |  | x | x |  |  | **needs** | r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their p |
 | golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
