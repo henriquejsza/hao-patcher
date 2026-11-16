@@ -1,4 +1,5 @@
-# OCLP's legacy MTLCompilerService loading cache/metallib's compat.dylib: compiler-service/ of tools/live-text build (fa444101) from live-text-inputs-26B131-20261111-5aaa286dfe6f (build.json names every file's hash).
-# Rebuilt at fa444101 so build.json names inputs as store/... paths; against dd1c86b only build.json and libhaoMetalCompilerCompat.dylib (LC_UUID and ad hoc signature; code identical) differ; the service is identical.
+# OCLP's legacy MTLCompilerService loading cache/metallib's compat.dylib: compiler-service/ of tools/live-text build (f479d6c7) from live-text-inputs-26B131-20261111-5aaa286dfe6f (build.json names every file's hash).
+# f479d6c7: reproducible from source with Xcode 27.2: compat.dylib is linked with a fixed install name (its header and
+# UUID no longer depend on the build folder; code identical to fa444101) and build.json holds content hashes only.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
-66e1e6ddea4f09ef58c19149ce368f95eac28bd52fe3e204d4709286209e7fed store/artifacts/live-text-26B131-20261113-fa444101/compiler-service
+e4780509508e78e9d9d9ba183de244d42d350993efeb0251510c91603e97a47e store/artifacts/live-text-26B131-20261116-f479d6c7/compiler-service

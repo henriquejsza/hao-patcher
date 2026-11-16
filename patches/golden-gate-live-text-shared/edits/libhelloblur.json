@@ -5,7 +5,7 @@
  "origin": {
   "kind": "hao",
   "name": "libhelloblur",
-  "note": "golden-gate-hello's prebuilt blur helper (input row libhelloblur of that patch, 26B131 sha256 d471519b...); one load command is added to its copy"
+  "note": "golden-gate-hello's prebuilt blur helper (input row libhelloblur of that patch, sha256 9c273f39...); one load command is added to its copy"
  },
  "applied_by": "installer",
  "edits": [
@@ -26,6 +26,6 @@
   "identifier": "local.libhelloblur"
  },
  "expect": {
-  "d471519b1f00fdc318191eeefef6cf9b84d62e5cf341def90ecac80860570c1e": "b06e59b2273201cd94bf0ee53ceb1c78a62347dc5dc1093235f22bbbbb4e7b9b"
+  "9c273f39a1429a1ef02ae5cae74ba97df73027c91c8eecb99924ba0107adae72": "8e801c3c5f27234daeeb36ac5e7c9db32c169d34a24eeb4ca56c9c80d92e63e6"
  }
 }

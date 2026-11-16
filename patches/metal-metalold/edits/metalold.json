@@ -20,7 +20,7 @@
     "after": "test rax,rax; nop; nop"
    },
    "reason": "+[MTLLoader sliceIDForDevice:legacyDriverVersion:airntDriverVersion:] no longer skips the legacy driver slice after the device type test, as in OCLP's MetalOld",
-   "evidence": "hao-tools docs/metal-legacy-base.md, Q1: OCLP's MetalOld differs from Apple's 22D68 cut only by this edit and the install name"
+   "evidence": "compared instruction by instruction: OCLP's MetalOld differs from Apple's 22D68 cut only by this edit and the install name"
   }
  ],
  "sign": {

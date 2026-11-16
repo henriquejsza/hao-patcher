@@ -9,11 +9,18 @@ import tempfile
 import unittest
 
 BUILD = pathlib.Path(__file__).resolve().parents[1]
-SDK = os.environ.get('HELLOBLUR_SDK', '/Library/Developer/CommandLineTools/SDKs/MacOSX26.sdk')
+def xcode_sdk():
+    try:
+        return subprocess.run(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], capture_output=True, text=True).stdout.strip()
+    except OSError:
+        return ''
+
+
+SDK = os.environ.get('HELLOBLUR_SDK') or xcode_sdk()
 compare = runpy.run_path(str(BUILD / 'compare.py'))
 
 
-@unittest.skipUnless(shutil.which('clang') and os.path.isdir(SDK), 'needs clang and %s' % SDK)
+@unittest.skipUnless(shutil.which('clang') and SDK and os.path.isdir(SDK), 'needs clang and the macOS SDK')
 class Build(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

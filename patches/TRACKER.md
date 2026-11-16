@@ -18,16 +18,16 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e |
 | golden-gate-hd4000-planes | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
-| golden-gate-hello | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json |
+| golden-gate-hello | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-16 Row `libhelloblur` is the Xcode 27.2 build of `build/make.sh` (9c273f39), which the same command |
 | golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | golden-gate-ids | r1 | oclp-hook | product |  |  |  |  |  | **needs** | r1 2026-11-15 New. |
 | golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
 | golden-gate-live-text-service | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the |
-| golden-gate-live-text-shared | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-14 Input row `live_text_framework` names framework/ of live-text-26B131-20261114-679d5b1b, so the r |
+| golden-gate-live-text-shared | r10 | oclp-hook | experiment |  | x |  |  |  | **needs** | r10 2026-11-16 Row `live_text_framework` is the f479d6c7 build, reproducible from source with Xcode 27.2: runt |
 | golden-gate-metal-argbuf | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-15 libargbuf from d9fa28e7 (fix 26c6afc6): the texture and render-pipeline factory hooks return the |
-| golden-gate-metal-framebuffer | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-14 Input row `metal_framebuffer` now hashes only the files a release can give a user's Mac (`# hash |
+| golden-gate-metal-framebuffer | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-16 Rows `metal_framebuffer` are the 2845387b build of the current source, which the same command r |
 | golden-gate-metal-libraries | r21 | oclp-hook | experiment |  | x | x |  |  | **needs** | r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their p |
-| golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
+| golden-gate-metal27 | r4 | oclp-hook | dev |  |  |  |  |  | **needs** | r4 2026-11-15 README: how to try it on a running image, at the level of commands; no file change. |
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
@@ -41,8 +41,8 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
 | hao-runtime | r81 | oclp-hook | experiment |  | x | x |  |  | **needs** | r81 2026-11-16 Row `hao_runtime` (26B131): its sha256 leaves out root/usr/lib/hao/aot (52b89e0a), which the us |
 | hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
-| metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
-| metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
+| metal-compiler-compat | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-16 Row `metal_compiler_compat` is the f479d6c7 build, reproducible from source with Xcode 27.2: com |
+| metal-metalold | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-15 edits/metalold.json's evidence line names the comparison instead of a private document; the edit |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | rec-audio | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the three kext bundles and the kernel collection link in `patch.json` `files` and `edits |
 | rec-bluetooth-input | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the four kext bundles, btpower, its plist and the kernel collection link in `patch.json` |

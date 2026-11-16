@@ -44,6 +44,7 @@ NEEDS VALIDATION: on a MacBookPro9,2 the Language Chooser played hello and MTLCo
 without a crash; frame rate on the HD 4000 and `textFragment_watchPreview` are untested.
 
 ## Revisions
+- r9 2026-11-16 Row `libhelloblur` is the Xcode 27.2 build of `build/make.sh` (9c273f39), which the same command reproduces byte for byte; code identical to d471519b (SDK and linker stamps, UUID and signature differ).
 - r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json ...` in the row: the build record's dates and paths and README.txt are left out, pipeline/lock.py without()), so a remake of the same payload on a user's Mac matches; their sha256 changed, the artifacts did not, so what this recipe installs is unchanged.
 - r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r6 2026-11-12 The `libhelloblur` source and builder are in `build/` (from the hello-render recipe); the row and the hook are unchanged.

@@ -63,7 +63,7 @@ Run from this folder, every output folder new:
 python3.14 -I live-text inputs --system APPLE_SYSTEM_ROOT \
   --oclp-hardware ../../store/artifacts/oclp-hardware-mbp92-psp2.0.5-20261109-157bf4246bcc --output NEW_INPUTS
 python3.14 -I live-text build --inputs INPUTS \
-  --startup-library ../../store/artifacts/libhelloblur-d471519b/libhelloblur.dylib --output NEW_BUILD
+  --startup-library ../../store/artifacts/libhelloblur-9c273f39/libhelloblur.dylib --output NEW_BUILD
 ```
 
 `APPLE_SYSTEM_ROOT` is the target build's System (for 26B131, the 27.2.1 IPSW's filesystem). `inputs` copies

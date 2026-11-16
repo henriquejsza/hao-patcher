@@ -36,7 +36,7 @@ class FrameworkTests(unittest.TestCase):
             framework.attach(bytes(source), ROOT + '/' + runtime.UMBRELLA)
 
     def test_umbrella_fits_libhelloblur_header_padding(self):
-        """libhelloblur d471519b (row libhelloblur) has 64 zero bytes between its load commands and __text."""
+        """libhelloblur (row libhelloblur, 9c273f39) has 64 zero bytes between its load commands and __text."""
         name = (ROOT + '/' + runtime.UMBRELLA).encode() + b'\0'
         self.assertLessEqual((24 + len(name) + 7) & ~7, 64)
         source, size = helloblur()

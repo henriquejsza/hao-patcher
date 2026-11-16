@@ -43,6 +43,10 @@ def build(output, llvm=None):
     for name,files,extra in targets:
         if name=='compat.dylib' and llvm:
             extra=extra+['-DCOMPAT_SAMPLER_QUERY']
+        if '-dynamiclib' in extra:
+            # A fixed install name (callers set the real one with install_name_tool) keeps the output folder's path
+            # out of the header size and LC_UUID, so the same source gives the same bytes in any folder.
+            extra=extra+['-install_name','@rpath/'+name,'-Wl,-headerpad_max_install_names']
         command=['xcrun','clang','-arch','x86_64','-mmacosx-version-min=11.0','-Wall','-Wextra','-Werror','-O2','-I',str(output),*extra,*[str(HERE/n) for n in files],'-o',str(output/name)]
         result=subprocess.run(command,capture_output=True,text=True)
         (output/(name+'.build.log')).write_text(result.stdout+result.stderr)

@@ -104,8 +104,18 @@ class AirVersion(unittest.TestCase):
     def test_linear_on_large_modules(self):
         # The AIR version lookup must stay linear: RenderBox icon modules are several megabytes.
         import time
-        body = ''.join(f'!{n} = !{{!"air.arg_name", !"v{n}", i32 {n}, i32 {n}}}\n' for n in range(10, 400000))
+        # Measured as a ratio, so a loaded host slows both sizes alike: 4x the input must take well under the 16x a
+        # quadratic lookup would (the best of three runs each, against scheduling noise).
         lower.air_version(IR + VERSIONS, 'air.version')   # builds the native CLI outside the timing
-        start = time.monotonic()
-        self.assertEqual(lower.air_version(IR + body + VERSIONS, 'air.language_version'), (3, 2))
-        self.assertLess(time.monotonic() - start, 5)
+
+        def seconds(count):
+            body = ''.join(f'!{n} = !{{!"air.arg_name", !"v{n}", i32 {n}, i32 {n}}}\n' for n in range(10, count))
+            best = None
+            for _ in range(3):
+                start = time.monotonic()
+                self.assertEqual(lower.air_version(IR + body + VERSIONS, 'air.language_version'), (3, 2))
+                took = time.monotonic() - start
+                best = took if best is None else min(best, took)
+            return best
+        small, large = seconds(100000), seconds(400000)
+        self.assertLess(large, 8 * max(small, 0.05))

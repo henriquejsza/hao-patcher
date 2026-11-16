@@ -152,7 +152,7 @@ for f in $(find $HOME/Library/Logs/DiagnosticReports -newer $R/.start -type f 2>
 
 # ---- 4. summary
 {
-  print "Metal27 adapter laptop test, $(date)"; print "results: $R"; print
+  print "Metal27 adapter test, $(date)"; print "results: $R"; print
   grep -E '^[a-z0-9-]+ +exit=' $R/run.log
   print
   pass() { grep -q "status=PASS" $R/$1/log.txt 2>/dev/null; }

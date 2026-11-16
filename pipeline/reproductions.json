@@ -55,11 +55,12 @@
    "result": "identical"
   },
   "libhelloblur": {
-   "artifact": "libhelloblur-d471519b",
+   "artifact": "libhelloblur-9c273f39",
    "repo": "hao-patcher",
-   "commit": "ff740d98",
-   "result": "except",
-   "except": "the linker version (ld 27037.1 then, 27106.1 now) and the UUID and ad hoc signature that follow from it; every section identical, and patches/golden-gate-hello/build/compare.py gets the stored bytes once UUID and ld version are equal"
+   "commit": "f479d6c7",
+   "result": "identical",
+   "command": "patches/golden-gate-hello/build/make.sh OUT",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
   },
   "wifip2p_compat": {
    "artifact": "wifip2p-compat-26B131-20261113-20822cf11958",
@@ -71,7 +72,9 @@
    "artifact": "metal-argbuf-26B131-20261115-d9fa28e7",
    "repo": "hao-patcher",
    "commit": "d9fa28e7",
-   "result": "identical"
+   "result": "identical",
+   "command": "tools/metal-argbuf/make OUT --icbe ICBE_REAL (iCBE-real.dylib is made on the Mac)",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
   },
   "appstore_slice_guard": {
    "artifact": "appstore-slices-20261114-5b3f353e7405",
@@ -82,8 +85,10 @@
   "hd4000_planes": {
    "artifact": "hd4000-planes-20261114-3030c66cd852",
    "repo": "hao-patcher",
-   "commit": "6ce955ec",
-   "result": "identical"
+   "commit": "789a8c7d",
+   "result": "identical",
+   "command": "patches/golden-gate-hd4000-planes/build/make OUT_PARENT",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
   },
   "tahoe_native_donors": {
    "artifact": "minimal-native-25G342-26B131-corewifi-awdl-r4",
@@ -95,8 +100,35 @@
   "metalold_selectors": {
    "artifact": "metalold-selectors-20261105-03d169d7ddae",
    "repo": "hao-patcher",
-   "commit": "adc8a4a9",
-   "result": "identical"
+   "commit": "789a8c7d",
+   "result": "identical",
+   "command": "patches/metalold-selectors/build/make OUT_PARENT",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
+  },
+  "live_text_framework": {
+   "artifact": "live-text-26B131-20261116-f479d6c7",
+   "repo": "hao-patcher",
+   "commit": "f479d6c7",
+   "result": "identical",
+   "command": "tools/live-text/live-text build --inputs LIVE_TEXT_INPUTS --startup-library LIBHELLOBLUR --output OUT (framework/)",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I",
+   "note": "built twice in two folders: every published file identical"
+  },
+  "metal_compiler_compat": {
+   "artifact": "live-text-26B131-20261116-f479d6c7",
+   "repo": "hao-patcher",
+   "commit": "f479d6c7",
+   "result": "identical",
+   "command": "same build as live_text_framework (compiler-service/)",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
+  },
+  "metal_framebuffer": {
+   "artifact": "metal-framebuffer-26B131-20261116-2845387bf09a",
+   "repo": "hao-patcher",
+   "commit": "789a8c7d",
+   "result": "identical",
+   "command": "patches/golden-gate-metal-framebuffer/build/metal-framebuffer build OUT",
+   "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
   }
  }
 }

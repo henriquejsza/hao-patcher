@@ -3,7 +3,7 @@
 Shared-compiler mode only: shaders compile in the image's (repaired) MTLCompilerService, never in a private
 compiler. The runtime holds
   LiveText.dylib             umbrella; needs every helper below, so one load command attaches them all. Short
-                             name: libhelloblur d471519b has 64 bytes of header padding, and the load command for
+                             name: libhelloblur (row libhelloblur) has 64 bytes of header padding, and the load command for
                              /usr/lib/hao-live-text/LiveText.dylib takes 64 (libLiveText.dylib would take 72)
   libLiveTextConfig.dylib    process-local settings (HAO_LIVE_TEXT_ROOT, VISION_MPSNDARRAY_LIBRARY), first
   gpu-client.dylib           cache/metallib's GPU-client adapter (cold and cached translated shaders)
@@ -13,7 +13,6 @@ compiler. The runtime holds
   MPSNDArray.metallib, detector/  the repaired library and the input-binding-rewritten detector
 The MPS matrix initializer repair is not here: golden-gate-userspace applies it to the x86_64 dyld cache.
 """
-import datetime
 import hashlib
 import json
 from pathlib import Path
@@ -27,7 +26,6 @@ UNIT = HERE.parent
 REPO = UNIT.parents[1]
 sys.path.insert(0, str(HERE))
 import detector as detector_tool  # noqa: E402
-from paths import repo_path  # noqa: E402
 
 UMBRELLA = 'LiveText.dylib'
 # The System library the runtime's MPSNDArray.metallib replaces for HD 4000 devices (installers check its hash).
@@ -66,9 +64,8 @@ def build(output, install_root, compat, metallib, detector, source_metallib):
     inputs = {}
     shutil.copy2(compat/'gpu-client.dylib', out/'gpu-client.dylib')
     shutil.copy2(metallib, out/'MPSNDArray.metallib')
-    inputs['gpu-client.dylib'] = dict(path=repo_path(compat/'gpu-client.dylib'), sha256=sha(compat/'gpu-client.dylib'),
-                                      cache_metallib_commit=record.get('commit'), revision=record.get('revision'))
-    inputs['MPSNDArray.metallib'] = dict(path=repo_path(metallib), sha256=sha(metallib), source=SOURCE_METALLIB,
+    inputs['gpu-client.dylib'] = dict(sha256=sha(compat/'gpu-client.dylib'), revision=record.get('revision'))
+    inputs['MPSNDArray.metallib'] = dict(sha256=sha(metallib), source=SOURCE_METALLIB,
                                          source_sha256=sha(source_metallib))
     inputs['detector'] = detector_tool.prepare(detector, out/'detector')
 
@@ -107,10 +104,8 @@ def build(output, install_root, compat, metallib, detector, source_metallib):
             *('-Wl,-needed_library,' + str(out/name) for name in HELPERS))
     umbrella.unlink()
     files = {str(f.relative_to(out)): sha(f) for f in sorted(out.rglob('*')) if f.is_file() and not f.is_symlink()}
-    git = lambda *a: subprocess.check_output(['git', '-C', str(REPO), *a], text=True).strip()
+    # Installed and released: content hashes only (no commit, date or folder), so the same source gives the same bytes.
     manifest = dict(unit='tools/live-text', operation='runtime', compiler_mode='shared', install_root=root,
-                    commit=git('rev-parse', 'HEAD'), dirty=bool(git('status', '--porcelain', '--', str(UNIT))),
-                    date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     source_sha256={str(p.relative_to(REPO)): sha(p) for p in sorted(src.iterdir()) if p.is_file()},
                     inputs=inputs, files=files, load_paths=[root + '/' + UMBRELLA],
                     helper_paths=[root + '/' + name for name in HELPERS])

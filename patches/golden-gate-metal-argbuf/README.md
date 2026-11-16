@@ -40,12 +40,12 @@ Only built for 26B131.
 
 ## Validation
 
-NEEDS VALIDATION. Laptop test 2026-11-14, image f112087 (26B131) with r5's libargbuf: Weather's precipitation map no
-longer aborts (3 of 3 selections; before, it aborted each time its pass ran), its radar-coverage hatching draws, and the
-Temperature and Wind maps draw as before; the precipitation colour itself is not drawn yet (diag#0002, open). Laptop test
-2026-11-14, image f112087 (26B131) with r4's wrapper: no GPU reset, WebGPU and WebGL read back right. Laptop test
-2026-11-12 with r2's files: Weather with all four maps, Safari WebGPU compute and render. No image built with this recipe
-has booted yet.
+NEEDS VALIDATION (r6 is not in a booted image). Image b124c40 (26B131, record golden-26B131-20261114-173106-35769e)
+with r5 booted on a MacBookPro9,2 on 2026-11-15: CLAIMS C004b (argument buffers), C004c (ASTC), C009c (Safari WebGPU) and
+C011a (Weather) proven; C011b (the precipitation map's rain colour) failed (diag#0055, open). Earlier tests with the
+recipe's files put in place by hand on image f112087 (26B131), 2026-11-14: r5's libargbuf ends the precipitation-map
+abort (3 of 3 selections); r4's wrapper reads WebGPU and WebGL back right with no GPU reset. r6's change (textures and
+pipelines freed) is shown on the host only: 100 of 100 freed in a lifecycle control, 11 tool tests pass.
 
 ## Revisions
 

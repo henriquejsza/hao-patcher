@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""make.py: build the Metal27 adapter's laptop test bundle, and the host replay runtime it is tested against.
+"""make.py: build the Metal27 adapter's test bundle, and the host replay runtime it is tested against.
 
   make.py bundle OUT --cache DIR --metalold FILE [--template FILE] [--tar]
-      OUT/metal27-adapter-test/   the bundle (copy it to the laptop as the tarball, never with scp -r)
+      OUT/metal27-adapter-test/   the bundle (copy it to the target as the tarball, never as a folder: symlinks)
       OUT/metal27-adapter-test.tgz (+ .sha256) with --tar
       OUT/work/                   intermediates (the unsigned Metal cut, cache-dylib's report and check, AIR)
   make.py host-runtime OUT --from RT [--laptop-paths]
@@ -21,7 +21,7 @@ Inputs (all read-only, each checked against inputs.json before use; nothing Appl
   --metalold FILE   OCLP's MetalOld.dylib (13.2.1-25): abi.py reads its descriptor struct encodings and 27's from
                     the Metal cut and writes OUT/work/layouts.inc, the shim's translation table (generated here,
                     never committed: it carries Apple's private type encodings)
-  CACHE_DYLIB       hao-tools' tools/cache-dylib (a hao-tools checkout next to this repository unless set)
+  CACHE_DYLIB       tools/cache-dylib of the tooling repository (its checkout next to this repository unless set)
   --template FILE   optional: the captured MetalOld type-7 request r2 shipped; without it the bundle gets the
                     template built from the framing in inputs.json (same requests on the wire, see README)
 Toolchain: Xcode with the macOS 27 SDK (clang, metal, metallib, codesign, dwarfdump). Every x86_64 binary built here
@@ -195,7 +195,7 @@ def build_bundle(out, cache, metalold, template=None, tar=False):
         run('codesign', '-f', '-s', '-', b / f)
     # 7. framework layout around Metal27, made after signing (with Info.plist reachable, codesign would sign it as a
     #    bundle and seal the host's Resources). Resources and XPCServices point at the running system's own
-    #    Metal.framework (resolved on the laptop at run time); without them 27's Metal finds no MTLCompilerService.
+    #    Metal.framework (resolved on the target at run time); without them 27's Metal finds no MTLCompilerService.
     for l in ('Resources', 'XPCServices'):
         (md / l).symlink_to(f'{METAL}/{l}')
     (b / 'fw/Metal.framework/Versions/Current').symlink_to('A')
@@ -208,7 +208,7 @@ def build_bundle(out, cache, metalold, template=None, tar=False):
     for p in sorted(SRC.iterdir()):
         if p.is_file() and p.name != 'layouts.inc':
             shutil.copyfile(p, b / 'src' / p.name)
-    shutil.copyfile(w / 'layouts.inc', b / 'src' / 'layouts.inc')   # the bundle never leaves this machine and the laptop
+    shutil.copyfile(w / 'layouts.inc', b / 'src' / 'layouts.inc')   # the bundle never leaves this machine and the target
     for p in ('make.py', 'inputs.json', 'abi.py'):
         shutil.copyfile(HERE / p, b / 'src' / p)
     (b / 'MANIFEST.sha256').write_text(''.join(f'{sha(b / f)}  {f}\n' for f in MANIFEST))
@@ -287,8 +287,8 @@ def host_runtime(out, rt, laptop_paths=False):
     """A host replay runtime for the adapter from a cache/shaders replay runtime RT (cache/shaders/lib/prepare.py):
     RT's OCLP compilers, HD 4000 driver, plugin chain and IGIL runtime, with every link to RT's own Metal (OCLP's
     wrapper + MetalOld) pointed back at /System/.../Metal, so that the process's Metal (the bundle's Metal27 through
-    DYLD_FRAMEWORK_PATH) serves them as on the laptop. --laptop-paths also restores OCLP 31001 libLLVM's relative
-    libLLVM_helper load path (laptop run 1). RT/bin (replay, ip.dylib) is copied; RT/fw/Metal.framework is not."""
+    DYLD_FRAMEWORK_PATH) serves them as on the target. --laptop-paths also restores OCLP 31001 libLLVM's relative
+    libLLVM_helper load path (target run 1). RT/bin (replay, ip.dylib) is copied; RT/fw/Metal.framework is not."""
     out, rt = Path(out).resolve(), Path(rt).resolve()
     if out.exists():
         raise SystemExit(f'{out} exists; give a new folder')

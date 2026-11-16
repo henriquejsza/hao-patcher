@@ -1,3 +1,4 @@
-# Metal framebuffer adapter made by patches/golden-gate-metal-framebuffer/build/metal-framebuffer.
+# Metal framebuffer adapter made by patches/golden-gate-metal-framebuffer/build/metal-framebuffer (at 789a8c7d); the
+# same command gives these bytes with Xcode 27.2. Against f8ff3547 only the internal argument and variable names differ.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
-166aa56be6bb77f104a8b68f0bbfc09599e8aa811c24a6697f4ce715524af20a store/artifacts/metal-framebuffer-26A428-20261105-f8ff3547ed3c
+6dba1ab665562711b7b5aecd967131004510f8a17c51fb2acad7cb4b654db3bb store/artifacts/metal-framebuffer-26B131-20261116-2845387bf09a

@@ -2,7 +2,7 @@
 
 Dev only, in no default set: every process on the image, WindowServer included, uses macOS 27.2.1's own x86_64
 Metal (383.1) on the Intel HD 4000 instead of OCLP's wrapper over MetalOld (13.2.1, 306). The pieces are
-[tools/metal-adapter](../../tools/metal-adapter/README.md)'s, which ran compute, render and reflection on the laptop
+[tools/metal-adapter](../../tools/metal-adapter/README.md)'s, which ran compute, render and reflection on the HD 4000
 in one test process (r4); this recipe installs them for the whole system as a trial. Pack
 [`metal27-trial`](../../packs/metal27-trial.json) (opt in, never detected); set `dev-metal27` for an image variant.
 
@@ -10,7 +10,7 @@ in one test process (r4); this recipe installs them for the whole system as a tr
 
 | File on System | What | Replaces |
 |---|---|---|
-| `System/Library/Frameworks/Metal.framework/Versions/A/Metal` | Metal27: 27.2.1's Metal cut from the 26B131 x86_64 cache (pinned `dbb5e8e8…`), plus `LC_REEXPORT_DYLIB @loader_path/libHaoMetalShim.dylib`, ad hoc signed; the laptop bundle's file byte for byte (`e0d38ca0…`) | OCLP's wrapper, with [golden-gate-hello](../golden-gate-hello/README.md)'s edits |
+| `System/Library/Frameworks/Metal.framework/Versions/A/Metal` | Metal27: 27.2.1's Metal cut from the 26B131 x86_64 cache (pinned `dbb5e8e8…`), plus `LC_REEXPORT_DYLIB @loader_path/libHaoMetalShim.dylib`, ad hoc signed; the adapter test bundle's file byte for byte (`e0d38ca0…`) | OCLP's wrapper, with [golden-gate-hello](../golden-gate-hello/README.md)'s edits |
 | `…/Metal.framework/Versions/A/libHaoMetalShim.dylib` | the shim, installed build: the ivar offsets OCLP's driver and 31001 bind, the three descriptor structs in MetalOld's layout for the driver, the in-process compiler switch (on by default) | new |
 | `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`, `…/32024/MTLCompiler` | the stand-in, installed build: 27's in-process compiles routed to OCLP's 31001 (AIR downgrade, frontend) and 3802 + the Intel plugin, 3802's reflection in 27's layout | new (cache images only) |
 
@@ -25,7 +25,7 @@ bound to Metal binds to it; nothing in the cache links MTLCompiler 32023/32024 (
 
 **The compiler, for every process.** 27's Metal compiles through `MTLCompilerService` unless
 `MTLEnvVarAggregator::isInternalBuild` and `MTL_MONOLITHIC_COMPILER=1`. The image's service is OCLP's 13.2.1
-build, which knows only 3802 and 31001 and crashes on 27's 32023 requests (laptop run 2, `xpc-*`). So the installed
+build, which knows only 3802 and 31001 and crashes on 27's 32023 requests. So the installed
 shim's constructor, in every process that loads Metal, sets the cached `isInternalBuild` answer and
 `MTL_MONOLITHIC_COMPILER=1` (unless already set) before Metal reads them, and every process compiles in process
 through the stand-in. No launchd environment and no per-process setting is needed; `HAO_METAL27_INTERNAL=0` in a
@@ -41,7 +41,7 @@ Metal, MetalOld loaded, the flip's instruction pattern not where it should be) g
 |---|---|
 | OCLP 3802 MTLCompiler + `AppleIntelHD4000GraphicsMTLDriver` and its plugin chain | used as they are; the stand-in calls 3802 in process |
 | OCLP 31001 MTLCompiler and GPUCompiler (AIR downgrade, frontend) | used as they are (helper preloaded by absolute path) |
-| `libmetalold-selectors.dylib`, `libmetal-framebuffer.dylib` (weak dylibs in the driver) | unchanged; both loaded into the r4 laptop run with the driver, and render passed through the framebuffer hook |
+| `libmetalold-selectors.dylib`, `libmetal-framebuffer.dylib` (weak dylibs in the driver) | unchanged; both loaded with the driver in the adapter's r4 test, and render passed through the framebuffer hook |
 | [golden-gate-metal-libraries](../golden-gate-metal-libraries/README.md) metallibs, `runtime.igil64.split`, `iCBE.dylib` | unchanged: the same 31001 → 3802 path compiles them |
 | `MetalOld.dylib` | stays on disk; nothing loads it (only the wrapper linked it) |
 | OCLP's `MTLCompilerService` and [metal-compiler-compat](../metal-compiler-compat/README.md)'s `compat.dylib` | unused: no process compiles through the service. Runtime-generated shaders (MPSGraph, Espresso: Live Text) lose compat's repairs |
@@ -49,46 +49,37 @@ Metal, MetalOld loaded, the flip's instruction pattern not where it should be) g
 | Moraea's per-app swizzles (`_coreimageSetup`, `_webglSetup`, `_glassSetup`, …) | gone with the wrapper; 27's Metal has the methods they replaced, the 22 `addImp` selectors natively |
 | [golden-gate-shader-caches](../golden-gate-shader-caches/README.md) | MetalOld's caches; 27's Metal keys its own, so they are misses (first draws compile) |
 
-## Live trial on the bench laptop (`hao patch`)
-
-On the host, from this branch with `store/` present:
+## Trying it on a running image (`hao patch`)
 
 ```sh
 python3.14 -I pipeline/materialize.py pipeline/sets/dev-metal27.txt pipeline/targets/mbp92.json 25G342 \
     --out OUT --packs metal27-trial --golden 26B131
-mkdir LAPTOP_DIR && cp -R OUT/metal27-trial LAPTOP_DIR/      # only the overlay: not OUT/deferred.json
 ```
 
-`OUT/metal27-trial/manifest.json` must list the four files with `build.json`'s hashes. Copy `LAPTOP_DIR` and
-`tools/hao` to the laptop (a tarball; `tools/hao` must include this branch's live classifier), then, as root:
+`OUT/metal27-trial/manifest.json` must list the four files with `build.json`'s hashes. Copy the `metal27-trial`
+folder (not `OUT/deferred.json`) and `tools/hao` to the target, then, as root:
 
 ```sh
 hao patch --probe                                         # csr must include 0x10 (e.g. 0x813) and 0x802
-hao patch LAPTOP_DIR/metal27-trial --live --dry-run       # 4 to write, nothing listed as "later"
-hao patch LAPTOP_DIR/metal27-trial --live --i-have-a-backup
+hao patch DIR/metal27-trial --live --dry-run              # 4 to write, nothing listed as "later"
+hao patch DIR/metal27-trial --live --i-have-a-backup
 reboot
 ```
 
-After the reboot, over SSH:
+After the reboot:
 
-- `pgrep -l WindowServer` and the login window or desktop on screen;
-  `lsof -p $(pgrep -n WindowServer) | grep -E 'Metal.framework|MTLCompiler.framework|GPUCompiler.framework'`: dyld
-  opened the on-disk Metal and shim and, once WindowServer has compiled, the 32023 or 32024 stand-in, 3802 and
-  31001 (a cache image is never an open file, so a stand-in path listed here was loaded from disk); no
-  `MetalOld.dylib`;
-  `ls /Library/Logs/DiagnosticReports /var/log/DiagnosticMessages 2>/dev/null | grep -i -E 'WindowServer|MTLCompiler'`: no new report;
+- WindowServer runs and the login window or desktop is on screen;
+  `lsof -p $(pgrep -n WindowServer) | grep -E 'Metal.framework|MTLCompiler.framework|GPUCompiler.framework'` lists
+  the on-disk Metal and shim and, once WindowServer has compiled, the 32023 or 32024 stand-in, 3802 and 31001 (a
+  cache image is never an open file); no `MetalOld.dylib`; no new WindowServer or MTLCompiler crash report;
 - `log show --last boot --predicate 'subsystem == "org.hao.metal27"'`: no refusal, no stand-in fault;
-- apps drawing: Finder, Dock and its Apps grid, Control Center, Safari, Maps (3D), Photos; then
-  `ls -t /Library/Logs/DiagnosticReports ~/Library/Logs/DiagnosticReports | head`;
-- the adapter's own checks against the installed Metal, with no `DYLD_*` (the r4 bundle's test program, unpacked in
-  the user's home): `HAO_SHIM_LOG=1 HAO_STANDIN_LOG=1 bin/metal-adapter-test add1 lib/kernels-27.metallib`, then
-  `render-color lib/render-27.metallib` and, with `HAO_REFLECTION=1`, `render-texture lib/render-11.metallib`: PASS,
-  the shim's flip line and the stand-in's requests in the output.
+- Finder, Dock and its Apps grid, Control Center, Safari, Maps (3D) and Photos draw;
+- the adapter's test program against the installed Metal, with no `DYLD_*`:
+  `HAO_SHIM_LOG=1 HAO_STANDIN_LOG=1 bin/metal-adapter-test add1 lib/kernels-27.metallib`, then
+  `render-color lib/render-27.metallib` and, with `HAO_REFLECTION=1`, `render-texture lib/render-11.metallib`: PASS.
 
-**Rollback:** `hao patch --revert --live --i-have-a-backup`, then reboot: the snapshot that ran before the patch boots
-again, with OCLP's wrapper. If WindowServer does not come up, the revert runs the same way over SSH (dev-access). If
-the Mac does not boot at all: the OpenCore picker's previous snapshot is not offered, so boot the Recovery or another
-disk and push the bench image again.
+**Rollback:** `hao patch --revert --live --i-have-a-backup`, then reboot: the snapshot from before the patch boots
+again, with OCLP's wrapper. If the Mac does not boot at all, boot the Recovery or another disk and restore the image.
 
 ## Image variant
 
@@ -115,10 +106,11 @@ the row, `build.json` against its files and the bundle's Metal.
 
 ## Validation
 
-NEEDS VALIDATION: never installed. The pieces passed on the laptop in one test process (tools/metal-adapter r4);
-the installed builds passed the host replay (same requests as r4, silent). Not yet booted as the system's Metal.
+NEEDS VALIDATION: never installed as the system's Metal. The pieces passed on the HD 4000 in one test process
+(tools/metal-adapter r4); the installed builds passed the host replay (same requests as r4, silent).
 
 ## Revisions
+- r4 2026-11-15 README: how to try it on a running image, at the level of commands; no file change.
 - r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r2 2026-11-13 README: dyld loads cache roots because golden-gate-dyld-internal makes it an internal install (no ic_csr_internal boot argument since hao-opencore r52). No file change.
 - r1 2026-11-13 New dev-only trial: 27.2.1's own Metal for every process (Metal27, the installed shim and stand-in from tools/metal-adapter d399c6f3), pack metal27-trial, set dev-metal27.

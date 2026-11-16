@@ -13,7 +13,7 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-hello/build/tests  
 
 ## Inputs and outputs
 
-- In: `src/hello_blurcache.m`, clang and the Command Line Tools' `MacOSX26.sdk` (26.5; `HELLOBLUR_SDK` names another).
+- In: `src/hello_blurcache.m`, Xcode (27.2 for the row's bytes) and its macOS SDK (`HELLOBLUR_SDK` names another).
 - Out: an x86_64 `MH_DYLIB`, macOS 13 minimum, manual reference counting (`-fno-objc-arc`), `-O2 -Wall -Werror`,
   install name `/usr/lib/libhelloblur.dylib`, linking only Foundation, libobjc and libSystem (not Metal: the Metal
   wrapper loads it; not AppKit: it is mapped into every Metal process), ad hoc signed with identifier
@@ -36,11 +36,11 @@ Kill switches: `HELLO_BLURCACHE=0`, `HELLO_PILLWARM=0`, files `/private/var/db/h
 
 ## Reproduction
 
-The row's file (sha256 `d471519b...`) was built with clang-2100.3.34.2, ld 27037.1 and `MacOSX26.sdk` 26.5. With
-clang-2100.4.1.1 and ld 27106.1 (2026-11-12) `make.sh` gives `3c868f91...`, the same size (19744 bytes). The 49 bytes
-that differ are the linker version in `LC_BUILD_VERSION` (1 byte), the `LC_UUID` derived from it (16 bytes) and the
-signature's hash of the page holding the load commands (32 bytes); every section is identical. `compare.py` copies
-the row's UUID and linker version into the rebuild, re-signs it ad hoc, and gets exactly `d471519b...`.
+The row's file (sha256 `9c273f39...`) is `make.sh` with Xcode 27.2 (27B52: clang-2100.4.1.1, ld 27106.1, SDK 27.2);
+the same Xcode gives it byte for byte. Another Xcode writes its own linker and SDK versions into the load commands,
+and the `LC_UUID` and signature follow from them: `compare.py` copies the row's UUID and linker version into such a
+rebuild, re-signs it ad hoc and says whether anything else differs. The earlier row, `d471519b...` (Command Line
+Tools SDK 26.5), has the same code.
 
 ## Verify
 

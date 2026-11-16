@@ -1,2 +1,4 @@
-# Prebuilt libhelloblur.dylib, the hello-animation blur helper that golden-gate-hello installs.
-d471519b1f00fdc318191eeefef6cf9b84d62e5cf341def90ecac80860570c1e store/artifacts/libhelloblur-d471519b/libhelloblur.dylib
+# libhelloblur.dylib, the hello-animation blur helper that golden-gate-hello installs: built by
+# patches/golden-gate-hello/build/make.sh with Xcode 27.2 (27B52) and its macOS SDK 27.2; the same command gives these
+# bytes. Code identical to the earlier d471519b (CLT SDK 26.5); only SDK/linker stamps, UUID and signature differ.
+9c273f39a1429a1ef02ae5cae74ba97df73027c91c8eecb99924ba0107adae72 store/artifacts/libhelloblur-9c273f39/libhelloblur.dylib

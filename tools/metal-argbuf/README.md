@@ -4,9 +4,8 @@ Native Metal argument buffers (tier 1) for the Intel HD 4000 (Gen7) under OCLP's
 (MetalOld + `AppleIntelHD4000GraphicsMTLDriver`), on Golden Gate (macOS 27.2.1, 26B131). No software fallback and no
 spoofing: shaders read argument buffers on the GPU, and the driver binds what they refer to.
 
-**Status: installed by the recipe [golden-gate-metal-argbuf](../../patches/golden-gate-metal-argbuf) (26B131); not yet in
-a booted image.** Proven on the laptop GPU through the real Metal
-API, with the shim loaded by the driver bundle itself (live swap, not an image):
+Installed by the recipe [golden-gate-metal-argbuf](../../patches/golden-gate-metal-argbuf) (26B131). Probe results on
+the MacBookPro9,2 GPU through the real Metal API, with libargbuf loaded by the driver bundle (2026-11-12):
 
 | Feature | Probe | Result |
 |---|---|---|
@@ -18,11 +17,11 @@ API, with the shim loaded by the driver bundle itself (live swap, not an image):
 | inline structs in argument buffers (constants + texture inside) | probe16 | CORRECT |
 | ASTC textures (created as RGBA8, decoded with libate at upload; replaceRegion and blit) | probe17 | CORRECT |
 
-Apps on the laptop (27.2.1), with the shim loaded by the driver bundle (2026-11-12):
+Apps on the MacBookPro9,2 (27.2.1), with libargbuf loaded by the driver bundle:
 
 | App | Works |
 |---|---|
-| Weather | conditions, hourly, air quality, 10-day; precipitation, temperature, air-quality and wind maps (first launches aborted in argument-buffer code, then in MetalOld's texture validation of WeatherMaps' ASTC 8x8 KTX textures; both fixed) |
+| Weather | conditions, hourly, air quality, 10-day; temperature, air-quality and wind maps; the precipitation map draws its coverage hatching but not the rain colour (diag#0055, open). Before: aborts in argument-buffer code, in MetalOld's texture validation of ASTC 8x8 KTX textures, and in the precipitation pass's MSAA stencil target |
 | Safari WebGPU | compute (storage buffer) and render (uniform bind group) read back exactly; without the shim the GPU process aborts in `newIndirectArgumentEncoderWithLayout:` from `WebGPU::Device::createBindGroupLayout` |
 
 Not argument buffers, same with and without the shim: Maps (explore, satellite, 3D buildings) works without it,
@@ -41,9 +40,9 @@ profile (the 31001 downgrader crashes on its depth sampler-form reads); RealityK
 | Host tests (IGIL rewrite on captured IGIL) | [tests](tests) |
 | Build | [make](make) |
 
-## Why: the Weather abort
+## Why Weather needs argument buffers
 
-Weather (27.2.1) aborts as soon as it draws with VFX:
+Without this tool Weather (27.2.1) aborts as soon as it draws with VFX:
 
 - VFX 233.40.3 (x86_64, iOSSupport, from 27's Rosetta-cryptex dyld cache) function VFX+0x171670 builds 12
   `MTLArgumentDescriptor`s (data types 58 texture and 60 pointer, ids about 11 to 34, one 3D texture member) and calls
@@ -110,7 +109,7 @@ Compute (`igil_64`, 64-bit pointers):
 | texture sample | `SAMPLE_L ..., t[rI.x], s..., 2D/3D/CUBE` | needs a declared t range |
 | sampler member | `s0[rS.x]`, no `DCL_SAMPLER` | needs a declared s range |
 | any texture/sampler call in a function that also has its own texture/sampler argument or constexpr sampler | result replaced by `zeroinitializer` in **IGIL TextureTypeEncode** | wrapped (below) |
-| texture write | `STORE_UAV_TYPED_L u[rI.x]` | not handled yet |
+| texture write | `STORE_UAV_TYPED_L u[rI.x]` | not handled (Open problems 4) |
 
 Graphics (vertex/fragment, lowered with a **32-bit pointer data layout**, `e-p:32...`):
 
@@ -148,7 +147,7 @@ captured with the wrapper), `forms/` (backend acceptance of single instruction f
 - IGIL syntax: accepted `IADD r.x, r.x, imm`, hex immediates, `IF_ICMP.eq a, b; ... ENDIF;`, `IF_CND.nz r;`;
   rejected 3-operand `IMUL`; `ICMP` yields all ones. New declarations need real, consecutive `KERNEL_ARGUMENT`s.
 - **MetalOld's on-disk pipeline cache key ignores the compiler.** Clear `$(getconf DARWIN_USER_CACHE_DIR)/com.apple.metal`
-  after every compiler change (per user), and kill MTLCompilerService after swapping iCBE.
+  after every compiler change (per user), and kill MTLCompilerService after replacing iCBE.
 
 ### Argument-buffer layout
 
@@ -220,15 +219,20 @@ like `metalold-selectors`), or injected into a test program (`DYLD_INSERT_LIBRAR
 - ASTC ([astc.m](src/device/astc.m)): `newTextureWithDescriptor:` (device, heap) creates ASTC textures as RGBA8
   (sRGB as RGBA8 sRGB) and tags them; `replaceRegion` (slice form; the 4-argument form forwards to it) and both blit
   `copyFromBuffer:...toTexture:` variants decode the blocks with libate (`at_encoder_decompress_texels`) first.
+- Requests MetalOld refuses but current Apple drivers accept are adapted where the HD 4000 can honour them, each
+  logged once ("adapted: ..."):
+  - multisample and depth/stencil render targets created Managed or Shared are made Private (MetalOld refuses them);
+  - a pipeline or pass with separate Depth32Float and Stencil8 attachments gets one packed Depth32Float_Stencil8;
+  - CPU writes into an MSAA stencil target made Private (`replaceRegion`; Weather's precipitation mask) go through a
+    staging texture and per-bit stencil passes; `getBytes` reads from the staging copy.
+- Factory hooks (`newTextureWithDescriptor:`, `newRenderPipelineStateWithDescriptor:...`) return the driver's +1
+  object without retaining it again, so released textures and pipelines are freed (probe18).
+- Log: `os_log` subsystem `com.hao.argbuf`, category `device` (`log stream --predicate 'subsystem == "com.hao.argbuf"'`);
+  the compiler side writes `icbe_wrap:` lines to syslog (in MTLCompilerService).
 - Switches: `AGB_LOG=1` (stderr copy of the log), `AGB_DISABLE`, `AGB_HANDLE_BASE=T,B` (tests: start handles high),
-  `AGB_ASTC_DISABLE`, `AGB_TRACE_TEXTURES=1` (log every texture descriptor; `open -a App --env VAR=1` reaches apps).
-
-## What was changed on the laptop (live only, nothing in the image; overlays die on reboot)
-
-- `AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib` = the wrapper, `iCBE-real.dylib` = the image's iCBE.
-- `AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver` = the image's driver +
-  `LC_LOAD_WEAK_DYLIB` of `libargbuf.dylib` beside it (every newly started Metal process gets the shim).
-- Test programs in `/private/var/tmp/argbuf/`. `laptop-swap rm` each path to restore the image.
+  `AGB_ASTC_DISABLE`, `AGB_TRACE_TEXTURES=1` (log every texture descriptor), `AGB_SURVEY=1` (log every texture,
+  pipeline and pass shape once), `AGB_KEEP_TARGET_STORAGE=1` (no Private adaptation), `AGB_KEEP_DEPTH_STENCIL=1` (no
+  packed depth/stencil). `open -a App --env VAR=1` passes one to an app.
 
 ## Build and test
 
@@ -239,7 +243,7 @@ python3.14 -I -B -m unittest discover -s tools/metal-argbuf/tests
 
 `--driver` writes the driver binary with the weak load (uses `patches/metalold-selectors/src/add_weak_dylib.py`).
 
-**Host harness** (no laptop; the `cache/shaders` Rosetta replay runtime, default
+**Host harness** (no target Mac; the `cache/shaders` Rosetta replay runtime, default
 `store/artifacts/shader-replay-runtime-r38-58517acfb9fa/runtime`, override with `ARGBUF_RT`; `make --runtime` builds
 the wrapped copy for `ARGBUF_RT_WRAP`). Kernels: `xcrun -sdk macosx metal -target air64_v25-apple-macosx13.0
 -std=metal3.0` (Xcode's default AIR is too new for the 3802 reader). AIR text: `air-opt -S` / `air-as` from the Metal
@@ -250,17 +254,18 @@ toolchain.
 - `dbg.py`/`dbg2.py`: capture / replace compute IGIL with lldb; `bt-render.py`: crash backtrace; `ids.py`: intrinsic
   ids from `IGILair_ldst_handling`; `dumpval.py`: raw words of an `llvm::Value` at an address; `annotate.py`: label
   selector refs in `otool -tV` output.
-- Wrapper switches (harness only, the environment does not reach the laptop's MTLCompilerService):
+- Wrapper switches (harness only, the environment does not reach the target's MTLCompilerService):
   `ICBE_WRAP_DUMP_DIR` (every IGIL program in/out), `ICBE_WRAP_INJECT_DIR` (replace a program by `DIR/NAME.igil`),
   `ARGBUF_IR_DUMP_DIR` (AIR before/after the hook), `ARGBUF_LLVM_OPTIONS` (e.g. `-print-after-all`),
   `ARGBUF_AIR_DISABLE`, `ARGBUF_TTE_DISABLE`.
 - VFX: `ipsw extract --dyld --dyld-arch x86_64` from the 26B131 IPSW, then `ipsw dyld extract CACHE
   /System/iOSSupport/System/Library/PrivateFrameworks/VFX.framework/Versions/A/VFX`.
 
-**On the laptop** (hold the lock): `laptop-swap put` the wrapper over `iCBE.dylib` (with `iCBE-real.dylib` beside
-it) and, for whole-system use, the `--driver` output plus `libargbuf.dylib` into the MTL driver bundle;
-`killall MTLCompilerService`; clear the Metal cache; run probes from `/private/var/tmp/argbuf/` (with
-`DYLD_INSERT_LIBRARIES=.../libargbuf.dylib` when the driver is not swapped).
+**On the target**: an image with the recipe has the wrapper, `iCBE-real.dylib`, `libargbuf.dylib` and the driver's
+weak load. To try a new build there, put the wrapper over `iCBE.dylib` (with `iCBE-real.dylib` beside it) and the
+`--driver` output plus `libargbuf.dylib` into the MTL driver bundle, `killall MTLCompilerService`, and clear the
+Metal cache. Probes run from any folder (with `DYLD_INSERT_LIBRARIES=.../libargbuf.dylib` when the driver has no
+weak load).
 
 ## Probes
 
@@ -278,15 +283,14 @@ it) and, for whole-system use, the `--driver` output plus `libargbuf.dylib` into
 | probe15 | `probe15 FILE.metal FUNCTION INDEX`: dump MetalOld's reflection of an argument buffer and the encoder size |
 | probe16 | inline struct in an argument buffer (kernels/k17.metal) |
 | probe17 | ASTC 8x8 upload through replaceRegion and blit, compared with libate's decode |
+| probe18 | `probe18 [N]`: N textures and render pipelines made and released; prints how many were freed and the footprint change |
 | webgpu-check.html | Safari: WebGPU compute (storage buffer) and render (uniform bind group), read back and checked; open it from a file |
 
 ## Open problems
 
-1. **Weather/VFX**: loads and renders; maps, effects and long runs not exercised. Watch for handle exhaustion
+1. **Weather/VFX**: loads and renders; the precipitation colour is missing (diag#0055); long runs not measured. Watch for handle exhaustion
    (96 textures / 24 buffers per process; logged as "out of ... handles") and unsupported shapes (logged by argbuf
    and icbe_wrap, see Build and test).
-8. ASTC: `getBytes` returns RGBA8, texture views with an ASTC format, ASTC HDR, and buffer-backed/IOSurface ASTC
-   textures are not handled; textures report `pixelFormat` RGBA8.
 2. Handle collisions: two instances of the same layout bound in one draw share handles. Arrays of argument buffers
    are encoded but not bound per element (VFX does not use them).
 3. Samplers share Metal slots 10..15 with clients (Gen7 has no spare sampler slots).
@@ -295,10 +299,10 @@ it) and, for whole-system use, the `--driver` output plus `libargbuf.dylib` into
 5. Argument-buffer contents copied by the CPU or a blit are not seen by the side table.
 6. Cost: every rewritten shader declares the whole ranges (96 textures, 24 buffers, 6 samplers); vertex-shader
    pointer reads pay a 24-way compare chain. Not measured.
-7. Shipping: a patch recipe that installs the wrapper as `iCBE.dylib` re-exporting the image's repaired iCBE
-   (`golden-gate-metal-libraries` installs that one, so order after it), `libargbuf.dylib` + the driver's weak load
-   (after `metalold-selectors`/`golden-gate-metal-framebuffer`, which add theirs), and Metal shader-cache
-   invalidation.
+7. ASTC: `getBytes` returns RGBA8, texture views with an ASTC format, ASTC HDR, and buffer-backed/IOSurface ASTC
+   textures are not handled; textures report `pixelFormat` RGBA8.
+8. Shader caches harvested on an image without this tool hold binaries compiled without the wrapper (MetalOld's
+   cache key ignores the compiler): `golden-gate-shader-caches` needs a pack harvested on an image with it.
 
 ## Files
 

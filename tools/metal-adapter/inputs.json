@@ -21,7 +21,7 @@
     "is_internal_build_offset": "0x1a72d8"
   },
   "cache_dylib": {
-    "what": "hao-tools tools/cache-dylib (MIT, same owner), used from its own checkout",
+    "what": "tools/cache-dylib of the tooling repository (MIT, same owner), used from its own checkout",
     "revision": "r6",
     "commit": "7e5dd2a609980b2922cf45398b793b86454b0bc4",
     "files": {
