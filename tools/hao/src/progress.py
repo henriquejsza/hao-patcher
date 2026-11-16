@@ -316,7 +316,7 @@ class Assembly:
         if self.recipe_line and ok and not self.c.at('files'):
             t.drop()
         else:
-            t.end(ok, timed=not self.recipe_line)
+            t.end(ok)
 
     def flush(self):
         """The closing lines of the recipes so far: one per pack (Apply packs), one for the post recipes."""
@@ -391,7 +391,7 @@ class Assembly:
             self.posts.append(recipe)
         else:
             self.packs.setdefault(self.r.pack_of(recipe), []).append(recipe)
-        self.task = self.c.task('  ' + label)
+        self.task = self.c.task(('    ' if self.c.at('files') else '  ') + label)
 
     def command(self, cmd):
         pass
