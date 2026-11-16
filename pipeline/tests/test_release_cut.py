@@ -265,6 +265,30 @@ class Write(unittest.TestCase):
             R['build_release'](ASSEMBLY, '27.2.1')
 
 
+class PendingRows(unittest.TestCase):
+    """--allow-pending-row ROW lets only that row's problems through; anything else still refuses."""
+    def cut(self, channel, *extra):
+        g = R['main'].__globals__
+        saved = g['build_release']
+        rel = {'channel': channel, 'state': 'incomplete', 'downloads': [], 'assets': [], 'made_on_mac': [],
+               'harvested': [], 'pending': [{'row': 'a'}, {'row': 'b'}]}
+        g['build_release'] = lambda *a, **k: (rel, ['a: pending (x)', 'b: pending (y)'])
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                out = Path(d) / 'r.json'
+                rc = R['main'](['--write', str(out), str(ASSEMBLY), '--release', '27.2.1-26B131.0', '--channel',
+                                channel, '--version', 'v0.1.0', *extra])
+                return rc, out.exists()
+        finally:
+            g['build_release'] = saved
+
+    def test_only_the_named_rows_may_be_pending(self):
+        self.assertEqual(self.cut('alpha'), (1, False))
+        self.assertEqual(self.cut('alpha', '--allow-pending-row', 'a'), (1, False))
+        self.assertEqual(self.cut('alpha', '--allow-pending-row', 'a', '--allow-pending-row', 'b'), (0, True))
+        self.assertEqual(self.cut('beta', '--allow-pending-row', 'a', '--allow-pending-row', 'b'), (1, False))
+
+
 if __name__ == '__main__':
     unittest.main()
 

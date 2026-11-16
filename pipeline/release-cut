@@ -3,14 +3,15 @@
 
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
   release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z [--stage DIR]
-              [--allow-pending]
+              [--allow-pending | --allow-pending-row ROW ...]
         the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
         hao-assets contract's release schema, format 2), release version VERSION (e.g. v0.1.0) on CHANNEL: downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
         the rows made on the user's Mac (producer, Apple input rows), harvested rows, plus pending rows, recipe
         revisions and packs. With --stage, every asset file is written into DIR (new or empty) and checked against
         release.json after. Refused while the release is incomplete (a pending row, an ours row without a clean
         producer, a row with no content class), unless --allow-pending, which writes it with "state": "incomplete";
-        a beta is never written incomplete. Every channel is a prerelease (there is no final channel yet).
+        a beta is never written incomplete. --allow-pending-row ROW (repeatable) allows only those rows' own
+        problems (each still marked pending, the release incomplete); any other problem still refuses. Every channel is a prerelease (there is no final channel yet).
         Promotion (alpha -> beta) is a new --write from the same commits with the new --channel: the release.json
         then differs only in channel (and state/prerelease where the channel rules change them).
 
@@ -511,6 +512,11 @@ def main(argv):
                 j = argv.index(flag)
                 opts[flag] = argv[j + 1]
                 argv = argv[:j] + argv[j + 2:]
+        allowed = []
+        while '--allow-pending-row' in argv:
+            j = argv.index('--allow-pending-row')
+            allowed.append(argv[j + 1])
+            argv = argv[:j] + argv[j + 2:]
         if not all(f in opts for f in ('--release', '--channel', '--version')):
             sys.exit(__doc__)
         if '--final' in argv:
@@ -534,11 +540,18 @@ def main(argv):
         except ValueError as x:
             print('release-cut: %s' % x, file=sys.stderr)
             return 2
-        if problems and ('--allow-pending' not in argv or rel['channel'] in COMPLETE_CHANNELS):
+        if '--allow-pending' in argv:
+            blocked = problems if rel['channel'] in COMPLETE_CHANNELS else []
+        elif allowed:   # only the named rows may be pending; a complete channel still allows none
+            blocked = problems if rel['channel'] in COMPLETE_CHANNELS else \
+                [p for p in problems if not any(p.startswith(r + ':') for r in allowed)]
+        else:
+            blocked = problems
+        if blocked:
             print('release-cut: refused, the release is incomplete%s:' % (
                   ' (a %s is never written incomplete)' % rel['channel'] if rel['channel'] in COMPLETE_CHANNELS
                   else ' (--allow-pending writes it, marked incomplete)'), file=sys.stderr)
-            for p in problems:
+            for p in blocked:
                 print('  ' + p, file=sys.stderr)
             if stage is not None:
                 for x in rel['assets']:
