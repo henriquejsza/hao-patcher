@@ -15,7 +15,10 @@ the inputs list.
   clone's screen with `pipeline/vm/vmctl`, which needs Pillow and cryptography in `store/cache/vmctl-venv`
   (`python3.14 -m venv store/cache/vmctl-venv && store/cache/vmctl-venv/bin/python3 -m pip install pillow cryptography`;
   `VMCTL_PYTHON` names another).
-- Inputs from [Build inputs](inputs.md).
+- Inputs from [Build inputs](inputs.md). One is a third-party program: blacktop's
+  [ipsw](https://github.com/blacktop/ipsw) 3.1.737, which decodes the IPSW's encrypted disk images. `hao fetch`
+  downloads and checks it (input row `ipsw_tool`); instead, `brew install blacktop/tap/ipsw` at that version works
+  too. Without either, making `golden_gate_userspace` stops and says so.
 
 ## 1. Prepare the inputs
 

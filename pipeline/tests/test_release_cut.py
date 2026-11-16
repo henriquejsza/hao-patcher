@@ -191,6 +191,16 @@ class HarvestedAssets(unittest.TestCase):
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': True}}, 'mbp121'))
         self.assertFalse(R['harvested_ship']({'harvested_assets': {'mbp92': 'yes'}}, 'mbp92'))
 
+    def test_only_a_public_repository_is_cited(self):
+        notes = []
+        self.assertEqual(R['public_provenance']('a', 'hao-patcher', 'c' * 40, notes), ('hao-patcher', 'c' * 40))
+        self.assertEqual(R['public_provenance']('b', 'hao-runtime', 'd' * 40, notes), ('hao-runtime', 'd' * 40))
+        self.assertEqual(notes, [])
+        self.assertEqual(R['public_provenance']('c', 'elsewhere', 'e' * 40, notes), (None, ''))
+        self.assertEqual(R['public_provenance']('d', None, 'f' * 40, notes), (None, ''))
+        self.assertEqual(len(notes), 2)
+        self.assertNotIn('elsewhere', ' '.join(notes))
+
     def test_a_recipe_of_a_release_set_that_needs_a_harvested_row_is_optional(self):
         # a cut without harvested assets must still build: every recipe that reads one is skipped like the caches
         data = R['classes']()
@@ -237,7 +247,8 @@ class Write(unittest.TestCase):
         prefix = 'https://' + 'github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/'
         for x in rel['assets']:
             self.assertEqual(x['url'], prefix + x['file'])
-            self.assertEqual(len(x['commit']), 40, x['row'])
+            self.assertTrue(len(x['commit']) == 40 and x.get('repo') in R['PUBLIC_REPOS'] or
+                            (x['commit'] == '' and 'repo' not in x), x['row'])
         self.assertEqual(R['check_stage'](rel, stage), [])
         for x in rel['made_on_mac']:
             self.assertNotIn('url', x)

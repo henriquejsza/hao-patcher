@@ -91,6 +91,12 @@
    "commit": "b6a91076",
    "result": "identical",
    "note": "tools/tahoe-donors make native with the row's recipe and inputs; cache-dylib r3, as the artifact recorded"
+  },
+  "metalold_selectors": {
+   "artifact": "metalold-selectors-20261105-03d169d7ddae",
+   "repo": "hao-patcher",
+   "commit": "adc8a4a9",
+   "result": "identical"
   }
  }
 }

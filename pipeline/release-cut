@@ -50,6 +50,10 @@ import subprocess
 import sys
 
 TOP = Path(__file__).resolve().parents[1]
+# Repositories a reader can see: an asset's producing commit is cited only from these. Anything else (a predecessor
+# or a private repository) leaves the asset with its sha256 alone, and release.json names no repository but these.
+PUBLIC_REPOS = ('hao-patcher', 'hao-runtime')
+
 DOWNLOAD_ROOTS = ('store/installers', 'store/kdk', 'store/oclp', 'store/inputs', 'store/packages')
 
 
@@ -423,9 +427,12 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             if bad or not commit:
                 problems += bad or ['%s: harvested, but its artifact names no producer commit' % row]
                 continue
-            assets.append({'row': row, 'file': file, 'url': ASSET_URL % (name, file), 'size': size, 'sha256': digest,
-                           'commit': commit, 'repo': repo, 'format': 'tar', 'harvested': True,
-                           'reason': entry['reason']})
+            repo, commit = public_provenance(row, repo, commit, notes)
+            item = {'row': row, 'file': file, 'url': ASSET_URL % (name, file), 'size': size, 'sha256': digest,
+                    'commit': commit, 'repo': repo, 'format': 'tar', 'harvested': True, 'reason': entry['reason']}
+            if repo is None:
+                del item['repo']
+            assets.append(item)
         elif kind == 'in-checkout':
             in_checkout.append({'row': row, 'path': os.path.relpath(hit[1][1], TOP) if hit else None,
                                 'reason': entry['reason']})
@@ -449,13 +456,15 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
                 continue
             if record == 'reproducible-except':
                 notes.append('%s: %s' % (row, detail))
-            repo, commit = producer_of(row, hit)
+            repo, commit = public_provenance(row, *producer_of(row, hit), notes)
             file, size, digest, bad = make_asset(row, hit, entry, stage)
             if bad:
                 problems += bad
                 continue
             item = {'row': row, 'file': file, 'url': ASSET_URL % (name, file), 'size': size, 'sha256': digest,
                     'commit': commit, 'repo': repo, 'format': entry['publish'], 'reason': entry['reason']}
+            if repo is None:
+                del item['repo']
             if entry.get('include'):
                 item['includes'] = entry['include']
             if entry.get('made_on_mac_files'):
@@ -489,7 +498,19 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
            'packs': {n: {'phase': p['phase'], 'recipes': p.get('recipes', [])} for n, p in sorted(packs.items())},
            'in_checkout': in_checkout, 'pending': pending, 'notes': notes,
            'archive_format': json.loads((TOP / 'pipeline' / 'release-classes.json').read_text())['archive']}
+    refs = private_refs(json.dumps(rel).encode())
+    if refs:
+        problems.append('release.json names %s: reword the row or its class' % ', '.join(refs))
     return rel, problems
+
+
+def public_provenance(row, repo, commit, notes):
+    """(repo, commit) as release.json may cite them: unchanged from a public repository, else (None, '') with a note
+    that the asset stands on its sha256 alone."""
+    if repo in PUBLIC_REPOS:
+        return repo, commit
+    notes.append('%s: no public producing commit; published by its sha256 alone' % row)
+    return None, ''
 
 
 def check_stage(rel, stage):
