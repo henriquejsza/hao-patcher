@@ -1,5 +1,5 @@
 {
- "revision": 82,
+ "revision": 83,
  "stage": "oclp-hook",
  "applies": {
   "models": [
@@ -111,6 +111,18 @@
     "note": "interface units (1895 in the 26B131 payload): one file per image, copied whole from the payload root"
    },
    "tree": true,
+   "install": {
+    "mode": "0644",
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "usr/lib/hao/aot-list",
+   "origin": {
+    "kind": "hao",
+    "row": "hao_runtime",
+    "note": "the programs `hao --aot` with no FILE caches, one absolute path per line (payload root)"
+   },
    "install": {
     "mode": "0644",
     "owner": "root:wheel"

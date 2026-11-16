@@ -49,6 +49,7 @@ Earlier: earlier payloads booted Golden Gate through translated launchd to the d
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
+- r83 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 155b7b1 payload (0d19b199, manifest cb5fd3b9): `hao --aot` with no FILE caches the default set in the new usr/lib/hao/aot-list (declared); libhao 82dabec5. Not yet run on a laptop.
 - r82 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 0e75f64 payload (4f9784a2, manifest 6c448c23): the 1a290d7 binaries with reproducible records (no build times, root-relative paths); release asset archive bbc55887. Installed binaries unchanged.
 - r81 2026-11-16 Row `hao_runtime` (26B131): its sha256 leaves out root/usr/lib/hao/aot (52b89e0a), which the user's Mac makes after the first boot; same payload, installed bytes unchanged.
 - r80 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 1a290d7 payload for the unfolded cache (manifest d6054d9c, libhao d6b9b712).
