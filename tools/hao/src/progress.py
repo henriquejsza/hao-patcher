@@ -37,7 +37,7 @@ INSTALL = (
     Phase('Add Intel support', 'Tahoe\'s kernel extensions and boot files, OCLP\'s legacy hardware support',
           ('golden-finalize', 'boot-and-esp', 'hardware'), 170),
     Phase('Link the kernel', 'Tahoe\'s kmutil', ('recipe darwin27-kernel',), 155),
-    Phase('Apply packs', 'each file checked against its manifest', ('recipe', 'overlay'), 1615),
+    Phase('Apply packs', 'what each pack brings, from the kit', ('recipe', 'overlay'), 1615),
     Phase('Seal', None, ('snapshot',), 65),
     Phase('Make it bootable', None, ('posts', 'post', 'efi-bundle'), 35),
 )
