@@ -7,7 +7,8 @@ keeps every other revblock token, RestrictEvents itself and revpatch, and filter
 takes precedence over NVRAM). `media` alone becomes `none`; RestrictEvents' default when revblock is absent is
 `auto`, which blocks nothing on this model, but an explicit value leaves no doubt. revblock stays in NVRAM/Delete
 (OCLP's base config lists it), so OpenCore replaces a stale firmware `media` at the next boot. Refuses unless the
-image's System carries the Live Text runtime the daemon needs on the HD 4000."""
+image's System carries the Live Text runtime the daemon needs on the HD 4000: on disk, or folded into the rebuilt
+shared cache by golden-gate-shared-cache, whose record then lists both libraries with the bytes it checked."""
 import copy
 import hashlib
 import json
@@ -21,6 +22,7 @@ APPLE = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
 RUNTIME = 'usr/lib/hao-live-text'
 STARTUP = 'usr/lib/libhelloblur.dylib'
 UMBRELLA = 'LiveText.dylib'
+FOLD_RECORD = 'System/Library/CoreServices/golden-gate-shared-cache.json'
 
 
 def text(value):
@@ -75,11 +77,29 @@ def installed_runtime(system):
     if (record.get('unit') != 'tools/live-text' or record.get('compiler_mode') != 'shared'
             or record.get('install_root') != '/' + RUNTIME or record.get('load_paths') != [umbrella]):
         raise ValueError('/%s is not a shared-compiler Live Text runtime' % RUNTIME)
+    loose = [p for p in (umbrella.lstrip('/'), STARTUP) if (system/p).is_file()]
+    if not loose:
+        folded = fold_providers(system)
+        if folded.get(umbrella.lstrip('/')) != record['files'][UMBRELLA]:
+            raise ValueError('%s is neither on disk nor folded with its manifest bytes' % umbrella)
+        if STARTUP not in folded:
+            raise ValueError('/%s is neither on disk nor folded' % STARTUP)
+        return record['install_root']
+    if len(loose) != 2:
+        raise ValueError('only /%s is on disk; the other is missing' % loose[0])
     if hashlib.sha256((system/umbrella.lstrip('/')).read_bytes()).hexdigest() != record['files'][UMBRELLA]:
         raise ValueError('%s differs from its manifest' % umbrella)
     if umbrella.encode() + b'\0' not in (system/STARTUP).read_bytes():
         raise ValueError('/%s does not load %s' % (STARTUP, umbrella))
     return record['install_root']
+
+
+def fold_providers(system):
+    """{root: sha256} golden-gate-shared-cache folded into the cache and removed (it checked those bytes on disk
+    first); empty when the image has no fold."""
+    path = system/FOLD_RECORD
+    providers = json.loads(path.read_text()).get('providers') if path.is_file() else None
+    return providers if isinstance(providers, dict) else {}
 
 
 def apply(path, system):

@@ -160,7 +160,7 @@ Revision r3, status experiment. [Recipe](../patches/golden-gate-launchd-warm/REA
 
 ## golden-gate-live-text-service
 
-Revision r4, status experiment. [Recipe](../patches/golden-gate-live-text-service/README.md)
+Revision r5, status experiment. [Recipe](../patches/golden-gate-live-text-service/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore; 1 edit, applied by the installer.
   1. `revblock-without-media`: plist.set NVRAM:Add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revblock = "none".
