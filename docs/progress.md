@@ -15,7 +15,7 @@ Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15
   (YouTube 1080p H.264, no dropped frames).
 - Connectivity: Wi-Fi joins from Setup Assistant; Bluetooth pairs devices; AirDrop finds nearby devices; AirPlay
   displays are discovered, and sound plays on AirPlay speakers.
-- Input: an external USB keyboard and mouse.
+- Input: the built-in keyboard and trackpad; an external USB keyboard and mouse.
 - Safari: web pages, YouTube, WebGPU compute and rendering.
 - Maps: the satellite 3D globe, street-level satellite and 3D buildings.
 - Weather: conditions, hourly and 10-day forecasts.

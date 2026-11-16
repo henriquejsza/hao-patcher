@@ -38,7 +38,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Desktop | Menu bar, Dock, Finder, Liquid Glass, Control Center, Spotlight indexing, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
 | Connectivity | Wi-Fi (joins from Setup Assistant), Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
-| Input | External USB keyboard and mouse |
+| Input | Built-in keyboard and trackpad; external USB keyboard and mouse |
 | Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather, Photos, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
 | Accounts | iMessage; App Store sign-in and installs |
 | ARM-only programs | Apps built only for Apple silicon run on the Intel CPU through hao-runtime |
