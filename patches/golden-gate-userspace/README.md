@@ -390,6 +390,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r79 2026-11-16 Row `codeid_carrier`: its sha256 leaves out build.json (16120d97), so a source build of the same carrier.o and libhao_codeid.a (tools/asset-build) matches. Same artifact; installed bytes unchanged.
 - r78 2026-11-14 The prespecialization gate counts an image the overridden set gains or loses only if it carries Swift metadata: the 14 Apple-silicon `AGXMetal*.bundle` drivers 27.x keeps on disk have no `__swift5` section (no process loads them on this Mac), so they change none of the edits; the record lists them (`ignored_without_swift`). A Swift-bearing difference still stops the build. The cache edits are unchanged.
 - r77 2026-11-14 Model gates: this Mac's entry in 27.x's unsupported-model lists for Sidecar, AirPlay to Mac and Continuity Camera is renamed in the x86_64 cache (`src/model_gates.py`, three one-byte sites in `edits/cache-01.json`), in place of a FeatureUnlock kext. The OS cryptex's bytes change.
 - r76 2026-11-14 Merges the two r75s: the Swift prespecialization edits of the r75 below (the OS cryptex's bytes change) with input row `hao_runtime` (26B131) at hao-runtime-26B131-20261114-79bc70ead081 (the other r75: guest dlopen resolves @rpath, @loader_path and @executable_path; Xcode starts). Nothing else changes.
