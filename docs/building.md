@@ -6,9 +6,13 @@ the inputs list.
 
 ## Requirements
 
-- Apple silicon Mac, Xcode command-line tools, Python 3.14. The image is 80 GiB and the
-  workspace 160 GiB, both sparse.
-- Builder VM: [`tools/ssdvm`](../tools/ssdvm/README.md), `pipeline/vm/`. All formatting, APFS
+A user makes the USB installer from a release with `hao`: no Apple silicon Mac and no virtual machine (the
+[builder path](builder-path.md); its end-to-end proof on an Intel Mac is in progress). This page is the maintainers'
+build, which still uses the builder VM:
+
+- Maintainers: an Apple silicon Mac, Xcode command-line tools, Python 3.14. The image is 80 GiB and the workspace
+  160 GiB, both sparse. Building our own assets from source also needs Xcode 27.
+- Builder VM (maintainers): [`tools/ssdvm`](../tools/ssdvm/README.md), `pipeline/vm/`. All formatting, APFS
   writes and kernel-collection builds run in it, never on the host. Build the launcher with
   `tools/ssdvm/build.sh store/vm/bin`; each build runs in an APFS clone of the VM at `store/vm/base`
   (made with `ssdvm install`, see its README; `pipeline/vm/clones.py` provisions each clone). Provisioning drives the
