@@ -68,31 +68,19 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 ## Requirements
 
-- **Target:** an Intel x86_64 Mac.
-- **Build Mac:** an Intel Mac started from a hao image. The build runs as root, with System Integrity Protection's
-  filesystem protection off and AMFI relaxed (`amfi_get_out_of_my_way=1`); a hao image starts that way.
-- **Software:** nothing to install for the build. The assets folder carries an x86_64 CPython 3.12, and the source
-  is GitHub's archive of a commit (no git). `./hao` on its own (`create-installer`, `report`) runs on the Python 3
-  of the Xcode Command Line Tools (`xcode-select --install`).
-- **Inputs:** the assets folder: the macOS 27.2.1 (26B131) IPSW, the Tahoe 25G342 installer and Kernel Debug Kit,
-  OCLP support files and a hao-runtime payload ([Build inputs](docs/inputs.md)). Apple's files are not in this
-  repository.
-- **Disk space:** the assets folder (34 GB), the build's work folder and the 80 GiB image file.
+The path below is being validated; it is not yet a supported path.
+
+- **Target:** a MacBook Pro (13-inch, Mid 2012), the first supported model.
+- **Build Mac:** any Mac, Intel or Apple silicon, on its normal macOS. No root and no SIP or AMFI changes: `hao fetch`,
+  the made-on-Mac step and `create-installer` run as your user.
+- **Install:** runs on the target, from the USB stick's Recovery, which starts with the permissions the install needs.
+- **Inputs:** downloaded by `hao fetch` from Apple and this project's releases ([Build inputs](docs/inputs.md)). Apple's
+  files are not in this repository.
 
 ## Building
 
-On the build Mac, with the assets folder in place (`A`). No Apple silicon Mac and no virtual machine are needed.
-
-```sh
-curl -L https://codeload.github.com/lythka/hao-patcher/tar.gz/main -o hao-patcher.tar.gz
-mkdir hao-patcher py && tar -xzf hao-patcher.tar.gz -C hao-patcher --strip-components 1
-tar -xzf $A/artifacts/python-x86_64-*/cpython-*-x86_64-apple-darwin-install_only.tar.gz -C py
-cd hao-patcher; P=../py/python/bin/python3.12; I=~/Desktop/macOS-27.2.1-MacBookPro9,2.img
-$P -I tools/hao/hao assets check $A --model MacBookPro9,2 --here                    # every input, by hash
-sudo $P -I tools/hao/hao build-image $I --model MacBookPro9,2 --assets $A --here    # build it
-```
-
-[Building an image](docs/building.md) covers the inputs, what the build does and testing in QEMU;
+[Building an image](docs/building.md) has the steps: fetch the inputs, make the Mac-specific files, write the USB
+stick, install on the target. It covers the inputs, what the build does and testing in QEMU;
 [architecture](docs/architecture.md) explains how the pieces fit, and [CONTRIBUTING.md](CONTRIBUTING.md) the tests
 and conventions.
 
