@@ -311,9 +311,12 @@ class Recipe(unittest.TestCase):
                 for p in (TOP/'pipeline/sets').glob('*.txt')}
         folds = {'dev-bs-test-fold.txt': 'golden-gate-shared-cache',
                  'dev-bs-test-fold-catalog.txt': 'golden-gate-shared-cache-catalog',
-                 'dev-beta-candidate-fold.txt': 'golden-gate-shared-cache'}
-        extra = {'dev-beta-candidate-fold.txt': ['golden-gate-ids', 'golden-gate-store']}
-        dropped = {'dev-beta-candidate-fold.txt': ['dev-diagnostics', 'dev-keepawake']}
+                 'dev-beta-candidate-fold.txt': 'golden-gate-shared-cache',
+                 'alpha-v0.1.0-fold.txt': 'golden-gate-shared-cache'}
+        extra = {'dev-beta-candidate-fold.txt': ['golden-gate-ids', 'golden-gate-store'],
+                 'alpha-v0.1.0-fold.txt': ['golden-gate-ids', 'golden-gate-store']}
+        dropped = {'dev-beta-candidate-fold.txt': ['dev-diagnostics', 'dev-keepawake'],
+                   'alpha-v0.1.0-fold.txt': ['dev-diagnostics', 'dev-keepawake', 'dev-access', 'golden-gate-appstore-slices']}
         for recipe in set(folds.values()):
             self.assertEqual(sorted(n for n, s in sets.items() if recipe in s),
                              sorted(k for k, v in folds.items() if v == recipe))
