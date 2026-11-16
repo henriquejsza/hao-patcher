@@ -1,0 +1,64 @@
+name: Bug report
+description: Something on a hao image doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in Summary through Workaround and paste the `hao report` output. Maintainers add Diagnosis, Fix and
+        How to validate after triage. Leave out personal details (names, Apple Account, serial number, network names).
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: What happened instead; error text or a screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: seen-on
+    attributes:
+      label: Seen on
+      description: Mac model, GPU, macOS build, hao release or image date, how often.
+      placeholder: MacBookPro9,2 (Intel HD 4000), macOS 27.2.1 (26B131), image of 2026-11-15, every time
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      placeholder: None known.
+  - type: textarea
+    id: report
+    attributes:
+      label: "`hao report` output"
+      description: Run `hao report` on the Mac (`./hao report` from the kit, or `tools/hao/hao report` in a checkout) and paste its output.
+      render: text
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        **For maintainers:** Diagnosis / Fix / How to validate are added below after triage.
