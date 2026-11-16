@@ -57,7 +57,12 @@ def snapshot_command(system, machine=None):
 RESUMABLE = {
     'boot-and-esp': 'install-role writes into a group folder removed first; the ESP copy writes the same files again',
     'hardware': 'OCLP\'s install_new_file replaces each destination; RSRRepair and the record plist are rewritten',
+    'posts': 'only when no post recipe started: the step remounts System read-only and runs every recipe from the first '
+             '(laptop 1, 11-16: the System unmount at its start was refused by a process of the Recovery)',
 }
+# Attempts of a volume unmount before it is forced: a Recovery's mds or fseventsd may hold a volume for a moment.
+UNMOUNT_TRIES = 4
+UNMOUNT_WAIT = 3
 
 # The uid and gid of _unknown: a file read from a volume mounted noowners (the stick's HAO volume in the Recovery) has
 # them, and ditto keeps them. No file of a macOS system belongs to them.
@@ -400,6 +405,19 @@ class Assembler:
         if key != 'esp':  # FAT has no Unix ownership; diskutil returns -69860.
             self.run('diskutil','enableOwnership',destination)
 
+    def unmount(self, target):
+        """diskutil unmount TARGET, again after a pause while a process holds it (diskutil names the dissenter), then
+        forced: the callers mount the volume again themselves, so nothing is lost by forcing."""
+        for attempt in range(UNMOUNT_TRIES):
+            try:
+                self.run('diskutil','unmount',target)
+                return
+            except subprocess.CalledProcessError:
+                print('unmount of %s refused (attempt %d of %d): the dissenter is in the line above'
+                      % (target, attempt+1, UNMOUNT_TRIES), flush=True)
+                time.sleep(UNMOUNT_WAIT)
+        self.run('diskutil','unmount','force',target)
+
     def refresh_mount(self, key):
         # updatePreboot/bless may move or unmount this image's Preboot volume.
         # Resolve the actual device mount before writing, never the stale folder.
@@ -409,7 +427,7 @@ class Assembler:
                 self.mounted.append(key)
             return
         if actual:
-            self.run('diskutil','unmount',self.devices[key])
+            self.unmount(self.devices[key])
         if key in self.mounted:
             self.mounted.remove(key)
         self.mount(key)
@@ -576,14 +594,14 @@ class Assembler:
         for name,value in [('.root_uuid',self.group),('.disk_label.contentDetails',self.config['name'])]:
             path=core/name
             path.write_text(value);path.chmod(0o644)
-        self.run('diskutil','unmount',self.mounts['preboot'])
+        self.unmount(self.mounts['preboot'])
         self.mounted.remove('preboot')
         self.run(*snapshot_command(system))
 
     def posts(self):
         self.refresh_mount('preboot')
         # Match post.sh: image post recipes receive read-only System.
-        self.run('diskutil','unmount',self.mounts['system'])
+        self.unmount(self.mounts['system'])
         self.mounted.remove('system')
         self.run('mount','-o','nobrowse,rdonly','-t','apfs','/dev/'+self.devices['system'],self.mounts['system'])
         self.mounted.append('system')
@@ -681,6 +699,10 @@ def resume_point(config, prior):
     done = {row['name'] for row in prior.get('steps',[]) if row.get('complete')}
     start = next(i for i, (name, _, _) in enumerate(LAYERS) if name not in done)
     name = LAYERS[start][0]
+    started = [row['name'] for row in prior.get('steps',[]) if row['name'].startswith(('post ','overlay '))]
+    if name == 'posts' and started:
+        raise ValueError('the failed run stopped in step posts after %s started, which cannot run again over its own '
+                         'partial work: start from an empty disk' % started[0])
     if name not in RESUMABLE:
         raise ValueError('the failed run stopped in step %s, which cannot be run again over its own partial work; '
                          'resumable: %s' % (name, ', '.join(RESUMABLE)))

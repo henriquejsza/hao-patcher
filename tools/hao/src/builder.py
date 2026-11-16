@@ -135,7 +135,7 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
 
 
 # golden-image.py's RESUMABLE: the steps a failed install can continue at (the steps before them completed)
-RESUMABLE = ('boot-and-esp', 'hardware')
+RESUMABLE = ('boot-and-esp', 'hardware', 'posts')
 
 
 def failed_step(work):

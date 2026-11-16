@@ -16,7 +16,7 @@ golden=importlib.util.module_from_spec(spec);spec.loader.exec_module(golden)
 
 class FakeCommands:
     def __init__(self,config,fail=None):
-        self.config=config;self.fail=fail;self.entries=[];self.volumes=[];self.grouped=False;self.displace_preboot=False
+        self.config=config;self.fail=fail;self.entries=[];self.volumes=[];self.grouped=False;self.displace_preboot=False;self.esp=None
 
     def run(self,command,env=None,capture=False):
         a=list(map(str,command));self.entries.append(dict(command=a,environment=dict(env or {})))
@@ -43,6 +43,9 @@ class FakeCommands:
                     if row.get('files') and row['files']!=point:   # the volume's files, mounted again elsewhere (a resume)
                         shutil.copytree(row['files'],point,symlinks=True,dirs_exist_ok=True)
                     row['MountPoint']=row['files']=point
+        elif a[0]=='/sbin/mount_msdos':      # the ESP's files, mounted again elsewhere (a resume)
+            if self.esp and self.esp!=a[-1]:shutil.copytree(self.esp,a[-1],dirs_exist_ok=True)
+            self.esp=a[-1]
         elif a[:2]==['diskutil','enableOwnership'] and Path(a[-1]).name=='esp':
             raise AssertionError('FAT EFI volume does not support Unix ownership')
         elif a[:2]==['diskutil','unmount']:
@@ -318,6 +321,36 @@ class ResumeTests(unittest.TestCase):
     def test_refuses_a_step_that_edits_in_place(self):
         prior=self.fail_at(lambda a:self.first['hooks'][2]['kc_hook'] in a)
         with self.assertRaisesRegex(ValueError,'stopped in step recipes'):golden.resume_point(self.second(),prior)
+
+    def system_unmount(self,a):
+        return a[:2]==['diskutil','unmount'] and str(a[-1]).endswith('mnt/system')
+
+    def test_a_held_volume_is_unmounted_again_then_forced(self):
+        old=golden.UNMOUNT_WAIT;golden.UNMOUNT_WAIT=0;self.addCleanup(setattr,golden,'UNMOUNT_WAIT',old)
+        refused=[]    # held through every plain attempt of the first unmount (posts'), then free
+        def fail(a):
+            if self.system_unmount(a) and 'force' not in a and len(refused)<golden.UNMOUNT_TRIES:
+                refused.append(a);return True
+        self.fake.fail=fail
+        record=golden.assemble(self.first,self.fake);a=[r['command'] for r in self.fake.entries]
+        self.assertEqual(record['status'],'assembled')
+        forced=[i for i,x in enumerate(a) if x[:3]==['diskutil','unmount','force']]
+        self.assertEqual(len(forced),1)
+        self.assertEqual(sum(1 for x in a[:forced[0]] if self.system_unmount(x) and 'force' not in x),golden.UNMOUNT_TRIES)
+
+    def test_resumes_at_posts_when_no_post_started(self):
+        old=golden.UNMOUNT_WAIT;golden.UNMOUNT_WAIT=0;self.addCleanup(setattr,golden,'UNMOUNT_WAIT',old)
+        prior=self.fail_at(self.system_unmount)
+        self.assertEqual([r['name'] for r in prior['steps'] if not r.get('complete')][0],'posts')
+        c=self.second();self.assertEqual(golden.LAYERS[golden.resume_point(c,prior)][0],'posts')
+        record=golden.assemble(c,self.fake,prior=prior);a=[r['command'] for r in self.fake.entries]
+        self.assertEqual(record['status'],'assembled');self.assertEqual(record['resumed']['step'],'posts')
+        self.assertFalse(any(x[:2]==['sh',c['pristine_script']] or x[:1]==['bless'] for x in a))
+
+    def test_refuses_posts_after_a_post_started(self):
+        script=self.first['posts'][0]['script']
+        prior=self.fail_at(lambda a:script in a)
+        with self.assertRaisesRegex(ValueError,'stopped in step posts after'):golden.resume_point(self.second(),prior)
 
     def test_refuses_another_kit(self):
         prior=self.fail_at(lambda a:self.first['hardware']['tool'] in a)
