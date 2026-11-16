@@ -34,14 +34,15 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 
 | Area | What works |
 |---|---|
-| Startup | Screen on about 46 s after the kernel starts (about 50 s on the first start-up); Setup Assistant, account creation, automatic login |
+| Startup | Apple logo only; screen on about 46 s after the kernel starts (about 50 s on the first start-up); Setup Assistant, account creation, automatic login |
 | Desktop | Menu bar, Dock, Finder, Liquid Glass, Control Center, Spotlight indexing, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
-| Connectivity | Wi-Fi (joins from Setup Assistant), Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
-| Input | Built-in keyboard and trackpad; external USB keyboard and mouse |
-| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather, Photos, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| Connectivity | Wi-Fi (joins from Setup Assistant and System Settings, remembered networks at startup), Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
+| Audio and input | Speakers, brightness keys, built-in keyboard and trackpad; external USB keyboard and mouse |
+| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather (forecasts; temperature, air-quality and wind maps), Photos, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| 3D | SceneKit scenes with materials, shadows and reflections; Quick Look and Preview open SceneKit scenes |
 | Accounts | iMessage; App Store sign-in and installs |
-| ARM-only programs | Apps built only for Apple silicon run on the Intel CPU through hao-runtime |
+| ARM-only programs | macOS 27's ARM-only programs and apps built only for Apple silicon run on the Intel CPU through hao-runtime |
 
 **Releases:** none yet. The next is v0.0.9 (pre-alpha); planned versions are the
 [milestones](https://github.com/lythka/hao-patcher/milestones).

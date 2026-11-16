@@ -7,25 +7,27 @@ Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15
 [The 26B131 repair review](repair-review-26B131.md) records earlier evidence.
 
 **Working**
-- Startup: the screen comes on about 46 s after the kernel starts (about 50 s on the first start-up); Setup
+- Startup: an Apple logo only; the screen comes on about 46 s after the kernel starts (about 50 s on the first start-up); Setup
   Assistant from Language to account creation, and the automatic login after it.
 - Desktop: menu bar, Dock, Finder, Liquid Glass, Control Center, login window and lock screen. Finder stays up
   through sidebar navigation, views, Quick Look and Get Info; Spotlight indexing keeps running.
 - Graphics: accelerated Metal on the HD 4000, including argument buffers and ASTC textures; hardware video decoding
   (YouTube 1080p H.264, no dropped frames).
-- Connectivity: Wi-Fi joins from Setup Assistant; Bluetooth pairs devices; AirDrop finds nearby devices; AirPlay
+- Connectivity: Wi-Fi joins from Setup Assistant and System Settings, and remembered networks at startup; Bluetooth pairs devices; AirDrop finds nearby devices; AirPlay
   displays are discovered, and sound plays on AirPlay speakers.
-- Input: the built-in keyboard and trackpad; an external USB keyboard and mouse.
+- Audio and input: the built-in speakers, brightness keys, keyboard and trackpad; an external USB keyboard and mouse.
 - Safari: web pages, YouTube, WebGPU compute and rendering.
 - Maps: the satellite 3D globe, street-level satellite and 3D buildings.
-- Weather: conditions, hourly and 10-day forecasts.
+- Weather: conditions, hourly and 10-day forecasts; the temperature, air-quality and wind maps.
+- SceneKit: 3D scenes with physically based materials, shadows and reflections; Quick Look and Preview open them.
 - Photos opens and shows the library.
 - Calendar, Preview, App Store, Books, News, Stocks, Terminal and System Settings open and stay running.
+- macOS 27's ARM-only programs run on the Intel CPU through hao-runtime.
 - iMessage; App Store sign-in and installs, including apps built only for Apple silicon, which run on the Intel CPU
   through hao-runtime.
 
 **In development**
-- Weather's maps (precipitation, temperature, air quality, wind).
+- Weather's precipitation map: the rain colour.
 - Spotlight: local app results. The next image lets macOS download its search data (only dyld is treated as
   an internal install, so the asset service uses Apple's public servers).
 - Live Text: the analysis service runs text recognition on the HD 4000; results in Photos
