@@ -333,6 +333,15 @@ def build_image_here(a, c, host, path, groups, run=subprocess.call):
         raise Stopped('preparing the kit failed', options=['the record is in %s' % record], untouched='nothing was built')
     kit = work / 'stage' / 'share'
     local = work / 'local'
+    # the assembly writes the whole image file (the assembly's size) next to the staged kit (golden-run checked that)
+    disk = runpy.run_path(str(TOP / 'pipeline' / 'diskguard.py'))
+    try:
+        size = json.loads(Path(path).read_text())['size_bytes'] if Path(path).is_file() else 0   # staging read it
+        disk['check'](size / 1e9, 'build-image', out.name, str(work if work.exists() else TOP),
+                      out=lambda m: c.item(m, 'steps'))
+    except disk['Refused'] as x:
+        raise Stopped('not enough disk space to assemble the image: %s' % x,
+                      options=['free space on this Mac, then build again'], untouched='nothing was assembled')
     c.step(steps[1])
     cmd = ['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), str(local)]
     c.event('command', argv=cmd)

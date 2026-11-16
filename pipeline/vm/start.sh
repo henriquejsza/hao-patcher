@@ -6,6 +6,9 @@
 #   Env: VMBIN (folder with ssdvm), VMCTL (vmctl), WAIT (seconds, default 300)
 set -u
 VM=${1:A}; SHARE=${2:A}; shift 2; R=$VM.run; mkdir -p $R
+# The clone's own disk grows by what the guest writes outside the share (logs, caches: a few GB a session); a build's
+# data is in its workspace image, which golden-run counts before it starts the VM.
+python3 -I ${0:A:h}/../diskguard.py check --need ${VM_DISK_NEED_GB:-20} --who ssdvm --what ${VM:t} --path ${VM:h} || exit 3
 MAC=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["mac"])' $VM/.ssdvm-clone.json)
 nohup $VMBIN/ssdvm run $VM --mac $MAC --share $SHARE "$@" > $R/ssdvm.log 2>&1 &
 echo $! > $R/ssdvm.pid

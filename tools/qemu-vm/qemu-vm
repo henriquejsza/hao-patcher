@@ -34,7 +34,7 @@ logs:  for a stopped run: the guest's unified log as a logarchive (boot.logarchi
 import argparse, datetime, hashlib, json, os, plistlib, re, shutil, signal, struct, subprocess, sys, tempfile, time
 from pathlib import Path
 
-UNIT, REVISION = 'tools/qemu-vm', 10
+UNIT, REVISION = 'tools/qemu-vm', 11
 TOP = Path(__file__).resolve().parents[2]
 QEMU = '/opt/homebrew/bin/qemu-system-x86_64'
 QEMU_IMG = '/opt/homebrew/bin/qemu-img'
@@ -141,6 +141,13 @@ def start(a):
     usb = [Path(u).resolve() for u in getattr(a, 'usb_disk', None) or []]
     if not image.is_file() or not esp.exists() or not all(u.is_file() for u in usb):
         sys.exit('qemu-vm: no such image, ESP or USB disk')
+    # A run's overlays can grow to the disks they stand on (an install writes the whole target disk): need that much.
+    disk = __import__('runpy').run_path(str(TOP / 'pipeline' / 'diskguard.py'))
+    need = sum(p.stat().st_size for p in [image] + usb) / 1e9
+    try:
+        disk['check'](need, 'qemu-vm', a.name or image.name, str(TOP / 'store' if (TOP / 'store').exists() else TOP))
+    except disk['Refused'] as x:
+        sys.exit('qemu-vm: %s' % x)
     now = datetime.datetime.now(datetime.timezone.utc)
     run = new_run(a.out, a.name, now)
     sockets = Path(tempfile.mkdtemp(prefix='qemu-vm-'))   # unix socket paths must stay short
