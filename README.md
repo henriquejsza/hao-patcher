@@ -29,19 +29,24 @@ More in the [gallery](docs/gallery.md): Safari and YouTube, the wind and air-qua
 
 ## Status
 
-Experimental. Developed and tested on a 2012 13-inch MacBook Pro (MacBookPro9,2: Ivy Bridge, Intel HD 4000); other
+Pre-alpha. Developed and tested on a 2012 13-inch MacBook Pro (MacBookPro9,2: Ivy Bridge, Intel HD 4000); other
 Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 
 | Area | What works |
 |---|---|
-| Startup | Screen on about 45 s after the kernel starts; Setup Assistant, account creation, automatic login |
-| Desktop | Menu bar, Dock, Finder, Liquid Glass, login window, lock screen |
+| Startup | Screen on about 46 s after the kernel starts (about 50 s on the first start-up); Setup Assistant, account creation, automatic login |
+| Desktop | Menu bar, Dock, Finder, Liquid Glass, Control Center, Spotlight indexing, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
-| Connectivity | Wi-Fi (joins at startup and from Setup), Bluetooth, AirPlay display discovery, sound on AirPlay speakers |
-| Audio and input | Speakers, keyboard, trackpad, brightness keys |
-| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
-| 3D | SceneKit scenes with materials, shadows and reflections |
-| ARM-only programs | Run on the Intel CPU through hao-runtime |
+| Connectivity | Wi-Fi (joins from Setup Assistant), Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
+| Input | External USB keyboard and mouse |
+| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather, Photos, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| Accounts | iMessage; App Store sign-in and installs |
+| ARM-only programs | Apps built only for Apple silicon run on the Intel CPU through hao-runtime |
+
+**Releases:** none yet. The next is v0.0.9 (pre-alpha); planned versions are the
+[milestones](https://github.com/lythka/hao-patcher/milestones).
+
+**Installing:** not yet a supported path for users; [Building an image](docs/building.md) describes the developer path.
 
 [Progress](docs/progress.md) has the detailed lists, what's new and every fix.
 
@@ -71,9 +76,6 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
   OCLP support files and a hao-runtime payload ([Build inputs](docs/inputs.md)). Apple's files are not in this
   repository.
 - **Disk space:** the assets folder (34 GB), the build's work folder and the 80 GiB image file.
-
-There is no end-user installer yet. The `hao` command ([tools/hao](tools/hao)) is its start, and
-[the builder path](docs/builder-path.md) describes where it is going: a USB installer made on any Mac.
 
 ## Building
 
