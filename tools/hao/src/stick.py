@@ -366,13 +366,14 @@ def attach_image(host, image, size_bytes):
     raise StickError('hdiutil attached %s as no whole disk' % image)
 
 
+OPENCORE_MAX_BYTES = 64 * MB        # OpenCore's ESP (about 20 MB): before the kit has built it
 BASESYSTEM_MAX_BYTES = 1600 * MB    # Tahoe's x86_64 BaseSystem is 1.46 GB (25G342): the boot partition before it exists
 
 
 def prepare(host, disk, opencore_tar, basesystem=None, on_step=None):
     """Erase DISK first (create-installer then makes the large parts straight onto HAO). Returns the partitions."""
     size = Path(basesystem).stat().st_size if basesystem and Path(basesystem).is_file() else BASESYSTEM_MAX_BYTES
-    mb = boot_mb(size, Path(opencore_tar).stat().st_size)
+    mb = boot_mb(size, Path(opencore_tar).stat().st_size if opencore_tar else OPENCORE_MAX_BYTES)
     parts = partition(host, disk, mb)
     (on_step or (lambda text: None))('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (
         disk, BOOT_NAME, mb, KIT_NAME))
@@ -388,6 +389,8 @@ def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, reco
         mb = boot_mb(Path(basesystem).stat().st_size, Path(opencore_tar).stat().st_size)
         parts = partition(host, disk, mb)
         step('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (disk, BOOT_NAME, mb, KIT_NAME))
+    else:       # erased by prepare() before the downloads; the first step stays the erase (the console's parts)
+        step('/dev/%s was erased first: %s and %s' % (disk, BOOT_NAME, KIT_NAME))
     rec = dict(record or {})
     rec.update(write_boot(parts['EFI'][1], parts[BOOT_NAME][1], basesystem, opencore_tar))
     step('EFI      OpenCore, as OCLP installs it (Bootstrap + EFI/OC)')

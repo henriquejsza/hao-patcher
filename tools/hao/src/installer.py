@@ -436,6 +436,7 @@ def create_installer(a, c, host, acquire=None):
         c.done('dry run: nothing was downloaded or written')
         return 0
     kit = prepare_kit(a, c, path)
+    a.kit_dir = kit
     basesystem, opencore = stick_inputs(a, asm)
     c.step(STEPS[2])
     record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
@@ -476,9 +477,27 @@ def lock_path(*argv):
 
 
 def opencore_input(a, asm):
+    """--opencore, else the target's esp row when this store has it, else None (the kit's own ESP is used later)."""
     if getattr(a, 'opencore', None):
         return Path(a.opencore).expanduser().resolve()
-    return lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
+    try:
+        return lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
+    except Stopped:
+        return None
+
+
+def kit_esp_tar(kit, work):
+    """The ESP the kit's install writes (golden-run's build-efi.py from pinned OCLP resources: EFI/OC and the
+    Bootstrap), as a tar for the stick: a fresh Mac has no harvested esp row."""
+    import tarfile
+    esp = Path(kit) / 'assembly-source' / 'esp'
+    if not (esp / 'EFI' / 'OC' / 'config.plist').is_file():
+        return None
+    out = Path(work) / 'kit-esp.tar'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(out, 'w') as t:
+        t.add(esp, arcname='.')
+    return out
 
 
 def stick_inputs(a, asm):
@@ -497,7 +516,13 @@ def stick_inputs(a, asm):
         if not opencore.is_file():
             raise Stopped('no OpenCore ESP file at %s' % opencore, untouched='the stick was not touched')
         return basesystem, opencore
-    return basesystem, lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
+    opencore = opencore_input(a, asm)
+    if opencore is None and getattr(a, 'kit_dir', None):
+        opencore = kit_esp_tar(a.kit_dir, Path(a.kit_dir).parent)
+    if opencore is None:
+        raise Stopped('no OpenCore ESP: neither the target\'s esp row nor the kit\'s own ESP is there',
+                      untouched='the USB drive is erased and holds no installer yet')
+    return basesystem, opencore
 
 
 def kit_assembly(kit):
