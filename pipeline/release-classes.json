@@ -178,6 +178,7 @@
   "hao_runtime": {
    "class": "ours",
    "publish": "file",
+   "url": "https://github.com/lythka/hao-runtime/releases/download/v0.0.1/hao-runtime-26B131-155b7b18fa8f-public.tar.gz",
    "unpack": {"strip": 1, "into": "parent"},
    "source": "../hao-runtime-26B131-155b7b18fa8f-public.tar.gz",
    "source_sha256": "8ce0cf744be776e7672f8605a2fb66fea1adf50b3b1d16bee4fb8a288c03ffe2",
