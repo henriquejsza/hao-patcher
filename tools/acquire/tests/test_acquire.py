@@ -141,7 +141,8 @@ class Acquire(unittest.TestCase):
         rows = A['load'](m, assets_from=stage)
         shim = rows[1]
         self.assertTrue(shim['url'].startswith('file://') and shim['url'].endswith('/shim.tar'))
-        self.assertEqual(shim['mirrors'], [asset['url']])           # its own URL only when the folder lacks it
+        self.assertTrue(shim['mirrors'][0].endswith('/external/shim.tar'))   # an asset another repository hosts
+        self.assertEqual(shim['mirrors'][1:], [asset['url']])       # its own URL only when the folder lacks it
         events = []
         A['fetch'](rows, self.cache, on_event=events.append)
         self.assertNotIn('mirror-failed', [e['ev'] for e in events])

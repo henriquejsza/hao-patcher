@@ -566,6 +566,19 @@ def public_provenance(row, repo, commit, notes):
     return None, ''
 
 
+def write_sums(stage, release_json):
+    """STAGE/SHA256SUMS (owner: every release ships a checksum file): `shasum -a 256` lines for each file at STAGE's top,
+    release.json included when it is written there; STAGE/external/ (hosted by another repository) gets its own."""
+    def sums(folder, extra=()):
+        files = sorted({p for p in Path(folder).iterdir() if p.is_file() and p.name != 'SHA256SUMS'} | set(extra))
+        if files:
+            (Path(folder) / 'SHA256SUMS').write_text(''.join('%s  %s\n' % (sha256_file(p), p.name) for p in files))
+    rel = Path(release_json).resolve()
+    sums(stage, [rel] if rel.parent == Path(stage).resolve() else [])
+    if (Path(stage) / 'external').is_dir():
+        sums(Path(stage) / 'external')
+
+
 def check_stage(rel, stage):
     """Problems: every asset staged with its size and sha256, nothing else staged but release.json and dotfiles."""
     stage = Path(stage)
@@ -578,7 +591,7 @@ def check_stage(rel, stage):
         elif f.stat().st_size != x['size'] or sha256_file(f) != x['sha256']:
             bad.append('staged %s is not the file release.json pins' % x['file'])
     bad += ['%s is staged but not an asset' % p.name for p in sorted(stage.iterdir())
-            if p.name not in names and p.name not in ('release.json', 'external') and not p.name.startswith('.')]
+            if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') and not p.name.startswith('.')]
     return bad
 
 
@@ -645,6 +658,8 @@ def main(argv):
             return 1
         out_path.write_text(json.dumps(rel, indent=1) + '\n')
         bad = check_stage(rel, stage) if stage is not None else []
+        if stage is not None and not bad:
+            write_sums(stage, out_path)
         for b in bad:
             print('release-cut: ' + b, file=sys.stderr)
         print('release-cut: wrote %s (%s; %d downloads, %d assets, %d made on the Mac, %d harvested, %d pending)' % (

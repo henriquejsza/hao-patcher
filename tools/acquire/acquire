@@ -49,7 +49,9 @@ def load(manifest, assets_from=None):
         row = {'name': a.get('file'), 'url': a.get('url'), 'size': a.get('size'), 'sha256': a.get('sha256'),
                'mirrors': list(a.get('mirrors', [])), 'kind': 'asset', 'row': a.get('row')}
         if assets_from and isinstance(row['name'], str):
-            row['mirrors'] = ([row['url']] if row['url'] else []) + row['mirrors']
+            # the folder release-cut staged: our assets at its top, those another repository hosts in external/
+            row['mirrors'] = [asset_source(assets_from) + 'external/' + urllib.parse.quote(row['name'])] + (
+                [row['url']] if row['url'] else []) + row['mirrors']
             row['url'] = asset_source(assets_from) + urllib.parse.quote(row['name'])
         rows.append(row)
     if not rows:
