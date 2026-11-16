@@ -40,21 +40,30 @@ class HygieneHooks(unittest.TestCase):
         r = self.commit('patches/x/README.md', 'Laptop test 2026-11-14, image abc (26B131)\n', 'x: what and why\n\nTested: y')
         self.assertEqual(0, r.returncode, r.stderr)
 
+    def test_message_lengths(self):
+        ok = 'x: short subject\n\nWhy.\n\nTested: suite OK'
+        self.assertEqual(0, self.commit('a.txt', 'one\n', ok).returncode)
+        for bad, why in (('s' * 73 + '\n\nTested: OK', 'subject'), ('x\n\n' + 'l\n' * 7 + '\nTested: OK', 'body'),
+                         ('x\n\nTested: ' + 'y' * 160, 'Tested'), ('x\n\nno tested line', 'no Tested')):
+            r = self.commit('a.txt', 'two %d\n' % len(bad), bad)
+            self.assertNotEqual(0, r.returncode, why); self.assertIn(why, r.stderr)
+            self.git('reset', '-q')
+
     def test_message_with_a_private_name_or_wording_is_refused(self):
         for message in ('fix %s thing' % NAME, 'seen on the %s' % WORD, 'value secret-42', 'in /' 'Users/someone/x'):
-            r = self.commit('a.txt', 'clean %d\n' % len(message), message)
+            r = self.commit('a.txt', 'clean %d\n' % len(message), message + '\n\nTested: OK')
             self.assertNotEqual(0, r.returncode, message)
             self.assertIn('hygiene: commit message names a', r.stderr)
             self.assertNotIn(message, r.stderr)                      # the label, never the matched text
             self.git('reset', '-q')
 
     def test_added_lines_are_checked_wording_only_in_docs(self):
-        r = self.commit('patches/x/README.md', 'proven on the %s\n' % WORD, 'docs')
+        r = self.commit('patches/x/README.md', 'proven on the %s\n' % WORD, 'docs\n\nTested: OK')
         self.assertNotEqual(0, r.returncode); self.assertIn('patches/x/README.md:1 names a test stand', r.stderr)
         self.git('reset', '-q')
-        r = self.commit('src/tool.py', 'mode = "%s"\n' % WORD, 'code')           # wording in code is not checked
+        r = self.commit('src/tool.py', 'mode = "%s"\n' % WORD, 'code\n\nTested: OK')           # wording in code is not checked
         self.assertEqual(0, r.returncode, r.stderr)
-        r = self.commit('src/tool.py', 'mode = "%s"\npath = "/' 'Users/someone/x"\n' % WORD, 'code 2')
+        r = self.commit('src/tool.py', 'mode = "%s"\npath = "/' 'Users/someone/x"\n' % WORD, 'code 2\n\nTested: OK')
         self.assertIn('src/tool.py:2 names a home folder', r.stderr)
 
     def test_install_keeps_a_foreign_hook_and_the_push_guard(self):

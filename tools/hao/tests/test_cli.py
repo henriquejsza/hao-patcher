@@ -391,6 +391,7 @@ class BuilderTest(unittest.TestCase):
             self.assertEqual(assemble[3:], [str(Path(d).resolve() / 'local'), '--disk', 'disk5',
                                             '--confirm-disk', 'disk5', '--external'])
             self.assertIn('--collect-kit', collect)
+            self.assertNotIn('--no-cryptex-cache', assemble)
             self.assertIn('built on /dev/disk5', out.getvalue())
 
     def test_build_disk_failed_assembly_stops(self):
@@ -419,6 +420,8 @@ class BuilderTest(unittest.TestCase):
             (assemble,) = ran
             self.assertEqual(assemble[2], str(kit.resolve()))
             self.assertEqual(assemble[-4:], ['--disk', 'disk0', '--confirm-disk', 'disk0'])
+            # nothing collects a stick's kit: the sealed cryptex images are not stored (they filled the stick)
+            self.assertEqual(assemble[4], '--no-cryptex-cache')
             self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'hao-install-')))
 
     def test_install_resumes_a_failed_one(self):

@@ -31,6 +31,7 @@ import zipfile
 TOP = Path(__file__).resolve().parent.parent
 GUEST = '/private/var/ssdshare'
 KIT = runpy.run_path(str(TOP/'pipeline/kit.py'))
+PRELINKED = runpy.run_path(str(TOP/'pipeline/prelinked_kc.py'))
 
 
 def source_identity():
@@ -432,6 +433,19 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             for name in ('patches.txt','MANIFEST.txt','profile.json'):
                 shutil.copy2(share/name,record/name)
             state.update(inputs=sources,source_files={str(p.relative_to(source)):digest(p) for p in source.rglob('*') if p.is_file() and not p.is_symlink()},status='starting')
+            # The Boot and System KCs a VM build of this same tree linked (pipeline/prelinked_kc.py): a VM build stores
+            # its own after the guest ends; a kit carries them, because the stick's Recovery cannot link them.
+            kc_folder=next(folder for stage,name,folder in set_order(share) if name=='darwin27-kernel')
+            kc_lines=PRELINKED['lines'](recipe,share,lambda item:lockrows['key_line'](
+                item,str(store),[str(golden_lock),str(build_lock),str(common)]),kc_folder)
+            state['prelinked_kc']=dict(key=PRELINKED['key_of'](kc_lines))
+            if kit_only:
+                staged=PRELINKED['stage'](store/'cache/kc',state['prelinked_kc']['key'],kc_lines,share/'hooks'/kc_folder)
+                state['prelinked_kc'].update(staged or dict(missing=True))
+                if not staged:
+                    print('golden-run: no prelinked kernel collections for this kit (key %s): its install links them '
+                          'with kmutil, which a Recovery cannot. Build the image once in the builder VM (golden-run '
+                          'ASSEMBLY --repo REPO) and stage the kit again.'%state['prelinked_kc']['key'],file=sys.stderr,flush=True)
             if kit_only:
                 state.update(status='kit staged',kit=str(share));write(record/'build.json',state)
                 print('Kit staged: '+str(share),flush=True);print('Record: '+str(record),flush=True)
@@ -450,6 +464,10 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             output=share/'out-golden';rc=wait_job(output,timeout)
             if rc:raise RuntimeError('Golden guest failed with status '+str(rc)+'; inspect '+str(output))
             assembled(output);stop()
+            if (output/'guest/kc').is_dir():
+                PRELINKED['store_entry'](store/'cache/kc',state['prelinked_kc']['key'],kc_lines,output/'guest/kc',
+                                         PRELINKED['sha256'](share/'hooks'/kc_folder/'inputs/darwin27_kernel'),record)
+                state['prelinked_kc']['stored']=True;write(record/'build.json',state)
             if cryptex_cache:
                 collect_cryptex_cache(share,store/'cache/cryptex',state['cryptex_cache']);write(record/'build.json',state)
             state['status']='capturing';write(record/'build.json',state)

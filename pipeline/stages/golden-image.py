@@ -42,6 +42,15 @@ import time
 # extended attributes and ACLs, so ditto's --rsrc/--extattr/--acl (and its defaults) fail there with "Attribute not
 # found" (bench2 rerun3: boot-and-esp, 90 min into a QEMU install). A full macOS writes them as ._ files instead.
 FAT_COPY = ('ditto', '--norsrc', '--noextattr', '--noacl')
+def snapshot_command(system, machine=None):
+    """bless that snapshots SYSTEM and makes the snapshot the boot root. Intel bless (a stick's Recovery) refuses
+    --create-snapshot without --bootefi ("Can't use snapshot options without --bootefi"), so it takes OCLP's form,
+    which also finds the Preboot volume itself; the arm64 builder VM keeps --mount."""
+    if (machine or os.uname().machine) == 'x86_64':
+        return ('bless', '--folder', Path(system)/'System/Library/CoreServices', '--bootefi', '--create-snapshot')
+    return ('bless', '--mount', system, '--create-snapshot')
+
+
 # The steps a failed run can be resumed at (golden-image.py --resume), and why running them again over what the
 # failed attempt left is safe. The steps before one must all have completed. Every other step edits files in place
 # (the recipes, the snapshot, the posts) or makes the volumes (layout, group-volumes): those start from an empty disk.
@@ -49,6 +58,34 @@ RESUMABLE = {
     'boot-and-esp': 'install-role writes into a group folder removed first; the ESP copy writes the same files again',
     'hardware': 'OCLP\'s install_new_file replaces each destination; RSRRepair and the record plist are rewritten',
 }
+
+# The uid and gid of _unknown: a file read from a volume mounted noowners (the stick's HAO volume in the Recovery) has
+# them, and ditto keeps them. No file of a macOS system belongs to them.
+UNKNOWN = 99
+
+
+def fixed_owners(root, lstat=os.lstat, lchown=os.lchown):
+    """Give root (0) every uid and wheel (0) every gid that is _unknown (99) under ROOT, on ROOT's device, symlinks
+    themselves. Returns the number of entries changed."""
+    root = str(root); device = lstat(root).st_dev; changed = 0
+    def fix(path):
+        nonlocal changed
+        st = lstat(path)
+        if st.st_uid == UNKNOWN or st.st_gid == UNKNOWN:
+            lchown(path, 0 if st.st_uid == UNKNOWN else -1, 0 if st.st_gid == UNKNOWN else -1)
+            changed += 1
+        return st
+    fix(root)
+    for folder, dirs, files in os.walk(root):
+        keep = []
+        for name in dirs:
+            st = fix(os.path.join(folder, name))
+            if st.st_dev == device and not os.path.islink(os.path.join(folder, name)):
+                keep.append(name)
+        dirs[:] = keep
+        for name in files:
+            fix(os.path.join(folder, name))
+    return changed
 
 
 class Commands:
@@ -305,6 +342,7 @@ class Assembler:
         self.environment = dict(os.environ, **config['environment'])
         self.environment['OCLP_PYTHON'] = config['python']
         self.steps = []
+        self.owners = {}
         self.plan = None
         if config.get('overlays'):
             self.plan = {s['name']: s for s in json.loads(Path(config['overlays']['plan']).read_text())['steps']}
@@ -472,6 +510,16 @@ class Assembler:
         self.run(c['python'],'-I',c['hardware']['tool'],'apply','--artifact',c['hardware']['artifact'],
                  '--system-root',self.mounts['system'],'--data-root',self.mounts['data'],
                  '--report',self.work/'hardware.json')
+        self.fix_owners('base layers',('system','data','preboot','recovery'))
+
+    def fix_owners(self, when, keys):
+        """Files the kit gave the target with _unknown owners (a Recovery reads the stick noowners) get root:wheel, as
+        the builder VM's build gives them. bench: 2639 Tahoe donor kexts were 99:99, so kmutil refused them all."""
+        counts = {key:fixed_owners(self.mounts[key]) for key in keys if key in self.mounted}
+        self.owners[when] = counts
+        if any(counts.values()):
+            print('golden-image: %s: _unknown (99) owners set to root:wheel: %s' % (when, ', '.join(
+                  '%s %d' % item for item in counts.items() if item[1])), flush=True)
 
     def recipes(self):
         """Every oclp-hook recipe of the set, in set order, each through its own src/kc-hook.sh SYSTEM, or, when
@@ -501,8 +549,14 @@ class Assembler:
                 # the dev-golden-bootstrap assembly derives row darwin27_boot_kc (kernel repairs) from it.
                 self.run('ditto',self.mounts['system']/'System/Library/KernelCollections/BootKernelExtensions.kc',
                          self.work/'BootKernelExtensions.kc')
+                # And all three files as linked, for a kit whose install cannot link them (golden-run stores them
+                # under their key, pipeline/prelinked_kc.py).
+                (self.work/'kc').mkdir(mode=0o755,exist_ok=True)
+                for name in ('BootKernelExtensions.kc','BootKernelExtensions.kc.elides','SystemKernelExtensions.kc'):
+                    self.run('ditto',self.mounts['system']/'System/Library/KernelCollections'/name,self.work/'kc'/name)
 
     def snapshot(self):
+        self.fix_owners('recipes',('system','data','preboot','recovery'))
         system = self.mounts['system']
         self.run('rm','-rf',system/'.Spotlight-V100')
         self.run('diskutil','apfs','updatePreboot',self.devices['system'])
@@ -524,7 +578,7 @@ class Assembler:
             path.write_text(value);path.chmod(0o644)
         self.run('diskutil','unmount',self.mounts['preboot'])
         self.mounted.remove('preboot')
-        self.run('bless','--mount',system,'--create-snapshot')
+        self.run(*snapshot_command(system))
 
     def posts(self):
         self.refresh_mount('preboot')
@@ -544,6 +598,7 @@ class Assembler:
             self.step('post '+post['name'],lambda p=post,o=output:self.run('sh','-eu',p['script'],
                       env=dict(environment,P=p['folder'],PATCH_OUTPUT_DIR=str(o))))
         self.run('rm','-rf',self.mounts['data']/'.Spotlight-V100')
+        self.fix_owners('posts',('data','preboot','recovery'))
         self.run('sync')
 
     def export_efi(self):
@@ -665,6 +720,7 @@ def _assemble(config, commands=None, target=None, prior=None):
             record.update(status='failed',cleanup_errors=cleanup)
             if error is None: error=RuntimeError('; '.join(cleanup))
         record.update(volumes=image.devices,group_uuid=image.group,steps=image.steps,commands=commands.entries,
+                      owners_fixed=image.owners,
                       attached_device=target.attached,**target.record())
         (work/'build.json').write_text(json.dumps(record,indent=2)+'\n')
     if error is not None: raise error

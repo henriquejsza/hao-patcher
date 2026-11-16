@@ -1,6 +1,6 @@
 {
  "format": 1,
- "description": "Bench images only: root SSH for the bench host (dev-access) and the measurement settings (dev-diagnostics). Never detected and never in an end-user image: select it by name, or use a dev set.",
+ "description": "Bench images only: root SSH for the bench host (dev-access) and the measurement settings (dev-diagnostics), and no sleep from the first boot on (dev-keepawake). Never detected and never in an end-user image: select it by name, or use a dev set.",
  "detect": {
   "any_intel": true
  },
@@ -9,6 +9,7 @@
  "proven_on": [],
  "recipes": [
   "dev-access",
-  "dev-diagnostics"
+  "dev-diagnostics",
+  "dev-keepawake"
  ]
 }

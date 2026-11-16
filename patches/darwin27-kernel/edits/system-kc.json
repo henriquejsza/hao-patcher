@@ -31,7 +31,8 @@
     "name": "sys",
     "boot_collection": "BootKernelExtensions.kc (-B, as for the boot collection)",
     "system_collection": "SystemKernelExtensions.kc (-S, in the build directory)",
-    "elide_identifiers": "every identifier in System/Library/KernelCollections/BootKernelExtensions.kc.elides (--elide-identifier), so no driver is in both collections"
+    "elide_identifiers": "every identifier in System/Library/KernelCollections/BootKernelExtensions.kc.elides (--elide-identifier), so no driver is in both collections",
+    "prelinked": "an installer kit carries prelinked/: the three files a builder VM build linked from the same tree (pipeline/prelinked_kc.py, key over the rows and sources that shape System up to this hook); the hook checks each against prelinked/prelinked.json and installs them instead of linking, because the stick's Recovery links a kernel-only collection (its kmutil reads no kext of the target volume)"
    },
    "reason": "the rest of the Intel drivers load from a system collection that repeats nothing the boot collection already holds"
   }
