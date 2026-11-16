@@ -245,7 +245,7 @@ class Steps(unittest.TestCase):
             r(['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), 'LOCAL'])
         got = sq(out.getvalue())
         self.assertIn('  BootKC and SystemKC linked, Boot 875abf7d221c…  ✓  matches the proven build', got)
-        self.assertIn('  HaoExec stamped for kernel 037e7b860ac8…  ✓', got)
+        self.assertNotIn('HaoExec stamped', got)                      # at -v only; the bind line says it
         self.assertIn('  4 kernel repairs bound to this kernel, IntelCommpage added  ✓', got)
 
 

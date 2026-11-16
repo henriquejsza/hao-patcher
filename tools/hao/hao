@@ -475,6 +475,8 @@ def finish_line(c, command):
             parts = ['macOS 27 on %s in %s' % (disk, took)]
             if s.get('files'):
                 parts.append('%s files from packs' % format(s['files'], ','))
+            if s.get('edits'):
+                parts.append('%s edits' % format(s['edits'], ','))
             if s.get('repairs'):
                 parts.append('%d kernel repairs' % s['repairs'])
             parts.append('no notes' if not s.get('notes') else '%d notes' % s['notes'])

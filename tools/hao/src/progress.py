@@ -722,7 +722,8 @@ class Assembly:
             return
         m = self.STAMP.match(text)
         if m:
-            self.say('HaoExec stamped for kernel %s…' % m.group(1)[:12], ok=True, ev='kc.stamp', kernel=m.group(1))
+            self.c.item('HaoExec stamped for kernel %s…' % m.group(1)[:12], 'files', ok=True, ev='kc.stamp',
+                        kernel=m.group(1))
 
     def bind_detail(self, repairs):
         """The binder's record (post hao-opencore's kc-binder.json): the mockups' "bind N kernel repairs" line, what
