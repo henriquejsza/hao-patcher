@@ -8,10 +8,15 @@ from pathlib import Path
 import plistlib
 import shutil
 import subprocess
+import sys
+import tarfile
 import zipfile
 
 UNIT = 'patches/golden-gate-userspace/build'
 REVISION = 2
+IPSW_VERSION = '3.1.737'
+IPSW_HELP = ('needs blacktop ipsw %s: `hao fetch` gets it (input row ipsw_tool), or install it with '
+             '`brew install blacktop/tap/ipsw` (version %s), or pass --ipsw-tool' % (IPSW_VERSION, IPSW_VERSION))
 ROLES = {'filesystem': 'OS', 'os': 'Cryptex1,SystemOS',
          'app': 'Cryptex1,AppOS', 'rosetta': 'Cryptex1,RosettaOS'}
 
@@ -22,6 +27,28 @@ def digest(path):
         for block in iter(lambda: stream.read(8 << 20), b''):
             h.update(block)
     return h.hexdigest()
+
+
+def ipsw_tool(given, top, scratch):
+    """The ipsw program to run: --ipsw-tool (the release archive or the program), else the ipsw_tool input row when it
+    is in the store, else `ipsw` on PATH; it must be version IPSW_VERSION."""
+    path = given
+    if path is None:
+        lock = subprocess.run([sys.executable, '-I', str(top / 'pipeline/lock.py'), 'path',
+                               str(top / 'pipeline/inputs/common'), 'ipsw_tool'], capture_output=True, text=True)
+        path = Path(lock.stdout.strip()) if lock.returncode == 0 else None
+    if path is not None and path.name.endswith('.tar.gz'):
+        scratch.mkdir(mode=0o755, exist_ok=True)
+        with tarfile.open(path) as archive:
+            archive.extract(archive.getmember('ipsw'), scratch, filter='data')
+        path = scratch / 'ipsw'
+    program = str(path) if path is not None else shutil.which('ipsw')
+    if program is None:
+        raise SystemExit('golden-gate-userspace: ' + IPSW_HELP)
+    version = subprocess.run([program, 'version'], capture_output=True, text=True).stdout.strip()
+    if 'Version: %s,' % IPSW_VERSION not in version:
+        raise SystemExit('golden-gate-userspace: %s is %r; %s' % (program, version, IPSW_HELP))
+    return program, version
 
 
 def select_identity(manifest, board):
@@ -38,6 +65,7 @@ def main():
     parser.add_argument('--ipsw', type=Path, required=True)
     parser.add_argument('--board', required=True)
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--ipsw-tool', type=Path, help='ipsw %s: its release archive (.tar.gz) or the program' % IPSW_VERSION)
     args = parser.parse_args()
     args.out.mkdir(mode=0o755, parents=True)
     payload = args.out / 'payload'
@@ -45,12 +73,14 @@ def main():
     payload.mkdir(mode=0o755)
     sources.mkdir(mode=0o755)
     top = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(top / 'pipeline'))
+    import source_commit
+    ipsw, ipsw_version = ipsw_tool(args.ipsw_tool, top, sources / 'ipsw-tool')
     record = dict(unit=UNIT, revision=REVISION,
                   date=datetime.now(timezone.utc).isoformat(),
-                  commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=top, text=True).strip(),
-                  dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=top)),
+                  commit=source_commit.commit(top), dirty=source_commit.dirty(top),
                   ipsw=str(args.ipsw.resolve()), board=args.board,
-                  dependencies={'ipsw': subprocess.check_output(['ipsw', 'version'], text=True).strip()},
+                  dependencies={'ipsw': ipsw_version},
                   components={}, status='building')
 
     def save():
@@ -78,7 +108,7 @@ def main():
                 if name.endswith('.aea'):
                     decoded = sources / f'decrypted-{role}'
                     decoded.mkdir(mode=0o755)
-                    subprocess.run(['ipsw', 'fw', 'aea', str(source), '--output', str(decoded)],
+                    subprocess.run([ipsw, 'fw', 'aea', str(source), '--output', str(decoded)],
                                    stdout=log, stderr=subprocess.STDOUT, check=True)
                     image = decoded / source.name.removesuffix('.aea')
                 else:

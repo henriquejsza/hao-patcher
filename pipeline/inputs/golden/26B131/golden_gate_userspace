@@ -1,2 +1,3 @@
 # Golden Gate userspace payload made by patches/golden-gate-userspace/build from the 27.2.1 IPSW.
-6cdafc3be2478879a646a6433d861887f82d80458873ed6bec7d33e71de0a708 store/artifacts/golden-gate-userspace-26B131-20261111-233e85a09887/payload
+# hash: without userspace.json  # the producer's record (its commit): a remake from the same IPSW matches
+060bd378064461f4778fb3c312dffc7f181a1a0d3f534bdf76fefb4ba7798038 store/artifacts/golden-gate-userspace-26B131-20261111-233e85a09887/payload

@@ -237,7 +237,8 @@
    "class": "made-on-mac",
    "producer": "patches/golden-gate-userspace/build",
    "inputs": [
-    "ipsw_27_0"
+    "ipsw_27_0",
+    "ipsw_tool"
    ],
    "reason": "Golden Gate System/Data and cryptex payload unpacked from Apple's IPSW"
   },
@@ -407,6 +408,12 @@
    "name": "Kernel_Debug_Kit_26.7.3_build_25G342.dmg",
    "url": "https://github.com/dortania/KdkSupportPkg/releases/download/25G342/Kernel_Debug_Kit_26.7.3_build_25G342.dmg",
    "reason": "Apple's Kernel Debug Kit 25G342 as mirrored by KdkSupportPkg (size checked)"
+  },
+  "ipsw_tool": {
+   "class": "download",
+   "name": "ipsw_3.1.737_macOS_universal.tar.gz",
+   "url": "https://github.com/blacktop/ipsw/releases/download/v3.1.737/ipsw_3.1.737_macOS_universal.tar.gz",
+   "reason": "blacktop/ipsw 3.1.737 (third-party, MIT): decodes the IPSW's AEA disk images for golden_gate_userspace"
   },
   "opencore_release": {
    "class": "download",
