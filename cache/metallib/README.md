@@ -147,7 +147,7 @@ On Apple silicon hosts every x86_64 binary is ad-hoc signed as it is built: unsi
 ## Verify
 
 ```sh
-/opt/homebrew/bin/python3.14 -I -B -m unittest discover -s cache/metallib/lib
+python3.14 -I -B -m unittest discover -s cache/metallib/lib
 ```
 
 Tests that need Apple binaries are skipped unless `METALLIB_RUNTIME` (a prepared replay runtime),
