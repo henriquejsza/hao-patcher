@@ -29,19 +29,26 @@ More in the [gallery](docs/gallery.md): Safari and YouTube, the wind and air-qua
 
 ## Status
 
-Experimental. Developed and tested on a 2012 13-inch MacBook Pro (MacBookPro9,2: Ivy Bridge, Intel HD 4000); other
+Pre-alpha. Developed and tested on a 2012 13-inch MacBook Pro (MacBookPro9,2: Ivy Bridge, Intel HD 4000); other
 Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 
 | Area | What works |
 |---|---|
-| Startup | Screen on about 45 s after the kernel starts; Setup Assistant, account creation, automatic login |
-| Desktop | Menu bar, Dock, Finder, Liquid Glass, login window, lock screen |
+| Startup | Apple logo only; screen on about 46 s after the kernel starts (about 50 s on the first start-up); Setup Assistant, account creation, automatic login |
+| Desktop | Menu bar, Dock, Finder, Liquid Glass, Control Center, Spotlight indexing, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
-| Connectivity | Wi-Fi (joins at startup and from Setup), Bluetooth, AirPlay display discovery, sound on AirPlay speakers |
-| Audio and input | Speakers, keyboard, trackpad, brightness keys |
-| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
-| 3D | SceneKit scenes with materials, shadows and reflections |
-| ARM-only programs | Run on the Intel CPU through hao-runtime |
+| Connectivity | Wi-Fi (joins from Setup Assistant and System Settings, remembered networks at startup), Ethernet, Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
+| Audio and input | Speakers, camera and microphone, brightness keys, keyboard backlight, built-in keyboard and trackpad; external USB keyboard and mouse |
+| Power and ports | Sleep and wake (including the lid), battery level and charging, USB 3 at USB 3 speed, SD card slot |
+| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather (forecasts; temperature, air-quality and wind maps), Photos, Music, TV, Podcasts, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| 3D | SceneKit scenes with materials, shadows and reflections; Quick Look and Preview open SceneKit scenes |
+| Accounts | iMessage; App Store sign-in and installs |
+| ARM-only programs | macOS 27's ARM-only programs and apps built only for Apple silicon run on the Intel CPU through hao-runtime |
+
+**Releases:** none yet. The next is v0.0.9 (pre-alpha); planned versions are the
+[milestones](https://github.com/lythka/hao-patcher/milestones).
+
+**Installing:** being validated; see [Install](#install).
 
 [Progress](docs/progress.md) has the detailed lists, what's new and every fix.
 
@@ -59,38 +66,22 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 - To recover: hold Option at startup and boot another disk or Internet Recovery (Command-Option-R), reset NVRAM
   (Command-Option-P-R), then erase the disk and reinstall a supported macOS or restore a backup.
 
-## Requirements
+## Install
 
-- **Target:** an Intel x86_64 Mac.
-- **Build Mac:** an Intel Mac started from a hao image. The build runs as root, with System Integrity Protection's
-  filesystem protection off and AMFI relaxed (`amfi_get_out_of_my_way=1`); a hao image starts that way.
-- **Software:** nothing to install for the build. The assets folder carries an x86_64 CPython 3.12, and the source
-  is GitHub's archive of a commit (no git). `./hao` on its own (`create-installer`, `report`) runs on the Python 3
-  of the Xcode Command Line Tools (`xcode-select --install`).
-- **Inputs:** the assets folder: the macOS 27.2.1 (26B131) IPSW, the Tahoe 25G342 installer and Kernel Debug Kit,
-  OCLP support files and a hao-runtime payload ([Build inputs](docs/inputs.md)). Apple's files are not in this
-  repository.
-- **Disk space:** the assets folder (34 GB), the build's work folder and the 80 GiB image file.
+Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
-There is no end-user installer yet. The `hao` command ([tools/hao](tools/hao)) is its start, and
-[the builder path](docs/builder-path.md) describes where it is going: a USB installer made on any Mac.
+1. Download `hao` from the [releases page](https://github.com/lythka/hao-patcher/releases).
+2. Run `./hao create-installer`, choose the USB stick and confirm (the stick is erased; you may be asked for your
+   password). Today this is still four commands; [the developer guide](docs/building.md) lists them.
+3. On the MacBook Pro, hold Option at startup, choose **HAOBOOT** and run `/Volumes/HAO/install` from the Recovery's
+   Terminal.
+4. After the first start-up, run `sudo /usr/libexec/hao --aot` once.
+
+[Install](docs/install.md) has the requirements, logs for a bug report and building from source.
 
 ## Building
 
-On the build Mac, with the assets folder in place (`A`). Building on the Mac itself is new: the images tested so
-far were built on an Apple silicon Mac with a builder virtual machine, as [Building an image](docs/building.md)
-describes.
-
-```sh
-curl -L https://codeload.github.com/lythka/hao-patcher/tar.gz/main -o hao-patcher.tar.gz
-mkdir hao-patcher py && tar -xzf hao-patcher.tar.gz -C hao-patcher --strip-components 1
-tar -xzf $A/artifacts/python-x86_64-*/cpython-*-x86_64-apple-darwin-install_only.tar.gz -C py
-cd hao-patcher; P=../py/python/bin/python3.12; I=~/Desktop/macOS-27.2.1-MacBookPro9,2.img
-$P -I tools/hao/hao assets check $A --model MacBookPro9,2 --here                    # every input, by hash
-sudo $P -I tools/hao/hao build-image $I --model MacBookPro9,2 --assets $A --here    # build it
-```
-
-[Building an image](docs/building.md) covers the inputs, what the build does and testing in QEMU;
+For developers: [Building an image](docs/building.md) covers the inputs, what the build does and testing in QEMU;
 [architecture](docs/architecture.md) explains how the pieces fit, and [CONTRIBUTING.md](CONTRIBUTING.md) the tests
 and conventions.
 
@@ -98,7 +89,7 @@ and conventions.
 |---|---|
 | `pipeline/` | Image assembly, input rows, targets and patch sets |
 | `patches/` | Installation recipes, one folder per fix ([catalog](docs/PATCHES.md)) |
-| `tools/` | Fix builders, input preparation, builder VM, image and QEMU tools |
+| `tools/` | Fix builders, input preparation, image and QEMU tools |
 | `cache/` | Metal library and shader generators |
 | `docs/` | Status, architecture, inputs and build guide |
 

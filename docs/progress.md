@@ -3,36 +3,34 @@
 What works on the development Mac (MacBookPro9,2: Ivy Bridge, Intel HD 4000), what doesn't yet, and what changed.
 Back to the [README](../README.md).
 
-Tested with macOS 27.2.1 (26B131), 2026-11-12. The next image (built 2026-11-13, not yet tested on hardware)
-adds the fixes under [What's new](#whats-new).
+Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15.
 [The 26B131 repair review](repair-review-26B131.md) records earlier evidence.
 
 **Working**
-- Startup to Setup Assistant (screen on about 65 s after the kernel starts); Setup, account
-  creation and the automatic login after it.
-- Desktop: menu bar, Dock, Finder, Liquid Glass, lock screen, login window.
-- Accelerated graphics (HD 4000); hardware video decoding (YouTube 1080p H.264, no dropped frames).
-- Wi-Fi: joining from Setup or Settings, and automatic joining of remembered networks,
-  also at startup.
-- Speakers, brightness, keyboard, trackpad, Bluetooth; AirPlay displays are discovered, and sound plays on
-  AirPlay speakers.
-- Safari (including YouTube), Calendar, Terminal, System Settings, Preview, App Store, Books, Calculator,
-  Automator.
-- iPad-style apps: Stocks (watchlist, interactive charts, news) and News (Today feed with images); Home opens
-  (it needs an iCloud account to go further).
-- Maps: tiles, search, place cards, current location, satellite (3D globe and street level) and 3D buildings
-  (VectorKit's shader library repaired for the old compiler).
-- WebGPU in Safari: compute and rendering on the HD 4000.
-- SceneKit: 3D scenes with physically based materials, cube-map environments, shadows and reflections; Preview
-  opens SceneKit scenes.
-- Spotlight opens and searches.
-- macOS 27's ARM-only programs run on the Intel CPU through hao-runtime, including the
-  Geekbench 6 ARM CPU benchmark's workloads.
+- Startup: an Apple logo only; the screen comes on about 46 s after the kernel starts (about 50 s on the first start-up); Setup
+  Assistant from Language to account creation, and the automatic login after it.
+- Desktop: menu bar, Dock, Finder, Liquid Glass, Control Center, login window and lock screen. Finder stays up
+  through sidebar navigation, views, Quick Look and Get Info; Spotlight indexing keeps running.
+- Graphics: accelerated Metal on the HD 4000, including argument buffers and ASTC textures; hardware video decoding
+  (YouTube 1080p H.264, no dropped frames).
+- Connectivity: Wi-Fi joins from Setup Assistant and System Settings, and remembered networks at startup; Ethernet connects; Bluetooth pairs devices; AirDrop finds nearby devices; AirPlay
+  displays are discovered, and sound plays on AirPlay speakers.
+- Audio and input: the built-in speakers, camera and microphone, brightness keys, keyboard backlight, keyboard and
+  trackpad; an external USB keyboard and mouse.
+- Power and ports: sleep and wake, including the lid; battery level and charging; USB 3 ports at USB 3 speed; the SD
+  card slot.
+- Safari: web pages, YouTube, WebGPU compute and rendering.
+- Maps: the satellite 3D globe, street-level satellite and 3D buildings.
+- Weather: conditions, hourly and 10-day forecasts; the temperature, air-quality and wind maps.
+- SceneKit: 3D scenes with physically based materials, shadows and reflections; Quick Look and Preview open them.
+- Photos opens and shows the library; Music, TV and Podcasts play.
+- Calendar, Preview, App Store, Books, News, Stocks, Terminal and System Settings open and stay running.
+- macOS 27's ARM-only programs run on the Intel CPU through hao-runtime.
+- iMessage; App Store sign-in and installs, including apps built only for Apple silicon, which run on the Intel CPU
+  through hao-runtime.
 
 **In development**
-- Weather and its maps (native Metal argument buffers and ASTC textures on the HD 4000): the driver's
-  argument-encoder path is being finished.
-- Photos: the zoom from a thumbnail to the full-size view is being fixed.
+- Weather's precipitation map: the rain colour.
 - Spotlight: local app results. The next image lets macOS download its search data (only dyld is treated as
   an internal install, so the asset service uses Apple's public servers).
 - Live Text: the analysis service runs text recognition on the HD 4000; results in Photos
@@ -45,7 +43,7 @@ adds the fixes under [What's new](#whats-new).
 - Freeform: opens; opening a board is being fixed in hao-runtime.
 - Maps links to a coordinate (`maps://?ll=`): fixed in hao-runtime, in the next payload.
 - RealityKit: needs placement heaps, which the HD 4000's Metal driver lacks.
-- Sleep and updates: not tested yet.
+- Software updates, external displays, the headphone jack and Thunderbolt: not tested yet.
 
 ## What's new
 
