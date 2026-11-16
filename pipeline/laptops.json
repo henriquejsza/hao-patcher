@@ -9,7 +9,7 @@
   "trials": 0
  },
  "laptop2": {
-  "cleared": 5,
+  "cleared": 10,
   "image": "8fb92d5",
   "label": "Test machine B",
   "private": 15,
@@ -56,22 +56,6 @@
     "sha256": "3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35"
    },
    {
-    "date": "2026-11-14 19:26:25",
-    "now": "there",
-    "path": "/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
-    "payload": false,
-    "proven": false,
-    "sha256": "51f40097d8164ba13fa350b31172761dc366a56cc99946783d6eb1f13d822a5f"
-   },
-   {
-    "date": "2026-11-14 19:26:40",
-    "now": "there",
-    "path": "/System/Applications/App Store.app/Contents/MacOS/App Store",
-    "payload": false,
-    "proven": false,
-    "sha256": "8c4079fc2595ccb494a49ae785a5ab452cb2b4ce62081a309e1d62c368902c80"
-   },
-   {
     "date": "2026-11-14 19:28:31",
     "now": "there",
     "path": "/usr/lib/hao/libhao-appstore-policy.dylib",
@@ -86,30 +70,6 @@
     "payload": false,
     "proven": true,
     "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378"
-   },
-   {
-    "date": "2026-11-14 20:36:39",
-    "now": "there",
-    "path": "/usr/lib/hao/libhao-ios-coordinator-test.dylib",
-    "payload": false,
-    "proven": false,
-    "sha256": "f2a4a2bbc89f906067acd0d43fc832b059f841ac29c4bc28c077f0019e592901"
-   },
-   {
-    "date": "2026-11-14 20:55:30",
-    "now": "there",
-    "path": "/System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd",
-    "payload": false,
-    "proven": false,
-    "sha256": "e57e1af01db31de4acc4256de53fb39e4595478bec90f2a6e8866b741f5c7465"
-   },
-   {
-    "date": "2026-11-14 21:21:33",
-    "now": "there",
-    "path": "/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
-    "payload": false,
-    "proven": false,
-    "sha256": "7acb0e02f39bf83281ecf4a7f108007eb4fe4ed337cf1a9b44b34fb10caf8c8a"
    },
    {
     "date": "2026-11-15 16:25:50",
