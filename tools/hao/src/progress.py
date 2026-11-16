@@ -148,6 +148,71 @@ def pack_line(c, pack, files, size, extra=''):
                            '%9s' % console.human_size(size), extra)
 
 
+TOP = Path(__file__).resolve().parents[3]
+_DECLARED = {}
+
+
+def declared(recipe, top=None):
+    """[(path, origin, spec or None)] the recipe declares (patch.json "files", pipeline/patches.py), [] when none."""
+    top = Path(top or TOP)
+    if top not in _DECLARED:
+        import contextlib
+        import io
+        import runpy
+        by = {}
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                patches = runpy.run_path(str(top / 'pipeline' / 'patches.py'))
+                rows = patches['declared_files'](str(top / 'patches'))
+                spec = runpy.run_path(str(top / 'tools' / 'edit-engine' / 'src' / 'spec.py'))
+        except (OSError, ValueError, KeyError, SyntaxError, SystemExit):
+            rows, spec = [], None
+        for name, rev, _, path, origin, sp, entry in rows:
+            by.setdefault(name, []).append((path, origin, sp, rev))
+        _DECLARED[top] = (by, spec)
+    return _DECLARED[top][0].get(recipe, []), _DECLARED[top][1]
+
+
+ORIGIN_KIND = {'apple': 'apple', 'ventura': 'apple', 'tahoe': 'tahoe', 'oclp': 'oclp', 'hao': 'hao'}
+
+
+def show_edits(c, recipe, top=None):
+    """--show-edits: each file RECIPE declares, where it comes from and every edit to it (the mockups' level 4)."""
+    rows, S = declared(recipe, top)
+    if not rows or S is None:
+        return
+    whole = [(path, origin) for path, origin, sp, _ in rows if not sp]
+    for path, origin, sp, rev in rows:
+        if not sp:
+            continue
+        o = sp['origin']
+        c.print('', 'edits')
+        c.print('  ' + c.paint('bar', path), 'edits')
+        c.print('    %-9s%s' % ('origin', c.paint(ORIGIN_KIND.get(o.get('kind'), 'dim'), S['origin_text'](o))), 'edits')
+        n = len(sp['edits'])
+        for i, e in enumerate(sp['edits'], 1):
+            c.print('    %-9s%s  %s' % ('edit %d/%d' % (i, n), c.paint('bold', '%-26s' % e['id']),
+                                        c.paint('dim', S['edit_summary'](e))), 'edits')
+            if e['kind'] == 'literal':
+                before, after = S['hexbytes'](e['find']), S['hexbytes'](e['replace'])
+                c.print('             bytes  %s' % ' '.join(
+                    c.paint('bad', '%02X' % b) if i2 < len(after) and after[i2] != b else '%02X' % b
+                    for i2, b in enumerate(before)), 'edits')
+                c.print('                →   %s' % ' '.join(
+                    c.paint('ok', '%02X' % b) if i2 < len(before) and before[i2] != b else '%02X' % b
+                    for i2, b in enumerate(after)), 'edits')
+            if e.get('asm'):
+                c.print('             asm    %s  →  %s' % (e['asm']['before'], e['asm']['after']), 'edits')
+            c.print('             why    ' + c.paint('dim', e['reason']), 'edits')
+        c.print('    %-9s%s' % ('sign', S['sign_text'](sp.get('sign'))), 'edits')
+    if whole:
+        kinds = collections.Counter(S['origin_text'](o) for _, o in whole)
+        c.print('  ' + c.paint('dim', '%d whole file%s from %s' % (
+            len(whole), '' if len(whole) == 1 else 's', ', '.join(k + (' ×%d' % v if v > 1 else '')
+                                                                for k, v in kinds.most_common()))),
+            'edits')
+
+
 def pack_name(pack):
     return 'other fixes' if pack in (None, '', '(no pack)') else pack
 
@@ -438,6 +503,10 @@ class Kit:
             if pack in packs:
                 f, b = packs[pack]
                 self.c.item(pack_line(self.c, pack, f, b), ok=True, ev='pack.staged', pack=pack, files=f, bytes=b)
+                if self.c.at('edits'):
+                    for recipe in self.r.groups.get(pack, []):
+                        show_edits(self.c, recipe)
+                    self.c.print('', 'edits')
 
     def step(self, name):
         pass
@@ -591,6 +660,8 @@ class Assembly:
             self.posts.append(recipe)
         else:
             self.packs.setdefault(self.r.pack_of(recipe), []).append(recipe)
+        if self.c.at('edits'):
+            show_edits(self.c, recipe)
         self.task = self.c.task(('    ' if self.c.at('files') else '  ') + label)
 
     def command(self, cmd):

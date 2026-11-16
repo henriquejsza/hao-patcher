@@ -265,6 +265,23 @@ class Downloads(unittest.TestCase):
         self.assertIs(acq['load'], None)
 
 
+class Edits(unittest.TestCase):
+    def test_show_edits_prints_a_recipes_declared_edits(self):
+        out = Pipe()
+        c = CON.Console('edits', out=out, env={})
+        PROG.show_edits(c, 'golden-gate-hello')
+        text = out.getvalue()
+        for part in ('System/Library/Frameworks/Metal.framework/Versions/A/Metal', 'origin   OCLP', 'edit 1/3',
+                     'hello-not-skipped', 'bytes  B0 01', '→   B0 00', 'asm    mov al,1  →  mov al,0', 'why    ',
+                     'sign     ad hoc, once'):
+            self.assertIn(part, text)
+
+    def test_not_shown_below_the_edits_level(self):
+        out = Pipe()
+        PROG.show_edits(CON.Console('files', out=out, env={}), 'golden-gate-hello')
+        self.assertEqual(out.getvalue(), '')
+
+
 class Live(unittest.TestCase):
     def test_heartbeat_without_a_terminal(self):
         now = [0.0]
