@@ -380,6 +380,9 @@ class Hooks(unittest.TestCase):
         inst.prepare_kit(a, c, 'p')
         self.assertEqual(calls, [('plan', 'create-installer'), ('kit', c.run)])
         hao.hook_backends(a, c, build, inst)                  # twice wraps once
+        self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743'), 'dev 73b28ae2')
+        self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743-dirty'), 'dev 73b28ae2+')
+        self.assertEqual(hao.dev_label('73b28ae2e743'), 'dev 73b28ae2')
         self.assertEqual(build.resolve.original.__name__, '<lambda>')
 
 

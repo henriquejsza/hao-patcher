@@ -263,7 +263,7 @@ def guarded(fn, log=None):
     def run(a):
         c = CON.Console(CON.level_of(a))
         v = REP.version()
-        c.release = v.get('release') or ('dev ' + v['commit'][:12] if v.get('commit') else None)
+        c.release = v.get('release') or dev_label(v.get('commit'))
         if log:
             c.run = PROG.Runner(c, log)
             hook_backends(a, c)
@@ -295,6 +295,15 @@ def guarded(fn, log=None):
             if log:
                 REP.save_log(log, sys.argv[1:], c.events)
     return run
+
+
+def dev_label(described):
+    """"dev 73b28ae2" (and "+" when the checkout has changes) from git describe's "v0.1.0-alpha.1-78-g73b28ae2e743"."""
+    if not described:
+        return None
+    import re
+    m = re.search(r'(?:^|-g)([0-9a-f]{7,})(-dirty)?$', described)
+    return 'dev %s%s' % (m.group(1)[:8], '+' if m.group(2) else '') if m else 'dev ' + described
 
 
 def hook_backends(a, c, build=BUILD, inst=INST):
