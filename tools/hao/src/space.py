@@ -47,7 +47,8 @@ def plan(release, cache=None, data=None):
     mac += m['made_small_gb']
     stages.append(('IPSW rows', mac + m['metallib_work_gb'], drive, 'kernel, Metal libraries (from the images on the '
                    'drive), OCLP hardware, Python packages'))
-    stages.append(('donors', mac + m['donor_tree_gb'] + m['donor_rows_gb'] + m['scratch_gb'], drive,
+    stages.append(('donors', mac + m['donor_tree_gb'] + m['donor_rows_gb'] + m['donor_scratch_gb'] + m['scratch_gb'],
+                   drive,
                    'one x86_64 pass over the installer, read by range; its tree is deleted after'))
     mac += m['donor_rows_gb']
     stages.append(('kit', mac + m['kit_stage_mac_gb'], drive, 'the kit staged on this Mac (the images stay on the drive)'))
