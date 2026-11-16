@@ -642,6 +642,10 @@ class Assembly:
                 self.bar.update(done=1000, tail='Done')
                 self.bar.end(True)
             return
+        if self.task is None and self.c.at('steps'):
+            # it stopped between lines (in a step that has no line of its own): mark that step
+            import console
+            self.c.print(console.at_column('  ' + (SAY.get(self.last) or self.last or 'this step')) + self.c.bad)
         self.finish(False)
         if self.bar:
             self.bar.end(False)

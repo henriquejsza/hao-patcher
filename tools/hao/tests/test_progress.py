@@ -136,6 +136,11 @@ class Steps(unittest.TestCase):
                      'Log: '):
             self.assertIn(part, report)
 
+    def test_a_stop_between_lines_marks_its_step(self):
+        text = ASSEMBLY.split('STEP post hao-opencore')[0] + 'unmount of /Volumes/macOS refused\n'
+        _, out, _, _, _ = render(text, rc=1)
+        self.assertIn('  settings, caches and the OpenCore configuration  ✗', out.splitlines())
+
     def test_a_backend_stop_event_replaces_the_generic_report(self):
         text = 'STEP layout\n@hao {"ev": "stop", "what": "the disk is too small", "options": ["use a 256 GB disk"]}\n'
         _, _, _, r, _ = render(text, rc=2)
