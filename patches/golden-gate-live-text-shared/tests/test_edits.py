@@ -7,7 +7,7 @@ LC_LOAD_DYLIB (not weak) with timestamp 0 and versions 0, leaves the old signatu
 framework.build() then runs `codesign -f -s - --preserve-metadata=identifier,entitlements,flags,runtime`. The spec
 is the same load command and `sign` adhoc with the library's own identifier (local.libhelloblur).
 Always runs on a synthetic dylib. Real input, set one variable each:
-  LIVE_TEXT_SHARED_INPUT=PATH      libhelloblur.dylib (row libhelloblur, sha256 d471519b...)
+  LIVE_TEXT_SHARED_INPUT=PATH      libhelloblur.dylib (row libhelloblur, sha256 9c273f39...)
   LIVE_TEXT_SHARED_FRAMEWORK=PATH  the framework/ folder of the tools/live-text build (row live_text_framework);
                                    its replace/usr/lib/libhelloblur.dylib is the signed reference output
 The signed comparison also needs macOS codesign (skipped without it)."""
