@@ -9,7 +9,9 @@ the inputs list.
 - Apple silicon Mac, Xcode command-line tools, Python 3.14. The image is 80 GiB and the
   workspace 160 GiB, both sparse.
 - Builder VM: [`tools/ssdvm`](../tools/ssdvm/README.md), `pipeline/vm/`. All formatting, APFS
-  writes and kernel-collection builds run in it, never on the host.
+  writes and kernel-collection builds run in it, never on the host. Build the launcher with
+  `tools/ssdvm/build.sh store/vm/bin`; each build runs in an APFS clone of the VM at `store/vm/base`
+  (made with `ssdvm install`, see its README; `pipeline/vm/clones.py` provisions each clone).
 - Inputs from [Build inputs](inputs.md).
 
 ## 1. Prepare the inputs
@@ -20,6 +22,20 @@ the inputs list.
    [`oclp-hardware`](../tools/oclp-hardware/README.md)).
 3. Point the rows in `pipeline/inputs/` at them ([Input rows](inputs.md#input-rows)).
 
+### From a release
+
+A release (`release.json` on [hao-assets](https://github.com/lythka/hao-assets/releases)) pins every input:
+
+```sh
+python3.14 -I tools/hao/hao fetch release.json --cache FETCH      # downloads and assets, each by size and sha256
+python3.14 -I pipeline/place release.json FETCH                     # into store/, each row checked
+python3.14 -I tools/hao/hao build-image REPO --model MacBookPro9,2 --assembly ASSEMBLY   # release.json "assembly"
+```
+
+`place` lists what is still missing: the rows in `made_on_mac` (made from Apple's files by their producers; the
+ones that read the IPSW cannot run from a release yet) and the harvested caches (optional, skipped). Pass the
+release's `assembly`: without it build-image takes the target's default assembly.
+
 `plan` prints a set's run order and every input it needs:
 
 ```sh
@@ -29,9 +45,9 @@ python3.14 -I pipeline/patches.py plan pipeline/sets/golden-gate-26B131.txt pipe
 
 ### Optional cache recipes
 
-`golden-gate-shader-caches`, `golden-gate-icon-caches` and `golden-gate-font-registry` install
-caches made by [`cache/seeds`](../cache/seeds/README.md) from a harvest of a running laptop;
-`golden-gate-user-seed` copies their per-user parts into new accounts. Their patch.json has
+`golden-gate-shader-caches`, `golden-gate-icon-caches`, `golden-gate-font-registry` and
+`golden-gate-user-template` install caches and templates made by [`cache/seeds`](../cache/seeds/README.md) from a
+harvest of a running laptop; `golden-gate-user-seed` copies their per-user parts into new accounts. Their patch.json has
 `"optional": "caches"`. Without these files the image still builds; first boot and each new
 account's first login are slower.
 
