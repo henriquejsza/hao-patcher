@@ -208,6 +208,15 @@ class Live(unittest.TestCase):
         self.assertEqual(CON.bar(0.5, 4, utf=False), '##..')
         self.assertEqual(plain_task(c, 2, 4), '  x ##########.......... 2/4 files')
 
+    def test_from_the_stick_the_terminal_palette(self):
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_STICK': '/Volumes/HAO'})
+        self.assertEqual(c.ok, '\033[32m✓\033[0m')
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color'})
+        self.assertEqual(c.ok, '\033[38;5;28m✓\033[0m')
+
+    def test_spinner_glyphs_are_in_menlo_and_sf_mono(self):
+        self.assertTrue(set(CON.SPIN[True]) <= set('▖▘▝▗'))
+
     def test_fit_keeps_a_redrawn_line_on_one_row(self):
         s = '\033[1mabcdefghij\033[0m'
         self.assertEqual(CON.plain(CON.fit(s, 5)), 'abcd…')

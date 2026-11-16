@@ -55,7 +55,11 @@ class Style:
     def __init__(self, on, env=None):
         env = os.environ if env is None else env
         self.on = on
-        self.codes = SGR_256 if '256' in env.get('TERM', '') or env.get('COLORTERM') else SGR_8
+        # From the USB installer (HAO_STICK) the Recovery's Terminal is dark: its own 8 ANSI colours suit its
+        # background, the 256-colour values (chosen to read on white) do not. HAO_PALETTE=8|256 chooses.
+        palette = env.get('HAO_PALETTE') or ('8' if env.get('HAO_STICK') else '')
+        self.codes = SGR_8 if palette == '8' else SGR_256 if palette == '256' or '256' in env.get('TERM', '') or \
+            env.get('COLORTERM') else SGR_8
 
     def __call__(self, kind, text):
         if not self.on or not text:
@@ -72,9 +76,10 @@ class Style:
         return ERASED.sub(lambda m: self('warn', m.group(1)), text) if self.on else text
 
 
-# Spinner frames and bar cells: braille dots and blocks on a UTF-8 terminal (Terminal, the Recovery's Terminal, SSH),
-# ASCII where the stream is not UTF-8 or HAO_ASCII is set.
-SPIN = {True: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏', False: '-\\|/'}
+# Spinner frames and bar cells: quarter and full blocks on a UTF-8 terminal, ASCII where the stream is not UTF-8 or
+# HAO_ASCII is set. Only glyphs Menlo and SF Mono have themselves (✓ ✗ ▖ █ ░ … · →): a Recovery may lack the
+# fallback fonts a full macOS draws braille spinners with.
+SPIN = {True: '▖▘▝▗', False: '-\\|/'}
 CELLS = {True: ('█', '░'), False: ('#', '.')}
 TICK = 0.1                    # seconds between redraws of a live line
 HEARTBEAT = 30                # seconds between "still working" lines when the output is not a terminal
