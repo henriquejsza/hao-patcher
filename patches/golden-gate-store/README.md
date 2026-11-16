@@ -2,24 +2,26 @@
 
 App Store: Apple-silicon-only apps can be downloaded and updated on macOS 27.2.1 (26B131), MacBookPro9,2.
 
-Changes: adds `usr/lib/hao/libhao-appstore-policy.dylib` and `usr/lib/hao/libhao-ios-coordinator-test.dylib` (which
-needs golden-gate-ids' library, so golden-gate-ids comes first); replaces `appstoreagent` and `appstored`
-(`System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/`) and `App Store.app/Contents/MacOS/App Store`
-(row `store_service`); keeps the image's two daemons as `usr/lib/hao/store-policy-original-*`; updates
-`usr/lib/hao/stub-identities` for the replaced programs. Stops unless the three files are the ones the image had. Runs
-before golden-gate-native-identities, which lists the replaced daemon.
+Changes: adds `usr/lib/hao/libhao-appstore-policy.dylib` (row `store_service`, built from
+`tools/appstore-policy/src/store_policy.m`); edits the x86_64 slice of `appstored` and `appstoreagent`
+(`System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/`) and of the App Store app's hao stub
+(`App Store.app/Contents/MacOS/App Store`), as `edits/*.json` say, with `tools/edit-engine/stub-edit` (row
+`edit_engine`); every other slice is kept. Each spec stops unless its input is the 26B131 file it names. Runs after
+hao-runtime-fold and before golden-gate-native-identities, which lists the two edited daemons.
 
-Proof: these bytes on a test machine, owner 2026-11-15: "These are proven live fixes". Open: diag#0051 (a password
-prompt on every download).
+Proof: the same edits as the App Store files the owner used on a test machine on 2026-11-15 ("These are proven live
+fixes"), there with an embedded agent; this native agent has not run yet. Open: diag#0051.
 
 ## Verify
 
-`patches.py check`; after a build, the four files have the row's sha256.
+`patches.py check`; on the host, the three specs on Apple's 26B131 files give tools/appstore-policy prepare.py's files
+slice for slice (only the x86_64 slice alignment differs: Apple's is kept).
 
 ## Validation
 
 NEEDS VALIDATION on an image built with this recipe.
 
 ## Revisions
+- r3 2026-11-16 Edit specs on the image's own files instead of copied files; the library is built from our source.
 - r2 2026-11-15 Adds libhao-ios-coordinator-test.dylib, which the replaced appstoreagent loads.
 - r1 2026-11-15 New.

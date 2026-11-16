@@ -1,0 +1,58 @@
+{
+ "format": 1,
+ "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
+ "arch": "x86_64",
+ "origin": {
+  "kind": "apple",
+  "name": "appstored 26B131"
+ },
+ "applied_by": "installer",
+ "edits": [
+  {
+   "id": "legacy-preflight-accept-either-architecture",
+   "kind": "literal",
+   "section": "__TEXT,__text",
+   "find": "0f be 4d c8 41 0f be d6 41 0f be f4 48 89 c7 49 89 d8 e8 0b 5e 02 00",
+   "replace": "41 0f be d6 41 0f be f4 09 d6 90 90 48 89 c7 49 89 d8 e8 0b 5e 02 00",
+   "asm": {
+    "before": "ecx=requiresRosetta; edx=runsOnAppleSilicon; esi=runsOnIntel",
+    "after": "edx=runsOnAppleSilicon; esi=runsOnIntel | runsOnAppleSilicon"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  },
+  {
+   "id": "accept-native-mac-ipa-overlay",
+   "kind": "literal",
+   "section": "__TEXT,__text",
+   "find": "49 8b bd a0 00 00 00 48 8d 05 1a 95 35 00 49 89 85 a0 00 00 00 ff 15 e5 e8 35 00",
+   "replace": "49 8b bd a0 00 00 00 31 c0 90 90 90 90 90 49 89 85 a0 00 00 00 ff 15 e5 e8 35 00",
+   "asm": {
+    "before": "StoreItem._disqualifyIPAReason = unsupported platform string",
+    "after": "StoreItem._disqualifyIPAReason = nil"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  },
+  {
+   "id": "load-store-policy",
+   "kind": "op",
+   "op": "macho.add-dylib",
+   "args": {
+    "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  }
+ ],
+ "sign": {
+  "mode": "adhoc",
+  "preserve": [
+   "identifier",
+   "entitlements",
+   "requirements",
+   "flags",
+   "runtime"
+  ]
+ },
+ "expect": {
+  "3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35": "51f40097d8164ba13fa350b31172761dc366a56cc99946783d6eb1f13d822a5f"
+ }
+}

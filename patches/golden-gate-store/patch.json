@@ -1,5 +1,5 @@
 {
- "revision": 2,
+ "revision": 3,
  "stage": "oclp-hook",
  "applies": {
   "models": [
@@ -12,7 +12,8 @@
  "status": "product",
  "validated": false,
  "inputs": [
-  "store_service"
+  "store_service",
+  "edit_engine"
  ],
  "files": [
   {
@@ -28,24 +29,8 @@
    }
   },
   {
-   "path": "usr/lib/hao/libhao-ios-coordinator-test.dylib",
-   "origin": {
-    "kind": "hao",
-    "row": "store_service"
-   },
-   "source": "libhao-ios-coordinator-test.dylib",
-   "install": {
-    "mode": "0755",
-    "owner": "root:wheel"
-   }
-  },
-  {
-   "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
-   "origin": {
-    "kind": "hao",
-    "row": "store_service"
-   },
-   "source": "appstoreagent",
+   "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
+   "edits": "edits/appstored.json",
    "install": {
     "mode": "0755",
     "owner": "root:wheel",
@@ -55,12 +40,8 @@
    }
   },
   {
-   "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
-   "origin": {
-    "kind": "hao",
-    "row": "store_service"
-   },
-   "source": "appstored",
+   "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
+   "edits": "edits/appstoreagent.json",
    "install": {
     "mode": "0755",
     "owner": "root:wheel",
@@ -71,37 +52,13 @@
   },
   {
    "path": "System/Applications/App Store.app/Contents/MacOS/App Store",
-   "origin": {
-    "kind": "hao",
-    "row": "store_service"
-   },
-   "source": "app-store-ui",
+   "edits": "edits/app-store-ui.json",
    "install": {
     "mode": "0755",
     "owner": "root:wheel",
     "flags": [
      "restricted"
     ]
-   }
-  },
-  {
-   "path": "usr/lib/hao/store-policy-original-appstoreagent",
-   "origin": {
-    "kind": "hao"
-   },
-   "install": {
-    "mode": "0644",
-    "owner": "root:wheel"
-   }
-  },
-  {
-   "path": "usr/lib/hao/store-policy-original-appstored",
-   "origin": {
-    "kind": "hao"
-   },
-   "install": {
-    "mode": "0644",
-    "owner": "root:wheel"
    }
   }
  ]
