@@ -25,7 +25,7 @@ MacBook Pro.
 1. Get hao at the release tag:
 
    ```sh
-   git clone --branch v0.0.9 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/hao
+   git clone --branch v0.1.0-rc1 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/hao
    ```
 
 2. Plug in the USB drive and run:
