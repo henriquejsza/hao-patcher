@@ -105,12 +105,52 @@ class StubEdit(unittest.TestCase):
             E['stub_edit'](self.system, self.spec)
         self.assertEqual((self.system / PROGRAM).read_bytes(), self.before)
 
-    def test_the_spec_must_name_a_hao_stub(self):
+    def test_the_spec_must_name_a_hao_stub_or_an_apple_file(self):
         s = json.loads(self.spec.read_text())
-        s['origin'] = {'kind': 'apple'}
+        s['origin'] = {'kind': 'tahoe'}
         self.spec.write_text(json.dumps(s))
         with self.assertRaisesRegex(E['Refused'], 'origin kind hao'):
             E['stub_edit'](self.system, self.spec)
+
+
+@unittest.skipUnless(DATA, 'needs macOS codesign and a universal /usr/bin/true (x86_64 + arm64e)')
+class NativeEdit(unittest.TestCase):
+    """origin kind apple: the input's sha256 must be a key of the spec's expect; stub-identities is not touched."""
+    def setUp(self):
+        self.d = tempfile.TemporaryDirectory()
+        self.system = Path(self.d.name) / 'system'
+        self.program = self.system / 'usr/libexec/x'
+        self.program.parent.mkdir(parents=True)
+        self.program.write_bytes(DATA)
+        self.spec = Path(self.d.name) / 'spec.json'
+
+    def tearDown(self):
+        self.d.cleanup()
+
+    def write_spec(self, expect):
+        self.spec.write_text(json.dumps({
+            'format': 1, 'path': 'usr/libexec/x', 'arch': 'x86_64', 'origin': {'kind': 'apple'}, 'expect': expect,
+            'edits': [{'id': 'load-z', 'kind': 'op', 'op': 'macho.add-dylib', 'args': {'path': '/usr/lib/libz.1.dylib'},
+                       'reason': 'test'}],
+            'sign': {'mode': 'adhoc', 'preserve': ['identifier', 'flags']}}))
+
+    def test_an_expected_input_is_edited_on_its_x86_64_slice_only(self):
+        import hashlib
+        self.write_spec({hashlib.sha256(DATA).hexdigest(): '0' * 64})
+        r = E['stub_edit'](self.system, self.spec)
+        self.assertEqual(r['kind'], 'apple')
+        self.assertFalse(r['as_expected'])          # reported, not refused (signature padding differs per Mac)
+        old = {signing.slice_name(c, s): b for c, s, _, b in E['fat_slices'](DATA)[0]}
+        new = {signing.slice_name(c, s): b for c, s, _, b in E['fat_slices'](self.program.read_bytes())[0]}
+        self.assertEqual(old['arm64e'], new['arm64e'])
+        self.assertIn(b'/usr/lib/libz.1.dylib', new['x86_64'])
+        self.assertFalse((self.system / E['STUBS']).exists())
+
+    def test_another_input_is_refused_untouched(self):
+        self.write_spec({'1' * 64: '0' * 64})
+        with self.assertRaisesRegex(E['Refused'], 'expect'):
+            E['stub_edit'](self.system, self.spec)
+        self.assertEqual(self.program.read_bytes(), DATA)
 
 
 class Layout(unittest.TestCase):
