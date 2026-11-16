@@ -14,8 +14,8 @@ import subprocess
 
 UNIT = Path(__file__).resolve().parent
 REVISION = 12
-# tools/cache-dylib lives in hao-tools (a checkout next to this repository unless CACHE_DYLIB names its directory)
-CACHE_DYLIB = Path(os.environ.get('CACHE_DYLIB', UNIT.parents[2]/'hao-tools'/'tools'/'cache-dylib'))
+# tools/cache-dylib of this repository, unless CACHE_DYLIB names another copy's directory
+CACHE_DYLIB = Path(os.environ.get('CACHE_DYLIB', UNIT.parent/'cache-dylib'))
 
 
 def sha(path):
@@ -144,7 +144,7 @@ def extract_cache_image(cache, family, image, destination):
     (extraction record, verification record)."""
     import sys
     if not (CACHE_DYLIB/'cache_dylib.py').is_file():
-        raise ValueError('cache-dylib not found at '+str(CACHE_DYLIB)+': check out hao-tools next to this repository or set CACHE_DYLIB')
+        raise ValueError('cache-dylib not found at '+str(CACHE_DYLIB)+': set CACHE_DYLIB to a cache-dylib directory')
     sys.path.insert(0, str(CACHE_DYLIB))
     import cache_dylib, check  # noqa: E401 (imported here: the guest copy of this tool never extracts)
     record = cache_dylib.extract(cache, family.removeprefix('dyld_shared_cache_'), image, destination)

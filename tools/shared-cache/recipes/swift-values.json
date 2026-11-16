@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "kind": "generic-values",
+  "discover_all_modules": true,
+  "owners": {
+    "Swift": "/usr/lib/swift/libswiftCore.dylib",
+    "SwiftUI": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+    "AttributeGraph": "/System/Library/PrivateFrameworks/AttributeGraph.framework/AttributeGraph"
+  },
+  "records": [
+    {"name": "7SwiftUI11_GraphValueVySiG", "owner": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI"},
+    {"name": "7SwiftUI11_GraphValueVySiSgG", "owner": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI"},
+    {"name": "14AttributeGraph13PointerOffsetVySiSiG", "owner": "/System/Library/PrivateFrameworks/AttributeGraph.framework/AttributeGraph"},
+    {"name": "14AttributeGraph9AttributeVySiG", "owner": "/System/Library/PrivateFrameworks/AttributeGraph.framework/AttributeGraph"},
+    {"name": "7SwiftUI15ModifiedContentVyAA9EmptyViewVAA14_PaddingLayoutVG", "owner": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI"},
+    {"name": "7SwiftUI11_GraphValueVyAA15ModifiedContentVyAA9EmptyViewVAA14_PaddingLayoutVGG", "owner": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI"}
+  ]
+}

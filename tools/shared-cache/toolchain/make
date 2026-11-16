@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Build the host serializers from published dyld source and the local adaptations.
+
+    toolchain/make DYLD_SOURCE OUTPUT [--arch arm64|x86_64] [--availability AVAILABILITY_SOURCE]
+
+DYLD_SOURCE is Apple's dyld at tag dyld-1378. dyld includes <dyld/VersionMap.h>, which Apple generates from its
+AvailabilityVersions project; it is generated here from that project at tag AvailabilityVersions-157.2, cloned from
+GitHub unless --availability names a copy. The three files used are checked against their sha256 below.
+"""
+import argparse
+import hashlib
+import json
+import platform
+from pathlib import Path
+import plistlib
+import shutil
+import subprocess
+import sys
+
+HERE = Path(__file__).resolve().parent
+AVAILABILITY_URL = 'https://github.com/apple-oss-distributions/AvailabilityVersions.git'
+AVAILABILITY_TAG = 'AvailabilityVersions-157.2'
+AVAILABILITY_FILES = {
+    'availability': '62bd918c5a58cd5853cfd10af5469530ab464f6a4dc6fe3a917fcc22701305fd',
+    'availability.dsl': '1d09c3e8d7c6b69fa8d5aa7645cc024075f9d1de097cf28c105524314c67fa65',
+    'templates/VersionMap.h': '542a11482ee8ef7214c68c24fdb164f7aea64e3d75ad00c977aa94880c30b1b9',
+}
+
+
+def version_map(availability, output, destination):
+    """Generate dyld's VersionMap.h at DESTINATION from AvailabilityVersions (AVAILABILITY, or a clone in OUTPUT)."""
+    if availability is None:
+        availability = output / 'availability-source'
+        subprocess.run(['git', '-c', 'advice.detachedHead=false', 'clone', '-q', '--depth', '1', '--branch',
+                        AVAILABILITY_TAG, AVAILABILITY_URL, str(availability)], check=True)
+    for name, expected in AVAILABILITY_FILES.items():
+        if hashlib.sha256((availability / name).read_bytes()).hexdigest() != expected:
+            raise SystemExit(f'{availability / name}: not {AVAILABILITY_TAG}\'s file (sha256 differs)')
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run([sys.executable, '-I', str(availability / 'availability'), '--preprocess',
+                    str(availability / 'templates/VersionMap.h'), str(destination)], check=True)
+
+
+def build(source, output, arch, availability=None):
+    output = output.resolve()
+    tree = output / 'source'
+    shutil.copytree(source, tree, ignore=shutil.ignore_patterns('.git'))  # a git clone's metadata is not source
+    subprocess.run(['patch', '-p1', '-i', str(HERE / 'source.patch')], cwd=tree, check=True)
+    shutil.copytree(HERE / 'added-source', tree, dirs_exist_ok=True)
+    version_map(availability, output, tree / 'include/dyld/VersionMap.h')
+    project = tree / 'dyld.xcodeproj/project.pbxproj'
+    data = json.loads(subprocess.check_output(['plutil', '-convert', 'json', '-o', '-', str(project)]))
+    for change in json.loads((HERE / 'project-semantic-changes.json').read_text()):
+        node = data
+        for key in change['path'][:-1]:
+            node = node[key]
+        node[change['path'][-1]] = change['after']
+    project.write_bytes(plistlib.dumps(data, sort_keys=False))
+    sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+    subprocess.run(['xcodebuild', '-project', 'dyld.xcodeproj', '-target', 'libslc_builder.dylib',
+                    '-configuration', 'Release', '-sdk', 'macosx', f'ARCHS={arch}',
+                    'MACOSX_DEPLOYMENT_TARGET=13.0', 'CODE_SIGNING_ALLOWED=NO',
+                    'ENABLE_MODULE_VERIFIER=NO', f'ARM_SDK={sdk}',
+                    f'SYMROOT={output}/products', f'OBJROOT={output}/objects',
+                    f'CLANG_MODULE_CACHE_PATH={output}/modules'], cwd=tree, check=True)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source', type=Path)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--arch', choices=('arm64', 'x86_64'), default=platform.machine(),
+                        help='architecture of the serializers and host adapters (default: this Mac\'s)')
+    parser.add_argument('--availability', type=Path,
+                        help=f'a copy of AvailabilityVersions at {AVAILABILITY_TAG} (default: cloned from GitHub)')
+    args = parser.parse_args()
+    build(args.source, args.output, args.arch, args.availability.resolve() if args.availability else None)

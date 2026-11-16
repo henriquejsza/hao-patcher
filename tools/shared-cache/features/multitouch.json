@@ -1,0 +1,9 @@
+{
+  "providers": {
+    "MultitouchHID": "/System/Library/Extensions/AppleMultitouchDriver.kext/Contents/PlugIns/MultitouchHID.plugin/Contents/MacOS/MultitouchHID"
+  },
+  "applies": {
+    "architecture": "x86_64",
+    "gpu": "Intel Ivy Bridge"
+  }
+}

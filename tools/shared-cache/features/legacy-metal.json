@@ -1,0 +1,12 @@
+{
+  "providers": {
+    "Metal": "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+    "MetalOld.dylib": "/System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib",
+    "libllvm-flatbuffers.dylib": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libllvm-flatbuffers.dylib",
+    "libGPUCompilerUtils.dylib": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libGPUCompilerUtils.dylib"
+  },
+  "applies": {
+    "architecture": "x86_64",
+    "gpu": "Intel Ivy Bridge"
+  }
+}

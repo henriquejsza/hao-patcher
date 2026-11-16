@@ -1,0 +1,1258 @@
+{
+  "layout": {
+    "schema": 1,
+    "subcache_suffix": ".17",
+    "prefix_size": 540672,
+    "mappings": [
+      {
+        "address": 140703783976960,
+        "size": 540672,
+        "maximum": 5,
+        "initial": 5,
+        "flags": 0,
+        "file_offset": 0
+      },
+      {
+        "address": 140703784517632,
+        "size": 262144,
+        "maximum": 3,
+        "initial": 3,
+        "flags": 0,
+        "file_offset": 540672
+      },
+      {
+        "address": 140703784779776,
+        "size": 268435456,
+        "maximum": 1,
+        "initial": 1,
+        "flags": 0,
+        "file_offset": 802816
+      }
+    ],
+    "final_images": 3615,
+    "final_subcaches": 17,
+    "selector_base": 140703706049152,
+    "legacy_objc_root": 140703173014888,
+    "requires": [
+      "Every blob must fit its reservation.",
+      "Preserve all provider Mach-O and original VM addresses.",
+      "Regenerate added pointer slide membership and final signatures."
+    ],
+    "selector_names": {
+      "address": 140703784779776,
+      "reserve": 16384
+    },
+    "class_names": {
+      "address": 140703784796160,
+      "reserve": 4096
+    },
+    "protocol_names": {
+      "address": 140703784800256,
+      "reserve": 4096
+    },
+    "selector": {
+      "address": 140703784845312,
+      "reserve": 16777216
+    },
+    "class": {
+      "address": 140703801622528,
+      "reserve": 8388608
+    },
+    "protocol": {
+      "address": 140703810011136,
+      "reserve": 2097152
+    },
+    "ro": {
+      "address": 140703812108288,
+      "reserve": 131072
+    },
+    "imageinfo": {
+      "address": 140703812239360,
+      "reserve": 65536
+    },
+    "category_lists": {
+      "address": 140703812304896,
+      "reserve": 1048576
+    },
+    "path_trie": {
+      "address": 140703813353472,
+      "reserve": 1048576
+    },
+    "patch_table": {
+      "address": 140703814402048,
+      "reserve": 100663296
+    },
+    "cached_pbl": {
+      "address": 140703915065344,
+      "reserve": 8388608
+    },
+    "program_pbl": {
+      "address": 140703923453952,
+      "reserve": 100663296
+    },
+    "program_trie": {
+      "address": 140704024117248,
+      "reserve": 1048576
+    },
+    "atlas": {
+      "address": 140704025165824,
+      "reserve": 4194304
+    },
+    "slide_info": {
+      "address": 140704029360128,
+      "reserve": 1048576
+    },
+    "rw": {
+      "address": 140703784517632,
+      "reserve": 32768
+    },
+    "new_protocol": {
+      "address": 140703784550400,
+      "reserve": 4096
+    },
+    "provider_rw": {
+      "address": 140703784554496,
+      "reserve": 225280
+    }
+  },
+  "plan": {
+    "original_mapping_records": [
+      {
+        "address": 140703128616960,
+        "file": "dyld_shared_cache_x86_64",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 645677056
+      },
+      {
+        "address": 140704202358784,
+        "file": "dyld_shared_cache_x86_64",
+        "file_offset": 645677056,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 54673408
+      },
+      {
+        "address": 140704257032192,
+        "file": "dyld_shared_cache_x86_64",
+        "file_offset": 700350464,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 14073856
+      },
+      {
+        "address": 140705276100608,
+        "file": "dyld_shared_cache_x86_64",
+        "file_offset": 714424320,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 158138368
+      },
+      {
+        "address": 140707423584256,
+        "file": "dyld_shared_cache_x86_64.01",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 530432000
+      },
+      {
+        "address": 140708497326080,
+        "file": "dyld_shared_cache_x86_64.01",
+        "file_offset": 530432000,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 53182464
+      },
+      {
+        "address": 140708550508544,
+        "file": "dyld_shared_cache_x86_64.01",
+        "file_offset": 583614464,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 21872640
+      },
+      {
+        "address": 140709571067904,
+        "file": "dyld_shared_cache_x86_64.01",
+        "file_offset": 605487104,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 182796288
+      },
+      {
+        "address": 140711718551552,
+        "file": "dyld_shared_cache_x86_64.02",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 534855680
+      },
+      {
+        "address": 140712792293376,
+        "file": "dyld_shared_cache_x86_64.02",
+        "file_offset": 534855680,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 45514752
+      },
+      {
+        "address": 140712837808128,
+        "file": "dyld_shared_cache_x86_64.02",
+        "file_offset": 580370432,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 24313856
+      },
+      {
+        "address": 140713866035200,
+        "file": "dyld_shared_cache_x86_64.02",
+        "file_offset": 604684288,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 182976512
+      },
+      {
+        "address": 140716013518848,
+        "file": "dyld_shared_cache_x86_64.03",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 531890176
+      },
+      {
+        "address": 140717087260672,
+        "file": "dyld_shared_cache_x86_64.03",
+        "file_offset": 531890176,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 50593792
+      },
+      {
+        "address": 140717137854464,
+        "file": "dyld_shared_cache_x86_64.03",
+        "file_offset": 582483968,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 34209792
+      },
+      {
+        "address": 140718161002496,
+        "file": "dyld_shared_cache_x86_64.03",
+        "file_offset": 616693760,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 185581568
+      },
+      {
+        "address": 140720308486144,
+        "file": "dyld_shared_cache_x86_64.04",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 534036480
+      },
+      {
+        "address": 140721382227968,
+        "file": "dyld_shared_cache_x86_64.04",
+        "file_offset": 534036480,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 38715392
+      },
+      {
+        "address": 140721420943360,
+        "file": "dyld_shared_cache_x86_64.04",
+        "file_offset": 572751872,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 24690688
+      },
+      {
+        "address": 140722455969792,
+        "file": "dyld_shared_cache_x86_64.04",
+        "file_offset": 597442560,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 154976256
+      },
+      {
+        "address": 140724603453440,
+        "file": "dyld_shared_cache_x86_64.05",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 538034176
+      },
+      {
+        "address": 140725677195264,
+        "file": "dyld_shared_cache_x86_64.05",
+        "file_offset": 538034176,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 35127296
+      },
+      {
+        "address": 140725712322560,
+        "file": "dyld_shared_cache_x86_64.05",
+        "file_offset": 573161472,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 36257792
+      },
+      {
+        "address": 140726750937088,
+        "file": "dyld_shared_cache_x86_64.05",
+        "file_offset": 609419264,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 195510272
+      },
+      {
+        "address": 140728898420736,
+        "file": "dyld_shared_cache_x86_64.06",
+        "file_offset": 0,
+        "index": 0,
+        "initial": 5,
+        "maximum": 5,
+        "size": 460259328
+      },
+      {
+        "address": 140729972162560,
+        "file": "dyld_shared_cache_x86_64.06",
+        "file_offset": 460259328,
+        "index": 1,
+        "initial": 1,
+        "maximum": 3,
+        "size": 48463872
+      },
+      {
+        "address": 140730020626432,
+        "file": "dyld_shared_cache_x86_64.06",
+        "file_offset": 508723200,
+        "index": 2,
+        "initial": 3,
+        "maximum": 3,
+        "size": 23363584
+      },
+      {
+        "address": 140731045904384,
+        "file": "dyld_shared_cache_x86_64.06",
+        "file_offset": 532086784,
+        "index": 3,
+        "initial": 1,
+        "maximum": 1,
+        "size": 350437376
+      }
+    ],
+    "preserved_nonfile_reservations": [
+      {
+        "address": 140705434238976,
+        "name": "Rosetta read-only reservation",
+        "size": 1989345280
+      },
+      {
+        "address": 140704271106048,
+        "name": "Rosetta read-write reservation",
+        "size": 502497280
+      },
+      {
+        "address": 140731396341760,
+        "name": "dynamic configuration",
+        "size": 16384
+      }
+    ],
+    "shared_region": {
+      "max_slide": 428064768,
+      "size": 30064771072,
+      "start": 140703128616960
+    },
+    "providers": [
+      {
+        "path": "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+        "placement": {
+          "provider_header_address": 140703775096832,
+          "mappings": [
+            {
+              "address": 140703774556160,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 655360,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140703775211520,
+              "file_offset": 655360,
+              "flags": 4,
+              "initial": 1,
+              "maximum": 3,
+              "relative_address": 114688,
+              "size": 8192,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 346,
+                "file_offset": 942080,
+                "page_count": 2,
+                "page_size": 4096,
+                "page_starts": [
+                  0,
+                  0
+                ],
+                "size": 44,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140703775219712,
+              "file_offset": 663552,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 122880,
+              "size": 49152,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 3479,
+                "file_offset": 942128,
+                "page_count": 12,
+                "page_size": 4096,
+                "page_starts": [
+                  6,
+                  0,
+                  0,
+                  14,
+                  8,
+                  0,
+                  4,
+                  0,
+                  0,
+                  0,
+                  38,
+                  2
+                ],
+                "size": 64,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 2
+            },
+            {
+              "address": 140703775268864,
+              "file_offset": 712704,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 172032,
+              "size": 237568,
+              "slide_info": null,
+              "source_segment": 3
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib",
+        "placement": {
+          "provider_header_address": 140703776047104,
+          "mappings": [
+            {
+              "address": 140703775506432,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 2506752,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140703778013184,
+              "file_offset": 2506752,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 1966080,
+              "size": 409600,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 33919,
+                "file_offset": 5881856,
+                "page_count": 100,
+                "page_size": 4096,
+                "page_starts": [
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  2,
+                  0,
+                  2,
+                  4,
+                  0,
+                  2,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  2,
+                  0,
+                  2,
+                  0,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  0,
+                  2,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  2,
+                  0,
+                  4,
+                  4,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  0,
+                  2,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  16384,
+                  16384,
+                  806,
+                  0,
+                  0,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  4,
+                  2,
+                  2
+                ],
+                "size": 240,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140703778422784,
+              "file_offset": 2916352,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 2375680,
+              "size": 2981888,
+              "slide_info": null,
+              "source_segment": 2
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211",
+        "placement": {
+          "provider_header_address": 140703781945344,
+          "mappings": [
+            {
+              "address": 140703781404672,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 552960,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140703781957632,
+              "file_offset": 552960,
+              "flags": 4,
+              "initial": 1,
+              "maximum": 3,
+              "relative_address": 12288,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 95,
+                "file_offset": 593920,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  0
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140703781961728,
+              "file_offset": 557056,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 16384,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 37,
+                "file_offset": 593968,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  0
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 2
+            },
+            {
+              "address": 140703781965824,
+              "file_offset": 561152,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 20480,
+              "size": 45056,
+              "slide_info": null,
+              "source_segment": 3
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211Old.dylib",
+        "placement": {
+          "provider_header_address": 140707954556928,
+          "mappings": [
+            {
+              "address": 140707954016256,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 884736,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140707954900992,
+              "file_offset": 884736,
+              "flags": 32,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 344064,
+              "size": 4096,
+              "slide_info": null,
+              "source_segment": 1
+            },
+            {
+              "address": 140708788240384,
+              "file_offset": 888832,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 833683456,
+              "size": 61440,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 3658,
+                "file_offset": 1081344,
+                "page_count": 15,
+                "page_size": 4096,
+                "page_starts": [
+                  836,
+                  0,
+                  2,
+                  2,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "size": 70,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 2
+            },
+            {
+              "address": 140709828628480,
+              "file_offset": 950272,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 1874071552,
+              "size": 147456,
+              "slide_info": null,
+              "source_segment": 3
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer",
+        "placement": {
+          "provider_header_address": 140703782551552,
+          "mappings": [
+            {
+              "address": 140703782010880,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 561152,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140703782572032,
+              "file_offset": 561152,
+              "flags": 4,
+              "initial": 1,
+              "maximum": 3,
+              "relative_address": 20480,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 26,
+                "file_offset": 638976,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  0
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140703782576128,
+              "file_offset": 565248,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 24576,
+              "size": 8192,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 423,
+                "file_offset": 639024,
+                "page_count": 2,
+                "page_size": 4096,
+                "page_starts": [
+                  6,
+                  0
+                ],
+                "size": 44,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 2
+            },
+            {
+              "address": 140703782584320,
+              "file_offset": 573440,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 32768,
+              "size": 81920,
+              "slide_info": null,
+              "source_segment": 3
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOld.dylib",
+        "placement": {
+          "provider_header_address": 140707955445760,
+          "mappings": [
+            {
+              "address": 140707954905088,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 704512,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140707955609600,
+              "file_offset": 704512,
+              "flags": 32,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 163840,
+              "size": 4096,
+              "slide_info": null,
+              "source_segment": 1
+            },
+            {
+              "address": 140708885577728,
+              "file_offset": 708608,
+              "flags": 4,
+              "initial": 1,
+              "maximum": 3,
+              "relative_address": 930131968,
+              "size": 45056,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 3113,
+                "file_offset": 1052672,
+                "page_count": 11,
+                "page_size": 4096,
+                "page_starts": [
+                  980,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  6,
+                  0,
+                  0,
+                  2,
+                  0
+                ],
+                "size": 62,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 2
+            },
+            {
+              "address": 140708910923776,
+              "file_offset": 753664,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 955478016,
+              "size": 126976,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 2355,
+                "file_offset": 1052736,
+                "page_count": 31,
+                "page_size": 4096,
+                "page_starts": [
+                  402,
+                  0,
+                  0,
+                  16384,
+                  434,
+                  0,
+                  0,
+                  950,
+                  34,
+                  16384,
+                  16384,
+                  358,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  16384,
+                  994,
+                  16384,
+                  16384,
+                  590,
+                  804,
+                  16384,
+                  16384,
+                  16384
+                ],
+                "size": 102,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 3
+            },
+            {
+              "address": 140708915826688,
+              "file_offset": 880640,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 960380928,
+              "size": 8192,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 447,
+                "file_offset": 1052840,
+                "page_count": 2,
+                "page_size": 4096,
+                "page_starts": [
+                  234,
+                  0
+                ],
+                "size": 44,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 4
+            },
+            {
+              "address": 140709952122880,
+              "file_offset": 888832,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 1996677120,
+              "size": 176128,
+              "slide_info": null,
+              "source_segment": 5
+            }
+          ]
+        }
+      },
+      {
+        "path": "/usr/lib/libhelloblur.dylib",
+        "placement": {
+          "provider_header_address": 140703783206912,
+          "mappings": [
+            {
+              "address": 140703782666240,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 548864,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140703783215104,
+              "file_offset": 548864,
+              "flags": 4,
+              "initial": 1,
+              "maximum": 3,
+              "relative_address": 8192,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 74,
+                "file_offset": 573440,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  4
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140703783219200,
+              "file_offset": 552960,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 12288,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 2,
+                "file_offset": 573488,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  0
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 2
+            },
+            {
+              "address": 140703783223296,
+              "file_offset": 557056,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 16384,
+              "size": 32768,
+              "slide_info": null,
+              "source_segment": 3
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/LibSystemShim.dylib",
+        "placement": {
+          "provider_header_address": 140703783796736,
+          "mappings": [
+            {
+              "address": 140703783256064,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 544768,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140703783800832,
+              "file_offset": 544768,
+              "flags": 4,
+              "initial": 1,
+              "maximum": 3,
+              "relative_address": 4096,
+              "size": 4096,
+              "slide_info": null,
+              "source_segment": 1
+            },
+            {
+              "address": 140703783804928,
+              "file_offset": 548864,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 8192,
+              "size": 40960,
+              "slide_info": null,
+              "source_segment": 2
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libllvm-flatbuffers.dylib",
+        "placement": {
+          "provider_header_address": 140707956154368,
+          "mappings": [
+            {
+              "address": 140707955613696,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 835584,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140708945772544,
+              "file_offset": 835584,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 989618176,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 190,
+                "file_offset": 905216,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  172
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140709997289472,
+              "file_offset": 839680,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 2041135104,
+              "size": 77824,
+              "slide_info": null,
+              "source_segment": 2
+            }
+          ]
+        }
+      },
+      {
+        "path": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libGPUCompilerUtils.dylib",
+        "placement": {
+          "provider_header_address": 140707956989952,
+          "mappings": [
+            {
+              "address": 140707956449280,
+              "file_offset": 0,
+              "flags": 0,
+              "initial": 5,
+              "maximum": 5,
+              "relative_address": -540672,
+              "size": 557056,
+              "slide_info": null,
+              "source_segment": 0
+            },
+            {
+              "address": 140708946624512,
+              "file_offset": 557056,
+              "flags": 0,
+              "initial": 3,
+              "maximum": 3,
+              "relative_address": 989634560,
+              "size": 4096,
+              "slide_info": {
+                "delta_mask": 72056494526300160,
+                "extras_count": 0,
+                "fields": 1,
+                "file_offset": 593920,
+                "page_count": 1,
+                "page_size": 4096,
+                "page_starts": [
+                  168
+                ],
+                "size": 42,
+                "value_add": 140703128616960,
+                "version": 2
+              },
+              "source_segment": 1
+            },
+            {
+              "address": 140709998141440,
+              "file_offset": 561152,
+              "flags": 0,
+              "initial": 1,
+              "maximum": 1,
+              "relative_address": 2041151488,
+              "size": 45056,
+              "slide_info": null,
+              "source_segment": 2
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
