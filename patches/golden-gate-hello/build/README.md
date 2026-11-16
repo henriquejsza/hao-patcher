@@ -13,7 +13,7 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-hello/build/tests  
 
 ## Inputs and outputs
 
-- In: `src/hello_blurcache.m`, clang and the Command Line Tools' `MacOSX26.sdk` (26.5; `HELLOBLUR_SDK` names another).
+- In: `src/hello_blurcache.m`, Xcode (27.2 for the row's bytes) and its macOS SDK (`HELLOBLUR_SDK` names another).
 - Out: an x86_64 `MH_DYLIB`, macOS 13 minimum, manual reference counting (`-fno-objc-arc`), `-O2 -Wall -Werror`,
   install name `/usr/lib/libhelloblur.dylib`, linking only Foundation, libobjc and libSystem (not Metal: the Metal
   wrapper loads it; not AppKit: it is mapped into every Metal process), ad hoc signed with identifier

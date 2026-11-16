@@ -23,7 +23,7 @@ class RepoPath(unittest.TestCase):
             source.mkdir()
             (source/'model.mil').write_text('%s\n%s\n' % (detector.PIXEL_INPUT, detector.PIXEL_TO_TENSOR))
             record = detector.prepare(source, Path(scratch)/'out')
-            self.assertEqual('cr_td_model_v3_e5.mlmodelc.bundle', record['path'])
+            self.assertNotIn('path', record)   # released records carry no folder names
 
 
 if __name__ == '__main__':
