@@ -470,6 +470,11 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
                                 capture_output=True, text=True).stdout.strip())
     if dirty:
         problems.append('hao-patcher: the checkout has uncommitted changes')
+    for _, n, inputs in plan:
+        left_out = sorted(set(harvested) & set(inputs))
+        if left_out and not json.loads((TOP / 'patches' / n / 'patch.json').read_text()).get('optional'):
+            problems.append('%s: needs %s, harvested and not shipped, but is not optional: a build from this release '
+                            'would stop there' % (n, ', '.join(left_out)))
     rel = {'contract_version': 2, 'release': name, 'version': version, 'channel': channel, 'prerelease': prerelease,
            'proven_models': sorted({m for p in packs.values() for m in p.get('proven_on', [])}),
            'assembly': Path(assembly).stem, 'golden_build': a['golden_build'], 'donor_build': a['donor_build'],
