@@ -31,7 +31,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 | golden-gate-metal-framebuffer | r8 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 166aa56b metal-framebuffer-26A428-20261105-f8ff3547ed3c |
 | golden-gate-metal-libraries | r21 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
 | golden-gate-metal27 | r3 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
-| golden-gate-native-identities | r6 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload |
+| golden-gate-native-identities | r6 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
 | golden-gate-root-launchservices | r2 | experiment | post | no: row root_launchservices_golden_gate | - | root_launchservices_golden_gate - root-launchservices-26B131-not-made-yet |
 | golden-gate-shader-caches | r14 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
 | golden-gate-shared-cache | r5 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 8dfb9ce7 rebuilt-cache-fold-in-26B131-20261114-86dd72e |
@@ -39,14 +39,14 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 | golden-gate-store | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-user-seed | r9 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-user-template | r7 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
-| golden-gate-userspace | r79 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 52b89e0a payload |
+| golden-gate-userspace | r80 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 52b89e0a payload |
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | hao-opencore | r65 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 52b89e0a payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r81 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 52b89e0a payload |
 | hao-runtime-fold | r5 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 948219e4 payload |
 | metal-compiler-compat | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat 66e1e6dd compiler-service |
 | metal-metalold | r1 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
-| metalold-selectors | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae |
+| metalold-selectors | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher adc8a4a9) |
 | rec-audio | r2 | product | recovery | yes | recovery | - |
 | rec-bluetooth-input | r2 | product | recovery | yes | recovery | - |
 | rec-brightness-keys | r2 | product | recovery | yes | recovery | - |
@@ -184,7 +184,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
   - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from hao (row user_template_golden_gate)
-- **golden-gate-userspace** r79
+- **golden-gate-userspace** r80
   - `usr/lib/dss_shim.dylib`: from hao (row display_state_shim)
   - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: from hao (row io80211_compat)
   - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: from hao (row wifip2p_compat)
@@ -360,7 +360,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-store | - | - | - | - | - | r1* | r2* | r2* | r4 |
 | golden-gate-user-seed | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 |
 | golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* |
-| golden-gate-userspace | r74* | r79 | r79 | r79 | r79 | r79 | r79 | r79 | r79 |
+| golden-gate-userspace | r74* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r79* |
 | golden-gate-windowserver-filter | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
 | hao-opencore | r63* | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 |
 | hao-runtime | r78* | r80* | r80* | - | - | - | - | - | r80* |
@@ -380,7 +380,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | edit_engine | - | - | - | - | - | - | - | - | - |
 | fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
 | font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 |
-| golden_gate_userspace | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b |
+| golden_gate_userspace | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* |
 | hao_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* |
 | hao_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - |
 | hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e | bae5502e | bae5502e | bae5502e |
@@ -461,8 +461,10 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-shared-cache r5 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
 - golden-gate-user-template r7 is newer than every image built with it (newest r6).
+- golden-gate-userspace r80 is newer than every image built with it (newest r79).
 - hao-runtime r81 is newer than every image built with it (newest r80).
 - hao-runtime-fold r5 is newer than every image built with it (newest r4).
+- row golden_gate_userspace 060bd378 is in no image yet (images have 6cdafc3b).
 - row hao_runtime 52b89e0a is in no image yet (images have 0d579f6d, d4f8aab6, e29b10e5).
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).

@@ -348,6 +348,7 @@ def make_asset(row, hit, entry, stage=None):
         if refs:
             problems.append('%s: %s holds a %s' % (row, path.name, ', '.join(refs)))
         if stage is not None and not problems:
+            Path(stage).mkdir(parents=True, exist_ok=True)
             (Path(stage) / name).write_bytes(data)
         return name, len(data), digest, problems
     name = row + '.tar'
@@ -457,11 +458,17 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             if record == 'reproducible-except':
                 notes.append('%s: %s' % (row, detail))
             repo, commit = public_provenance(row, *producer_of(row, hit), notes)
-            file, size, digest, bad = make_asset(row, hit, entry, stage)
+            # An asset another public repository publishes (its class names the url) is checked like every asset,
+            # staged in STAGE/external/ (a subfolder: not uploaded to hao-assets), and fetched from there.
+            hosted = entry.get('url')
+            file, size, digest, bad = make_asset(row, hit, entry, (Path(stage) / 'external') if hosted and stage
+                                                 else stage)
+            if hosted and not bad and hosted.rsplit('/', 1)[-1] != file:
+                bad = ['%s: its url %s does not end in its file %s' % (row, hosted, file)]
             if bad:
                 problems += bad
                 continue
-            item = {'row': row, 'file': file, 'url': ASSET_URL % (name, file), 'size': size, 'sha256': digest,
+            item = {'row': row, 'file': file, 'url': hosted or ASSET_URL % (name, file), 'size': size, 'sha256': digest,
                     'commit': commit, 'repo': repo, 'format': entry['publish'], 'reason': entry['reason']}
             if repo is None:
                 del item['repo']
@@ -517,15 +524,15 @@ def check_stage(rel, stage):
     """Problems: every asset staged with its size and sha256, nothing else staged but release.json and dotfiles."""
     stage = Path(stage)
     bad = []
-    names = {x['file'] for x in rel['assets']}
+    names = {x['file'] for x in rel['assets'] if x.get('url', ASSET_URL).startswith(ASSET_URL.split('%s')[0])}
     for x in rel['assets']:
-        f = stage / x['file']
+        f = (stage if x['file'] in names else stage / 'external') / x['file']
         if not f.is_file():
             bad.append('%s is not staged' % x['file'])
         elif f.stat().st_size != x['size'] or sha256_file(f) != x['sha256']:
             bad.append('staged %s is not the file release.json pins' % x['file'])
     bad += ['%s is staged but not an asset' % p.name for p in sorted(stage.iterdir())
-            if p.name not in names and p.name != 'release.json' and not p.name.startswith('.')]
+            if p.name not in names and p.name not in ('release.json', 'external') and not p.name.startswith('.')]
     return bad
 
 
@@ -585,6 +592,9 @@ def main(argv):
             if stage is not None:
                 for x in rel['assets']:
                     (stage / x['file']).unlink(missing_ok=True)
+                    (stage / 'external' / x['file']).unlink(missing_ok=True)
+                if (stage / 'external').is_dir() and not any((stage / 'external').iterdir()):
+                    (stage / 'external').rmdir()
             return 1
         out_path.write_text(json.dumps(rel, indent=1) + '\n')
         bad = check_stage(rel, stage) if stage is not None else []

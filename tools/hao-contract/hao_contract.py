@@ -228,6 +228,8 @@ ASSET_FORMATS = ('file', 'tar')
 # publishes them only while pipeline/release-classes.json's harvested_assets turns it on for the target.
 HARVESTED_ASSET_TARGETS = ('mbp92',)
 URL_PREFIX = 'https://github.com/lythka/hao-assets/releases/download'
+# Other public release hosts an asset may name (published there, fetched from there; not staged for hao-assets).
+OTHER_HOSTS = ('https://github.com/lythka/hao-runtime/releases/download/',)
 RELEASE_NAME = re.compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 # release.json's own format version (2: version and channel, 2026-11-14); contract.json keeps CONTRACT_VERSION
 RELEASE_FORMAT = 2
@@ -284,7 +286,7 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
     for e in r['downloads']:
         bad += pinned('download', e, DOWNLOAD_FIELDS)
         rows.setdefault(e.get('row'), []).append('downloads')
-    files = set()
+    files, hosted = set(), set()
     for e in r['assets']:
         # An asset with no public producing commit is published by its sha256 alone: no repo and commit "".
         sha_only = 'repo' not in e and e.get('commit') == ''
@@ -306,7 +308,11 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
             bad.append('release: asset file %s is listed twice' % e['file'])
         files.add(e['file'])
         want = '%s/%s/%s' % (url_prefix.rstrip('/'), name, e['file'])
-        if e['url'] != want:
+        if any(e['url'].startswith(h) for h in OTHER_HOSTS):
+            if not e['url'].endswith('/' + e['file']):
+                bad.append('release: asset %s url %s does not end in its file' % (e['row'], e['url']))
+            hosted.add(e['file'])
+        elif e['url'] != want:
             bad.append('release: asset %s url %s is not %s' % (e['row'], e['url'], want))
     for e in r['made_on_mac']:
         rows.setdefault(e.get('row'), []).append('made_on_mac')
@@ -328,7 +334,7 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
     if stage is not None:
         stage = Path(stage)
         for e in r['assets']:
-            f = stage / str(e.get('file', ''))
+            f = (stage / 'external' if e.get('file') in hosted else stage) / str(e.get('file', ''))
             if not e.get('file') or not f.is_file():
                 bad.append('release: asset %s is not staged in %s' % (e.get('file'), stage))
             elif f.stat().st_size != e.get('size'):
@@ -336,7 +342,7 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
                                                                                     e.get('size')))
             elif sha256(f) != e.get('sha256'):
                 bad.append('release: staged %s does not match its sha256' % e['file'])
-        extra = sorted(p.name for p in stage.iterdir() if p.is_file() and p.name not in files and p != path
+        extra = sorted(p.name for p in stage.iterdir() if p.is_file() and p.name not in files - hosted and p != path
                        and p.name != path.name and not p.name.startswith('.'))
         bad += ['release: %s is staged but not an asset (it would not be uploaded)' % n for n in extra]
     return bad

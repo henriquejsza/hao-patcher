@@ -199,6 +199,17 @@ class Release(unittest.TestCase):
         a['repo'] = 'hao-patcher'
         self.assertIn('asset hao_runtime lacks commit', '\n'.join(self.check()))   # a named repo needs its commit
 
+    def test_an_asset_hosted_by_hao_runtime_is_staged_apart(self):
+        a = self.r['assets'][0]
+        a['url'] = 'https://github.com/lythka/hao-runtime/releases/download/v0.1.0-alpha.1/libhao.dylib'
+        bad = '\n'.join(self.check())
+        self.assertIn('libhao.dylib is staged but not an asset', bad)   # in the upload folder: refused
+        (self.d / 'external').mkdir()
+        (self.d / 'libhao.dylib').rename(self.d / 'external' / 'libhao.dylib')   # hosted elsewhere: staged apart
+        self.assertEqual(self.check(), [])
+        a['url'] = 'https://example.invalid/libhao.dylib'
+        self.assertIn('asset hao_runtime url', '\n'.join(self.check()))
+
     def test_harvested_asset_only_for_an_allowed_target(self):
         (self.d / 'icon_caches.tar').write_bytes(b'tar')
         self.r['harvested'].remove('icon_caches')

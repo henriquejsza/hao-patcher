@@ -245,8 +245,9 @@ class Write(unittest.TestCase):
         for x in rel['downloads']:
             self.assertTrue(x['url'].startswith('https://') and isinstance(x['size'], int), x['row'])
         prefix = 'https://' + 'github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/'
+        data = R['classes']()
         for x in rel['assets']:
-            self.assertEqual(x['url'], prefix + x['file'])
+            self.assertEqual(x['url'], data[x['row']].get('url') or prefix + x['file'])   # or its own host's
             self.assertTrue(len(x['commit']) == 40 and x.get('repo') in R['PUBLIC_REPOS'] or
                             (x['commit'] == '' and 'repo' not in x), x['row'])
         self.assertEqual(R['check_stage'](rel, stage), [])
