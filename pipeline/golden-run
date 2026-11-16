@@ -533,10 +533,13 @@ EFI_LICENSES={'LICENSES/OpenCorePkg-LICENSE.txt':TOP/'pipeline/licenses/OpenCore
 
 def boot_efi_archive(prepared,repository):
     """boot-efi.zip from the guest's prepared EFI (payload/, manifest.json) plus EFI_LICENSES."""
-    archive=shutil.make_archive(str(Path(repository)/'boot-efi'),'zip',root_dir=prepared)
-    with zipfile.ZipFile(archive,'a',zipfile.ZIP_DEFLATED) as bundle:
+    # Files from a release's tar assets carry mtime 0 (its archive format): ZIP stores times from 1980, so earlier ones
+    # are written as 1980-01-01 instead of refused.
+    archive=Path(repository)/'boot-efi.zip'
+    with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,strict_timestamps=False) as bundle:
+        for path in sorted(Path(prepared).rglob('*')):bundle.write(path,path.relative_to(prepared).as_posix())
         for name,source in EFI_LICENSES.items():bundle.write(source,name)
-    return archive
+    return str(archive)
 
 
 def commit_image(state,image,prepared,command):
