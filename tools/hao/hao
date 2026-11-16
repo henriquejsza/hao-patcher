@@ -367,8 +367,9 @@ def header(c, command, profile, asm):
     title = {'install': 'hao installer', 'build-disk': 'hao installer'}.get(command, 'hao-builder')
     c.print('%s %s  %s' % (title, c.paint('bold', c.release or ''), c.paint('dim', build)) if c.release else
             '%s  %s' % (title, c.paint('dim', build)))
-    gpu = ', '.join((d.get('name') or d.get('device') or '').replace('Graphics ', '').split(' (')[0]
-                    for d in profile.get('gpu', [])) or profile.get('gpu_name') or ''
+    short = lambda n: (n or '').replace('Graphics ', '').split(' (')[0]   # "Intel HD 4000", as the mockups
+    gpu = ', '.join(short(d.get('name') or d.get('device')) for d in profile.get('gpu', [])) or \
+        short(profile.get('gpu_name'))
     check = ('proven model ' + c.ok) if proven else c.paint('warn', 'not proven on this model')
     if command in ('install', 'build-disk'):
         try:
