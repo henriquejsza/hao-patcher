@@ -22,7 +22,7 @@ set -eu
 umask 022
 MODE=${1:---help}
 if [ "$#" -gt 0 ]; then shift; fi
-FILESYSTEM= SYSTEM= DATA= FL= KERNEL= KDK= KDK_PREPARER= DONOR_CLI= EXTENSIONS_ARTIFACT= NATIVE_ARTIFACT= PYTHON= IMAGE= LAYOUT=
+FILESYSTEM= SYSTEM= DATA= FL= KERNEL= KDK= KDK_PREPARER= DONOR_CLI= EXTENSIONS_ARTIFACT= NATIVE_ARTIFACT= PYTHON= IMAGE= LAYOUT= SET_ID_RECORD=
 WORK= MOUNTED=0
 usage() { sed -n '2,18p' "$0" >&2; }
 fail() { echo "golden-pristine: $*" >&2; exit 2; }
@@ -51,7 +51,7 @@ while [ "$#" -gt 0 ]; do
         --kdk-preparer) KDK_PREPARER=$value ;;
         --donor-cli) DONOR_CLI=$value ;; --extensions-artifact) EXTENSIONS_ARTIFACT=$value ;;
         --native-artifact) NATIVE_ARTIFACT=$value ;; --python) PYTHON=$value ;;
-        --image) IMAGE=$value ;; --layout-helper) LAYOUT=$value ;;
+        --image) IMAGE=$value ;; --layout-helper) LAYOUT=$value ;; --set-id-record) SET_ID_RECORD=$value ;;
         *) fail "unknown argument: $option" ;;
     esac
 done
@@ -70,7 +70,8 @@ if [ "$MODE" = system ]; then
     echo 'STEP golden-system'
     # Firmlink anchors cannot be copied as ordinary BSD flags/xattrs. Preserve
     # their other metadata and defer only those APFS objects to finalize/fl.
-    "$PYTHON" -I "$LAYOUT" copy-system --image "$IMAGE" --system "$SYSTEM" --source "$WORK/filesystem"
+    "$PYTHON" -I "$LAYOUT" copy-system --image "$IMAGE" --system "$SYSTEM" --source "$WORK/filesystem" \
+        ${SET_ID_RECORD:+--set-id-record "$SET_ID_RECORD"}
     "$PYTHON" -I "$LAYOUT" copy-altlink --image "$IMAGE" --system "$SYSTEM" \
         --source "$WORK/filesystem/System/Cryptexes/OS"
     echo 'Golden System copied; create/group Data before finalize.'

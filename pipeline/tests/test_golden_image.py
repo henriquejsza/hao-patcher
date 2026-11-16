@@ -399,3 +399,19 @@ class UnknownOwners(unittest.TestCase):
             self.assertEqual(5,n)
             self.assertEqual(sorted(calls),[('Ext/A.kext',0,0),('Ext/A.kext/Contents/Info.plist',0,0),('Ext/B',0,-1),
                                             ('Ext/C',-1,0),('link',0,-1)])
+
+
+class SetIDCheckTests(unittest.TestCase):
+    """diag#0057: the pre-seal check refuses a System whose set-ID files lost their mode or owner."""
+    def test_lost_mode_is_named_and_removed_or_kept_files_pass(self):
+        import os
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);(root/'usr/bin').mkdir(parents=True);uid,gid=os.getuid(),os.getgid()
+            for name,mode in (('login',0o555),('sudo',0o4511)):
+                (root/'usr/bin'/name).write_bytes(b'x');os.chmod(root/'usr/bin'/name,mode)
+            expected=[['usr/bin/login',0o4555,uid,gid],['usr/bin/sudo',0o4511,uid,gid],['usr/bin/gone',0o4555,uid,gid]]
+            bad=golden.check_set_id(expected,root)
+            self.assertEqual(bad,['/usr/bin/login is 0555 %d:%d, not 4555 %d:%d'%(uid,gid,uid,gid)])
+            os.chmod(root/'usr/bin/login',0o4555)
+            self.assertEqual(golden.check_set_id(expected,root),[])
+            self.assertTrue(golden.check_set_id([['usr/bin/sudo',0o4511,uid+1,gid]],root))

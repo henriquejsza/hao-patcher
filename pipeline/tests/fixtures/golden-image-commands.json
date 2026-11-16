@@ -128,7 +128,9 @@
      "--layout-helper",
      "/staged/layout.py",
      "--python",
-     "/staged/python"
+     "/staged/python",
+     "--set-id-record",
+     "<root>/work/set-id.json"
     ],
     "environment": 0
    },
@@ -1075,7 +1077,9 @@
       "--layout-helper",
       "/staged/layout.py",
       "--python",
-      "/staged/python"
+      "/staged/python",
+      "--set-id-record",
+      "<root>/work/set-id.json"
      ],
      "environment": 0
     },
@@ -2092,7 +2096,9 @@
      "--layout-helper",
      "/staged/layout.py",
      "--python",
-     "/staged/python"
+     "/staged/python",
+     "--set-id-record",
+     "<root>/work/set-id.json"
     ],
     "environment": 0
    },
@@ -3008,7 +3014,9 @@
       "--layout-helper",
       "/staged/layout.py",
       "--python",
-      "/staged/python"
+      "/staged/python",
+      "--set-id-record",
+      "<root>/work/set-id.json"
      ],
      "environment": 0
     },
@@ -3994,7 +4002,9 @@
      "--layout-helper",
      "/staged/layout.py",
      "--python",
-     "/staged/python"
+     "/staged/python",
+     "--set-id-record",
+     "<root>/work/set-id.json"
     ],
     "environment": 0
    },
@@ -4601,7 +4611,9 @@
       "--layout-helper",
       "/staged/layout.py",
       "--python",
-      "/staged/python"
+      "/staged/python",
+      "--set-id-record",
+      "<root>/work/set-id.json"
      ],
      "environment": 0
     },
@@ -5256,7 +5268,9 @@
      "--layout-helper",
      "/staged/layout.py",
      "--python",
-     "/staged/python"
+     "/staged/python",
+     "--set-id-record",
+     "<root>/work/set-id.json"
     ],
     "environment": 0
    },
@@ -6166,7 +6180,9 @@
       "--layout-helper",
       "/staged/layout.py",
       "--python",
-      "/staged/python"
+      "/staged/python",
+      "--set-id-record",
+      "<root>/work/set-id.json"
      ],
      "environment": 0
     },

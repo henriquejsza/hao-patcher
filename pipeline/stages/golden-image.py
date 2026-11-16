@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import stat
 from pathlib import Path
 import plistlib
 import re
@@ -451,7 +452,8 @@ class Assembler:
         c = self.config
         self.run('sh',c['pristine_script'],'system','--filesystem',Path(c['payload'])/'filesystem.dmg',
                  '--system',self.mounts['system'],'--image',self.target.binding,
-                 '--layout-helper',c['layout_helper'],'--python',c['python'])
+                 '--layout-helper',c['layout_helper'],'--python',c['python'],
+                 '--set-id-record',self.work/'set-id.json')
 
     def group_volumes(self):
         c = self.config
@@ -576,6 +578,14 @@ class Assembler:
     def snapshot(self):
         self.fix_owners('recipes',('system','data','preboot','recovery'))
         system = self.mounts['system']
+        record = self.work/'set-id.json'
+        if record.is_file():        # before the seal: a System that lost a set-ID mode is never snapshotted
+            bad = check_set_id(json.loads(record.read_text()), system)
+            if bad:
+                raise RuntimeError('%d set-user-ID/set-group-ID files differ from the macOS 27 System (diag#0057), '
+                                   'not sealed: %s' % (len(bad), '; '.join(bad[:8])))
+            print('golden-image: %d set-ID files keep their mode and owner' % len(json.loads(record.read_text())),
+                  flush=True)
         self.run('rm','-rf',system/'.Spotlight-V100')
         self.run('diskutil','apfs','updatePreboot',self.devices['system'])
         self.refresh_mount('preboot')
@@ -660,6 +670,25 @@ class Assembler:
             except Exception as error:
                 errors.append(str(error))
         return errors
+
+
+def check_set_id(expected, system):
+    """[problem] for each (path, mode, uid, gid) of the source System's set-ID files (golden-layout's set-id.json)
+    whose file in SYSTEM is a regular file or folder with another mode or owner. A file a recipe removed is not a
+    problem; one a recipe replaced (a hao stub, written in place) must keep the mode and owner too."""
+    bad = []
+    for rel, mode, uid, gid in expected:
+        p = Path(system)/rel
+        try:
+            st = os.lstat(p)
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(st.st_mode):
+            continue
+        if (stat.S_IMODE(st.st_mode), st.st_uid, st.st_gid) != (mode, uid, gid):
+            bad.append('/%s is %04o %d:%d, not %04o %d:%d' % (rel, stat.S_IMODE(st.st_mode), st.st_uid, st.st_gid,
+                                                           mode, uid, gid))
+    return bad
 
 
 # The fixed order of every Golden Gate image: (step, Assembler method, why).

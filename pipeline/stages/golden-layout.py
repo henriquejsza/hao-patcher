@@ -314,10 +314,47 @@ def firmlink_paths(source):
     return result
 
 
+SET_ID = stat.S_ISUID | stat.S_ISGID
+
+
+def set_id_files(source, relative=''):
+    """[(path below SOURCE, mode, uid, gid)] of every set-user-ID or set-group-ID file or folder in SOURCE (the file
+    itself when SOURCE is one), as lstat reads it; symlinks are never followed."""
+    found = []
+    top = Path(source)
+    if not top.is_dir() or top.is_symlink():
+        st = top.lstat()
+        return [(relative, stat.S_IMODE(st.st_mode), st.st_uid, st.st_gid)] if st.st_mode & SET_ID and \
+            not stat.S_ISLNK(st.st_mode) else []
+    for root, dirs, files in os.walk(top):
+        for name in dirs + files:
+            st = os.lstat(os.path.join(root, name))
+            if st.st_mode & SET_ID and not stat.S_ISLNK(st.st_mode):
+                rel = os.path.relpath(os.path.join(root, name), top)
+                found.append(('/'.join(filter(None, (relative, rel))), stat.S_IMODE(st.st_mode), st.st_uid, st.st_gid))
+    return found
+
+
+def restore_set_id(source, target, relative=''):
+    """ditto drops set-ID bits when the source volume is mounted nosuid: a disk image attached from the USB installer
+    inherits the stick's nosuid (diag#0057: login 04555 -> 0555, sudo, su, newgrp). Put back SOURCE's set-ID modes on
+    TARGET (owners are ditto's, as root); returns what SOURCE has, for the pre-seal check."""
+    found = set_id_files(source, relative)
+    for rel, mode, _, _ in found:
+        inner = rel[len(relative):].lstrip('/') if relative else rel
+        dst = Path(target) / inner if inner else Path(target)
+        st = os.lstat(dst)
+        require(not stat.S_ISLNK(st.st_mode), 'set-ID target became a symlink: ' + rel)
+        if stat.S_IMODE(st.st_mode) != mode:
+            os.chmod(dst, mode)
+    return found
+
+
 def copy_system_tree(source, target, copy=copy_metadata, command=subprocess.run):
-    """Copy ordinary subtrees intact; defer only declared empty firmlink objects."""
+    """Copy ordinary subtrees intact; defer only declared empty firmlink objects. Set-ID modes are put back after each
+    ditto (restore_set_id) and listed in the result's set_id."""
     anchors = firmlink_paths(source)
-    counts = dict(copied_subtrees=0,copied_symlinks=0,metadata_directories=0,firmlink_anchors=[])
+    counts = dict(copied_subtrees=0,copied_symlinks=0,metadata_directories=0,firmlink_anchors=[],set_id=[])
     def visit(src, dst, relative=''):
         anchor = relative in anchors
         ancestor = not relative or any(name.startswith(relative+'/') for name in anchors)
@@ -341,15 +378,19 @@ def copy_system_tree(source, target, copy=copy_metadata, command=subprocess.run)
             counts['metadata_directories'] += 1
         else:
             command(['ditto','--rsrc','--extattr','--acl',str(src),str(dst)],check=True)
+            counts['set_id'] += restore_set_id(src, dst, relative)
             counts['copied_subtrees'] += 1
     visit(source,target)
     return counts
 
 
-def copy_system(image, system_root, source):
+def copy_system(image, system_root, source, record=None):
     state = topology(image,system_root)
     require(all(not row['group'] for row in state['volumes'].values()),'System must be sole and ungrouped')
-    return copy_system_tree(source,system_root)
+    result = copy_system_tree(source,system_root)
+    if record:      # golden-image's pre-seal check reads it (check_set_id)
+        Path(record).write_text(json.dumps(result['set_id'], indent=1) + '\n')
+    return result
 
 
 def main():
@@ -363,13 +404,14 @@ def main():
             command.add_argument('--link-target', required=True)
             command.add_argument('--altlink-hex', required=True)
         elif name in ('copy-altlink','copy-system'): command.add_argument('--source', type=Path, required=True)
+        if name == 'copy-system': command.add_argument('--set-id-record', type=Path)
         elif name == 'group': command.add_argument('--data', required=True)
     args = parser.parse_args()
     if args.command == 'check-system':
         result = topology(args.image, args.system)
         require(all(not row['group'] for row in result['volumes'].values()), 'System must be ungrouped')
     elif args.command == 'seed': result = seed(args.image, args.system, args.link_target, bytes.fromhex(args.altlink_hex))
-    elif args.command == 'copy-system': result = copy_system(args.image,args.system,args.source)
+    elif args.command == 'copy-system': result = copy_system(args.image,args.system,args.source,args.set_id_record)
     elif args.command == 'copy-altlink':
         result = seed(args.image, args.system, os.readlink(args.source), read_xattr(args.source))
     else: result = group(args.image, args.system, args.data)

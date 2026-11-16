@@ -1,5 +1,7 @@
 """Protected metadata/grouping logic with syscalls and mutation mocked on the host."""
 import errno
+import os
+import stat
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -140,3 +142,38 @@ class GoldenSystemCopyTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class SetIDTests(unittest.TestCase):
+    """diag#0057: ditto from an image attached off the USB installer (nosuid) drops set-ID bits; copy-system puts every
+    one back from the source and records them for golden-image's pre-seal check."""
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.source=Path(self.temp.name)/'source';self.target=Path(self.temp.name)/'target'
+        (self.source/'usr/share').mkdir(parents=True);(self.source/'usr/share/firmlinks').write_text('')
+        (self.source/'usr/bin').mkdir()
+        for name,mode in (('login',0o4555),('sudo',0o4511),('newgrp',0o2555),('ls',0o755)):
+            (self.source/'usr/bin'/name).write_bytes(name.encode());os.chmod(self.source/'usr/bin'/name,mode)
+        (self.source/'usr/bin/link').symlink_to('login')
+        (self.source/'sbin').mkdir();(self.source/'sbin/ping').write_bytes(b'p');os.chmod(self.source/'sbin/ping',0o4555)
+
+    def nosuid_ditto(self,args,check=True):
+        """A copy that clears set-ID bits, as ditto does from a nosuid source volume."""
+        source,target=map(Path,args[-2:])
+        if source.is_dir():shutil.copytree(source,target,symlinks=True,dirs_exist_ok=True)
+        else:shutil.copy2(source,target,follow_symlinks=False)
+        for p in [target]+list(target.rglob('*')):
+            if not p.is_symlink():os.chmod(p,stat.S_IMODE(p.lstat().st_mode)&~(stat.S_ISUID|stat.S_ISGID))
+
+    def test_every_set_id_mode_survives_the_copy(self):
+        result=layout.copy_system_tree(self.source,self.target,lambda *a:None,self.nosuid_ditto)
+        for rel,mode in (('usr/bin/login',0o4555),('usr/bin/sudo',0o4511),('usr/bin/newgrp',0o2555),('usr/bin/ls',0o755),
+                         ('sbin/ping',0o4555)):
+            self.assertEqual(stat.S_IMODE((self.target/rel).lstat().st_mode),mode,rel)
+        recorded={r[0]:r[1] for r in result['set_id']}
+        self.assertEqual(recorded,{'usr/bin/login':0o4555,'usr/bin/sudo':0o4511,'usr/bin/newgrp':0o2555,'sbin/ping':0o4555})
+        uid=os.getuid()
+        self.assertTrue(all(r[2]==uid for r in result['set_id']))
+
+    def test_symlinks_are_not_set_id_files(self):
+        self.assertNotIn('usr/bin/link',[r[0] for r in layout.set_id_files(self.source)])
