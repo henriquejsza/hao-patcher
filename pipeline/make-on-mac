@@ -262,9 +262,21 @@ def steps(r, fs, a):
         r.sh(*PY, 'tools/live-text/on-mac', 'compiler-service', P('metal_compiler_compat'),
              '--oclp-hardware', P('oclp_hardware'))
 
-    completions = [(['live_text_framework'], live_text), (['metal_compiler_compat'], compiler_service)]
-    if not (TOP / 'tools/live-text/on-mac').is_file():
-        completions = []          # a checkout before the on-Mac producers: place lists those rows as waiting
+    def runtime():
+        """hao_runtime's stubs and dyld, made from the System and Rosetta images (hao-runtime's tools/hao-runtime-on-mac,
+        from the placed archive, or HAO_RUNTIME_ON_MAC for an archive older than it); it checks the whole payload."""
+        top = P('hao_runtime').parent
+        tool = top / 'tools/hao-runtime-on-mac'
+        if not tool.is_file():
+            tool = Path(os.environ.get('HAO_RUNTIME_ON_MAC', '')) if os.environ.get('HAO_RUNTIME_ON_MAC') else None
+        if tool is None or not tool.is_file():
+            raise Failed('the runtime archive has no tools/hao-runtime-on-mac (set HAO_RUNTIME_ON_MAC to one)')
+        rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
+        r.sh(*PY, tool, root(), rosetta / 'System/Library/dyld', top)
+
+    completions = [(['hao_runtime'], runtime)]
+    if (TOP / 'tools/live-text/on-mac').is_file():      # a checkout before metal's producers lists those rows as waiting
+        completions += [(['live_text_framework'], live_text), (['metal_compiler_compat'], compiler_service)]
     return [(['golden_gate_userspace'], gg_userspace), (['darwin27_kernel'], kernel), (['python_site'], python_site),
             (['oclp_hardware'], oclp_hardware), (DONOR_ROWS, donors), (['tahoe_kc_builder'], kc_builder),
             (['hello_metallib_golden_gate', 'metallib_repairs_golden_gate'], metallibs),
