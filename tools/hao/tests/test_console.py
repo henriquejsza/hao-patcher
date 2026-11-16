@@ -51,15 +51,15 @@ class Colour(unittest.TestCase):
         c, out, err = run()
         self.assertIn(ESC + '1mhao create-installer' + ESC + '0m', out)        # bold name
         self.assertIn(ESC + '1m[1/3] Download' + ESC + '0m', out)              # bold step header
-        self.assertIn(ESC + '2mevery file checked', out)                         # dim note
-        self.assertIn(ESC + '38;5;28msha256 ' + ESC + '0m' + ESC + '38;5;28m✓', out)   # green "sha256 ✓"
-        self.assertIn(ESC + '38;5;244mApple ', out)                              # origin tag, Apple grey
-        self.assertIn(ESC + '38;5;136mnote', out)                                # yellow note
-        self.assertIn(ESC + '38;5;136meverything on it will be erased', out)
-        self.assertIn(ESC + '38;5;136mEverything on disk4 (USB, 32 GB) will be erased', out)
-        self.assertIn(ESC + '38;5;136mwarning:', err)
-        self.assertIn(ESC + '1;38;5;160mSTOPPED', err)                           # red STOPPED
-        self.assertIn(ESC + '38;5;28m✓' + ESC + '0m the USB stick is ready', out)
+        self.assertIn(ESC + '38;5;245mevery file checked', out)                         # dim note
+        self.assertIn(ESC + '38;5;35msha256 ' + ESC + '0m' + ESC + '38;5;35m✓', out)   # green "sha256 ✓"
+        self.assertIn(ESC + '38;5;246mApple ', out)                              # origin tag, Apple grey
+        self.assertIn(ESC + '38;5;172mnote', out)                                # yellow note
+        self.assertIn(ESC + '38;5;172meverything on it will be erased', out)
+        self.assertIn(ESC + '38;5;172mEverything on disk4 (USB, 32 GB) will be erased', out)
+        self.assertIn(ESC + '38;5;172mwarning:', err)
+        self.assertIn(ESC + '1;38;5;167mSTOPPED', err)                           # red STOPPED
+        self.assertIn(ESC + '38;5;35m✓' + ESC + '0m the USB stick is ready', out)
 
     def test_events_hold_no_colour(self):
         c, _, _ = run()

@@ -58,7 +58,7 @@ SAY = {
     'tahoe-native': 'Tahoe\'s Intel system programs',
     'boot-and-esp': 'Intel boot files and the EFI partition',
     'hardware': 'OCLP\'s legacy hardware support: graphics, Wi-Fi, audio',
-    'recipe darwin27-kernel': 'kernel collections linked, kernel repairs bound',
+    'recipe darwin27-kernel': 'kernel collections linked with Tahoe\'s kmutil',
     'recipe golden-gate-userspace': 'build the system cryptex (the shared cache); the longest step',
     'recipe golden-gate-native-identities': 'Intel identities for Apple\'s programs',
     'recipe hao-runtime': 'hao, which runs ARM-only apps',
@@ -92,6 +92,43 @@ def output_log(command, now=None, env=None):
         import report
         folder = report.log_dir(env)
     return folder / ('%s-%s.log' % (command, stamp))
+
+
+def tree_size(path):
+    """(files, bytes) under PATH, symlinks not followed; (0, 0) when it is not there."""
+    files = size = 0
+    for root, dirs, names in os.walk(str(path)):
+        for n in names:
+            try:
+                st = os.lstat(os.path.join(root, n))
+            except OSError:
+                continue
+            files += 1
+            size += st.st_size
+    return files, size
+
+
+def recipe_folders(share):
+    """{recipe: (files, bytes)} of a kit's hooks/NN-NAME and post/NN-NAME folders (what each recipe brings)."""
+    out = {}
+    for sub in ('hooks', 'post'):
+        base = Path(share) / sub
+        if not base.is_dir():
+            continue
+        for d in sorted(base.iterdir()):
+            if d.is_dir() and '-' in d.name:
+                name = d.name.split('-', 1)[1]
+                f, b = tree_size(d)
+                of, ob = out.get(name, (0, 0))
+                out[name] = (of + f, ob + b)
+    return out
+
+
+def pack_line(c, pack, files, size, extra=''):
+    """The mockups' pack line: name, file count and size in aligned columns."""
+    import console
+    return '%s %s %s%s' % (c.paint('bold', '%-22s' % pack_name(pack)), '%6s files' % format(files, ','),
+                           '%9s' % console.human_size(size), extra)
 
 
 def pack_name(pack):
@@ -130,9 +167,10 @@ class Runner:
     def view_for(self, argv):
         words = [str(x) for x in argv]
         if any(w.endswith('golden-assemble.sh') for w in words):
-            return Assembly(self)
+            at = next(i for i, w in enumerate(words) if w.endswith('golden-assemble.sh'))
+            return Assembly(self, kit=words[at + 1] if len(words) > at + 1 else None)
         if '--stage-kit' in words:
-            return Single(self, 'prepare the kit: each changed file made once, checked and signed', STAGE)
+            return Kit(self, words)
         if '--collect-kit' in words:
             return Single(self, 'keep the sealed system images for the next build', level='files')
         return Single(self, ' '.join(Path(words[0]).name.split() + words[1:2]), level='files')
@@ -218,6 +256,8 @@ class Runner:
             return
         if text.startswith('+ '):
             view.command(text[2:])
+        elif text:
+            view.line(text)
         if text:
             self.tail.append(text)
             if ERROR.search(text) and not text.startswith(('+ ', 'RESULT rc=0')):
@@ -237,6 +277,51 @@ class Runner:
         if self.log and not x.log:
             x.log = str(self.log)
         return x
+
+
+def download_view(c, acquire, origin_of=lambda row: ''):
+    """ACQUIRE (tools/acquire's functions) with a fetch that shows each download as a line with its bar, size and
+    "sha256 ✓" (the mockups' Download step); the events still reach the caller's on_event, except the byte counts,
+    which only the bar shows."""
+    fetch = acquire['fetch']
+
+    def shown(rows, cache, *args, on_event=None, **kw):
+        by_name = {r['name']: r for r in rows}
+        live = {}
+        forward = on_event or (lambda ev: None)
+
+        def label(name):
+            return '%s %-44s' % (c.paint.origin(origin_of(by_name.get(name, {})), 6), name)
+
+        def on(ev):
+            k, name = ev.get('ev'), ev.get('name')
+            if k == 'progress':
+                t = live.get(name)
+                if t is None:
+                    t = live[name] = c.task('  ' + label(name), total=ev.get('size') or by_name.get(name, {}).get('size'),
+                                            unit='bytes', name=name)
+                t.update(done=ev.get('done'))
+                return
+            if k == 'ok':
+                t = live.pop(name, None) or c.task('  ' + label(name), total=by_name.get(name, {}).get('size'),
+                                                   unit='bytes', name=name)
+                t.final_note = c.paint('ok', 'sha256 ') + c.ok
+                t.end(None)
+            elif k == 'reused':
+                c.item('%s %s' % (label(name), c.paint('dim', 'already downloaded, sha256')), ok=True)
+            elif k == 'streamed':
+                c.item('%s %s' % (label(name), c.paint('dim', 'read in parts as it is used')), ok=True)
+            elif k == 'mirror-failed':
+                t = live.pop(name, None)
+                if t:
+                    t.end(False)
+            forward(ev)
+        try:
+            return fetch(rows, cache, *args, on_event=on, **kw)
+        finally:
+            for t in live.values():
+                t.end(False)
+    return dict(acquire, fetch=shown)
 
 
 class Single:
@@ -259,6 +344,9 @@ class Single:
     def step(self, name):
         self.task.update(tail=SAY.get(name, ''))
 
+    def line(self, text):
+        pass
+
     def progress(self, done, total, unit):
         self.task.unit = unit
         self.task.update(done=done, total=total)
@@ -271,11 +359,101 @@ class Single:
         self.task.end(rc == 0)
 
 
+class Kit:
+    """golden-run --stage-kit: one line per part it stages (a bar for each copy), then one line per pack with the
+    files and bytes the kit carries for it."""
+
+    def __init__(self, runner, words):
+        self.r, self.c = runner, runner.c
+        work = words[words.index('--work') + 1] if '--work' in words else None
+        self.share = Path(work) / 'share' if work else None
+        self.task = None
+        self.copy = None           # (source, destination, total bytes) of the copy on screen
+        self.resumed = False
+        self.packs_shown = False
+
+    def start(self):
+        pass
+
+    def begin(self, text, total=None):
+        self.finish()
+        self.task = self.c.task('  ' + text, total=total, unit='bytes' if total else None)
+
+    def finish(self, ok=True):
+        if self.task:
+            self.task.end(ok)
+            self.task = None
+        self.copy = None
+
+    def command(self, cmd):
+        import shlex
+        try:
+            words = shlex.split(cmd)
+        except ValueError:
+            words = cmd.split()
+        say = next((s for pattern, s in STAGE if re.search(pattern, cmd)), None)
+        if self.task and getattr(self.task, 'text_of', '') == 'inputs.sh' and not self.packs_shown:
+            self.finish()
+            self.show_packs()
+        if words and words[0] == 'ditto' and len(words) >= 3:
+            total = tree_size(words[-2])[1]
+            self.begin('copy ' + (say or Path(words[-2]).name), total=total or None)
+            self.copy = (words[-2], words[-1])
+            return
+        if 'inputs.sh' in cmd:
+            self.begin('stage each recipe\'s inputs, every one checked against its sha256')
+            self.task.text_of = 'inputs.sh'
+            return
+        self.begin(say or ('prepare ' + Path(words[0]).name if words else 'prepare'))
+
+    def show_packs(self):
+        """One line per pack: what the kit carries for its recipes (hooks/ and post/)."""
+        self.packs_shown = True
+        if not self.share:
+            return
+        sizes = recipe_folders(self.share)
+        packs = collections.OrderedDict()
+        for recipe, (f, b) in sizes.items():
+            pf, pb = packs.get(self.r.pack_of(recipe), (0, 0))
+            packs[self.r.pack_of(recipe)] = (pf + f, pb + b)
+        order = list(self.r.groups) + [p for p in packs if p not in self.r.groups]
+        for pack in order:
+            if pack in packs:
+                f, b = packs[pack]
+                self.c.item(pack_line(self.c, pack, f, b), ok=True, ev='pack.staged', pack=pack, files=f, bytes=b)
+
+    def step(self, name):
+        pass
+
+    def line(self, text):
+        if text.startswith('Kit staged:'):
+            self.finish()
+
+    def progress(self, done, total, unit):
+        if self.task:
+            self.task.unit = unit
+            self.task.update(done=done, total=total)
+
+    def tick(self):
+        if self.task and self.copy:
+            self.task.update(done=tree_size(self.copy[1])[1])
+        elif self.task:
+            self.task.update()
+
+    def end(self, rc):
+        if rc == 0 and not self.packs_shown:
+            self.finish()
+            self.show_packs()
+        self.finish(rc == 0)
+
+
 class Assembly:
     """golden-assemble.sh: the seven phases, one line per step, one line per pack, the --quiet bar."""
 
-    def __init__(self, runner, phases=INSTALL):
+    def __init__(self, runner, phases=INSTALL, kit=None):
         self.r, self.c, self.phases = runner, runner.c, phases
+        self.kit = Path(kit) if kit else None
+        self.sizes = None          # {recipe: (files, bytes)} the kit carries, read when Apply packs starts
         self.index = 0             # the phase being worked on, 1-based; 0 before the first
         self.task = None
         self.resumed = False
@@ -321,10 +499,15 @@ class Assembly:
     def flush(self):
         """The closing lines of the recipes so far: one per pack (Apply packs), one for the post recipes."""
         self.finish()
+        if self.packs and self.sizes is None:
+            self.sizes = recipe_folders(self.kit) if self.kit and self.kit.is_dir() else {}
         for pack, names in self.packs.items():
-            self.c.item('%s %s' % (self.c.paint('bold', '%-22s' % pack_name(pack)),
-                                   '%d recipe%s' % (len(names), '' if len(names) == 1 else 's')), ok=True,
-                        ev='pack.applied', pack=pack, recipes=names)
+            files = sum(self.sizes.get(n, (0, 0))[0] for n in names)
+            size = sum(self.sizes.get(n, (0, 0))[1] for n in names)
+            text = pack_line(self.c, pack, files, size) if files else '%s %s' % (
+                self.c.paint('bold', '%-22s' % pack_name(pack)),
+                '%d recipe%s' % (len(names), '' if len(names) == 1 else 's'))
+            self.c.item(text, ok=True, ev='pack.applied', pack=pack, recipes=names, files=files, bytes=size)
         self.packs = collections.OrderedDict()
         if self.posts:
             self.c.item('%s  %d recipes' % (SAY['posts'], len(self.posts)), ok=True, ev='posts.applied',
@@ -395,6 +578,52 @@ class Assembly:
 
     def command(self, cmd):
         pass
+
+    KC = re.compile(r'^Linked the Darwin 27 kernel \((\w+)\): Boot ([0-9a-f]{8,}) and System collections')
+    REPAIRS = re.compile(r'^Installed (\d+) recorded kernel repairs')
+    STAMP = re.compile(r'^stamped .*HaoExec\.kext for kernel ([0-9a-f]{8,})')
+
+    def line(self, text):
+        m = self.KC.match(text)
+        if m:
+            how, boot = m.groups()
+            proven = self.proven_boot()
+            if proven and proven.startswith(boot):
+                tail = self.c.paint('ok', 'matches the proven build')
+            elif proven:
+                tail = self.c.paint('warn', 'differs from the proven build')
+            else:
+                tail = self.c.paint('dim', 'linked on this Mac' if how == 'built' else how)
+            self.c.event('kc.link', how=how, boot=boot, proven=proven)
+            if self.task and not self.recipe_line:
+                self.task.update(text='  BootKC and SystemKC linked, Boot %s…' % boot[:12])
+                self.task.final_note = tail
+            else:
+                self.say('BootKC %s…  %s' % (boot[:12], tail))
+            return
+        m = self.REPAIRS.match(text)
+        if m:
+            self.say('%s kernel repairs bound to this kernel, IntelCommpage added' % m.group(1), ok=True,
+                     ev='kc.bind', repairs=int(m.group(1)))
+            return
+        m = self.STAMP.match(text)
+        if m:
+            self.say('HaoExec stamped for kernel %s…' % m.group(1)[:12], ok=True, ev='kc.stamp', kernel=m.group(1))
+
+    def say(self, text, ok=None, **fields):
+        """A line under the step on screen, printed above its live line."""
+        self.c.item(text, ok=ok, **fields)
+
+    def proven_boot(self):
+        """The BootKC sha256 the kit's prelinked collections were recorded with, or None (a kit linked on the target)."""
+        if not self.kit:
+            return None
+        for found in sorted(self.kit.glob('hooks/*darwin27-kernel/prelinked/prelinked.json')):
+            try:
+                return json.loads(found.read_text())['files']['BootKernelExtensions.kc']
+            except (OSError, ValueError, KeyError):
+                return None
+        return None
 
     def progress(self, done, total, unit):
         if self.task:

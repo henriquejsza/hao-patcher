@@ -2,6 +2,7 @@
 import io
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -44,6 +45,11 @@ GROUPS = {'base': ['darwin27-kernel', 'golden-gate-userspace', 'hao-opencore'],
           '(no pack)': ['golden-gate-store']}
 
 
+def sq(text):
+    """TEXT with each run of spaces after a word made two: the check-mark column's padding is not what is tested."""
+    return re.sub(r'(?<=\S) {2,}', '  ', text)
+
+
 class Pipe(io.StringIO):
     encoding = 'utf-8'
 
@@ -84,7 +90,7 @@ def render(text=ASSEMBLY, rc=0, level='steps', out=None, env=None):
         r = PROG.Runner(c, 'install', groups=GROUPS, log=log, popen=popen_of(text, rc), env={})
         got = r(['sh', '/Volumes/HAO/kit/assembly-source/golden-assemble.sh', 'KIT', 'LOCAL'])
         logged = log.read_text()
-    return got, out.getvalue(), logged, r, c
+    return got, sq(out.getvalue()), logged, r, c
 
 
 class Steps(unittest.TestCase):
@@ -98,10 +104,10 @@ class Steps(unittest.TestCase):
                          ['[1/7] Lay out the disk', '[2/7] Copy macOS 27', '[3/7] Add Intel support',
                           '[4/7] Link the kernel', '[5/7] Apply packs', '[6/7] Seal', '[7/7] Make it bootable'])
         self.assertIn('  copy the installer\'s tools and Python  ✓', lines)
-        self.assertIn('  kernel collections linked, kernel repairs bound  ✓', lines)
-        self.assertIn('  base                   1 recipe  ✓', lines)          # userspace (the kernel is [4/7])
-        self.assertIn('  metal-3802             1 recipe  ✓', lines)
-        self.assertIn('  other fixes            1 recipe  ✓', lines)
+        self.assertIn("  kernel collections linked with Tahoe's kmutil  ✓", lines)
+        self.assertIn(sq('  base                   1 recipe  ✓'), lines)          # userspace (the kernel is [4/7])
+        self.assertIn(sq('  metal-3802             1 recipe  ✓'), lines)
+        self.assertIn(sq('  other fixes            1 recipe  ✓'), lines)
         self.assertIn('  settings, caches and the OpenCore configuration  2 recipes  ✓', lines)
         self.assertEqual(sum('the System volume' in l for l in lines), 1)          # golden-pristine's repeat
         self.assertTrue(lines[-1].startswith('  unmount the new volumes  ✓'))
@@ -125,7 +131,7 @@ class Steps(unittest.TestCase):
         err = Pipe()
         c2 = CON.Console('steps', out=err, err=err, env={})
         c2.stopped(x)
-        report = err.getvalue()
+        report = sq(err.getvalue())
         for part in ('STOPPED', 'What happened', 'Why it matters', 'Likely cause', 'What you can do', '1  run it again',
                      'Log: '):
             self.assertIn(part, report)
@@ -156,7 +162,7 @@ class Steps(unittest.TestCase):
         _, out, _, _, _ = render(out=Tty())
         self.assertIn('\r\033[K', out)
         self.assertIn('\033[1m[1/7] Lay out the disk\033[0m', out)
-        self.assertIn('\033[38;5;28m✓\033[0m', out)
+        self.assertIn('\033[38;5;35m✓\033[0m', out)
 
     def test_no_colour_and_dumb_terminal_are_plain(self):
         for env in ({'NO_COLOR': '1', 'TERM': 'xterm'}, {'TERM': 'dumb'}):
@@ -172,16 +178,74 @@ class Steps(unittest.TestCase):
         self.assertEqual(seen[0][1]['env']['HAO_EVENTS'], '1')
         self.assertEqual(seen[0][1]['env']['A'], 'b')
 
-    def test_stage_kit_is_one_line(self):
-        text = '+ zsh /x/pipeline/stages/inputs.sh a b\nINFO:root:- Adding Lilu.kext 1.7.2\n\033[3J\033[H\033[2J\nKit staged: /k\n'
+    def test_stage_kit_lines_and_packs(self):
+        with tempfile.TemporaryDirectory() as d:
+            share = Path(d) / 'w' / 'share'
+            for folder, size in (('hooks/01-darwin27-kernel', 3000), ('hooks/06-golden-gate-hello', 1000),
+                                 ('post/03-golden-gate-shader-caches', 2000), ('hooks/12-golden-gate-store', 10)):
+                (share / folder).mkdir(parents=True)
+                (share / folder / 'f').write_bytes(b'x' * size)
+            src = Path(d) / 'minimal-native-r15'
+            src.mkdir()
+            (src / 'a').write_bytes(b'y' * 5000)
+            text = ('+ zsh /x/pipeline/stages/inputs.sh %s t\nINFO:root:- Adding Lilu.kext 1.7.2\n\033[3J\033[H\033[2J\n'
+                    '+ ditto %s %s/assembly-inputs/native\n+ /k/py/bin/python3.12 -I /x/build-efi.py --out e\n'
+                    'Kit staged: /k\n' % (share, src, share))
+            out = Pipe()
+            c = CON.Console('steps', out=out, env={})
+            r = PROG.Runner(c, 'create-installer', groups=GROUPS, log=Path(d) / 'c.log', popen=popen_of(text), env={})
+            rc = r(['python3', '-I', 'golden-run', 'a.json', '--stage-kit', '--work', str(share.parent)])
+        self.assertEqual(rc, 0)
+        self.assertEqual([sq(l) for l in out.getvalue().splitlines()], [sq(l) for l in [
+            "  stage each recipe's inputs, every one checked against its sha256  ✓",
+            '  base                        1 files    3.0 KB  ✓',
+            '  metal-3802                  1 files    1.0 KB  ✓',
+            '  intel-hd4000                1 files    2.0 KB  ✓',
+            '  other fixes                 1 files      10 B  ✓',
+            "  copy Tahoe's Intel system programs ████████████████████ 5.0 KB / 5.0 KB  ✓",
+            '  OpenCore for this Mac  ✓']])
+
+    def test_kernel_lines_and_the_proven_build(self):
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'
+            pre = kit / 'hooks' / '01-darwin27-kernel' / 'prelinked'
+            pre.mkdir(parents=True)
+            (pre / 'prelinked.json').write_text('{"files": {"BootKernelExtensions.kc": "875abf7d221c8ea0ffff"}}')
+            text = ('STEP recipes\nSTEP recipe darwin27-kernel\n'
+                    'Linked the Darwin 27 kernel (prelinked): Boot 875abf7d221c8ea0 and System collections\n'
+                    'STEP posts\nSTEP post hao-opencore\nstamped /x/HaoExec.kext for kernel 037e7b860ac83c67afb8\n'
+                    'Installed 4 recorded kernel repairs and IntelCommpage.kext; retained target OCLP settings\n')
+            out = Pipe()
+            c = CON.Console('steps', out=out, env={})
+            r = PROG.Runner(c, 'install', groups=GROUPS, log=Path(d) / 'i.log', popen=popen_of(text), env={})
+            r(['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), 'LOCAL'])
+        got = sq(out.getvalue())
+        self.assertIn('  BootKC and SystemKC linked, Boot 875abf7d221c…  ✓  matches the proven build', got)
+        self.assertIn('  HaoExec stamped for kernel 037e7b860ac8…  ✓', got)
+        self.assertIn('  4 kernel repairs bound to this kernel, IntelCommpage added  ✓', got)
+
+
+class Downloads(unittest.TestCase):
+    def test_each_download_is_a_bar_with_its_check(self):
+        rows = [{'name': 'InstallAssistant-26B131.pkg', 'size': 2000, 'url': 'https://swcdn.apple.com/x'},
+                {'name': 'KDK_25G330.kdk', 'size': 10, 'url': 'https://x'}]
+        seen = []
+
+        def fetch(rows_, cache, on_event=None):
+            on_event({'ev': 'fetch', 'name': rows_[0]['name'], 'url': 'u', 'size': 2000})
+            for done in (500, 2000):
+                on_event({'ev': 'progress', 'name': rows_[0]['name'], 'done': done, 'size': 2000})
+            on_event({'ev': 'ok', 'name': rows_[0]['name'], 'sha256': 'ab'})
+            on_event({'ev': 'reused', 'name': rows_[1]['name'], 'sha256': 'cd'})
         out = Pipe()
         c = CON.Console('steps', out=out, env={})
-        with tempfile.TemporaryDirectory() as d:
-            rc = PROG.Runner(c, 'create-installer', log=Path(d) / 'c.log', popen=popen_of(text), env={})(
-                ['python3', '-I', 'golden-run', 'a.json', '--stage-kit'])
-        self.assertEqual(rc, 0)
-        self.assertEqual(out.getvalue().splitlines(),
-                         ['  prepare the kit: each changed file made once, checked and signed  ✓'])
+        acq = PROG.download_view(c, {'fetch': fetch, 'load': None}, lambda r: 'apple' if 'apple' in r.get('url', '') else '')
+        acq['fetch'](rows, '/cache', on_event=seen.append)
+        lines = [sq(l) for l in out.getvalue().splitlines()]
+        self.assertEqual(lines, ['  Apple  InstallAssistant-26B131.pkg  ' + '█' * 20 + ' 2.0 KB / 2.0 KB  sha256 ✓',
+                                 '         KDK_25G330.kdk  already downloaded, sha256 ✓'])
+        self.assertEqual([e['ev'] for e in seen], ['fetch', 'ok', 'reused'])     # byte counts stay on the bar
+        self.assertIs(acq['load'], None)
 
 
 class Live(unittest.TestCase):
@@ -197,7 +261,7 @@ class Live(unittest.TestCase):
         now[0] = 62
         t.update()
         t.end(True)
-        self.assertEqual(out.getvalue().splitlines(), [
+        self.assertEqual([sq(l) for l in out.getvalue().splitlines()], [
             '  ... build the system cryptex (31s so far)',
             '  ... build the system cryptex (1m 02s so far)',
             '  build the system cryptex  ✓  1m 02s'])
@@ -208,11 +272,11 @@ class Live(unittest.TestCase):
         self.assertEqual(CON.bar(0.5, 4, utf=False), '##..')
         self.assertEqual(plain_task(c, 2, 4), '  x ##########.......... 2/4 files')
 
-    def test_from_the_stick_the_terminal_palette(self):
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_STICK': '/Volumes/HAO'})
+    def test_palette_choice(self):
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_PALETTE': '8'})
         self.assertEqual(c.ok, '\033[32m✓\033[0m')
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color'})
-        self.assertEqual(c.ok, '\033[38;5;28m✓\033[0m')
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_STICK': '/Volumes/HAO'})
+        self.assertEqual(c.ok, '\033[38;5;35m✓\033[0m')
 
     def test_spinner_glyphs_are_in_menlo_and_sf_mono(self):
         self.assertTrue(set(CON.SPIN[True]) <= set('▖▘▝▗'))

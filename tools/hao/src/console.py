@@ -27,10 +27,12 @@ import time
 LEVELS = ('quiet', 'steps', 'files', 'edits', 'json')
 
 
-# kind -> SGR parameters. 256 colours: 28 green #008700, 160 red #d70000, 136 amber #af8700, 31 blue-cyan #0087af,
-# 244 grey #808080, 166 orange #d75f00, 97 purple #875faf, 30 teal #008787: each readable on white and on black.
-SGR_256 = {'ok': '38;5;28', 'bad': '1;38;5;160', 'warn': '38;5;136', 'bar': '38;5;31', 'bold': '1', 'dim': '2',
-           'apple': '38;5;244', 'tahoe': '38;5;166', 'oclp': '38;5;97', 'hao': '38;5;30'}
+# kind -> SGR parameters. 256 colours, the mockups' hues at a middle lightness so each reads on a dark Terminal (the
+# Recovery's) and on a light one: 35 green #00af5f, 167 red #d75f5f, 172 amber #d78700, 32 blue #0087d7, 245 grey
+# #8a8a8a for secondary text (not SGR 2, which some terminals draw too faint), 246 Apple grey, 173 Tahoe orange #d7875f,
+# 98 OCLP purple #875fd7, 36 hao teal #00af87.
+SGR_256 = {'ok': '38;5;35', 'bad': '1;38;5;167', 'warn': '38;5;172', 'bar': '38;5;32', 'bold': '1', 'dim': '38;5;245',
+           'apple': '38;5;246', 'tahoe': '38;5;173', 'oclp': '38;5;98', 'hao': '38;5;36'}
 SGR_8 = {'ok': '32', 'bad': '1;31', 'warn': '33', 'bar': '36', 'bold': '1', 'dim': '2',
          'apple': '90', 'tahoe': '33', 'oclp': '35', 'hao': '36'}
 ORIGINS = {'apple': 'Apple', 'tahoe': 'Tahoe', 'oclp': 'OCLP', 'hao': 'hao'}
@@ -55,9 +57,8 @@ class Style:
     def __init__(self, on, env=None):
         env = os.environ if env is None else env
         self.on = on
-        # From the USB installer (HAO_STICK) the Recovery's Terminal is dark: its own 8 ANSI colours suit its
-        # background, the 256-colour values (chosen to read on white) do not. HAO_PALETTE=8|256 chooses.
-        palette = env.get('HAO_PALETTE') or ('8' if env.get('HAO_STICK') else '')
+        # HAO_PALETTE=8|256 chooses; otherwise 256 colours where the terminal says it has them.
+        palette = env.get('HAO_PALETTE', '')
         self.codes = SGR_8 if palette == '8' else SGR_256 if palette == '256' or '256' in env.get('TERM', '') or \
             env.get('COLORTERM') else SGR_8
 
@@ -112,6 +113,14 @@ def fit(text, width):
             out.append(m.group()); i = m.end(); continue
         out.append(text[i]); seen += 1; i += 1
     return ''.join(out) + '…' + ('\033[0m' if '\033[' in text else '')
+
+
+MARK_COLUMN = 62              # where ✓ / ✗ stand on step and item lines, so they line up as in the mockups
+
+
+def at_column(text, column=MARK_COLUMN):
+    """TEXT padded with spaces to COLUMN visible characters (unchanged when it is longer)."""
+    return text + ' ' * max(2, column - len(plain(text)))
 
 
 def bar(fraction, width, utf=True):
@@ -227,6 +236,9 @@ class Console:
     def banner(self, text, **fields):
         self.event('run.start', text=text, **fields)
         head, sep, rest = text.partition('  ')
+        release = getattr(self, 'release', None)
+        if release:
+            head += ' ' + release
         self.print(self.paint('bold', head) + sep + rest)
 
     def steps(self, n):
@@ -252,7 +264,7 @@ class Console:
         if ok and text.endswith('sha256'):   # "sha256 ✓" is one green check, as in the mockups
             self.print('  ' + text[:-6] + self.paint('ok', 'sha256 ') + self.ok, level)
             return
-        self.print('  ' + text + (('  ' + self.ok) if ok else ''), level)
+        self.print((at_column('  ' + text) + self.ok) if ok else '  ' + text, level)
 
     def detail(self, text, level='edits'):
         self.print('            ' + self.paint('dim', text), level)
@@ -432,7 +444,8 @@ class Task:
                 self.done = self.total
             mark = {True: c.ok, False: c.bad}.get(ok, '')
             line = self.render(final=True)
-            line += ('  ' + mark if mark else '') + ('  ' + note if note else '')
+            note = note or getattr(self, 'final_note', None)
+            line = (at_column(line) + mark if mark else line) + ('  ' + note if note else '')
             secs = self.seconds()
             if timed and secs >= 1:
                 line += '  ' + c.paint('dim', elapsed(secs))
