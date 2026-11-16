@@ -44,7 +44,7 @@ Undeclared: golden-gate-metal-argbuf.
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | hao-opencore | r64 | experiment | post | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 5888543b payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r79 | experiment | oclp-hook | yes | dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 5888543b payload |
-| hao-runtime-fold | r4 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 3e4feeb7 payload |
+| hao-runtime-fold | r5 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 948219e4 payload |
 | metal-compiler-compat | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat 66e1e6dd compiler-service |
 | metal-metalold | r1 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae |
@@ -243,7 +243,7 @@ Undeclared: golden-gate-metal-argbuf.
   - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime)
   - `usr/lib/dyld`: from hao (row hao_runtime)
   - `usr/lib/hao/install.json`: from hao
-- **hao-runtime-fold** r4
+- **hao-runtime-fold** r5
   - `usr/libexec/hao`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold)
@@ -372,7 +372,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 |
 | golden_gate_userspace | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b | 6cdafc3b |
 | hao_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* |
-| hao_runtime_fold | - | - | - | 3e4feeb7 | 3e4feeb7 |
+| hao_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* |
 | hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* |
 | hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
 | icon_caches_golden_gate | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 |
@@ -451,9 +451,10 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-shared-cache r5 is newer than every image built with it (newest r3).
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
 - golden-gate-user-template r6 is newer than every image built with it (newest r5).
-- hao-runtime-fold r4 is newer than every image built with it (newest r3).
+- hao-runtime-fold r5 is newer than every image built with it (newest r3).
 - row appstore_slice_guard f61a65ee is in no image yet (images have 21df0a67).
 - row hao_runtime 5888543b is in no image yet (images have d4f8aab6, e29b10e5).
+- row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row hd4000_planes bae5502e is in no image yet (images have a9769034).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
