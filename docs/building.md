@@ -11,7 +11,10 @@ the inputs list.
 - Builder VM: [`tools/ssdvm`](../tools/ssdvm/README.md), `pipeline/vm/`. All formatting, APFS
   writes and kernel-collection builds run in it, never on the host. Build the launcher with
   `tools/ssdvm/build.sh store/vm/bin`; each build runs in an APFS clone of the VM at `store/vm/base`
-  (made with `ssdvm install`, see its README; `pipeline/vm/clones.py` provisions each clone).
+  (made with `ssdvm install`, see its README; `pipeline/vm/clones.py` provisions each clone). Provisioning drives the
+  clone's screen with `pipeline/vm/vmctl`, which needs Pillow and cryptography in `store/cache/vmctl-venv`
+  (`python3.14 -m venv store/cache/vmctl-venv && store/cache/vmctl-venv/bin/python3 -m pip install pillow cryptography`;
+  `VMCTL_PYTHON` names another).
 - Inputs from [Build inputs](inputs.md).
 
 ## 1. Prepare the inputs
