@@ -50,6 +50,10 @@
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
         its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
 
+hao alone (or hao help) lists the commands for where it runs; hao help --all adds the developer commands. A command
+run where it doesn't belong says where it runs (HAO_ANYWHERE=1 or --dry-run skips that check). Exit codes: 0 done,
+1 failed (stopped safely), 2 usage, 3 not enough space or the wrong drive, 4 a file failed its sha256, 5 refused.
+
 Detail levels for every command: --quiet, default, --show or -v (files), --show-edits (edits), --log json.
 On a terminal the step being worked on has a spinner (or a bar) and its time, redrawn in place, with colour; in a
 pipe, a log, with NO_COLOR or TERM=dumb the same lines come plain, with a "still working" line every 30 s.
@@ -80,6 +84,7 @@ import assets as ASSETS  # noqa: E402
 import installer as INST  # noqa: E402
 import report as REP     # noqa: E402
 import progress as PROG  # noqa: E402
+import frontdoor as FD   # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -273,14 +278,18 @@ def guarded(fn, log=None):
             elif log == 'create-installer':
                 c.column, c.gap = 60, True    # P(text, 58), a blank line between steps
         try:
+            refusal = None if getattr(a, 'dry_run', False) or os.environ.get('HAO_ANYWHERE') else \
+                FD.wrong_place(getattr(a, 'action', None), FD.where())
+            if refusal:
+                raise CON.Stopped(refusal, untouched='nothing was done', code=5)
             return fn(a, c)
         except CON.Stopped as x:
             if getattr(c, 'run', None) is not None:
                 c.run.explain(x)
-            if log and INST.REPORT not in x.options and x.what != 'not confirmed':
+            if log and INST.REPORT not in x.options and x.what != 'not confirmed' and x.code != 5:
                 x.options.append(INST.REPORT)
             c.stopped(x)
-            return 1
+            return FD.code_of(x)
         except (LP.PatchError, DETECT.DetectError) as x:
             c.stopped(CON.Stopped(str(x), options=[INST.REPORT] if log else ()))
             return 1
@@ -551,9 +560,21 @@ def kit_args(q):
     q.add_argument('--local', help='the assembly\'s writable folder (default WORK/local), not on the erased disk')
 
 
+def cmd_help(a):
+    """`hao` alone, `hao help [--all]`: the commands for where it runs."""
+    c = CON.Console('steps')
+    v = REP.version()
+    FD.listing(c, FD.where(), all_=getattr(a, 'all', False),
+               versions={'hao': v.get('release') or dev_label(v.get('commit'))})
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = p.add_subparsers(dest='action', required=True)
+    sub = p.add_subparsers(dest='action')
+    q = sub.add_parser('help', help='the commands for where hao runs')
+    q.add_argument('--all', action='store_true', help='also the developer commands')
+    q.set_defaults(fn=cmd_help)
     q = sub.add_parser('patch')
     q.add_argument('overlays', nargs='*')
     q.add_argument('--root'); q.add_argument('--state'); q.add_argument('--id'); q.add_argument('--deferred')
@@ -624,6 +645,8 @@ def main():
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: REP.report(a, c, MAC.SystemHost())))
     a = p.parse_args()
+    if a.action is None:
+        return cmd_help(a)
     return a.fn(a)
 
 

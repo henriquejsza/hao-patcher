@@ -225,10 +225,10 @@ def add_level_flags(parser):
 class Stopped(Exception):
     """A check failed: the command stops and Console.stopped prints what happened, why it matters, what to do."""
 
-    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None):
+    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None, code=None):
         super().__init__(what)
         self.what, self.why, self.cause, self.options, self.untouched = what, why, cause, list(options), untouched
-        self.log = log
+        self.log, self.code = log, code       # code: the exit code (src/frontdoor.py), when the raiser knows it
 
 
 class Console:
