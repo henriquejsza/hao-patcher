@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""Make, on the user's Mac, the Apple-derived files of the two Live Text rows a release publishes without them.
+
+  on-mac runtime ROW --system SYSTEM_ROOT
+      ROW is the placed live_text_framework folder. Makes runtime/MPSNDArray.metallib (Apple's MPSNDArray library with
+      only the legacy barrier/atomic ABI repaired: cache/metallib build_metallib.py --legacy-sync-only; needs Xcode's
+      Metal toolchain) and runtime/detector (TextRecognition's text detector, input binding rewritten).
+  on-mac compiler-service ROW --oclp-hardware OCLP_HARDWARE_ARTIFACT
+      ROW is the placed metal_compiler_compat folder. Makes OCLP's legacy MTLCompilerService with the compat.dylib load
+      command, signed ad hoc (Command Line Tools suffice).
+
+Every file made is checked against the hash the row's own build.json records before it is moved into ROW; nothing is
+written on a mismatch. A file already there with the recorded hash is left alone.
+"""
+import argparse
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+UNIT = Path(__file__).resolve().parent
+REPO = UNIT.parents[1]
+sys.path.insert(0, str(UNIT/'lib'))
+import compiler_service as cs  # noqa: E402
+import detector as detector_tool  # noqa: E402
+import runtime as runtime_tool  # noqa: E402
+
+# cache/metallib's ad hoc signer, loaded by path (its folder also has a `runtime` package).
+_spec = importlib.util.spec_from_file_location('adhoc_sign', REPO/'cache/metallib/lib/adhoc_sign.py')
+adhoc_sign = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(adhoc_sign)
+
+DETECTOR = ('System/Library/PrivateFrameworks/TextRecognition.framework/Versions/A/Resources/'
+            'cr_td_model_v3_e5.mlmodelc.bundle')
+SERVICE_CONTENTS = 'System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents'
+
+
+class Mismatch(ValueError):
+    pass
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as stream:
+        for block in iter(lambda: stream.read(4 << 20), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def run(*args):
+    return subprocess.run(list(map(str, args)), check=True, capture_output=True, text=True)
+
+
+def tree(folder):
+    return {str(p.relative_to(folder)): sha(p) for p in sorted(Path(folder).rglob('*')) if p.is_file()}
+
+
+def expect(record_files, relative, made):
+    want = record_files.get(relative)
+    if want is None:
+        raise Mismatch('%s: the row records no hash for it' % relative)
+    got = sha(made)
+    if got != want:
+        raise Mismatch('%s: made %s, the row records %s' % (relative, got, want))
+
+
+def runtime(row, system):
+    row, system = Path(row).resolve(), Path(system).resolve()
+    record = json.loads((row/'runtime/build.json').read_text())
+    files = record['files']
+    source = system/runtime_tool.SOURCE_METALLIB
+    want_source = record['inputs']['MPSNDArray.metallib']['source_sha256']
+    if sha(source) != want_source:
+        raise Mismatch('%s is not the System the row was built from (sha256 %s, row %s)' % (source, sha(source), want_source))
+    made = []
+    with tempfile.TemporaryDirectory(prefix='live-text-on-mac-') as tmp:
+        tmp = Path(tmp)
+        target = row/'runtime/MPSNDArray.metallib'
+        if not (target.is_file() and sha(target) == files['MPSNDArray.metallib']):
+            lib = REPO/'cache/metallib/lib'
+            code = ('import runpy,sys;sys.path.insert(0,sys.argv[1]);sys.argv=sys.argv[2:];'
+                    'runpy.run_path(sys.argv[0],run_name="__main__")')
+            run(sys.executable, '-I', '-c', code, lib, lib/'build_metallib.py', source, tmp/'mpsndarray',
+                '--legacy-sync-only')
+            expect(files, 'MPSNDArray.metallib', tmp/'mpsndarray/default.metallib')
+            made.append((tmp/'mpsndarray/default.metallib', target))
+        detector = row/'runtime/detector'
+        wanted = {k[len('detector/'):]: v for k, v in files.items() if k.startswith('detector/')}
+        if not (detector.is_dir() and tree(detector) == wanted):
+            detector_tool.prepare(system/DETECTOR, tmp/'detector')
+            if tree(tmp/'detector') != wanted:
+                raise Mismatch('runtime/detector: made %s, the row records %s' % (tree(tmp/'detector'), wanted))
+            made.append((tmp/'detector', detector))
+        for src, dest in made:
+            if dest.is_dir():
+                shutil.rmtree(dest)
+            elif dest.exists():
+                dest.unlink()
+            shutil.move(src, dest)
+    return [str(dest.relative_to(row)) for _, dest in made]
+
+
+def service_bytes(source):
+    """OCLP's MTLCompilerService (SOURCE: its Contents folder) with the compat.dylib load command, signed ad hoc as
+    compiler_service.build signs it; the signature's reserved space normalized so any macOS gives the same bytes."""
+    original = (source/'MacOS/MTLCompilerService').read_bytes()
+    cds = cs.check_service(original)
+    info = (source/'Info.plist').read_bytes()
+    resources = (source/'_CodeSignature/CodeResources').read_bytes()
+    changed, _ = cs.editor.append_dylibs(original, ['/'+cs.LIBRARY], resign_filetype=2)
+    with tempfile.TemporaryDirectory(prefix='live-text-service-') as tmp:
+        contents = Path(tmp)/'MTLCompilerService.xpc/Contents'
+        executable = contents/'MacOS/MTLCompilerService'
+        executable.parent.mkdir(parents=True)
+        (contents/'_CodeSignature').mkdir()
+        executable.write_bytes(changed)
+        (contents/'Info.plist').write_bytes(info)
+        (contents/'_CodeSignature/CodeResources').write_bytes(resources)
+        run('codesign', '-f', '-s', '-', '--preserve-metadata=identifier,entitlements,flags,runtime', executable)
+        signed = cs.bind_bundle(adhoc_sign.normalize(executable.read_bytes()), info, resources)
+        executable.write_bytes(signed)
+        (contents/'_CodeSignature/CodeResources').write_bytes(resources)
+        run('codesign', '--verify', '--ignore-resources', '--verbose=2', contents.parent)
+    new_cds = cs.editor.signature_directories(signed, cs.editor.load_commands(signed))
+    if [c[7] for c in new_cds] != [c[7] | 2 for c in cds]:
+        raise Mismatch('service signature policy flags changed')
+    return signed
+
+
+def compiler_service(row, hardware):
+    row, hardware = Path(row).resolve(), Path(hardware).resolve()
+    record = json.loads((row/'build.json').read_text())
+    services = sorted(hardware.glob('payload/*/' + SERVICE_CONTENTS))
+    if len(services) != 1:
+        raise Mismatch('expected one %s in %s, found %d' % (SERVICE_CONTENTS, hardware, len(services)))
+    source = services[0]
+    for name, path in (('MTLCompilerService', 'MacOS/MTLCompilerService'), ('Info.plist', 'Info.plist'),
+                       ('CodeResources', '_CodeSignature/CodeResources')):
+        if sha(source/path) != record['inputs']['service/' + name]:
+            raise Mismatch('%s is not the service the row was built from' % (source/path))
+    target = row/'replace'/cs.SERVICE
+    if target.is_file() and sha(target) == record['files'][cs.SERVICE]:
+        return []
+    with tempfile.TemporaryDirectory(prefix='live-text-on-mac-') as tmp:
+        made = Path(tmp)/'MTLCompilerService'
+        made.write_bytes(service_bytes(source))
+        expect(record['files'], cs.SERVICE, made)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        made.chmod(0o755)
+        shutil.move(made, target)
+    return [str(target.relative_to(row))]
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest='command', required=True)
+    command = sub.add_parser('runtime', help='live_text_framework: runtime/MPSNDArray.metallib and runtime/detector')
+    command.add_argument('row', type=Path)
+    command.add_argument('--system', type=Path, required=True, help="the target build's System root (ipsw_27_0)")
+    command = sub.add_parser('compiler-service', help='metal_compiler_compat: the signed MTLCompilerService')
+    command.add_argument('row', type=Path)
+    command.add_argument('--oclp-hardware', type=Path, required=True, help='the oclp_hardware row folder')
+    args = parser.parse_args(argv)
+    try:
+        made = runtime(args.row, args.system) if args.command == 'runtime' else \
+            compiler_service(args.row, args.oclp_hardware)
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+        detail = getattr(error, 'stderr', '') or ''
+        parser.exit(1, 'on-mac: %s%s\n' % (error, ('\n' + detail.strip()) if detail else ''))
+    print('made: %s' % (', '.join(made) or 'nothing (already there)'))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
