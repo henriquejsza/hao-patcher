@@ -399,13 +399,13 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | rebuilt_cache_catalog | - | - | - | - | d56244ea |
 | screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 |
 | shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
-| tahoe_boot_donors | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a |
+| tahoe_boot_donors | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* |
 | tahoe_driverkit_donors | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b |
 | tahoe_extensions_donors | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 |
 | tahoe_kc_builder | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b |
 | tahoe_kmutil | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 |
-| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2 | 3b1692f2 | 3b1692f2 |
-| tahoe_recovery_donors | e0e5686e | e0e5686e | e0e5686e | e0e5686e | e0e5686e |
+| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2* | 3b1692f2* | 3b1692f2* |
+| tahoe_recovery_donors | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* |
 | test_authorized_key | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b |
 | test_host_key | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 |
 | user_template_golden_gate | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 |
@@ -459,6 +459,9 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row hd4000_planes bae5502e is in no image yet (images have a9769034).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).
+- row tahoe_boot_donors 2bef5543 is in no image yet (images have 12e52f5a).
+- row tahoe_native_donors bd1fc6d2 is in no image yet (images have 3b1692f2, a227bc59).
+- row tahoe_recovery_donors 9b21f27f is in no image yet (images have e0e5686e).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.

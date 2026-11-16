@@ -13,9 +13,9 @@ import stat
 import subprocess
 
 UNIT = Path(__file__).resolve().parent
-REVISION = 12
-# tools/cache-dylib lives in hao-tools (a checkout next to this repository unless CACHE_DYLIB names its directory)
-CACHE_DYLIB = Path(os.environ.get('CACHE_DYLIB', UNIT.parents[2]/'hao-tools'/'tools'/'cache-dylib'))
+REVISION = 14
+# cache-dylib r3 (hao-patcher 8727b717), pinned: the tahoe_native_donors row's CoreWiFi was cut with it
+CACHE_DYLIB = UNIT/'cache-dylib'
 
 
 def sha(path):
@@ -122,7 +122,7 @@ def describe(source, destination, role, path, overrides=None):
     s = source.lstat()
     row = dict(role=role, path=path.as_posix(), uid=s.st_uid, gid=s.st_gid,
                mode=format(stat.S_IMODE(s.st_mode), 'o'), flags=format(getattr(s, 'st_flags', 0), 'x'),
-               mtime_ns=s.st_mtime_ns,
+               mtime_ns=None,
                xattrs=xattrs(source),
                metadata_source='source-lstat', source=str(source))
     if overrides is not None:
@@ -144,7 +144,7 @@ def extract_cache_image(cache, family, image, destination):
     (extraction record, verification record)."""
     import sys
     if not (CACHE_DYLIB/'cache_dylib.py').is_file():
-        raise ValueError('cache-dylib not found at '+str(CACHE_DYLIB)+': check out hao-tools next to this repository or set CACHE_DYLIB')
+        raise ValueError('cache-dylib not found at '+str(CACHE_DYLIB))
     sys.path.insert(0, str(CACHE_DYLIB))
     import cache_dylib, check  # noqa: E401 (imported here: the guest copy of this tool never extracts)
     record = cache_dylib.extract(cache, family.removeprefix('dyld_shared_cache_'), image, destination)
@@ -175,7 +175,7 @@ def add_cache_images(recipe, cache, payload, rows, inputs, output):
         meta = item['metadata']
         rows.append(dict(role='system', path=path.as_posix(), kind='file', size=target.stat().st_size,
                          sha256=sha(target), uid=meta['uid'], gid=meta['gid'], mode=meta['mode'],
-                         flags=meta['flags'], mtime_ns=main.stat().st_mtime_ns, xattrs={},
+                         flags=meta['flags'], mtime_ns=None, xattrs={},
                          metadata_source='recipe cache_images', source=f'{main}:/{path.as_posix()}',
                          extraction='cache-images.json'))
         records[path.as_posix()] = dict(cache=str(Path(cache).resolve()), family=family, main_sha256=sha(main),
@@ -270,6 +270,13 @@ def package(args):
                 row['transformation'] = 'remove Customer Software Update identities; sorted XML plist'
                 row.update(uid=0,gid=0,mode='644',flags='0')
                 rows.append(row)
+    # Sources by the input they come from, not by where this Mac keeps it, so another Mac's run writes the same manifest
+    roots = [(getattr(args, name, None), name) for name in ('tree', 'unpack', 'cache')]
+    for row in rows:
+        for root, label in roots:
+            if root is not None and row.get('source', '').startswith(str(root).rstrip('/')+'/'):
+                row['source'] = label+'/'+row['source'][len(str(root).rstrip('/'))+1:]
+                break
     totals = {}
     for role in sorted({r['role'] for r in rows}):
         selected = [r for r in rows if r['role'] == role]

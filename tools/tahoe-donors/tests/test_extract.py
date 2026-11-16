@@ -64,7 +64,10 @@ class Donors(unittest.TestCase):
         row={r['path']:r for r in manifest['entries']}['System/Library/PrivateFrameworks/X.framework/Versions/A/X']
         self.assertEqual((row['role'],row['kind'],row['uid'],row['mode'],row['flags']),('system','file',0,'755','80000'))
         self.assertEqual(row['sha256'],tool.sha(self.root/'out/payload/system'/row['path']))
-        self.assertEqual(row['mtime_ns'],(cache/'dyld_shared_cache_x86_64h').stat().st_mtime_ns)
+        self.assertIsNone(row['mtime_ns'])
+        self.assertEqual(row['source'],'cache/dyld_shared_cache_x86_64h:/'+row['path'])
+        sources={r['path']:r['source'] for r in manifest['entries']}
+        self.assertEqual(sources['System/Donor/file'],'tree/System/Donor/file')
         records=json.loads((self.root/'out/cache-images.json').read_text())
         self.assertEqual(records[row['path']]['main_sha256'],tool.sha(cache/'dyld_shared_cache_x86_64h'))
         self.assertIn(str((cache/'dyld_shared_cache_x86_64h').resolve()),[i['path'] for i in json.loads((self.root/'out/build.json').read_text())['inputs']])
