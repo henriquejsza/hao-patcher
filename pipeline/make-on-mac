@@ -325,6 +325,14 @@ def main():
     failed = []
     with open(log_path, 'a') as log:
         r = Run(fs, work, log, args.dry_run, release, args.userspace_on, args.keep)
+        if args.userspace_on and 'golden_gate_userspace' in made:
+            # images made onto another drive (an earlier USB drive, still mounted or not) are not this drive's
+            linked = artifact(path(fs, 'golden_gate_userspace'))
+            drive = Path(os.path.realpath(args.userspace_on))
+            if linked.is_symlink() and drive not in Path(os.path.realpath(linked)).parents and not args.dry_run:
+                print('  the userspace images are on another drive (%s): made again onto %s' % (
+                    os.readlink(linked), args.userspace_on), flush=True)
+                linked.unlink()
         try:
             for rows, fn in steps(r, fs, a):
                 rows = [x for x in rows if x in made and (not args.only or x in args.only)]
