@@ -344,9 +344,10 @@ def make_rows(a, c, release_path, cache, userspace_on, run=subprocess.call):
     maintainers' disk floor (pipeline/diskguard.py) is not applied."""
     env = dict(os.environ, HAO_DISK_FLOOR_GB=os.environ.get('HAO_DISK_FLOOR_GB', '1'))
     (TOP / 'store').mkdir(exist_ok=True)
-    for cmd in ([sys.executable, '-I', str(TOP / 'pipeline' / 'place'), str(release_path), str(cache)],
-                [sys.executable, '-I', str(TOP / 'pipeline' / 'make-on-mac'), str(release_path),
-                 '--userspace-on', str(userspace_on)]):
+    place = [sys.executable, '-I', str(TOP / 'pipeline' / 'place'), str(release_path), str(cache)]
+    # place again after the producers: it completes the rows that are plain copies out of rows made here
+    for cmd in (place, [sys.executable, '-I', str(TOP / 'pipeline' / 'make-on-mac'), str(release_path),
+                        '--userspace-on', str(userspace_on)], place):
         c.event('command', argv=cmd)
         if run(cmd, env=env):
             raise Stopped('making the inputs failed (%s)' % Path(cmd[2]).name,
