@@ -14,6 +14,7 @@ import sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'src'))
 from dyld_rebuild.producer import build
+from dyld_rebuild import disk_guard
 
 
 @contextmanager
@@ -109,8 +110,11 @@ def main():
     parser.add_argument('--toolchain', type=Path, required=True, help='output of toolchain/make')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--work', type=Path, required=True)
+    parser.add_argument('--keep-work', action='store_true',
+                        help='keep WORK/build (about 21 GB) after the family is written; by default it is removed')
     args = parser.parse_args()
     os.environ['CACHE_TOOLCHAIN'] = str(args.toolchain.resolve())
+    disk_guard.check(args.work, args.output, f'fold {args.output.name}')
     args.work.mkdir(parents=True)
     if args.swift_recipe:
         if not args.swift_runtime_cache:
@@ -151,6 +155,8 @@ def main():
                        args.work / 'build', args.output.resolve(), program_files=args.program_files,
                        swift_catalog=args.swift_catalog,swift_runtime_toolchain=args.swift_runtime_toolchain,
                        prebuilt_loaders=not args.no_prebuilt_loaders)
+    if not args.keep_work:
+        disk_guard.remove_intermediates(args.work)
     print(f'rebuilt_cache - {result}')
 
 

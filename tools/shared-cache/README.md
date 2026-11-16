@@ -26,7 +26,7 @@ show it.
   AvailabilityVersions-157.2 to generate dyld's `VersionMap.h` (`--availability DIR` uses a copy instead).
 - The macOS 27 26B131 system to rebuild, mounted read-only: the System volume (or its snapshot), the OS and App
   cryptexes and the Data volume. A hao image built with `tools/hao` has all four.
-- About 30 GB free: the work folder holds about 21 GB during a build, the family about 7 GB.
+- About 30 GB free: the work folder holds about 21 GB during a build (removed at the end), the family about 7 GB.
 
 ## Build
 
@@ -49,6 +49,11 @@ python3.14 -I -B tools/shared-cache/make \
 cryptex and Data volume. Instead of the four, `make IMAGE` mounts a disk image (`IMAGE` a `.img`, or a folder with
 `target.img`) read-only itself; an image repository (a folder with `image.json`) is exported first with
 `tools/bin/ssdimg` (`SSDIMG` names another copy). `NEW_WORK` and `NEW_FAMILY` must not exist.
+
+Before writing, the build checks that the volumes of `NEW_WORK` and `NEW_FAMILY` have about 30 GB free and stops
+otherwise; `SHARED_CACHE_DISK_CHECK=COMMAND` adds a site check, run as `COMMAND check --need GB --who shared-cache
+--what TEXT`, whose non-zero exit stops the build too. When the family is written, `NEW_WORK/build` (the
+intermediates, about 21 GB) is removed; `--keep-work` keeps it.
 
 A provider's bytes come from the System given, at the path its feature names. A feature file may instead name a
 file outside the System for a provider (`"sources": {"NAME": {"path": FILE, "sha256": HASH}}`), for example a
@@ -127,6 +132,8 @@ See [NOTICE.md](NOTICE.md): the vendored frida-gum and Swift headers and Apple's
 against dyld keep their own licences. The rest is covered by the repository's MIT license.
 
 ## Revisions
+- r85 2026-11-15 Disk guard: a build checks free space on its work and output volumes (and an optional site check
+  command) before writing, and removes its intermediates when the family is written (`--keep-work` keeps them).
 - r84 2026-11-15 First public revision: folds the on-disk replacements of a 26B131 x86_64 cache into a new signed
   family (providers, interposers as cache patches, ObjC and Swift tables, readback); the toolchain builds on Apple
   silicon and Intel from Apple's dyld-1378 and AvailabilityVersions-157.2.
