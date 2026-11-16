@@ -111,6 +111,10 @@
    ],
    "reason": "profile.json (tools/kernel-fixes binding profile: hashes, offsets and the repairs' find/replace byte patterns) and metadata-review.json; build.json is left out (home-folder paths; no recipe reads it)"
   },
+  "edit_engine": {
+   "class": "in-checkout",
+   "reason": "tools/edit-engine, tracked files of hao-patcher at the release commit (stub-edit for recipe hooks)"
+  },
   "display_install_helper": {
    "class": "in-checkout",
    "reason": "patches/golden-gate-windowserver-filter/src/install_dss.py, a tracked file of hao-patcher at the release commit"
