@@ -433,7 +433,7 @@ ledger; *On the laptop* is what `--verify` read over SSH, *not checked* without 
 
 ### Test machine A
 
-Image b124c40, pushed 2026-11-14 20:21:50 (built 2026-11-14 17:31 from e7708168, set dev-bs-test).
+Image d76a07d (alpha-v0.1.0), pushed 2026-11-15 20:49:28 (built 2026-11-15 20:17 from 88c7e324, set alpha-v0.1.0).
 
 No swapped files on it.
 
