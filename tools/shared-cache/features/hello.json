@@ -1,0 +1,9 @@
+{
+  "providers": {
+    "libhelloblur": "/usr/lib/libhelloblur.dylib"
+  },
+  "applies": {
+    "architecture": "x86_64",
+    "gpu": "Intel Ivy Bridge"
+  }
+}

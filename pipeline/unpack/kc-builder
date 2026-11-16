@@ -8,8 +8,8 @@ of the Mac it runs on. In the builder VM that is Golden Gate's arm64e copy, whic
 Intel Mac running a hao image or Golden Gate's Recovery it is Golden Gate's copy too, and there it refuses x86_64
 ("unsupported arch: x86_64", "Unexpected __HIB segment"). Tahoe's own x86_64 copy builds them: Intel Macs running Tahoe
 link their collections with it. Tahoe ships it only inside its OS cryptex shared cache (row tahoe_os_cache_x86_64h), so
-hao-tools' cache-dylib cuts it out as a file (a hao-tools checkout next to this repository, or CACHE_DYLIB=DIR; r7 or
-later, which makes the header room this image needs), signs it ad hoc and verifies it with check.py.
+tools/cache-dylib cuts it out as a file (this repository's copy, or CACHE_DYLIB=DIR; r7 or later, which makes the
+header room this image needs), signs it ad hoc and verifies it with check.py.
 
 OUTPUT/libKernelCollectionBuilder.dylib keeps its install name. OUTPUT/build.json: the commit, the input row and its
 sha256, cache-dylib's commit, the commands (repository-relative paths), the extraction's stats and the output's
@@ -28,7 +28,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 IMAGE = '/usr/lib/libKernelCollectionBuilder.dylib'
 ROW = 'tahoe_os_cache_x86_64h'
-CACHE_DYLIB = Path(os.environ.get('CACHE_DYLIB', REPO.parent/'hao-tools'/'tools'/'cache-dylib'))
+CACHE_DYLIB = Path(os.environ.get('CACHE_DYLIB', REPO/'tools'/'cache-dylib'))
 
 
 def sha(path):
@@ -42,7 +42,7 @@ def run(*args, cwd=None):
 def build(output, inputs):
     output = Path(output).resolve()
     if not (CACHE_DYLIB/'cache_dylib.py').is_file():
-        sys.exit('cache-dylib not found at %s: check out hao-tools next to this repository or set CACHE_DYLIB'
+        sys.exit('cache-dylib not found at %s: set CACHE_DYLIB to a cache-dylib directory'
                  % CACHE_DYLIB)
     main = Path(run(sys.executable, '-I', REPO/'pipeline'/'lock.py', 'path', inputs, ROW).stdout.strip())
     output.mkdir(parents=True, exist_ok=False)

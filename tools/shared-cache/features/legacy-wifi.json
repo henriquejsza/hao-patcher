@@ -1,0 +1,13 @@
+{
+  "providers": {
+    "IO80211": "/System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211",
+    "IO80211Old.dylib": "/System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211Old.dylib",
+    "WiFiPeerToPeer": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer",
+    "WiFiPeerToPeerOld.dylib": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOld.dylib",
+    "LibSystemShim.dylib": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/LibSystemShim.dylib"
+  },
+  "applies": {
+    "architecture": "x86_64",
+    "gpu": "Intel Ivy Bridge"
+  }
+}

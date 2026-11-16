@@ -37,7 +37,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Startup | Screen on about 45 s after the kernel starts; Setup Assistant, account creation, automatic login |
 | Desktop | Menu bar, Dock, Finder, Liquid Glass, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
-| Connectivity | Wi-Fi (joins at startup and from Setup), Bluetooth, AirPlay display discovery |
+| Connectivity | Wi-Fi (joins at startup and from Setup), Bluetooth, AirPlay display discovery, sound on AirPlay speakers |
 | Audio and input | Speakers, keyboard, trackpad, brightness keys |
 | Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite), Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
 | 3D | SceneKit scenes with materials, shadows and reflections |

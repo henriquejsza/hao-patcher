@@ -29,8 +29,7 @@ Tahoe ships some libraries only inside its OS shared cache. The recipe's
 `cache_images` names them (today CoreWiFi, from the x86_64h OS cache: Tahoe's
 airportd needs the CoreWiFi it was built with). `native --cache DIR` cuts each
 one out of the cache family in `DIR` (donor-inputs' `out/os-cache/`) with
-the `cache-dylib` tool (a checkout of it named by `CACHE_DYLIB=DIR`; it is
-not part of this repository), keeping its install name, signs it
+this repository's `tools/cache-dylib` (or the copy `CACHE_DYLIB=DIR` names), keeping its install name, signs it
 ad hoc, verifies it with cache-dylib's `check.py` (bound GOT slots, resolvable
 Swift references, no instruction Ivy Bridge lacks) and adds it to the `system`
 role at its own path, with the recipe's owner, mode and flags. The extraction
@@ -90,6 +89,8 @@ the native row's `-corewifi-r3` artifact was made with. No separate per-build re
 file exists or is needed.
 
 ## Revisions
+- r14 2026-11-15 cache-dylib ships in this repository again (`tools/cache-dylib`, r9) and is found there; `CACHE_DYLIB`
+  still names another copy. No output change: the cut-out files are cache-dylib r8's bytes.
 - r13 2026-11-15 `recipes/intel-donors.json` adds DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle to the system roots: 27.x ships the AWDL D2D plugin arm64e only, so the native x86_64 mDNSResponder could not load it and AirDrop never discovered peers over AWDL (diag#0044). Tahoe's copy carries x86_64 with the same plugin interface. Row tahoe_native_donors (26B131) remade with it; every other entry unchanged.
 - r12 2026-11-11 cache-dylib is no longer kept in this repository: found next to it or through `CACHE_DYLIB`; a missing copy is an error before extracting.
 - r11 2026-11-11 `native --cache`: the recipe's `cache_images` (Tahoe CoreWiFi from the x86_64h OS cache) are cut out with tools/cache-dylib, verified and added to the system role at their own path; extraction records in `cache-images.json`.

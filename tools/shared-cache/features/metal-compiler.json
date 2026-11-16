@@ -1,0 +1,14 @@
+{
+  "providers": {
+    "MTLCompiler3802": "/System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/MTLCompiler",
+    "libMTLCompilerHelper3802": "/System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libMTLCompilerHelper.dylib",
+    "libLLVM3802": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/3802/Libraries/libLLVM.dylib",
+    "libGPUCompiler3802": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/3802/Libraries/libGPUCompiler.dylib",
+    "libGPUCompilerImpl3802": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/3802/Libraries/libGPUCompilerImpl.dylib",
+    "libMTLIntelCompilerPlugin": "/System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libMTLIntelCompilerPlugin.dylib"
+  },
+  "applies": {
+    "architecture": "x86_64",
+    "gpu": "Intel Ivy Bridge"
+  }
+}

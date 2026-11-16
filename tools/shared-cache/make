@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""Build a shared-cache artifact from an image run or explicit filesystem roots."""
+import argparse
+from contextlib import ExitStack, contextmanager
+from datetime import datetime
+import json
+import os
+from pathlib import Path
+import plistlib
+import re
+import subprocess
+import sys
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / 'src'))
+from dyld_rebuild.producer import build
+from dyld_rebuild import disk_guard
+
+
+@contextmanager
+def mounted(image):
+    info = plistlib.loads(subprocess.check_output(['hdiutil', 'attach', '-readonly', '-nobrowse', '-plist', str(image)]))
+    entries = info['system-entities']
+    disk = next(row['dev-entry'] for row in entries if re.fullmatch(r'/dev/disk[0-9]+', row['dev-entry']))
+    try:
+        yield [Path(row['mount-point']) for row in entries if 'mount-point' in row]
+    finally:
+        subprocess.run(['hdiutil', 'detach', disk], check=True)
+
+
+def main():
+    if len(sys.argv)>1 and sys.argv[1]=='inventory':
+        from dyld_rebuild.swift_inventory import main as inventory_main
+        return inventory_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-select':
+        from dyld_rebuild.swift_inventory import select_command
+        return select_command(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='witness-initializers':
+        from dyld_rebuild.witness_initializers import main as initializers_main
+        return initializers_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='metadata-dependencies':
+        from dyld_rebuild.component_graph import main as component_main
+        return component_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='metadata-reconcile':
+        from dyld_rebuild.metadata_reconcile import main as reconcile_main
+        return reconcile_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='metadata-expand':
+        from dyld_rebuild.metadata_expand import main as expand_main
+        return expand_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-cache-resolve':
+        from dyld_rebuild.swift_cache_view import main as cache_view_main
+        return cache_view_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-runtime-graph':
+        from dyld_rebuild.swift_runtime_graph import main as runtime_graph_main
+        return runtime_graph_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-reflection-plan':
+        from dyld_rebuild.swift_generation import main as generation_main
+        return generation_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-live-capture':
+        from dyld_rebuild.swift_live import main as live_main
+        return live_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-dependencies':
+        from dyld_rebuild.swift_dependencies import main as dependencies_main
+        return dependencies_main(sys.argv[2:])
+    if len(sys.argv)>1 and sys.argv[1]=='swift-witness':
+        from dyld_rebuild.witness_probe import main as witness_main
+        return witness_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'fastpaths':
+        from dyld_rebuild.fastpaths import main as fastpaths_main
+        return fastpaths_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'prespecialization-overrides':
+        from dyld_rebuild.prespecialization_overrides import main as overrides_main
+        return overrides_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'swift-coverage':
+        from dyld_rebuild.swift_coverage import main as coverage_main
+        return coverage_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'swift-discover':
+        from dyld_rebuild.swift_graph import discover_main
+        return discover_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'verify-capture':
+        from dyld_rebuild.runtime_probes import verify_capture_main
+        return verify_capture_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == 'swift-capture':
+        from dyld_rebuild.swift_metadata import capture_main
+        return capture_main(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] in ('runtime-probes', 'summarize-runtime'):
+        from dyld_rebuild.runtime_probes import prepare_main, summarize_main
+        action = prepare_main if sys.argv[1] == 'runtime-probes' else summarize_main
+        return action(sys.argv[2:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('run', nargs='?', type=Path)
+    parser.add_argument('--revision', help='ssdimg commit when the input is an image store')
+    parser.add_argument('--system', type=Path)
+    parser.add_argument('--os', type=Path)
+    parser.add_argument('--app', type=Path)
+    parser.add_argument('--data', type=Path)
+    parser.add_argument('--program-files', type=Path, help='readable exports or matching installer tree for execute-only programs')
+    swift = parser.add_mutually_exclusive_group(required=True)
+    swift.add_argument('--swift-catalog', type=Path, help='regenerated catalog from swift-capture for this Mach-O build')
+    swift.add_argument('--swift-recipe', type=Path, help='semantic type recipe to regenerate using the target runtime')
+    swift.add_argument('--no-swift-catalog', action='store_true',
+                       help='add no Swift metadata; the source cache\'s prespecialized entries are kept')
+    parser.add_argument('--no-prebuilt-loaders', action='store_true',
+                        help='write no cached/program PrebuiltLoader sets (dyld uses JIT loaders); the source\'s sets are not carried')
+    parser.add_argument('--swift-runtime-cache', type=Path, help='exact cache family mapped by the capture runner')
+    parser.add_argument('--swift-runtime-toolchain',type=Path,help='runtime-toolchain-prepare output for metadata/witness catalogs')
+    parser.add_argument('--swift-runner', type=Path, help='native execution adapter; executable argv[1], stdin names, stdout JSONL')
+    parser.add_argument('--swift-base-catalog', type=Path, help='catalog retained when extending with a generic-value recipe')
+    parser.add_argument('--features', nargs='+', required=True, help='names under features/, or JSON files')
+    parser.add_argument('--toolchain', type=Path, required=True, help='output of toolchain/make')
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--work', type=Path, required=True)
+    parser.add_argument('--keep-work', action='store_true',
+                        help='keep WORK/build (about 21 GB) and an exported source.img after the family is written; '
+                             'by default they are removed')
+    args = parser.parse_args()
+    os.environ['CACHE_TOOLCHAIN'] = str(args.toolchain.resolve())
+    export_gb = 0                           # an image repository is exported whole into WORK first
+    if args.run and (args.run / 'image.json').is_file():
+        export_gb = -(-json.loads((args.run / 'image.json').read_text())['size'] // 10**9)
+    disk_guard.check(args.work, args.output, f'fold {args.output.name}', work_gb=disk_guard.WORK_GB + export_gb)
+    args.work.mkdir(parents=True)
+    if args.swift_recipe:
+        if not args.swift_runtime_cache:
+            parser.error('--swift-recipe requires --swift-runtime-cache')
+        from dyld_rebuild.swift_metadata import capture
+        args.swift_catalog = capture(args.swift_runtime_cache, args.swift_recipe, args.work / 'swift-capture', args.swift_runner,
+                                     base_catalog=args.swift_base_catalog)
+    selected, sources = {}, {}
+    for name in args.features:
+        path = Path(name) if name.endswith('.json') else HERE / 'features' / (name + '.json')
+        feature = json.loads(path.read_text())
+        selected.update(feature['providers'])
+        sources.update(feature.get('sources', {}))
+    selection = args.work / 'selection.json'
+    selection.write_text(json.dumps({'providers': selected, **({'sources': sources} if sources else {})}, indent=2) + '\n')
+    with ExitStack() as stack:
+        system, os_root, app, data = args.system, args.os, args.app, args.data
+        if args.run:
+            source = args.run
+            if (source / 'image.json').is_file():
+                exported = args.work / 'source.img'
+                command = [os.environ.get('SSDIMG', str(HERE.parents[1] / 'tools/bin/ssdimg')), '-C', str(source), 'export', str(exported)]
+                if args.revision:
+                    command += ['--rev', args.revision]
+                subprocess.run(command, check=True)
+                source = exported
+            elif source.is_dir():
+                source = source / 'target.img'
+            roots = stack.enter_context(mounted(source))
+            system = next(root for root in roots if (root / 'System/Library/CoreServices/SystemVersion.plist').is_file())
+            data = next(root for root in roots if (root / 'private/var').is_dir() and root != system)
+            preboot = next(root for root in roots if list(root.glob('*/cryptex1/current/os.dmg')))
+            cryptex = next(preboot.glob('*/cryptex1/current'))
+            os_root = stack.enter_context(mounted(cryptex / 'os.dmg'))[0]
+            app = stack.enter_context(mounted(cryptex / 'app.dmg'))[0]
+        version = plistlib.loads((system / 'System/Library/CoreServices/SystemVersion.plist').read_bytes())
+        result = build(system, os_root, app, data, version['ProductBuildVersion'], selection,
+                       args.work / 'build', args.output.resolve(), program_files=args.program_files,
+                       swift_catalog=args.swift_catalog,swift_runtime_toolchain=args.swift_runtime_toolchain,
+                       prebuilt_loaders=not args.no_prebuilt_loaders)
+    if not args.keep_work:
+        disk_guard.remove_intermediates(args.work)
+    print(f'rebuilt_cache - {result}')
+
+
+if __name__ == '__main__':
+    sys.exit(main())

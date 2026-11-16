@@ -1,0 +1,14 @@
+#!/bin/sh
+# Explicit local adapter. The workers enforce their supplied runtime cache UUID.
+set -eu
+if [ "$#" -ne 2 ]; then
+    echo "usage: metadata-local-runner capture|verify BUNDLE" >&2
+    exit 2
+fi
+phase=$1
+bundle=$2
+case "$phase" in
+    capture) exec "$bundle/swift-capture" < "$bundle/names.tsv" ;;
+    verify) exec "$bundle/dependency-replay" "$bundle/candidate.bin" "$bundle/loads.txt" ;;
+    *) echo "usage: metadata-local-runner capture|verify BUNDLE" >&2; exit 2 ;;
+esac
