@@ -29,7 +29,7 @@ More in the [gallery](docs/gallery.md): Safari and YouTube, the wind and air-qua
 
 ## Status
 
-Pre-alpha. Developed and tested on a 2012 13-inch MacBook Pro (MacBookPro9,2: Ivy Bridge, Intel HD 4000); other
+Developer preview. Developed and tested on a 2012 13-inch MacBook Pro (MacBookPro9,2: Ivy Bridge, Intel HD 4000); other
 Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 
 | Area | What works |
@@ -68,7 +68,7 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 ## Install
 
-Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
+Developer preview, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
 1. Get hao at the release tag: `git clone --branch v0.0.1 https://github.com/lythka/hao-patcher`, then
    `cd hao-patcher/tools/hao`.
