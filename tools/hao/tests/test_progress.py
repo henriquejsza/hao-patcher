@@ -164,10 +164,28 @@ class Steps(unittest.TestCase):
         self.assertFalse(any('\033[' in l for l in out.splitlines()))
 
     def test_terminal_redraws_in_place_with_colour(self):
-        _, out, _, _, _ = render(out=Tty())
-        self.assertIn('\r\033[K', out)
+        _, out, _, _, c = render(out=Tty())
+        self.assertIsInstance(c.surface, CON.RichSurface)             # the vendored Rich draws the live line
+        self.assertIn('\033[?25l', out)                                # cursor hidden while a line is live
+        self.assertIn('\033[2K', out)                                  # the live line erased, its final line drawn
         self.assertIn('\033[1m[1/7] Lay out the disk\033[0m', out)
         self.assertIn('\033[38;5;78m✓\033[0m', out)
+
+    def test_without_rich_the_console_redraws_itself(self):
+        _, out, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        self.assertIsInstance(c.surface, CON.PlainSurface)
+        self.assertIn('\r\033[K', out)
+        self.assertIn('\033[38;5;78m✓\033[0m', out)
+
+    def test_record_saves_what_was_drawn(self):
+        with tempfile.TemporaryDirectory() as d:
+            svg = Path(d) / 'run.svg'
+            _, _, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_RECORD': str(svg)})
+            self.assertTrue(c.save_record())
+            text = svg.read_text()
+        self.assertIn('<svg', text)
+        self.assertIn('Lay&#160;out&#160;the&#160;disk', text)
+        self.assertNotIn('0s</text>', text)                        # finished lines only, no live frames
 
     def test_no_colour_and_dumb_terminal_are_plain(self):
         for env in ({'NO_COLOR': '1', 'TERM': 'xterm'}, {'TERM': 'dumb'}):

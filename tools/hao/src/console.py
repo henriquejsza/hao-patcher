@@ -18,6 +18,7 @@ basic ones.
 """
 import json
 import os
+from pathlib import Path
 import re
 import shutil
 import sys
@@ -222,6 +223,123 @@ def add_level_flags(parser):
     g.add_argument('--log', choices=['json'], help='every event as one JSON line')
 
 
+VENDOR = Path(__file__).resolve().parents[1] / 'vendor'
+
+
+def rich_modules(env=None):
+    """(Console, Live, Text) from the vendored Rich (tools/hao/vendor, its LICENSE and NOTICE.md there), or None
+    when HAO_NO_RICH is set or it cannot be imported (the console then redraws lines itself)."""
+    env = os.environ if env is None else env
+    if env.get('HAO_NO_RICH'):
+        return None
+    if str(VENDOR) not in sys.path:
+        sys.path.insert(0, str(VENDOR))
+    try:
+        from rich.console import Console as RichConsole
+        from rich.live import Live
+        from rich.text import Text
+    except ImportError:
+        return None
+    return RichConsole, Live, Text
+
+
+class PlainSurface:
+    """A terminal without Rich: the live line is redrawn with \\r and erase-line by the task's own thread."""
+    threaded = True
+
+    def __init__(self, c):
+        self.c = c
+
+    def line(self, text, stream=None):
+        print(text, file=stream or self.c.out, flush=True)
+
+    def start(self, task):
+        self.c._draw_live()
+
+    def refresh(self):
+        self.c._clear_live()
+        self.c._draw_live()
+
+    def stop(self):
+        self.c._clear_live()
+
+    def pause(self):
+        self.c._clear_live()
+
+    def resume(self):
+        self.c._draw_live()
+
+    def save(self, path):
+        return False
+
+
+class RichSurface:
+    """A terminal through Rich: finished lines are printed above a Live region holding the line being worked on;
+    Rich refreshes it (10 a second), hides the cursor meanwhile and measures cells for cropping. HAO_RECORD=FILE keeps
+    everything drawn and saves it as SVG (or HTML, by FILE's suffix) when the command ends."""
+    threaded = False
+
+    def __init__(self, c, modules, record=False):
+        RichConsole, self.Live, self.Text = modules
+        self.c = c
+        self.rc = RichConsole(file=c.out, force_terminal=True, color_system='256', highlight=False, markup=False,
+                              emoji=False, soft_wrap=True)
+        # the record holds only finished lines (no live frames): the screen as it is left
+        import io
+        self.rec = RichConsole(file=io.StringIO(), force_terminal=True, color_system='256', highlight=False,
+                               markup=False, emoji=False, soft_wrap=True, record=True, width=c.width()) if record else None
+        self.live = None
+
+    def line(self, text, stream=None):
+        if stream is not None and stream is not self.c.out:
+            self.pause()
+            print(text, file=stream, flush=True)
+            self.resume()
+            return
+        self.rc.print(self.Text.from_ansi(text), soft_wrap=True)
+        if self.rec is not None:
+            self.rec.print(self.Text.from_ansi(text), soft_wrap=True)
+
+    def _renderable(self):
+        task = self.c.live
+        if task is None:
+            return self.Text('')
+        task.frame = int(time.monotonic() / TICK)
+        return self.Text.from_ansi(fit(task.render(), self.c.width() - 1), no_wrap=True, end='')
+
+    def start(self, task):
+        self.stop()
+        self.live = self.Live(get_renderable=self._renderable, console=self.rc, refresh_per_second=1 / TICK,
+                              transient=True, redirect_stdout=False, redirect_stderr=False)
+        self.live.start()
+
+    def refresh(self):
+        if self.live is not None:
+            self.live.refresh()
+
+    def stop(self):
+        if self.live is not None:
+            self.live.stop()
+            self.live = None
+
+    def pause(self):
+        if self.live is not None:
+            self.live.stop()
+
+    def resume(self):
+        if self.live is not None:
+            self.live.start()
+
+    def save(self, path):
+        if self.rec is None:
+            return False
+        if str(path).endswith('.html'):
+            self.rec.save_html(str(path))
+        else:
+            self.rec.save_svg(str(path), title='hao')
+        return True
+
+
 class Stopped(Exception):
     """A check failed: the command stops and Console.stopped prints what happened, why it matters, what to do."""
 
@@ -261,6 +379,9 @@ class Console:
         self.gap = False              # a blank line before each step header (create-installer's rhythm)
         self.muted = False            # print nothing (events are still kept): a backend's own header is replaced
         self.release = None           # the release (or dev COMMIT) the header names
+        modules = rich_modules(e) if self.animate else None
+        self.surface = RichSurface(self, modules, record=bool(e.get('HAO_RECORD'))) if modules else PlainSurface(self)
+        self.record = e.get('HAO_RECORD')
 
     # -- plumbing
     @property
@@ -280,9 +401,22 @@ class Console:
     def print(self, text='', level='steps'):
         if self.at(level) and not self.muted:
             with self.lock:
-                self._clear_live()
-                print(self.paint.erased(text), file=self.out, flush=True)
-                self._draw_live()
+                if isinstance(self.surface, PlainSurface):
+                    self._clear_live()
+                    print(self.paint.erased(text), file=self.out, flush=True)
+                    self._draw_live()
+                else:
+                    self.surface.line(self.paint.erased(text))
+
+    def save_record(self):
+        """HAO_RECORD=FILE: the run as drawn, saved (SVG, or HTML for a .html FILE). True when saved."""
+        if not self.record:
+            return False
+        self.surface.stop()
+        try:
+            return self.surface.save(self.record)
+        except OSError:
+            return False
 
     def _clear_live(self):
         if self.live is not None and self.animate:
@@ -358,9 +492,12 @@ class Console:
         self.event('warning', text=text)
         if self.level != 'json':
             with self.lock:
-                self._clear_live()
-                print(self.paint_err('warn', 'warning:') + ' ' + text, file=self.err, flush=True)
-                self._draw_live()
+                if isinstance(self.surface, PlainSurface):
+                    self._clear_live()
+                    print(self.paint_err('warn', 'warning:') + ' ' + text, file=self.err, flush=True)
+                    self._draw_live()
+                else:
+                    self.surface.line(self.paint_err('warn', 'warning:') + ' ' + text, stream=self.err)
 
     def confirm(self, question, word, given=None):
         """Ask QUESTION and require WORD typed (or GIVEN, from a flag). False when it does not match."""
@@ -430,9 +567,10 @@ class Task:
                 if c.live is not None:          # one live line at a time: the older one ends as it stands
                     c.live.end(None)
                 c.live = self
-                c._draw_live()
+                if c.animate:
+                    c.surface.start(self)
             self._thread = None
-            if c.animate:
+            if c.animate and c.surface.threaded:
                 self._stop = threading.Event()
                 self._thread = threading.Thread(target=self._spin, daemon=True)
                 self._thread.start()
@@ -493,8 +631,7 @@ class Task:
                 self.tail = tail
             if self.shown and not self.ended:
                 if self.c.animate:
-                    self.c._clear_live()
-                    self.c._draw_live()
+                    self.c.surface.refresh()
                 elif self.c.clock() - self.beat >= self.c.heartbeat:
                     self.pulse()
 
@@ -514,7 +651,8 @@ class Task:
                 return
             self.ended = True
             if c.live is self:
-                c._clear_live()
+                if c.animate:
+                    c.surface.stop()
                 c.live = None
             c.event('task.end', text=self.text, ok=True, seconds=round(self.seconds(), 1), shown=False, **self.fields)
         if getattr(self, '_thread', None) is not None:
@@ -537,10 +675,14 @@ class Task:
             if timed and secs >= 1:
                 line += '  ' + c.paint('dim', elapsed(secs))
             if c.live is self:
-                c._clear_live()
+                if c.animate:
+                    c.surface.stop()
                 c.live = None
             if self.shown:
-                print(c.paint.erased(line), file=c.out, flush=True)
+                if c.animate:
+                    c.surface.line(c.paint.erased(line))
+                else:
+                    print(c.paint.erased(line), file=c.out, flush=True)
             c.event('task.end', text=self.text, ok=ok, note=note, seconds=round(secs, 1), **self.fields)
         if getattr(self, '_thread', None) is not None:
             self._stop.set()
