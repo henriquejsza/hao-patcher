@@ -1,0 +1,70 @@
+{
+ "format": 1,
+ "path": "System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
+ "arch": "x86_64",
+ "origin": {
+  "kind": "apple",
+  "name": "appstoreagent 26B131"
+ },
+ "applied_by": "installer",
+ "edits": [
+  {
+   "id": "legacy-preflight-accept-either-architecture",
+   "kind": "literal",
+   "section": "__TEXT,__text",
+   "find": "0f be 4d c8 41 0f be d6 41 0f be f4 48 89 c7 49 89 d8 e8 87 ab 06 00",
+   "replace": "41 0f be d6 41 0f be f4 09 d6 90 90 48 89 c7 49 89 d8 e8 87 ab 06 00",
+   "asm": {
+    "before": "ecx=requiresRosetta; edx=runsOnAppleSilicon; esi=runsOnIntel",
+    "after": "edx=runsOnAppleSilicon; esi=runsOnIntel | runsOnAppleSilicon"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  },
+  {
+   "id": "media-api-preflight-accept-either-architecture",
+   "kind": "literal",
+   "section": "__TEXT,__text",
+   "find": "8b 75 b0 8b 55 a0 44 89 f9 4c 8b 45 d0 e8 cf b8 f6 ff",
+   "replace": "8b 75 b0 8b 55 a0 09 d6 90 4c 8b 45 d0 e8 cf b8 f6 ff",
+   "asm": {
+    "before": "esi=runsOnIntel; edx=runsOnAppleSilicon; ecx=requiresRosetta",
+    "after": "esi=runsOnIntel | runsOnAppleSilicon; edx=runsOnAppleSilicon"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  },
+  {
+   "id": "accept-native-mac-ipa-overlay",
+   "kind": "literal",
+   "section": "__TEXT,__text",
+   "find": "49 8b bf a0 00 00 00 48 8d 05 2f 9d 51 00 49 89 87 a0 00 00 00 ff 15 8a b8 52 00",
+   "replace": "49 8b bf a0 00 00 00 31 c0 90 90 90 90 90 49 89 87 a0 00 00 00 ff 15 8a b8 52 00",
+   "asm": {
+    "before": "StoreItem._disqualifyIPAReason = unsupported platform string",
+    "after": "StoreItem._disqualifyIPAReason = nil"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  },
+  {
+   "id": "load-store-policy",
+   "kind": "op",
+   "op": "macho.add-dylib",
+   "args": {
+    "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  }
+ ],
+ "sign": {
+  "mode": "adhoc",
+  "preserve": [
+   "identifier",
+   "entitlements",
+   "requirements",
+   "flags",
+   "runtime"
+  ]
+ },
+ "expect": {
+  "99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8": "9322e3fe8cf614d33d0e5415ee850d61992cdc6e5aa3561ff1ad3f8457dc0cb5"
+ }
+}

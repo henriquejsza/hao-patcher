@@ -251,7 +251,7 @@ Revision r14, status experiment. [Recipe](../patches/golden-gate-shader-caches/R
 
 ## golden-gate-shared-cache
 
-Revision r4, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
+Revision r5, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
 - 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -271,15 +271,28 @@ Revision r2, status experiment. [Recipe](../patches/golden-gate-shared-cache-cat
 
 ## golden-gate-store
 
-Revision r2, status product. [Recipe](../patches/golden-gate-store/README.md)
+Revision r3, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 - `usr/lib/hao/libhao-appstore-policy.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao-ios-coordinator-test.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
-- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Applications/App Store.app/Contents/MacOS/App Store`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/store-policy-original-appstoreagent`: whole file from hao. Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/store-policy-original-appstored`: whole file from hao. Installed mode 0644, owner root:wheel.
+- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from Apple · appstored 26B131; 3 edits, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `legacy-preflight-accept-either-architecture`: literal in __TEXT,__text, 23 bytes, `0F BE 4D C8 41 0F BE D6 41 0F BE F4 48 89 C7 49 89 D8 E8 0B 5E 02 00` → `41 0F BE D6 41 0F BE F4 09 D6 90 90 48 89 C7 49 89 D8 E8 0B 5E 02 00` (`ecx=requiresRosetta; edx=runsOnAppleSilicon; esi=runsOnIntel` → `edx=runsOnAppleSilicon; esi=runsOnIntel | runsOnAppleSilicon`).
+     App Store: Apple-silicon-only apps download and install.
+  2. `accept-native-mac-ipa-overlay`: literal in __TEXT,__text, 27 bytes, `49 8B BD A0 00 00 00 48 8D 05 1A 95 35 00 49 89 85 A0 00 00 00 FF 15 E5 E8 35 00` → `49 8B BD A0 00 00 00 31 C0 90 90 90 90 90 49 89 85 A0 00 00 00 FF 15 E5 E8 35 00` (`StoreItem._disqualifyIPAReason = unsupported platform string` → `StoreItem._disqualifyIPAReason = nil`).
+     App Store: Apple-silicon-only apps download and install.
+  3. `load-store-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/libhao-appstore-policy.dylib.
+     App Store: Apple-silicon-only apps download and install.
+- `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from Apple · appstoreagent 26B131; 4 edits, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `legacy-preflight-accept-either-architecture`: literal in __TEXT,__text, 23 bytes, `0F BE 4D C8 41 0F BE D6 41 0F BE F4 48 89 C7 49 89 D8 E8 87 AB 06 00` → `41 0F BE D6 41 0F BE F4 09 D6 90 90 48 89 C7 49 89 D8 E8 87 AB 06 00` (`ecx=requiresRosetta; edx=runsOnAppleSilicon; esi=runsOnIntel` → `edx=runsOnAppleSilicon; esi=runsOnIntel | runsOnAppleSilicon`).
+     App Store: Apple-silicon-only apps download and install.
+  2. `media-api-preflight-accept-either-architecture`: literal in __TEXT,__text, 18 bytes, `8B 75 B0 8B 55 A0 44 89 F9 4C 8B 45 D0 E8 CF B8 F6 FF` → `8B 75 B0 8B 55 A0 09 D6 90 4C 8B 45 D0 E8 CF B8 F6 FF` (`esi=runsOnIntel; edx=runsOnAppleSilicon; ecx=requiresRosetta` → `esi=runsOnIntel | runsOnAppleSilicon; edx=runsOnAppleSilicon`).
+     App Store: Apple-silicon-only apps download and install.
+  3. `accept-native-mac-ipa-overlay`: literal in __TEXT,__text, 27 bytes, `49 8B BF A0 00 00 00 48 8D 05 2F 9D 51 00 49 89 87 A0 00 00 00 FF 15 8A B8 52 00` → `49 8B BF A0 00 00 00 31 C0 90 90 90 90 90 49 89 87 A0 00 00 00 FF 15 8A B8 52 00` (`StoreItem._disqualifyIPAReason = unsupported platform string` → `StoreItem._disqualifyIPAReason = nil`).
+     App Store: Apple-silicon-only apps download and install.
+  4. `load-store-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/libhao-appstore-policy.dylib.
+     App Store: Apple-silicon-only apps download and install.
+- `System/Applications/App Store.app/Contents/MacOS/App Store`: from hao · App Store 26B131, hao stub; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `load-store-catalog-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/libhao-appstore-policy.dylib.
+     App Store: Apple-silicon-only apps download and install.
 
 ## golden-gate-user-seed
 

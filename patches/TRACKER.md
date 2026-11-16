@@ -31,9 +31,9 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-shared-cache | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
+| golden-gate-shared-cache | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `rebuilt_cache` hashes the artifact without its build.json (`# hash: without build.json`), s |
 | golden-gate-shared-cache-catalog | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
-| golden-gate-store | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-15 Adds libhao-ios-coordinator-test.dylib, which the replaced appstoreagent loads. |
+| golden-gate-store | r3 | oclp-hook | product |  |  |  |  |  | **needs** | r3 2026-11-16 Edit specs on the image's own files instead of copied files; the library is built from our sourc |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-userspace | r79 | oclp-hook | experiment |  | x | x |  |  | **needs** | r79 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |

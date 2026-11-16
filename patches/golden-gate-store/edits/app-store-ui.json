@@ -1,0 +1,34 @@
+{
+ "format": 1,
+ "path": "System/Applications/App Store.app/Contents/MacOS/App Store",
+ "arch": "x86_64",
+ "origin": {
+  "kind": "hao",
+  "name": "App Store 26B131, hao stub"
+ },
+ "applied_by": "installer",
+ "edits": [
+  {
+   "id": "load-store-catalog-policy",
+   "kind": "op",
+   "op": "macho.add-dylib",
+   "args": {
+    "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+   },
+   "reason": "App Store: Apple-silicon-only apps download and install"
+  }
+ ],
+ "sign": {
+  "mode": "adhoc",
+  "preserve": [
+   "identifier",
+   "entitlements",
+   "requirements",
+   "flags",
+   "runtime"
+  ]
+ },
+ "expect": {
+  "0d62bbd00661dd507263610861a266ab2794bd055442fb0ecba74ca87891f50e": "8c4079fc2595ccb494a49ae785a5ab452cb2b4ce62081a309e1d62c368902c80"
+ }
+}

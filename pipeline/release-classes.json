@@ -336,8 +336,12 @@
    ]
   },
   "store_service": {
-   "class": "pending",
-   "reason": "pending"
+   "class": "ours",
+   "publish": "tar",
+   "include": [
+    "libhao-appstore-policy.dylib"
+   ],
+   "reason": "built by tools/appstore-policy/prepare.py from src/store_policy.m"
   },
   "tahoe_boot_donors": {
    "class": "made-on-mac",
