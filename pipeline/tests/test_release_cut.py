@@ -265,6 +265,16 @@ class Write(unittest.TestCase):
             R['build_release'](ASSEMBLY, '27.2.1')
 
 
+class Versions(unittest.TestCase):
+    def test_a_release_version_may_carry_an_alpha_or_beta_number(self):
+        C = runpy.run_path(str(TOP / 'tools/hao-contract/hao_contract.py'))
+        for pattern in (R['VERSION'], C['RELEASE_VERSION']):
+            for ok in ('v0.1.0', 'v0.1.0-alpha.1', 'v1.2.3-beta.12'):
+                self.assertTrue(pattern.match(ok), ok)
+            for bad in ('0.1.0', 'v0.1', 'v0.1.0-alpha', 'v0.1.0-rc.1', 'v0.1.0-alpha.1x'):
+                self.assertFalse(pattern.match(bad), bad)
+
+
 class PendingRows(unittest.TestCase):
     """--allow-pending-row ROW lets only that row's problems through; anything else still refuses."""
     def cut(self, channel, *extra):

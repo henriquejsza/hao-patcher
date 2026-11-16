@@ -2,7 +2,8 @@
 """release-cut: what a release of an assembly ships, and whether each input could be made again.
 
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
-  release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z [--stage DIR]
+  release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z[-alpha.N|-beta.N] [--stage DIR]
+              [--no-harvested-assets]
               [--allow-pending | --allow-pending-row ROW ...]
         the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
         hao-assets contract's release schema, format 2), release version VERSION (e.g. v0.1.0) on CHANNEL: downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
@@ -10,7 +11,8 @@
         revisions and packs. With --stage, every asset file is written into DIR (new or empty) and checked against
         release.json after. Refused while the release is incomplete (a pending row, an ours row without a clean
         producer, a row with no content class), unless --allow-pending, which writes it with "state": "incomplete";
-        a beta is never written incomplete. --allow-pending-row ROW (repeatable) allows only those rows' own
+        a beta is never written incomplete. --no-harvested-assets leaves the harvested caches out of this cut (listed as
+        harvested, made on the user's Mac) whatever release-classes.json's harvested_assets says. --allow-pending-row ROW (repeatable) allows only those rows' own
         problems (each still marked pending, the release incomplete); any other problem still refuses. Every channel is a prerelease (there is no final channel yet).
         Promotion (alpha -> beta) is a new --write from the same commits with the new --channel: the release.json
         then differs only in channel (and state/prerelease where the channel rules change them).
@@ -375,10 +377,10 @@ RELEASE_NAME = __import__('re').compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z
 
 CHANNELS = ('dev', 'alpha', 'beta')          # hao_contract.py's, earliest first
 COMPLETE_CHANNELS = ('beta',)
-VERSION = __import__('re').compile(r'^v\d+\.\d+\.\d+$')
+VERSION = __import__('re').compile(r'^v\d+\.\d+\.\d+(-(alpha|beta)\.\d+)?$')   # v0.1.0, v0.1.0-alpha.1
 
 
-def build_release(assembly, name, stage=None, prerelease=True, channel='dev', version='v0.0.0'):
+def build_release(assembly, name, stage=None, prerelease=True, channel='dev', version='v0.0.0', harvested_assets=True):
     """(release.json as a dict, problems). Every row of release_rows is placed by its content class
     (release-classes.json): ours rows become assets (made, hashed and, with STAGE, written there), downloads carry
     their URL, made-on-mac rows their producer and Apple inputs. A problem is anything that keeps the release from
@@ -389,7 +391,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     if channel not in CHANNELS:
         raise ValueError('channel %r is not one of %s' % (channel, ', '.join(CHANNELS)))
     if not VERSION.match(version):
-        raise ValueError('version %r is not vX.Y.Z (e.g. v0.1.0)' % version)
+        raise ValueError('version %r is not vX.Y.Z or vX.Y.Z-alpha.N / -beta.N (e.g. v0.1.0-alpha.1)' % version)
     patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
     a = json.loads(Path(assembly).read_text())
     import contextlib, io
@@ -411,7 +413,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
         if row == 'hao_runtime' and hit and os.path.isdir(hit[1][1]):
             m = Path(hit[1][1]) / 'payload-manifest.json'
             runtime_commit = json.loads(m.read_text()).get('commit') if m.is_file() else None
-        if kind == 'harvested' and not harvested_ship(data_settings, a['target']):
+        if kind == 'harvested' and not (harvested_assets and harvested_ship(data_settings, a['target'])):
             harvested.append(row)
         elif kind == 'harvested':
             # shipped for this target (owner, 2026-11-14, the 9,2): the harvested artifact the build installs, as a tar
@@ -536,7 +538,8 @@ def main(argv):
             stage.mkdir(parents=True, exist_ok=True)
         try:
             rel, problems = build_release(assembly, opts['--release'], stage, channel=opts['--channel'],
-                                          version=opts['--version'])
+                                          version=opts['--version'],
+                                          harvested_assets='--no-harvested-assets' not in argv)
         except ValueError as x:
             print('release-cut: %s' % x, file=sys.stderr)
             return 2
