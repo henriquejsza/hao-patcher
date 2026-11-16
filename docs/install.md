@@ -1,7 +1,7 @@
 # Install
 
 > [!WARNING]
-> Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
+> Developer preview, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
 Making the USB installer yourself is in progress: parts made on another macOS version may differ in signature; the
 graphics parts need Xcode's Metal toolchain.
