@@ -311,7 +311,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-user-template/RE
 
 ## golden-gate-userspace
 
-Revision r80, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r81, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.

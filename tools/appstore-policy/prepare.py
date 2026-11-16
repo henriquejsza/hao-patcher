@@ -101,6 +101,18 @@ def prepare_executable(source, target, spec, record):
         subprocess.run(["codesign", "--verify", "--strict", str(target)], check=True)
     return {"before": before, "after": after}
 
+def compile_library(library, trace=False):
+    compiled_sources = [HERE / "src/store_policy.m"]
+    if trace:
+        compiled_sources.append(HERE / "probes/capability_trace.m")
+    subprocess.run(["xcrun", "clang", "-arch", "x86_64", "-fobjc-arc", "-dynamiclib",
+                    "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter",
+                    "-framework", "Foundation", "-install_name",
+                    "/usr/lib/hao/libhao-appstore-policy.dylib",
+                    *map(str, compiled_sources), "-o", str(library)], check=True)
+    subprocess.run(["codesign", "-s", "-", str(library)], check=True)
+    return compiled_sources
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("agent", type=pathlib.Path)
@@ -122,15 +134,7 @@ def main():
         parser.error("output outside store")
     output.mkdir(parents=True, exist_ok=False)
     library = output / "libhao-appstore-policy.dylib"
-    compiled_sources = [HERE / "src/store_policy.m"]
-    if args.trace_capabilities:
-        compiled_sources.append(HERE / "probes/capability_trace.m")
-    subprocess.run(["xcrun", "clang", "-arch", "x86_64", "-fobjc-arc", "-dynamiclib",
-                    "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter",
-                    "-framework", "Foundation", "-install_name",
-                    "/usr/lib/hao/libhao-appstore-policy.dylib",
-                    *map(str, compiled_sources), "-o", str(library)], check=True)
-    subprocess.run(["codesign", "-s", "-", str(library)], check=True)
+    compiled_sources = compile_library(library, args.trace_capabilities)
     sources = [*compiled_sources, HERE / "profiles/inputs-26B131.json",
                pathlib.Path(__file__).resolve()]
     files = [library]

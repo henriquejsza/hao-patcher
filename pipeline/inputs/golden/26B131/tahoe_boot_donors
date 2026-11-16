@@ -1,3 +1,4 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
+# r14: tools/tahoe-donors r14 (no extraction times, sources by input); payload identical to the previous row.
 # hash: without build.json  # build records and intermediates: a remake of the same payload matches
-12e52f5adba40d3c9d152a0e20453de05ef70c31445c58b3fc5eff25bbbc51f9 store/artifacts/minimal-boot-25G342-26B131
+2bef5543a588b479b1f18b94913702d36b1e608e397927eb8a0f6f15099af2be store/artifacts/minimal-boot-25G342-26B131-r14

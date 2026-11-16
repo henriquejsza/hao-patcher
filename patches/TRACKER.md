@@ -36,7 +36,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-store | r4 | oclp-hook | product |  |  |  |  |  | **needs** | r4 2026-11-16 Row `store_service` carries its build record (hash without build.json). Installed bytes unchange |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r7 | post | experiment | caches | x |  |  |  | **needs** | r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its |
-| golden-gate-userspace | r80 | oclp-hook | experiment |  | x | x |  |  | **needs** | r80 2026-11-16 Input row `golden_gate_userspace` (26B131) leaves the producer's record `userspace.json` out of |
+| golden-gate-userspace | r81 | oclp-hook | experiment |  | x | x |  |  | **needs** | r81 2026-11-16 Merges r80 (this branch) with main's r79: both row changes below, no other change. |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
 | hao-runtime | r81 | oclp-hook | experiment |  | x | x |  |  | **needs** | r81 2026-11-16 Row `hao_runtime` (26B131): its sha256 leaves out root/usr/lib/hao/aot (52b89e0a), which the us |

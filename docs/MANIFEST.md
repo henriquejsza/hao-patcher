@@ -39,7 +39,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 | golden-gate-store | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-user-seed | r9 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-user-template | r7 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
-| golden-gate-userspace | r80 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 52b89e0a payload |
+| golden-gate-userspace | r81 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 52b89e0a payload |
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | hao-opencore | r65 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 52b89e0a payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r81 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 52b89e0a payload |
@@ -184,7 +184,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
   - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from hao (row user_template_golden_gate)
-- **golden-gate-userspace** r80
+- **golden-gate-userspace** r81
   - `usr/lib/dss_shim.dylib`: from hao (row display_state_shim)
   - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: from hao (row io80211_compat)
   - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: from hao (row wifip2p_compat)
@@ -371,7 +371,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | Row | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d |
 |---|---|---|---|---|---|---|---|---|---|
 | appstore_slice_guard | - | 21df0a67* | 21df0a67* | 21df0a67* | 21df0a67* | f61a65ee | f61a65ee | f61a65ee | - |
-| codeid_carrier | fdd622b1 | fdd622b1 | fdd622b1 | fdd622b1 | fdd622b1 | fdd622b1 | fdd622b1 | fdd622b1 | fdd622b1 |
+| codeid_carrier | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* |
 | corespotlight_compat_shim | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc |
 | corewifi_compat | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 |
 | darwin27_kernel | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 |
@@ -411,13 +411,13 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | - |
 | shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
 | store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52 |
-| tahoe_boot_donors | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a | 12e52f5a |
+| tahoe_boot_donors | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* |
 | tahoe_driverkit_donors | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b |
 | tahoe_extensions_donors | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 |
 | tahoe_kc_builder | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b |
 | tahoe_kmutil | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 |
-| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2 | 3b1692f2 | 3b1692f2 | 3b1692f2 | 3b1692f2 | 3b1692f2 | 3b1692f2 |
-| tahoe_recovery_donors | e0e5686e | e0e5686e | e0e5686e | e0e5686e | e0e5686e | e0e5686e | e0e5686e | e0e5686e | e0e5686e |
+| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* |
+| tahoe_recovery_donors | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* |
 | test_authorized_key | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | - |
 | test_host_key | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | - |
 | user_template_golden_gate | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 |
@@ -461,13 +461,17 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-shared-cache r5 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
 - golden-gate-user-template r7 is newer than every image built with it (newest r6).
-- golden-gate-userspace r80 is newer than every image built with it (newest r79).
+- golden-gate-userspace r81 is newer than every image built with it (newest r79).
 - hao-runtime r81 is newer than every image built with it (newest r80).
 - hao-runtime-fold r5 is newer than every image built with it (newest r4).
+- row codeid_carrier 16120d97 is in no image yet (images have fdd622b1).
 - row golden_gate_userspace 060bd378 is in no image yet (images have 6cdafc3b).
 - row hao_runtime 52b89e0a is in no image yet (images have 0d579f6d, d4f8aab6, e29b10e5).
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).
+- row tahoe_boot_donors 2bef5543 is in no image yet (images have 12e52f5a).
+- row tahoe_native_donors bd1fc6d2 is in no image yet (images have 3b1692f2, a227bc59).
+- row tahoe_recovery_donors 9b21f27f is in no image yet (images have e0e5686e).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.

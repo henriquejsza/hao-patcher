@@ -1,4 +1,5 @@
 # Code identity carrier objects made by patches/golden-gate-userspace/src/codeid/make: carrier.o and libhao_codeid.a from
 # hao-runtime 33a0a04 (code-identity sources identical to 53d26c3); build.json pins every hash. Planned against the 26A428
 # and 26B131 x86_64 caches.
-fdd622b155c8d031745c711c58a74847f5fa88711b273f0451644cfc1d27a1b2 store/artifacts/codeid-carrier-20261111-002baf5f2e03
+# hash: without build.json  # date and cache-plan record: a source build of the same objects matches
+16120d970182b199587ceb963fe718d907eca038826126097e18a30db7e7cb7d store/artifacts/codeid-carrier-20261111-002baf5f2e03
