@@ -1,10 +1,4 @@
-# hao runtime payload for 26B131 from https://github.com/lythka/hao-runtime (build.json names its commit: 79bc70e).
-# Built from a clean 79bc70e tree, with 399e78e's payload's units, AOT list and cryptex programs. libhao 7051dc53
-# (UUID 02f9dbe8) and libhao_identity 752fd35f, the bytes proven on the test laptop on 2026-11-14. 963 embedded, 965 of 969
-# AOT caches. Adds since bd08b64: 79bc70e guest dlopen resolves @rpath, @loader_path and @executable_path from the
-# calling image (Xcode's launch abort). bd08b64 added, since 399e78e: 8c0d9ab native stack per callback level
-# (diag#0005); aee7feb, 9568ead Finder (diag#0032); 857862f MRMediaRemoteRequestVideoThumbnails row; eef78f8 mds
-# SIPathFilterCreate callback; 496c15c (c930bf9) Swift value lookups once per call site; e2b7ad9 host-code check of
-# a first-call bind (Control Center cold open).
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=67b0d4042725305460574c61027fdeb598930d66b28031b64b674582fb7cc73f
-5888543b1202baf14a1b811f21b3deaaa9f31de1ded9ee7333aa3867efca0c47 store/artifacts/hao-runtime-26B131-20261114-79bc70ead081/payload
+# hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime 1a290d7 (public alpha
+# commit): libhao d6b9b712, libhao_identity 752fd35f; 1896 units, 963 embedded.
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=d6054d9cffafc416e77531435b302a05829fd2ea974d1ce987733a49816b9cbc
+0d579f6da0ee1ed472601649b50bfc330a5bc5beb60d06025da9af7346f0f650 store/artifacts/hao-runtime-26B131-20261115-1a290d7-alpha-A/payload
