@@ -81,9 +81,20 @@ class Donors(unittest.TestCase):
     def test_failed_cache_image_verification_stops(self):
         cache=self.cache_recipe()
         fake=mock.Mock(extract=lambda *a:{'stats':{}}); checker=mock.Mock(check=lambda *a:{'errors':['GOT slot 0x1 used by code is neither bound nor rebased']})
-        with mock.patch.dict('sys.modules',{'cache_dylib':fake,'check':checker}),mock.patch.object(tool.subprocess,'run'):
+        with mock.patch.dict('sys.modules',{'cache_dylib':fake,'check':checker}),mock.patch.object(tool.subprocess,'run'),\
+             mock.patch.object(tool.adhoc_signature,'pin') as pin:
             with self.assertRaisesRegex(ValueError,'fails verification'):
                 tool.package(self.args('native',cache=cache))
+        pin.assert_called_once()   # signed the same way on any macOS before it is checked
+
+    def test_host_attributes_stay_out_of_the_manifest(self):
+        p=self.tree/'System/Donor';p.mkdir(parents=True);(p/'file').write_bytes(b'donor');(p/'link').symlink_to('file')
+        p=self.tree/'usr/bin';p.mkdir(parents=True);(p/'kmutil').write_bytes(b'linker')
+        self.meta.write_text(self.meta.read_text().replace('com.example.test=6162','com.example.test=6162,com.apple.provenance=0102'))
+        with mock.patch.object(tool,'host_xattrs',return_value={'com.apple.provenance':'0102','com.apple.quarantine':'30','com.example.kept':'61'}):
+            self.assertEqual(tool.xattrs(self.tree/'usr/bin/kmutil'),{'com.example.kept':'61'})
+            rows={r['path']:r for r in tool.package(self.args('native'))['entries']}
+        self.assertEqual(rows['System/Donor/file']['xattrs'],{'com.example.test':'6162'})
 
     def test_intel_recipe_cuts_tahoe_corewifi_from_the_os_cache(self):
         recipe=json.loads((UNIT/'recipes/intel-donors.json').read_text())

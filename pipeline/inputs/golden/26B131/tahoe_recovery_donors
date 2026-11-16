@@ -1,4 +1,5 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
+# r16: tools/tahoe-donors r16 (no host attributes such as com.apple.provenance in the manifest); payload identical.
 # r14: tools/tahoe-donors r14 (no extraction times, sources by input); payload identical to the previous row.
 # hash: without build.json  # build records and intermediates: a remake of the same payload matches
-9b21f27f8453c4ba244518b95c3f4c814c819f086feb6994cc83d8767f027e1d store/artifacts/minimal-recovery-25G342-26B131-r14
+7e0517e90b972d1d60267359901092082cf43e53e4e54ac07c27b30fb6e330a8 store/artifacts/minimal-recovery-25G342-26B131-r16

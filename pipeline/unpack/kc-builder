@@ -21,6 +21,7 @@ import json
 import os
 import runpy
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 
@@ -52,6 +53,7 @@ def build(output, inputs):
     import check
     record = cache_dylib.extract(main.parent, 'x86_64h', IMAGE, dylib)
     run('codesign', '-f', '-s', '-', dylib)
+    runpy.run_path(str(REPO/'tools'/'tahoe-donors'/'adhoc_signature.py'))['pin'](dylib)   # any macOS's codesign
     verified = check.check(str(dylib), record)
     if verified['errors']:
         sys.exit('the extracted builder fails verification:\n' + '\n'.join(verified['errors']))
@@ -70,7 +72,8 @@ def build(output, inputs):
                                   source['_git'](CACHE_DYLIB, 'rev-parse', 'HEAD') or '',
                                   dirty=bool(source['_git'](CACHE_DYLIB, 'status', '--porcelain', '--', '.'))),
                  commands=['cache_dylib.extract(%s, x86_64h, %s)' % (rel(main.parent), IMAGE),
-                           'codesign -f -s - libKernelCollectionBuilder.dylib', 'check.check'],
+                           'codesign -f -s - libKernelCollectionBuilder.dylib',
+                           'tools/tahoe-donors/adhoc_signature.py libKernelCollectionBuilder.dylib', 'check.check'],
                  stats={k: v for k, v in record.get('stats', {}).items() if not isinstance(v, dict)},
                  verification={k: v for k, v in verified.items() if k != 'errors' and not isinstance(v, (list, dict))},
                  files={dylib.name: sha(dylib), report.name: sha(report)})

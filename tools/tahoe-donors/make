@@ -11,9 +11,12 @@ import plistlib
 import shutil
 import stat
 import subprocess
+import sys
 
 UNIT = Path(__file__).resolve().parent
-REVISION = 15
+sys.path.insert(0, str(UNIT))
+import adhoc_signature  # noqa: E402
+REVISION = 16
 # cache-dylib r3 (hao-patcher 8727b717), pinned: the tahoe_native_donors row's CoreWiFi was cut with it
 CACHE_DYLIB = UNIT/'cache-dylib'
 
@@ -37,7 +40,15 @@ def write(path, data):
     path.write_text(json.dumps(data, indent=2, sort_keys=True)+'\n')
 
 
+# Attributes the host's file system adds to extracted files (not the donor's): left out of manifests and images.
+HOST_XATTRS = frozenset(('com.apple.provenance', 'com.apple.quarantine', 'com.apple.macl'))
+
+
 def xattrs(path):
+    return {n: v for n, v in host_xattrs(path).items() if n not in HOST_XATTRS}
+
+
+def host_xattrs(path):
     # CPython's Darwin build has no os.listxattr; use the native no-follow API.
     if hasattr(os, 'listxattr'):
         return {n:os.getxattr(path,n,follow_symlinks=False).hex()
@@ -78,7 +89,8 @@ def metadata(path, links):
             continue  # Hard-link records carry no metadata; use the source inode.
         rows[name] = dict(uid=int(uid), gid=int(gid), mode=mode, flags=flags,
                           mtime_ns=None,  # times differ between listings of the same installer; install time is used
-                          xattrs={} if attrs == '-' else dict(x.split('=', 1) for x in attrs.split(',')))
+                          xattrs={} if attrs == '-' else {n: v for n, v in (x.split('=', 1) for x in attrs.split(','))
+                                                          if n not in HOST_XATTRS})
     master = None
     aliases = {}
     for line in Path(links).read_text().splitlines():
@@ -142,13 +154,13 @@ def extract_cache_image(cache, family, image, destination):
     (dsc_extractor, dyld_shared_cache_util -extract) and `ipsw dyld extract` write files for debuggers: no rebase,
     bind or (Apple's) export information, cache segment order, so dyld refuses them (README). Returns
     (extraction record, verification record)."""
-    import sys
     if not (CACHE_DYLIB/'cache_dylib.py').is_file():
         raise ValueError('cache-dylib not found at '+str(CACHE_DYLIB))
     sys.path.insert(0, str(CACHE_DYLIB))
     import cache_dylib, check  # noqa: E401 (imported here: the guest copy of this tool never extracts)
     record = cache_dylib.extract(cache, family.removeprefix('dyld_shared_cache_'), image, destination)
     subprocess.run(['codesign', '-f', '-s', '-', str(destination)], check=True, capture_output=True)
+    adhoc_signature.pin(destination)   # the same bytes whichever macOS's codesign signed it
     verified = check.check(str(destination), record)
     if verified['errors']:
         raise ValueError('extracted cache image fails verification: '+image+'\n'+'\n'.join(verified['errors']))
@@ -299,7 +311,7 @@ def package(args):
                   commit=subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True).strip(),
                   dirty=bool(subprocess.check_output(['git','-C',str(root),'status','--porcelain'],text=True)),
                   inputs=[dict(path=str(p.resolve()), sha256=sha(p)) for p in inputs],
-                  source_inputs=[dict(path=str(p), sha256=sha(p)) for p in [Path(__file__)] + (
+                  source_inputs=[dict(path=str(p), sha256=sha(p)) for p in [Path(__file__), UNIT/'adhoc_signature.py'] + (
                       sorted(CACHE_DYLIB.glob('*.py')) if args.command == 'native' and recipe.get('cache_images') else [])],
                   origin=recipe['origin'], totals=totals,
                   manifest_sha256=sha(args.output/'manifest.json'),
