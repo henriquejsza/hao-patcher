@@ -1,8 +1,4 @@
-# hao runtime payload for 26B131 from https://github.com/lythka/hao-runtime (build.json names its commit: c66997a).
-# DEV payload: built from a clean local c66997a main before its push (owner 2026-11-14 "Faster, yes": dev images may
-# use local commits; beta and release payloads need the pushed commit). With 79bc70ead081's units, AOT list and
-# cryptex programs. libhao b8f0480f (UUID 6025CE78), the bytes proven on the test laptop on 2026-11-14, and
-# libhao_identity 752fd35f (as 79bc70ead081). 963 embedded, 965 of 969 AOT caches. Adds since 79bc70e: 877891d
-# native SwiftUI.View modifiers lend guest-made self with native nils (diag#0038), 6578cdf its test.
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=de49444b9190db087542f42ff9bc7ed073a4495b45ac53e7393bf86788c34019
-e29b10e5fdc33061dcfeca3de578144191784f4aa755f80128e4df16fc5fb33e store/artifacts/hao-runtime-26B131-20261114-c66997a2a0bb/payload
+# hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime 1a290d7 (public alpha
+# commit): libhao d6b9b712, libhao_identity 752fd35f; 1896 units, 963 embedded.
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=d6054d9cffafc416e77531435b302a05829fd2ea974d1ce987733a49816b9cbc
+0d579f6da0ee1ed472601649b50bfc330a5bc5beb60d06025da9af7346f0f650 store/artifacts/hao-runtime-26B131-20261115-1a290d7-alpha-A/payload
