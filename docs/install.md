@@ -3,6 +3,9 @@
 > [!WARNING]
 > Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
+Making the stick yourself is in progress: parts made on another macOS version may differ in signature; the
+graphics parts need Xcode's Metal toolchain.
+
 hao installs macOS 27 on an Intel Mac. You make a USB stick on any Mac, then install from the stick on the
 MacBook Pro.
 
@@ -11,15 +14,20 @@ MacBook Pro.
 | Part | Requirement |
 |---|---|
 | Target | MacBook Pro (13-inch, Mid 2012), the first supported model. Its internal disk is erased. |
-| Build Mac | Any Mac, Intel or Apple silicon, on its normal macOS, with no SIP or AMFI changes. |
-| USB stick | Size measured soon. The stick is erased. |
-| Free disk | On the build Mac: measured soon. |
-| Time | Measured soon. |
+| Build Mac | Any Mac, Intel or Apple silicon, on its normal macOS, with no SIP or AMFI changes. It needs the Command Line Tools (`xcode-select --install`) and Python 3.14 (python.org's build: run its Install Certificates once). |
+| USB stick | 64 GB or larger. The stick is erased. |
+| Free disk | About 190 GB on the build Mac; the downloads are about 48 GB. |
+| Time | On the build Mac about 7 minutes of downloads and 15 of making; the install about 1-2 hours, most of it one quiet step. |
 | Network | Internet on the build Mac (the downloads come from Apple and this project's releases). |
 
 ## Install
 
-1. Download `hao` from the [releases page](https://github.com/lythka/hao-patcher/releases).
+1. Get hao at the release tag:
+
+   ```sh
+   git clone --branch v0.0.9 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/hao
+   ```
+
 2. Plug in the USB stick and run:
 
    ```sh
@@ -29,8 +37,8 @@ MacBook Pro.
    Choose the USB stick and confirm. This erases the USB stick; you may be asked for your password.
    Today this step is still four commands (fetch, place, make-on-Mac, create-installer); [the developer
    guide](building.md) lists them until `create-installer` does all four.
-3. On the MacBook Pro, hold Option at startup and choose **HAOBOOT**. In the Recovery, open Utilities > Terminal and
-   run `/Volumes/HAO/install`.
+3. On the MacBook Pro, hold Option at startup and choose **EFI Boot**. Expect a silent pause of several minutes
+   before the Apple logo. In the Recovery, open Utilities > Terminal and run `/Volumes/HAO/install`.
 4. After the first start-up, run once:
 
    ```sh

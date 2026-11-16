@@ -70,11 +70,12 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
-1. Download `hao` from the [releases page](https://github.com/lythka/hao-patcher/releases).
+1. Get hao at the release tag: `git clone --branch v0.0.9 https://github.com/lythka/hao-patcher`, then
+   `cd hao-patcher/tools/hao`.
 2. Run `./hao create-installer`, choose the USB stick and confirm (the stick is erased; you may be asked for your
    password). Today this is still four commands; [the developer guide](docs/building.md) lists them.
-3. On the MacBook Pro, hold Option at startup, choose **HAOBOOT** and run `/Volumes/HAO/install` from the Recovery's
-   Terminal.
+3. On the MacBook Pro, hold Option at startup, choose **EFI Boot** (a silent pause of several minutes follows)
+   and run `/Volumes/HAO/install` from the Recovery's Terminal.
 4. After the first start-up, run `sudo /usr/libexec/hao --aot` once.
 
 [Install](docs/install.md) has the requirements, logs for a bug report and building from source.
