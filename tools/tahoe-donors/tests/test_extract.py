@@ -36,7 +36,7 @@ class Donors(unittest.TestCase):
         manifest=tool.package(self.args('native'));rows={r['path']:r for r in manifest['entries']}
         self.assertEqual(rows['System/Donor/file']['sha256'],tool.sha(self.tree/'System/Donor/file'))
         self.assertEqual((rows['System/Donor/file']['uid'],rows['System/Donor/file']['gid'],rows['System/Donor/file']['mode']),(0,80,'755'))
-        self.assertEqual(rows['System/Donor/file']['mtime_ns'],12000000034)
+        self.assertIsNone(rows['System/Donor/file']['mtime_ns'])
         self.assertEqual(rows['System/Donor/link']['link_target'],'file')
         self.assertFalse((self.root/'out/payload/system/System/Library/Kernels').exists())
         self.assertEqual((self.root/'out/payload/build-tools/usr/bin/kmutil').read_bytes(),b'linker')
@@ -70,6 +70,7 @@ class Donors(unittest.TestCase):
         self.assertEqual(sources['System/Donor/file'],'tree/System/Donor/file')
         records=json.loads((self.root/'out/cache-images.json').read_text())
         self.assertEqual(records[row['path']]['main_sha256'],tool.sha(cache/'dyld_shared_cache_x86_64h'))
+        self.assertEqual(records[row['path']]['cache'],'cache')
         self.assertIn(str((cache/'dyld_shared_cache_x86_64h').resolve()),[i['path'] for i in json.loads((self.root/'out/build.json').read_text())['inputs']])
 
     def test_cache_images_need_the_cache(self):
@@ -107,6 +108,7 @@ class Donors(unittest.TestCase):
         manifest=tool.package(self.args('driverkit',source=source))
         self.assertEqual(manifest['totals']['driverkit-cache']['files'],2)
         self.assertFalse((self.root/'out/payload/driverkit-cache/dyld_shared_cache_arm64e').exists())
+        self.assertEqual(sorted(r['source'] for r in manifest['entries']),['source/dyld_shared_cache_x86_64','source/dyld_shared_cache_x86_64.01'])
 
     def boot(self,digest=None):
         unpack=self.root/'unpack';p=unpack/'zip/AssetData/boot';p.mkdir(parents=True)

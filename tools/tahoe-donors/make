@@ -13,7 +13,7 @@ import stat
 import subprocess
 
 UNIT = Path(__file__).resolve().parent
-REVISION = 14
+REVISION = 15
 # cache-dylib r3 (hao-patcher 8727b717), pinned: the tahoe_native_donors row's CoreWiFi was cut with it
 CACHE_DYLIB = UNIT/'cache-dylib'
 
@@ -77,7 +77,7 @@ def metadata(path, links):
         if typ == 'H':
             continue  # Hard-link records carry no metadata; use the source inode.
         rows[name] = dict(uid=int(uid), gid=int(gid), mode=mode, flags=flags,
-                          mtime_ns=int(sec)*10**9+int(ns) if sec != '-' else None,
+                          mtime_ns=None,  # times differ between listings of the same installer; install time is used
                           xattrs={} if attrs == '-' else dict(x.split('=', 1) for x in attrs.split(',')))
     master = None
     aliases = {}
@@ -178,7 +178,8 @@ def add_cache_images(recipe, cache, payload, rows, inputs, output):
                          flags=meta['flags'], mtime_ns=None, xattrs={},
                          metadata_source='recipe cache_images', source=f'{main}:/{path.as_posix()}',
                          extraction='cache-images.json'))
-        records[path.as_posix()] = dict(cache=str(Path(cache).resolve()), family=family, main_sha256=sha(main),
+        record = dict(record, cache=dict(record['cache'], directory='cache')) if isinstance(record.get('cache'), dict) else record
+        records[path.as_posix()] = dict(cache='cache', family=family, main_sha256=sha(main),
                                         extraction=record, verification=verified)
     if records:
         write(output/'cache-images.json', records)
@@ -272,6 +273,8 @@ def package(args):
                 rows.append(row)
     # Sources by the input they come from, not by where this Mac keeps it, so another Mac's run writes the same manifest
     roots = [(getattr(args, name, None), name) for name in ('tree', 'unpack', 'cache')]
+    sources = getattr(args, 'source', None)
+    roots += [(s, 'source') for s in ([sources] if isinstance(sources, (str, Path)) else sources or [])]
     for row in rows:
         for root, label in roots:
             if root is not None and row.get('source', '').startswith(str(root).rstrip('/')+'/'):

@@ -1,3 +1,4 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
+# r15: tools/tahoe-donors r15 (manifest without times or local paths; cache-images.json names the cache by role); payload identical to the previous row; a fresh store made on another Mac gives the same hash.
 # hash: without build.json  # build records and intermediates: a remake of the same payload matches
-b9cd040204a6eb8dc8c9991cc7f4ac2435dd81a3d13c17dd83521938e5ecc46d store/artifacts/minimal-extensions-25G342-26B131
+e0b2c6cf2180a8614d914114d4413ee4a8e0ebf6b19850a1d01ce922fb0a8595 store/artifacts/minimal-extensions-25G342-26B131-r15

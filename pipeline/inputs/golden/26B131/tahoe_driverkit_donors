@@ -1,3 +1,4 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
+# r15: tools/tahoe-donors r15 (manifest without times or local paths; cache-images.json names the cache by role); payload identical to the previous row; a fresh store made on another Mac gives the same hash.
 # hash: without build.json  # build records and intermediates: a remake of the same payload matches
-c0a18b6b3272840516f4f80210a80398ad83831a0385a55a09d04c37846862de store/artifacts/minimal-driverkit-25G342-26B131
+2d8f0993f870a0d6594e1fbd53d8dd045e99911051e79dbf2392614e7764e31f store/artifacts/minimal-driverkit-25G342-26B131-r15

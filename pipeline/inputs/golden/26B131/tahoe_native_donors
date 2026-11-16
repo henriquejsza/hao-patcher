@@ -5,5 +5,6 @@
 # (x86_64 + arm64e): 27.x ships it arm64e only, so the native mDNSResponder never loaded it and AirDrop discovery over AWDL
 # never started (diag#0044). Tahoe's CoreWiFi is cut from the x86_64h OS cache at its own path (cache-images.json).
 # r14: tools/tahoe-donors r14 (no extraction times, sources by input); payload identical to the previous row (CoreWiFi 7d8694dd, cut by the pinned cache-dylib r3).
+# r15: tools/tahoe-donors r15 (manifest without times or local paths; cache-images.json names the cache by role); payload identical to the previous row; a fresh store made on another Mac gives the same hash.
 # hash: without build.json  # build records and intermediates: a remake of the same payload matches
-bd1fc6d2489640039db98c718165f81f80450f2fcd40dd0d5429c8a4ec949500 store/artifacts/minimal-native-25G342-26B131-corewifi-awdl-r14
+b29646a7bd3ece9ae72213911848a7012f5eae72fa7e05b1c3454c74619b547b store/artifacts/minimal-native-25G342-26B131-corewifi-awdl-r15
