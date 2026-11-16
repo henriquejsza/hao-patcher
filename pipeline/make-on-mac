@@ -272,7 +272,28 @@ def steps(r, fs, a):
         if tool is None or not tool.is_file():
             raise Failed('the runtime archive has no tools/hao-runtime-on-mac (set HAO_RUNTIME_ON_MAC to one)')
         rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
-        r.sh(*PY, tool, root(), rosetta / 'System/Library/dyld', top)
+        r.sh(*PY, tool, root_view(), rosetta / 'System/Library/dyld', top)
+
+    def root_view():
+        """The 26B131 System as a booted Mac sees it: the System image, with the OS and App cryptexes at
+        System/Volumes/Preboot/Cryptexes/{OS,App} (runtime's stubs come from programs in both). Symlinks only."""
+        view = r.work / 'root-view'
+        if view.exists() or r.dry:
+            return view
+        system = root()
+        cryptexes = {'OS': r.mount(userspace() / 'os.dmg', 'os'), 'App': r.mount(userspace() / 'app.dmg', 'app')}
+        view.mkdir()
+        for e in system.iterdir():
+            if e.name != 'System':
+                (view / e.name).symlink_to(e)
+        (view / 'System').mkdir()
+        for e in (system / 'System').iterdir():
+            if e.name != 'Volumes':
+                (view / 'System' / e.name).symlink_to(e)
+        (view / 'System/Volumes/Preboot/Cryptexes').mkdir(parents=True)
+        for name, mount in cryptexes.items():
+            (view / 'System/Volumes/Preboot/Cryptexes' / name).symlink_to(mount)
+        return view
 
     completions = [(['hao_runtime'], runtime)]
     if (TOP / 'tools/live-text/on-mac').is_file():      # a checkout before metal's producers lists those rows as waiting
@@ -294,7 +315,8 @@ def main():
     fs, a = folders(release)
     made = [m['row'] for m in release.get('made_on_mac', [])]
     # shipped assets whose Apple-derived files are made here (release.json "completed_on_mac")
-    made += [x['row'] for x in release.get('assets', []) if x.get('completed_on_mac') and x['row'] not in made]
+    made += [x['row'] for x in release.get('assets', []) if x['row'] not in made and
+             any(m.get('producer') for m in x.get('completed_on_mac') or [])]   # plain copies: place completes them
     work = args.work or Path(tempfile.mkdtemp(prefix='make-on-mac-', dir=TOP / 'store' / 'tmp'
                                               if (TOP / 'store' / 'tmp').is_dir() else None))
     work.mkdir(parents=True, exist_ok=True)
