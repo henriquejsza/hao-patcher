@@ -39,10 +39,10 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 | golden-gate-store | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-user-seed | r9 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-user-template | r7 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
-| golden-gate-userspace | r81 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 52b89e0a payload |
+| golden-gate-userspace | r81 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 4f9784a2 payload |
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
-| hao-opencore | r65 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 52b89e0a payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
-| hao-runtime | r81 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 52b89e0a payload |
+| hao-opencore | r65 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 4f9784a2 payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| hao-runtime | r82 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 4f9784a2 payload |
 | hao-runtime-fold | r5 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 948219e4 payload |
 | metal-compiler-compat | r8 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r2 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
@@ -238,7 +238,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
   - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi)
   - `EFI/OC/Kexts/HaoExec.kext`/ (folder): from every file under it from hao · HaoExec.kext (row hao_runtime)
   - `EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec`: edited (1 edit) from hao · HaoExec.kext's executable (row hao_runtime)
-- **hao-runtime** r81
+- **hao-runtime** r82
   - `usr/libexec/hao`: from hao (row hao_runtime)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime)
@@ -465,12 +465,12 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
 - golden-gate-user-template r7 is newer than every image built with it (newest r6).
 - golden-gate-userspace r81 is newer than every image built with it (newest r79).
-- hao-runtime r81 is newer than every image built with it (newest r80).
+- hao-runtime r82 is newer than every image built with it (newest r80).
 - hao-runtime-fold r5 is newer than every image built with it (newest r4).
 - metal-compiler-compat r8 is newer than every image built with it (newest r7).
 - row codeid_carrier 16120d97 is in no image yet (images have fdd622b1).
 - row golden_gate_userspace 060bd378 is in no image yet (images have 6cdafc3b).
-- row hao_runtime 52b89e0a is in no image yet (images have 0d579f6d, d4f8aab6, e29b10e5).
+- row hao_runtime 4f9784a2 is in no image yet (images have 0d579f6d, d4f8aab6, e29b10e5).
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row libhelloblur 9c273f39 is in no image yet (images have d471519b).
 - row live_text_framework 69126df9 is in no image yet (images have 4434cab6, 99675b0a).

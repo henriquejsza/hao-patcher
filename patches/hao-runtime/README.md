@@ -49,6 +49,7 @@ Earlier: earlier payloads booted Golden Gate through translated launchd to the d
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
+- r82 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 0e75f64 payload (4f9784a2, manifest 6c448c23): the 1a290d7 binaries with reproducible records (no build times, root-relative paths); release asset archive bbc55887. Installed binaries unchanged.
 - r81 2026-11-16 Row `hao_runtime` (26B131): its sha256 leaves out root/usr/lib/hao/aot (52b89e0a), which the user's Mac makes after the first boot; same payload, installed bytes unchanged.
 - r80 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 1a290d7 payload for the unfolded cache (manifest d6054d9c, libhao d6b9b712).
 - r79 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e tree (hao-runtime-26B131-20261114-79bc70ead081): guest dlopen resolves @rpath, @loader_path and @executable_path from the calling image (Xcode starts instead of aborting at launch). No recipe change.
