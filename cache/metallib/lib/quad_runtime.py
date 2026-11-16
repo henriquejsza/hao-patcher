@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 import subprocess
+import adhoc_sign
 import collective_runtime
 import compiler_mask
 import toolchain
@@ -86,10 +87,10 @@ def build(source, llvm, output, revision, compiler=None, assembler=None):
         binary.parent.mkdir(parents=True)
         binary.write_bytes(repaired)
         binary.chmod(0o755)
-        run(['codesign', '-f', '-s', '-', binary])
+        adhoc_sign.sign(binary, run)
         outputs.append(binary)
     inputs = [source, llvm, assembler, BASE / 'assemble.c', BASE / 'build.py', Path(__file__),
-              Path(collective_runtime.__file__),
+              Path(collective_runtime.__file__), Path(adhoc_sign.__file__),
               *sorted(SOURCES.glob('*.ll'))]
     if compiler:
         inputs += [compiler, Path(compiler_mask.__file__)]
