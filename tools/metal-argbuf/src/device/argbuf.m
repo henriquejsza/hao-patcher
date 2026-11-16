@@ -22,6 +22,10 @@
 #import <dlfcn.h>
 #import "../argbuf_config.h"
 
+typedef id (*AGBNewTextureIMP)(id, SEL, MTLTextureDescriptor *) __attribute__((ns_returns_retained));
+typedef id (*AGBNewPipelineIMP)(id, SEL, MTLRenderPipelineDescriptor *, NSError **) __attribute__((ns_returns_retained));
+typedef id (*AGBNewPipelineOptionsIMP)(id, SEL, MTLRenderPipelineDescriptor *, MTLPipelineOption, id *, NSError **) __attribute__((ns_returns_retained));
+
 #define AGB_STAGES 3          // 0 compute, 1 vertex, 2 fragment
 #define AGB_API_BUFFERS 31    // client buffer indices tracked per stage
 #define AGB_MAX_DEPTH 4       // nested argument buffers followed at bind time
@@ -512,7 +516,7 @@ static void traceTextures(Class dev) {
                 (unsigned long)td.depth, (unsigned long)td.mipmapLevelCount, (unsigned long)td.arrayLength, (unsigned long)td.sampleCount,
                 (unsigned long)td.usage, (unsigned long)td.storageMode, (unsigned long)td.resourceOptions,
                 *(uint32_t *)&(MTLTextureSwizzleChannels){ td.swizzle.red, td.swizzle.green, td.swizzle.blue, td.swizzle.alpha }, comp);
-        return ((id (*)(id, SEL, id))orig)(d, sel, td);
+        return ((AGBNewTextureIMP)orig)(d, sel, td);
     }));
 }
 
@@ -579,12 +583,12 @@ static void privateTargets(Class dev) {
         if (td && g_survey) agb_once([@"survey tex " stringByAppendingString:tex_key(td)], [@"survey: texture " stringByAppendingString:tex_key(td)]);
         if (td && adapt && agb_private_target(td)) {
             MTLTextureDescriptor *c = [td copy]; c.storageMode = MTLStorageModePrivate;
-            id t = ((id (*)(id, SEL, id))orig)(d, sel, c);
+            id t = ((AGBNewTextureIMP)orig)(d, sel, c);
             agb_log("adapted: texture %p storage %lu -> Private (%s)", t, (unsigned long)td.storageMode, tex_key(td).UTF8String);
             if (t) @synchronized (g_switched) { [g_switched addObject:t]; }
             return t;
         }
-        return ((id (*)(id, SEL, id))orig)(d, sel, td);
+        return ((AGBNewTextureIMP)orig)(d, sel, td);
     }));
 }
 // ---- CPU-written stencil targets (diag#0002): Weather writes its precipitation mask from the CPU (replaceRegion, full
@@ -718,11 +722,11 @@ static void packedPipelines(Class dev) {
     SEL s1 = @selector(newRenderPipelineStateWithDescriptor:error:);
     __block IMP o1 = NULL;
     o1 = replace(dev, s1, imp_implementationWithBlock(^id(id d, MTLRenderPipelineDescriptor *pd, NSError **e) __attribute__((ns_returns_retained)) {
-        return ((id (*)(id, SEL, id, NSError **))o1)(d, s1, pipeline_adapt(pd), e); }));
+        return ((AGBNewPipelineIMP)o1)(d, s1, pipeline_adapt(pd), e); }));
     SEL s2 = @selector(newRenderPipelineStateWithDescriptor:options:reflection:error:);
     __block IMP o2 = NULL;
     o2 = replace(dev, s2, imp_implementationWithBlock(^id(id d, MTLRenderPipelineDescriptor *pd, MTLPipelineOption opt, id *refl, NSError **e) __attribute__((ns_returns_retained)) {
-        return ((id (*)(id, SEL, id, MTLPipelineOption, id *, NSError **))o2)(d, s2, pipeline_adapt(pd), opt, refl, e); }));
+        return ((AGBNewPipelineOptionsIMP)o2)(d, s2, pipeline_adapt(pd), opt, refl, e); }));
     SEL s3 = @selector(newRenderPipelineStateWithDescriptor:completionHandler:);
     __block IMP o3 = NULL;
     o3 = replace(dev, s3, imp_implementationWithBlock(^void(id d, MTLRenderPipelineDescriptor *pd, id cb) {
