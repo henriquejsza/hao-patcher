@@ -441,6 +441,12 @@ class Hooks(unittest.TestCase):
         inst.prepare_kit(a, c, 'p')
         self.assertEqual(calls, [('plan', 'create-installer'), ('kit', c.run)])
         hao.hook_backends(a, c, build, inst)                  # twice wraps once
+        out = Pipe()
+        hao.detection(CON.Console('edits', out=out, env={}), {'packs': ['intel-hd4000', 'mbp92'], 'board_id': 'Mac-X',
+                      'model': 'MacBookPro9,2', 'gpu_name': 'Intel HD Graphics 4000 (Ivy Bridge)',
+                      'oclp_patchsets': ['Intel Ivy Bridge']})
+        self.assertIn(sq('  GPU     Intel HD 4000                 → Intel Ivy Bridge          → intel-hd4000'), sq(out.getvalue()))
+        self.assertIn(sq('  Board   Mac-X                         → MacBookPro9,2             → mbp92'), sq(out.getvalue()))
         self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743'), 'dev 73b28ae2')
         self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743-dirty'), 'dev 73b28ae2+')
         self.assertEqual(hao.dev_label('73b28ae2e743'), 'dev 73b28ae2')

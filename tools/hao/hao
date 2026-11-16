@@ -400,15 +400,41 @@ def header(c, command, profile, asm):
         c.print(CON.at_column('%-7s%s' % ('For', ' · '.join(x for x in (profile['model'], gpu) if x)), 67) + check)
         c.print('%-7s%s' % ('host', host_line(c)))
     c.print('%-7s%s' % ('Packs', ' · '.join(profile.get('packs', []))))
-    if c.at('edits') and profile.get('matched'):
-        # the mockups' detection table: device -> OCLP family -> patch sets
-        c.print('')
-        c.print(c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack'), 'edits')
-        for m in profile['matched']:
-            c.print('  %-8s%-12s%-30s→ %s' % (m['role'].upper() if m['role'] == 'gpu' else m['role'].capitalize(),
-                                             m['device'], '→ ' + m['family'], c.paint('oclp', ', '.join(m['patchsets']))),
-                    'edits')
+    detection(c, profile)
     c.event('header', command=command, model=profile.get('model'), packs=profile.get('packs'))
+
+
+def detection(c, profile, packs_dir=REPO / 'packs'):
+    """--show-edits: the mockups' detection table, one row per pack: what on this Mac chose it (a device and the OCLP
+    patch set it gets, the board id, or any Intel Mac) -> the pack."""
+    if not c.at('edits'):
+        return
+    have = profile.get('oclp_patchsets') or []
+    gpu = profile.get('gpu_name') or ', '.join(d.get('name', '') for d in profile.get('gpu', []))
+    names = {'audio': ', '.join(d.get('name', '') for d in profile.get('audio', [])) or 'HDA codec',
+             'wifi': ', '.join(d.get('name', '') for d in profile.get('wifi', [])) or 'Wi-Fi card'}
+    rows = []
+    for pack in profile.get('packs', []):
+        try:
+            rule = json.loads((Path(packs_dir) / (pack + '.json')).read_text()).get('detect', {})
+        except (OSError, ValueError):
+            continue
+        sets = [x for x in rule.get('oclp_patchsets', []) if x in have]
+        if sets:
+            role = 'Audio' if 'Audio' in sets[0] else 'Wi-Fi' if 'Wireless' in sets[0] else 'GPU'
+            device = names['audio'] if role == 'Audio' else names['wifi'] if role == 'Wi-Fi' else gpu
+            rows.append((role, device, sets[0], pack))
+        elif rule.get('board_ids'):
+            rows.append(('Board', profile.get('board_id') or '', profile.get('model', ''), pack))
+        elif rule.get('any_intel'):
+            rows.append(('CPU', 'Intel', 'any Intel', pack))
+    if not rows:
+        return
+    c.print('', 'edits')
+    c.print(c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack'), 'edits')
+    for role, device, via, pack in rows:
+        c.print('  %-8s%-30s%-28s→ %s' % (role, device.replace('Graphics ', '').split(' (')[0][:28], '→ ' + via,
+                                         c.paint('bold', pack)), 'edits')
 
 
 def host_line(c):
