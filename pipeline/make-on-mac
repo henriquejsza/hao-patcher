@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+"""make-on-mac: make every made-on-Mac input row of a release from its downloads, in order, on this Mac.
+
+  make-on-mac RELEASE.json [--only ROW ...] [--work DIR] [--dry-run]
+
+Run after `hao fetch` and `pipeline/place` in a checkout whose store/ they filled. Each row is made by its producer
+(pipeline/release-classes.json names them) with the arguments below, into the row's path, then checked as every
+build checks it (lock.py: its sha256). A row already in place and matching is left alone. Disk images are attached
+read-only (never written) and detached again. Exit 0 when every row checks; 1 names the rows that do not.
+"""
+import argparse, contextlib, json, os, shutil, subprocess, sys, tarfile, tempfile, time
+from pathlib import Path
+
+TOP = Path(__file__).resolve().parents[1]
+PY = [sys.executable, '-I']
+sys.path.insert(0, str(TOP / 'pipeline'))
+import lock  # noqa: E402
+
+
+class Failed(Exception):
+    pass
+
+
+def folders(release):
+    a = json.loads((TOP / 'pipeline/assemblies' / (release['assembly'] + '.json')).read_text())
+    return [TOP / 'pipeline/inputs/golden' / a['golden_build'], TOP / 'pipeline/inputs' / a['donor_build'],
+            TOP / 'pipeline/inputs/common'], a
+
+
+def find(fs, row):
+    for f in fs:
+        if (f / row).is_file():
+            return f
+    raise Failed('no input row %s' % row)
+
+
+def path(fs, row):
+    """The row's path (absolute), whether or not it is there yet."""
+    f = find(fs, row)
+    line = next(l for l in (f / row).read_text().splitlines() if l.strip() and not l.startswith('#'))
+    return TOP / line.split(None, 1)[1].strip()
+
+
+def checks(fs, row):
+    try:
+        with contextlib.redirect_stderr(open(os.devnull, 'w')):
+            lock.path(str(find(fs, row)), row)
+        return True
+    except SystemExit:
+        return False
+
+
+def artifact(p):
+    """store/artifacts/NAME of a row path below it."""
+    rel = p.relative_to(TOP / 'store').parts
+    if rel[0] != 'artifacts':
+        raise Failed('%s is not under store/artifacts' % p)
+    return TOP / 'store' / 'artifacts' / rel[1]
+
+
+class Run:
+    def __init__(self, fs, work, log, dry):
+        self.fs, self.work, self.log, self.dry = fs, work, log, dry
+        self.mounts = {}
+
+    def sh(self, *cmd, env=None):
+        line = ' '.join(str(c) for c in cmd)
+        print('  $ ' + line, flush=True)
+        self.log.write('$ %s\n' % line); self.log.flush()
+        if self.dry:
+            return
+        r = subprocess.run([str(c) for c in cmd], stdout=self.log, stderr=subprocess.STDOUT,
+                           env=dict(os.environ, **(env or {})), cwd=TOP)
+        if r.returncode:
+            raise Failed('%s exited %d (see the log)' % (Path(str(cmd[0])).name if cmd[0] not in PY else cmd[2],
+                                                         r.returncode))
+
+    def mount(self, image, name, passphrase=None):
+        if name in self.mounts:
+            return self.mounts[name]
+        point = self.work / ('mnt-' + name)
+        point.mkdir(parents=True, exist_ok=True)
+        cmd = ['hdiutil', 'attach', '-readonly', '-nobrowse', '-owners', 'on', '-mountpoint', str(point), str(image)]
+        if passphrase is not None:
+            cmd.insert(2, '-stdinpass')
+        print('  mount %s -> %s' % (Path(image).name, point), flush=True)
+        if not self.dry:
+            r = subprocess.run(cmd, input=(passphrase or '').encode() if passphrase is not None else None,
+                               capture_output=True)
+            if r.returncode:
+                raise Failed('hdiutil attach %s: %s' % (image, r.stderr.decode(errors='replace').strip()))
+        self.mounts[name] = point
+        return point
+
+    def unmount_all(self):
+        for name, point in reversed(list(self.mounts.items())):
+            if not self.dry:
+                subprocess.run(['hdiutil', 'detach', str(point)], capture_output=True)
+        self.mounts.clear()
+
+
+def steps(r, fs, a):
+    """[(rows it makes, function)] in dependency order."""
+    P = lambda row: path(fs, row)
+    userspace = lambda: artifact(P('golden_gate_userspace')) / 'payload'
+    root = lambda: r.mount(userspace() / 'filesystem.dmg', 'system')
+    donor = TOP / 'store/inputs' / a['donor_build']
+
+    def gg_userspace():
+        out = artifact(P('golden_gate_userspace'))
+        if out.exists() and not r.dry:
+            shutil.rmtree(out)
+        r.sh(*PY, 'patches/golden-gate-userspace/build/make', '--ipsw', P('ipsw_27_0'), '--board', 'j293ap',
+             '--out', out)
+
+    def kernel():
+        out = P('darwin27_kernel').parents[1]
+        r.sh(*PY, 'tools/kernel-foundation/make', 'kernel', '--kernel', root() / 'System/Library/Kernels/kernel',
+             '--out', out)
+
+    def python_site():
+        r.sh(*PY, 'pipeline/python-site', 'make', P('python_site').parent, 'pipeline/inputs/common')
+
+    def donor_inputs():
+        out = donor / 'donor-inputs'
+        if out.exists() and not r.dry:
+            shutil.rmtree(out)
+        r.sh(*PY, 'pipeline/unpack/donor-inputs', P('installer'), out, '--requirements',
+             'tools/tahoe-donors/recipes/intel-donors.json', '--kdk', P('kdk'), '--ripatch', P('ripatch'))
+        cache = P('tahoe_os_cache_x86_64h').parent
+        if cache.exists() and not r.dry:
+            shutil.rmtree(cache)
+        r.sh('cp', '-c', '-R', out / 'out/os-cache', cache)
+
+    def kc_builder():
+        r.sh(*PY, 'pipeline/unpack/kc-builder', P('tahoe_kc_builder').parent, '--inputs', find(fs, 'tahoe_kc_builder'))
+
+    def oclp_hardware():
+        tools = r.work / 'oclp'
+        tools.mkdir(exist_ok=True)
+        if not r.dry:
+            with tarfile.open(P('oclp_source')) as t:
+                t.extract(t.getmember('payloads/Tools/RSRRepair'), tools, filter='data')
+        # PatcherSupportPkg's image is encrypted with the passphrase OCLP itself mounts it with (its public source)
+        psp = r.mount(P('psp_2.0.5'), 'psp', passphrase='password')
+        r.sh(*PY, 'tools/oclp-hardware/make', 'build', '--psp-root', psp, '--psp-archive', P('psp_2.0.5'),
+             '--rsr-repair', tools / 'payloads/Tools/RSRRepair', '--out', P('oclp_hardware'))
+
+    def donors():
+        rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
+        images = r.work / 'cache-images.txt'
+        r.sh(*PY, 'pipeline/unpack/cache-images', 'list', rosetta / 'System/Library/dyld/dyld_shared_cache_x86_64',
+             images)
+        d = donor / ('minimal-' + a['golden_build'])
+        if d.exists() and not r.dry:
+            shutil.rmtree(d)
+        r.sh(*PY, 'pipeline/unpack/donor-inputs', P('installer'), d, '--requirements',
+             'tools/tahoe-donors/recipes/intel-donors.json', '--kdk', P('kdk'), '--ripatch', P('ripatch'),
+             '--target-system', root(), '--target-cache-images', images)
+        T, R = 'tools/tahoe-donors/make', d / 'recipe.json'
+        tree = ['--tree', d / 'tree', '--metadata', d / 'lists/sys.tsv', '--links', d / 'zip/AssetData/payloadv2/links.txt']
+        layout = ['--tree', d / 'tree', '--unpack', d, '--map', d / 'preboot-recovery-map.tsv']
+        for role, row, args in (
+                ('native', 'tahoe_native_donors', tree + ['--cache', P('tahoe_os_cache_x86_64h').parent]),
+                ('extensions', 'tahoe_extensions_donors', tree),
+                ('driverkit', 'tahoe_driverkit_donors', ['--source', d / 'out/driverkit',
+                                                          '--metadata', d / 'out/driverkit/metadata.tsv']),
+                ('boot', 'tahoe_boot_donors', layout), ('recovery', 'tahoe_recovery_donors', layout)):
+            if checks(fs, row):
+                continue
+            out = P(row)
+            if out.exists() and not r.dry:
+                shutil.rmtree(out)
+            r.sh(*PY, T, role, *args, '--recipe', R, '--output', out)
+
+    def metallibs():
+        for row, profile in (('hello_metallib_golden_gate', 'hello-golden-gate.txt'),
+                             ('metallib_repairs_golden_gate', 'metallib-repairs-golden-gate.txt')):
+            if checks(fs, row):
+                continue
+            out = P(row)
+            if out.exists() and not r.dry:
+                shutil.rmtree(out)
+            r.sh(*PY, 'cache/metallib/make', root(), out, '--work', r.work / ('metallib-' + row),
+                 '--paths', 'cache/metallib/profiles/' + profile)
+
+    def quad():
+        o = P('oclp_hardware') / 'payload'
+        out = P('metal_quad_runtime_golden_gate')
+        if out.exists() and not r.dry:
+            shutil.rmtree(out)
+        r.sh(*PY, 'cache/metallib/make', 'runtime-build',
+             o / '11.7.10/System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split',
+             out, '--llvm', o / '13.2.1-25/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/3802/Libraries/libLLVM.dylib',
+             '--compiler', o / '11.7.10/System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib')
+
+    return [(['golden_gate_userspace'], gg_userspace), (['darwin27_kernel'], kernel), (['python_site'], python_site),
+            (['tahoe_kmutil', 'tahoe_os_cache_x86_64h'], donor_inputs), (['tahoe_kc_builder'], kc_builder),
+            (['oclp_hardware'], oclp_hardware),
+            (['tahoe_native_donors', 'tahoe_extensions_donors', 'tahoe_driverkit_donors', 'tahoe_boot_donors',
+              'tahoe_recovery_donors'], donors),
+            (['hello_metallib_golden_gate', 'metallib_repairs_golden_gate'], metallibs),
+            (['metal_quad_runtime_golden_gate'], quad)]
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    p.add_argument('release'); p.add_argument('--only', action='append', default=[])
+    p.add_argument('--work', type=Path); p.add_argument('--dry-run', action='store_true')
+    args = p.parse_args()
+    release = json.loads(Path(args.release).read_text())
+    fs, a = folders(release)
+    made = [m['row'] for m in release.get('made_on_mac', [])]
+    work = args.work or Path(tempfile.mkdtemp(prefix='make-on-mac-', dir=TOP / 'store' / 'tmp'
+                                              if (TOP / 'store' / 'tmp').is_dir() else None))
+    work.mkdir(parents=True, exist_ok=True)
+    log_path = work / 'make-on-mac.log'
+    print('make-on-mac: %d rows made on this Mac; log %s' % (len(made), log_path))
+    failed = []
+    with open(log_path, 'a') as log:
+        r = Run(fs, work, log, args.dry_run)
+        try:
+            for rows, fn in steps(r, fs, a):
+                rows = [x for x in rows if x in made and (not args.only or x in args.only)]
+                if not rows:
+                    continue
+                if all(checks(fs, x) for x in rows):
+                    print('ok   %s (already in place)' % ', '.join(rows))
+                    continue
+                t = time.time()
+                print('make %s' % ', '.join(rows), flush=True)
+                try:
+                    fn()
+                except Failed as e:
+                    print('  STOPPED: %s' % e)
+                    failed += rows
+                    continue
+                for x in rows:
+                    good = args.dry_run or checks(fs, x)
+                    print('%s %s (%.0f s)' % ('ok  ' if good else 'FAIL', x, time.time() - t))
+                    if not good:
+                        failed.append(x)
+        finally:
+            r.unmount_all()
+    rest = [x for x in made if x not in failed and not args.dry_run and not checks(fs, x)
+            and (not args.only or x in args.only)]
+    bad = failed + rest
+    print('make-on-mac: %d of %d rows check%s' % (len([x for x in made if not args.only or x in args.only]) - len(bad),
+                                                 len([x for x in made if not args.only or x in args.only]),
+                                                 '' if not bad else '; not: ' + ' '.join(bad)))
+    return 1 if bad else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
