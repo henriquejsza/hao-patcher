@@ -13,14 +13,17 @@ Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15
   through sidebar navigation, views, Quick Look and Get Info; Spotlight indexing keeps running.
 - Graphics: accelerated Metal on the HD 4000, including argument buffers and ASTC textures; hardware video decoding
   (YouTube 1080p H.264, no dropped frames).
-- Connectivity: Wi-Fi joins from Setup Assistant and System Settings, and remembered networks at startup; Bluetooth pairs devices; AirDrop finds nearby devices; AirPlay
+- Connectivity: Wi-Fi joins from Setup Assistant and System Settings, and remembered networks at startup; Ethernet connects; Bluetooth pairs devices; AirDrop finds nearby devices; AirPlay
   displays are discovered, and sound plays on AirPlay speakers.
-- Audio and input: the built-in speakers, brightness keys, keyboard and trackpad; an external USB keyboard and mouse.
+- Audio and input: the built-in speakers, camera and microphone, brightness keys, keyboard backlight, keyboard and
+  trackpad; an external USB keyboard and mouse.
+- Power and ports: sleep and wake, including the lid; battery level and charging; USB 3 ports at USB 3 speed; the SD
+  card slot.
 - Safari: web pages, YouTube, WebGPU compute and rendering.
 - Maps: the satellite 3D globe, street-level satellite and 3D buildings.
 - Weather: conditions, hourly and 10-day forecasts; the temperature, air-quality and wind maps.
 - SceneKit: 3D scenes with physically based materials, shadows and reflections; Quick Look and Preview open them.
-- Photos opens and shows the library.
+- Photos opens and shows the library; Music, TV and Podcasts play.
 - Calendar, Preview, App Store, Books, News, Stocks, Terminal and System Settings open and stay running.
 - macOS 27's ARM-only programs run on the Intel CPU through hao-runtime.
 - iMessage; App Store sign-in and installs, including apps built only for Apple silicon, which run on the Intel CPU
@@ -40,7 +43,7 @@ Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15
 - Freeform: opens; opening a board is being fixed in hao-runtime.
 - Maps links to a coordinate (`maps://?ll=`): fixed in hao-runtime, in the next payload.
 - RealityKit: needs placement heaps, which the HD 4000's Metal driver lacks.
-- Sleep and updates: not tested yet.
+- Software updates, external displays, the headphone jack and Thunderbolt: not tested yet.
 
 ## What's new
 
