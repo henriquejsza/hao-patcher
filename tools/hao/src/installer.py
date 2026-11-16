@@ -437,7 +437,8 @@ def prepare_kit(a, c, path, run=subprocess.call):
         kit = Path(a.kit).expanduser().resolve()
     else:
         work = Path(getattr(a, 'work', None) or BUILD.BUILDS / datetime.datetime.now().strftime('%Y%m%d-%H%M%S')).resolve()
-        cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit',
+        cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit'] + (
+            ['--link-on-target'] if getattr(a, 'link_on_target', False) else []) + [
                '--work', str(work / 'stage'), '--record', str(work / 'record')]
         c.event('command', argv=cmd)
         c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
@@ -448,6 +449,10 @@ def prepare_kit(a, c, path, run=subprocess.call):
     if not (kit / 'kit.json').is_file():
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
     prelinked = prelinked_kc(kit)
+    if prelinked is None and getattr(a, 'link_on_target', False):
+        c.item('kit  %s  (kernel collections linked by the install, as root)' % c.paint('dim', str(kit)), 'files',
+               ok=True)
+        return kit
     if prelinked is None:
         raise Stopped('the kit has no prelinked kernel collections',
                       why='the stick\'s Recovery cannot link them: its kmutil reads no kext of the disk it installs',

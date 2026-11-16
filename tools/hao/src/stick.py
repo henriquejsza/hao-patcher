@@ -272,6 +272,10 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     rec.update(schema=1, kit_json_sha256=sha256(kit / 'kit.json'), kit_bytes=kit_bytes(mount / 'kit'),
                hard_links=[[str(Path(a).relative_to(mount)), str(Path(b).relative_to(mount))] for a, b in linked],
                release_sha256=sha256(release) if release else None)
+    prelinked = sorted(kit.glob('hooks/*darwin27-kernel/prelinked/prelinked.json'))
+    rec['kernel_collections'] = (
+        dict(source='prelinked', key=json.loads(prelinked[0].read_text()).get('key')) if prelinked else
+        dict(source='linked by hao install on the target, as root (Tahoe kmutil + its x86_64 collection builder)'))
     (mount / 'stick.json').write_text(json.dumps(rec, indent=1, sort_keys=True) + '\n')
     return rec
 

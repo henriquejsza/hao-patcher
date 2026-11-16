@@ -330,7 +330,7 @@ def skipped_groups(recipe, skip_optional=()):
 
 
 def run(recipe_path, repository, work=None, record=None, base=None, timeout=14400, skip_optional=(), overlays=None,
-        cryptex_cache=True, kit_only=False, recovery_commands=False):
+        cryptex_cache=True, kit_only=False, recovery_commands=False, link_on_target=False):
     """Stage the kit (WORK/share) and assemble it in a builder VM clone; KIT_ONLY stops after staging (no VM, no
     builder lock, no repository): the kit is then assembled by pipeline/stages/golden-assemble.sh elsewhere."""
     recipe_path = Path(recipe_path).resolve(); recipe=json.loads(recipe_path.read_text())
@@ -446,7 +446,12 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             kc_lines=PRELINKED['lines'](recipe,share,lambda item:lockrows['key_line'](
                 item,str(store),[str(golden_lock),str(build_lock),str(common)]),kc_folder)
             state['prelinked_kc']=dict(key=PRELINKED['key_of'](kc_lines))
-            if kit_only:
+            if kit_only and link_on_target:
+                # No prelinked collections: darwin27-kernel's hook links them in the install, as root, with Tahoe's
+                # kmutil and its x86_64 collection builder (the hook's Intel branch). Nothing from a builder VM.
+                state['prelinked_kc'].update(link_on_target=True)
+                print('golden-run: kit without prelinked kernel collections: the install links them',flush=True)
+            elif kit_only:
                 staged=PRELINKED['stage'](store/'cache/kc',state['prelinked_kc']['key'],kc_lines,share/'hooks'/kc_folder)
                 state['prelinked_kc'].update(staged or dict(missing=True))
                 if not staged:
@@ -644,6 +649,8 @@ def main():
     parser.add_argument('--stage-kit',action='store_true',
                         help='stage the relocatable kit in --work (WORK/share) and stop: no builder VM, no --repo; '
                              'golden-assemble.sh assembles it on the Mac that has the target (hao build-disk, install)')
+    parser.add_argument('--link-on-target',action='store_true',
+                        help='with --stage-kit: carry no prelinked kernel collections; the install links them as root')
     parser.add_argument('--capture-kit',type=Path,metavar='RECORD',
                         help='commit the image golden-assemble.sh built in --local LOCAL from the kit of RECORD to --repo')
     parser.add_argument('--local',type=Path,help='the LOCAL folder golden-assemble.sh assembled in, for --capture-kit')
@@ -680,7 +687,8 @@ def main():
         if refusal:
             print('golden-run: refused: '+'\n'.join(refusal),file=sys.stderr);sys.exit(3)
         run(args.recipe,args.repo,args.work,args.record,args.base,args.timeout,args.skip_optional,overlays,
-            cryptex_cache=not args.no_cryptex_cache,kit_only=args.stage_kit,recovery_commands=args.recovery_commands)
+            cryptex_cache=not args.no_cryptex_cache,kit_only=args.stage_kit,recovery_commands=args.recovery_commands,
+            link_on_target=args.link_on_target)
 
 
 if __name__=='__main__':main()
