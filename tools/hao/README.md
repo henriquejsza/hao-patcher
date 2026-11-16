@@ -100,16 +100,20 @@ hao report [--output FILE]                      # one text file for a GitHub iss
   `--confirm diskN` answer ahead; `--dry-run` asks and shows the plan. Then: Download (everything `release.json`
   beside `hao`, or `--release FILE`, pins, through `tools/acquire` into `--cache`), Prepare packs (the profile's
   packs and recipes, and the kit: `--kit DIR`, else staged now with `golden-run --stage-kit` from the checkout's
-  store), Write the USB installer (`src/stick.py`). The USB installer: the EFI partition diskutil makes; `HAOBOOT` (FAT32) with
-  the target's OpenCore (the target's ESP row) as `EFI/BOOT/BOOTX64.EFI`, its config changed as
-  `pipeline/stages/netrec.sh` changes it (a test keeps the two equal), and `com.apple.recovery.boot/BaseSystem.dmg`
-  (the donor build's stock Tahoe BaseSystem, row `unpack`, or `--basesystem FILE`); `HAO` (Mac OS Extended) with
+  store), Write the USB installer (`src/stick.py`). The USB installer: the EFI partition diskutil makes, with the target's
+  OpenCore as OCLP installs it (the target's ESP row, else the kit's own ESP; its Bootstrap also as
+  `EFI/BOOT/BOOTX64.EFI`), its config changed as `pipeline/stages/netrec.sh` changes it (a test keeps the two equal),
+  plus OpenCore's picker at once with the Recovery as its only entry (started after 5 s) and no log file; `HAOBOOT`
+  (FAT32) with `com.apple.recovery.boot/BaseSystem.dmg` (the donor build's stock Tahoe BaseSystem, row `unpack`, or
+  `--basesystem FILE`); `HAO` (Mac OS Extended) with
   `hao/` (the tracked files), `kit/` (identical files of 64 MB or more hard-linked: the userspace payload is in two
   hooks), `install` and `report` (run hao with the kit's CPython), `release.json`, `stick.json` (what was written,
   with sha256s) and `reports/`. `--image FILE [--image-size BYTES]` (development) writes a sparse raw USB installer image
   instead, with no root, disk question or confirmation; `tools/qemu-vm start --usb-disk FILE` boots it as a USB
   drive. Not built yet: the kit made from the downloads on the user's Mac (plan steps 12/13). Its console events
-  are kept as a log (below).
+  are kept as a log (below). `sudo python3 tools/hao/src/stick.py rewrite-boot diskN [--opencore-log]` writes only
+  the EFI partition and `HAOBOOT` of a USB installer again (OpenCore from the kit on its `HAO`); `HAO` is not
+  touched, and OpenCore's old logs move to `HAO/reports/`.
 - **report** (`src/report.py`) writes one text file (default `hao-report-DATE.txt` in the current folder; under
   sudo it belongs to the user who ran sudo): hao's release and commit, `sw_vers`, model, CPU, memory, SIP and boot
   arguments, the `hao detect` profile, the last command log, the install record

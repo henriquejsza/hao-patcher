@@ -6,7 +6,7 @@ The stick has the layout of the NetBoot Recovery (pipeline/stages/netrec.sh), on
              it on an ESP (the ESP row of targets/<model>.json: EFI/OC + System/Library/CoreServices/boot.efi, OpenCore's
              Bootstrap, which a Mac's firmware starts), the Bootstrap also as EFI/BOOT/BOOTX64.EFI, the config changed as
              netrec.sh changes it (DmgLoading Any, BlessOverride to the Recovery folder, amfi=0x80, RequestBootVarRouting
-             off, ...) and logging to opencore-DATE.txt on that partition
+             off, ...), its picker shown at once with the Recovery as the only entry, logging to a file on request
   HAOBOOT    FAT32 (Microsoft Basic Data): com.apple.recovery.boot/BaseSystem.dmg = the Recovery OpenCore loads
   HAO        Mac OS Extended (Journaled): `hao/` (this hao folder without its store), `kit/` (golden-run --stage-kit),
              `install` and `report` (launchers for the Recovery's Terminal, run with the kit's own CPython),
@@ -18,7 +18,9 @@ Nothing here formats APFS. A dev host writes a stick image file (`--image FILE`)
 written exactly as a stick, then detached.
 
     python3 stick.py opencore-config IN.plist OUT.plist      the config change alone (tests compare it with netrec.sh)
+    sudo python3 stick.py rewrite-boot diskN [--opencore-log]  only EFI and HAOBOOT of a USB installer, again
 """
+import datetime
 import hashlib
 import json
 import os
@@ -116,17 +118,25 @@ def boot_mb(basesystem_bytes, opencore_bytes):
     return basesystem_bytes // MB * 102 // 100 + opencore_bytes // MB + SLACK_MB
 
 
-# OpenCore writes its log (opencore-DATE.txt) to the root of its volume: the stick's EFI partition. 0x41 = enabled +
-# to file. The stick is a development stick; the log is how a boot that shows nothing is read afterwards.
+# OpenCore can write its log (opencore-DATE.txt) to the root of its volume, the USB installer's EFI partition: 0x41 =
+# enabled + to file. Off unless asked for (LOG=True): OpenCore writes the file line by line through the Mac's firmware,
+# which on a USB drive lengthens the pause after "EFI Boot". The log is how a boot that shows nothing is timed afterwards.
 LOG_TARGET = 0x41
+# What the Mac shows after "EFI Boot": OpenCore's picker at once (the Recovery its only entry: ScanPolicy allows Basic
+# Data partitions only; OCLP's tools and the Reset NVRAM entry are off), which starts the Recovery after PICKER_TIMEOUT
+# seconds or on Return.
+# Without the picker (ShowPicker false, Timeout 0) Apple's boot picker stayed on screen, frozen, while OpenCore read
+# the Recovery (owner, laptop 1, 2026-11-16).
+PICKER_TIMEOUT = 5
+RECOVERY_LABEL = 'hao Installer'
 
 
-def opencore_files(tar_path, esp):
+def opencore_files(tar_path, esp, log=False):
     """The ESP row's tree, as OCLP installs it, onto the stick's EFI partition ESP: EFI/OC (OpenCore.efi, config.plist,
     drivers, kexts, resources), System/Library/CoreServices/boot.efi (OpenCore's Bootstrap: what a Mac's firmware
     starts from an EFI partition, and what then loads EFI/OC/OpenCore.efi), .VolumeIcon.icns; plus the same Bootstrap
     as EFI/BOOT/BOOTX64.EFI (the removable-media path). The config is changed as netrec.sh changes it, and logs to
-    a file. Starting OpenCore.efi itself as BOOTX64.EFI from a Basic Data partition, as the first sticks did, left the
+    a file only when LOG. Starting OpenCore.efi itself as BOOTX64.EFI from a Basic Data partition, as the first sticks did, left the
     Mac's boot picker hanging (owner, two MacBookPro9,2, 2026-11-13); that layout only ever ran under iPXE."""
     esp = Path(esp)
     with tarfile.open(tar_path) as t:
@@ -150,7 +160,13 @@ def opencore_files(tar_path, esp):
     shutil.copyfile(bootstrap, esp / 'EFI' / 'BOOT' / 'BOOTX64.EFI')
     p = oc / 'config.plist'
     c = opencore_config(plistlib.loads(p.read_bytes()))
-    c['Misc'].setdefault('Debug', {})['Target'] = LOG_TARGET
+    c['Misc']['Boot'].update(ShowPicker=True, Timeout=PICKER_TIMEOUT)
+    for tool in c['Misc'].get('Tools', []):        # the Recovery is the one entry (HideAuxiliary cannot do it: OpenCore
+        tool['Enabled'] = False                    # counts a Recovery as auxiliary too, and then shows every entry)
+    for driver in c['UEFI'].get('Drivers', []):
+        if str(driver.get('Path', '')).endswith('ResetNvramEntry.efi'):
+            driver['Enabled'] = False
+    c['Misc'].setdefault('Debug', {})['Target'] = LOG_TARGET if log else 0
     p.write_bytes(plistlib.dumps(c))
     return c
 
@@ -229,25 +245,32 @@ def copy_tree(src, dest, skip=SKIP, linked=None, skip_paths=()):
             shutil.copy2(r / f, out / f)
 
 
-def write_boot(esp, mount, basesystem, opencore_tar):
-    """OpenCore onto the EFI partition ESP, the Recovery onto HAOBOOT (MOUNT). Returns what stick.json records."""
+def write_boot(esp, mount, basesystem, opencore_tar, log=False):
+    """OpenCore onto the EFI partition ESP, the Recovery onto HAOBOOT (MOUNT; not copied again when the same
+    BaseSystem.dmg is already there). Returns what stick.json records."""
     esp, mount = Path(esp), Path(mount)
-    c = opencore_files(opencore_tar, esp)
+    c = opencore_files(opencore_tar, esp, log=log)
     for p in esp.rglob('._*'):
         p.unlink()
     rec = mount / 'com.apple.recovery.boot'
     rec.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(basesystem, rec / 'BaseSystem.dmg')
+    want, dest = sha256(basesystem), rec / 'BaseSystem.dmg'
+    same = dest.is_file() and (dest.resolve() == Path(basesystem).resolve() or (
+        dest.stat().st_size == Path(basesystem).stat().st_size and sha256(dest) == want))
+    if not same:
+        shutil.copyfile(basesystem, dest)
+    (rec / '.contentDetails').write_text(RECOVERY_LABEL)
     for p in mount.rglob('._*'):
         p.unlink()
-    want, got = sha256(basesystem), sha256(rec / 'BaseSystem.dmg')
+    got = sha256(dest)
     if want != got:
         raise StickError('BaseSystem.dmg on the stick has sha256 %s, not %s' % (got, want))
     nv = c['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
     return dict(basesystem_sha256=want, basesystem_bytes=Path(basesystem).stat().st_size,
                 opencore_sha256=sha256(opencore_tar), boot_args=nv['boot-args'],
                 config_sha256=sha256(esp / 'EFI' / 'OC' / 'config.plist'),
-                bootstrap_sha256=sha256(esp / 'EFI' / 'BOOT' / 'BOOTX64.EFI'), opencore_log=LOG_TARGET)
+                bootstrap_sha256=sha256(esp / 'EFI' / 'BOOT' / 'BOOTX64.EFI'),
+                opencore_log=c['Misc']['Debug']['Target'], opencore_picker_timeout=PICKER_TIMEOUT)
 
 
 def write_kit(mount, kit, hao_top, release=None, record=None):
@@ -292,6 +315,11 @@ def partition(host, disk, boot_size_mb):
     host.run(['diskutil', 'unmountDisk', 'force', '/dev/' + disk], check=False)
     host.run(['diskutil', 'partitionDisk', '/dev/' + disk, 'GPT',
               'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
+    return mounted_parts(host, disk, 'after partitioning %s' % disk)
+
+
+def mounted_parts(host, disk, when=None):
+    """DISK's EFI, HAOBOOT and HAO partitions, each mounted: {name: (device, mount point)}."""
     found = {}
     for part in _plist(host, 'diskutil', 'list', '-plist', disk).get('AllDisksAndPartitions', [{}])[0].get('Partitions', []):
         name = 'EFI' if part.get('Content') == 'EFI' else part.get('VolumeName')
@@ -303,7 +331,7 @@ def partition(host, disk, boot_size_mb):
             found[name] = (part['DeviceIdentifier'], info.get('MountPoint'))
     missing = [n for n in ('EFI', BOOT_NAME, KIT_NAME) if not (found.get(n) or (None, None))[1]]
     if missing:
-        raise StickError('after partitioning %s, %s is not mounted' % (disk, ', '.join(missing)))
+        raise StickError('%s, %s is not mounted' % (when or 'on %s' % disk, ', '.join(missing)))
     return found
 
 
@@ -341,13 +369,92 @@ def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, reco
     return rec
 
 
+KIT_ESP = Path('kit') / 'assembly-source' / 'esp'     # on HAO: the ESP the kit's install writes (EFI/OC + Bootstrap)
+
+
+def esp_tar_of(tree, out):
+    """TREE (an ESP folder: EFI/OC and the Bootstrap) as the tar opencore_files() reads."""
+    if not (Path(tree) / 'EFI' / 'OC' / 'config.plist').is_file():
+        raise StickError('%s has no EFI/OC/config.plist' % tree)
+    with tarfile.open(out, 'w') as t:
+        t.add(tree, arcname='.')
+    return Path(out)
+
+
+def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_step=None):
+    """Only the boot partitions of a USB installer written by write() (HAO holds stick.json): OpenCore on EFI again
+    (OPENCORE_TAR, or the ESP of the kit on HAO) and the Recovery on HAOBOOT (BASESYSTEM, or the one already there);
+    HAO and the kit are not touched. OpenCore's logs on EFI (opencore-*.txt) are moved to HAO/reports/ first.
+    Returns the updated stick.json."""
+    step = on_step or (lambda text: None)
+    parts = mounted_parts(host, disk)
+    esp, boot, top = (Path(parts[n][1]) for n in ('EFI', BOOT_NAME, KIT_NAME))
+    info = top / 'stick.json'
+    if not info.is_file():
+        raise StickError('/dev/%s is not a hao USB installer: %s has no stick.json' % (disk, KIT_NAME))
+    if opencore_tar is None:
+        if not (top / KIT_ESP / 'EFI' / 'OC' / 'config.plist').is_file():
+            raise StickError("the kit on %s has no ESP (%s): name the target's ESP tar" % (KIT_NAME, KIT_ESP))
+        import tempfile
+        with tempfile.TemporaryDirectory() as work:
+            return rewrite_boot(host, disk, esp_tar_of(top / KIT_ESP, Path(work) / 'kit-esp.tar'), basesystem, log,
+                                on_step)
+    if basesystem is None:
+        basesystem = boot / 'com.apple.recovery.boot' / 'BaseSystem.dmg'
+        if not basesystem.is_file():
+            raise StickError('%s has no Recovery (com.apple.recovery.boot/BaseSystem.dmg): name one' % BOOT_NAME)
+    rec = json.loads(info.read_text())
+    (top / 'reports').mkdir(exist_ok=True)
+    logs = sorted(p.name for p in esp.glob('opencore-*.txt'))
+    for name in logs:
+        shutil.copyfile(esp / name, top / 'reports' / name)
+        (esp / name).unlink()
+    if logs:
+        step('kept %d OpenCore log%s in %s/reports' % (len(logs), '' if len(logs) == 1 else 's', KIT_NAME))
+    for name in ('EFI', 'System'):
+        shutil.rmtree(esp / name, ignore_errors=True)
+    rec.update(write_boot(esp, boot, basesystem, opencore_tar, log=log))
+    rec.update(boot_rewritten=datetime.datetime.now().isoformat(timespec='seconds'), opencore_logs_kept=logs)
+    step('EFI      OpenCore again (picker after %d s, log %s)' % (PICKER_TIMEOUT, 'on' if log else 'off'))
+    step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
+    info.write_text(json.dumps(rec, indent=1, sort_keys=True) + '\n')
+    host.run(['diskutil', 'unmountDisk', '/dev/' + disk], check=False, timeout=300)
+    return rec
+
+
 def main(argv):
     if len(argv) == 3 and argv[0] == 'opencore-config':
         c = opencore_config(plistlib.loads(Path(argv[1]).read_bytes()))
         Path(argv[2]).write_bytes(plistlib.dumps(c))
         return 0
+    if argv[:1] == ['rewrite-boot']:
+        return rewrite_boot_main(argv[1:])
     print(__doc__.rsplit('\n\n', 1)[-1], file=sys.stderr)
     return 2
+
+
+def rewrite_boot_main(argv):
+    import argparse
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from macos import SystemHost
+    import disks as DISKS
+    p = argparse.ArgumentParser(prog='stick.py rewrite-boot', description=rewrite_boot.__doc__)
+    p.add_argument('disk', help='the USB installer, e.g. disk4 (diskutil list external)')
+    p.add_argument('--opencore', help="an ESP tar (default: the ESP of the kit on the USB installer)")
+    p.add_argument('--basesystem', help='a new BaseSystem.dmg (default: keep the one on HAOBOOT)')
+    p.add_argument('--opencore-log', action='store_true', help="OpenCore's log to a file on EFI (slower start)")
+    a = p.parse_args(argv)
+    host, disk = SystemHost(), DISKS.normalize(a.disk)
+    if host.euid() != 0:
+        print('stick.py rewrite-boot needs administrator rights: run it with sudo', file=sys.stderr)
+        return 1
+    try:
+        rewrite_boot(host, disk, a.opencore, a.basesystem, log=a.opencore_log, on_step=print)
+    except StickError as x:
+        print('stopped: %s' % x, file=sys.stderr)
+        return 1
+    print('Done: /dev/%s has the new boot partitions; HAO and the kit are unchanged.' % disk)
+    return 0
 
 
 if __name__ == '__main__':
