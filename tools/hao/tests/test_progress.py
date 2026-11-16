@@ -285,6 +285,9 @@ class Round5(unittest.TestCase):
         out = err.getvalue()
         self.assertIn('\033[1msudo ./hao create-installer\033[0m', out)
         self.assertIn('\033[1m/Volumes/HAO/report\033[0m (attach it)', out)
+        c2 = CON.Console('steps', out=Tty(), err=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c2.stopped(CON.Stopped('x', options=['the logs: /Volumes/HAO/hao-install-1/local/work']))
+        self.assertNotIn('\033[1m', c2.err.getvalue().split('What you can do')[1])      # a folder, not a command
 
     def test_truecolor_uses_the_mockups_colours(self):
         c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'COLORTERM': 'truecolor'})

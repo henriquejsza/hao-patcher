@@ -204,7 +204,7 @@ def fit(text, width):
     return ''.join(out) + '…' + ('\033[0m' if '\033[' in text else '')
 
 
-COMMAND = re.compile(r'(^|: |as: |run |again: )((?:sudo )?(?:\./hao|hao|/Volumes/\S+/(?:install|report|hao))\b[^,;()]*?)(?=$| \(|,|;)')
+COMMAND = re.compile(r'(^|: |as: |run |again: )((?:sudo )?(?:\./hao|hao|/Volumes/\S+/(?:install|report|hao))(?=\s|$)[^,;()]*?)(?=$| \(|,|;)')
 MARK_COLUMN = 62              # where ✓ / ✗ stand on step and item lines, so they line up as in the mockups
 
 
@@ -560,7 +560,7 @@ class Console:
         w, s = self.err, self.paint_err
         untouched = x.untouched or ''
         if untouched:
-            untouched = untouched[0].upper() + untouched[1:] + ('' if untouched.endswith('.') else '.')
+            untouched = untouched + ('' if untouched.endswith('.') else '.')     # "STOPPED before anything ..." 
         print('\n%s\n' % ' '.join(x for x in (s('bad', 'STOPPED'), untouched) if x), file=w)
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
