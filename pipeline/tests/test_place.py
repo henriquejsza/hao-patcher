@@ -47,5 +47,20 @@ class Place(unittest.TestCase):
         self.assertEqual(P['made_label'](COPY), 'a copy out of row src')
 
 
+class Unpack(unittest.TestCase):
+    def test_an_archive_class_unpacks_its_payload_folder_as_the_row(self):
+        import io, tarfile
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / 'rt.tar.gz'
+            with tarfile.open(src, 'w:gz') as t:
+                for name, data in (('top/GENERATE.md', b'g'), ('top/payload/bin/hao', b'h')):
+                    info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
+            dest = Path(d) / 'row' / 'payload'
+            P['unpack_archive'](src, dest, {'strip': 1, 'into': 'parent'})
+            self.assertEqual((dest / 'bin/hao').read_bytes(), b'h')
+            self.assertEqual((dest.parent / 'GENERATE.md').read_bytes(), b'g')
+            self.assertFalse((dest.parent / 'top').exists())
+
+
 if __name__ == '__main__':
     unittest.main()
