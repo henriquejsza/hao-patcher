@@ -325,104 +325,104 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 From each image's build record: the commit it was built from, its set, and the patch revisions and row
 hashes it has. A cell marked * differs from the current one (section 1).
 
-| | 8fb92d5 | b124c40 | e2149e1 (A) | e95b3e5 (B) | b3970b9 (B+catalog) | d975f55 (beta-candidate-fold) | 66d6544 (beta-candidate-fold) | 6debec1 (R-argbuf-r6) | d76a07d (alpha-v0.1.0) | e49b304 (dev build of main 1289886b (e49b304)) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| repo | mbp92-26B131-tested | mbp92-26B131-tested | mbp92-26B131-tested | mbp92-26B131-fold | mbp92-26B131-fold-catalog | mbp92-26B131-beta-candidate-fold | mbp92-26B131-beta-candidate-fold | mbp92-26B131-beta-candidate-fold | mbp92-26B131-alpha-v0.1.0 | mbp92-26B131-tested |
-| built | 2026-11-14 09:13 | 2026-11-14 17:31 | 2026-11-14 20:24 | 2026-11-15 05:21 | 2026-11-15 05:44 | 2026-11-15 17:44 | 2026-11-15 18:16 | 2026-11-15 19:23 | 2026-11-15 20:17 | 2026-11-16 10:13 |
-| commit | d970c5b3 | e7708168 | f6faaa35 | dd359d4b | dd359d4b | a0a74099 | b33b6cef | 0d1f8a4f | 88c7e324 | 1289886b |
-| set | dev-bs-test | dev-bs-test | dev-bs-test | dev-bs-test-fold | dev-bs-test-fold-catalog | dev-beta-candidate-fold | dev-beta-candidate-fold | dev-beta-candidate-fold | alpha-v0.1.0 | dev-bs-test |
-| optional groups | caches | caches | caches | caches | caches | caches | caches | caches | caches | caches |
+| | 8fb92d5 | b124c40 | e2149e1 (A) | e95b3e5 (B) | b3970b9 (B+catalog) | d975f55 (beta-candidate-fold) | 66d6544 (beta-candidate-fold) | 6debec1 (R-argbuf-r6) | d76a07d (alpha-v0.1.0) | e49b304 (dev build of main 1289886b (e49b304)) | 31355fe (pre-alpha 0a2791da (31355fe), for the owner's NetBoot push) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| repo | mbp92-26B131-tested | mbp92-26B131-tested | mbp92-26B131-tested | mbp92-26B131-fold | mbp92-26B131-fold-catalog | mbp92-26B131-beta-candidate-fold | mbp92-26B131-beta-candidate-fold | mbp92-26B131-beta-candidate-fold | mbp92-26B131-alpha-v0.1.0 | mbp92-26B131-tested | mbp92-26B131-alpha-v0.1.0 |
+| built | 2026-11-14 09:13 | 2026-11-14 17:31 | 2026-11-14 20:24 | 2026-11-15 05:21 | 2026-11-15 05:44 | 2026-11-15 17:44 | 2026-11-15 18:16 | 2026-11-15 19:23 | 2026-11-15 20:17 | 2026-11-16 10:13 | 2026-11-16 11:19 |
+| commit | d970c5b3 | e7708168 | f6faaa35 | dd359d4b | dd359d4b | a0a74099 | b33b6cef | 0d1f8a4f | 88c7e324 | 1289886b | 0a2791da |
+| set | dev-bs-test | dev-bs-test | dev-bs-test | dev-bs-test-fold | dev-bs-test-fold-catalog | dev-beta-candidate-fold | dev-beta-candidate-fold | dev-beta-candidate-fold | alpha-v0.1.0 | dev-bs-test | alpha-v0.1.0 |
+| optional groups | caches | caches | caches | caches | caches | caches | caches | caches | caches | caches | caches |
 
-| Patch | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d | e49b304 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r9* | r10 | r10 | r10 | r10 | r10 | r10 | r10 | r10 | r10 |
-| dev-access | r4* | r5 | r5 | r5 | r5 | r5 | r5 | r5 | - | r5 |
-| dev-diagnostics | r4 | r4 | r4 | r4 | r4 | - | - | - | - | r4 |
-| dev-keepawake | - | r1 | r1 | - | - | - | - | - | - | r1 |
-| golden-gate-appstore-slices | - | r1* | r1* | r1* | r1* | r2 | r2 | r2 | - | r2 |
-| golden-gate-corespotlight-compat | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
-| golden-gate-dyld-internal | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 |
-| golden-gate-font-registry | r6* | r6* | r6* | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
-| golden-gate-hd4000-planes | r2* | r2* | r2* | r2* | r2* | r4 | r4 | r4 | r4 | r4 |
-| golden-gate-hello | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r9 |
-| golden-gate-icon-caches | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
-| golden-gate-ids | - | - | - | - | - | r1 | r1 | r1 | - | - |
-| golden-gate-launchd-warm | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 |
-| golden-gate-live-text-service | r4* | r4* | r4* | r5 | r5 | r5 | r5 | r5 | r5 | r5 |
-| golden-gate-live-text-shared | r8* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r10 |
-| golden-gate-metal-argbuf | r5* | r5* | r5* | r5* | r5* | r5* | r5* | r6 | r6 | r6 |
-| golden-gate-metal-framebuffer | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r10 |
-| golden-gate-metal-libraries | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 |
-| golden-gate-native-identities | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
-| golden-gate-shader-caches | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 |
-| golden-gate-shared-cache | - | - | - | r3* | - | r4* | r4* | r4* | - | - |
-| golden-gate-shared-cache-catalog | - | - | - | - | r1* | - | - | - | - | - |
-| golden-gate-store | - | - | - | - | - | r1* | r2* | r2* | r4 | - |
-| golden-gate-user-seed | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 |
-| golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* | r7 |
-| golden-gate-userspace | r74* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r81 |
-| golden-gate-windowserver-filter | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
-| hao-opencore | r63* | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 |
-| hao-runtime | r78* | r80* | r80* | - | - | - | - | - | r80* | r82 |
-| hao-runtime-fold | - | - | - | r3* | r3* | r4* | r4* | r4* | - | - |
-| metal-compiler-compat | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r8 |
-| metalold-selectors | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
+| Patch | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d | e49b304 | 31355fe |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| darwin27-kernel | r9* | r10 | r10 | r10 | r10 | r10 | r10 | r10 | r10 | r10 | r10 |
+| dev-access | r4* | r5 | r5 | r5 | r5 | r5 | r5 | r5 | - | r5 | - |
+| dev-diagnostics | r4 | r4 | r4 | r4 | r4 | - | - | - | - | r4 | - |
+| dev-keepawake | - | r1 | r1 | - | - | - | - | - | - | r1 | - |
+| golden-gate-appstore-slices | - | r1* | r1* | r1* | r1* | r2 | r2 | r2 | - | r2 | - |
+| golden-gate-corespotlight-compat | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
+| golden-gate-dyld-internal | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r1 |
+| golden-gate-font-registry | r6* | r6* | r6* | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
+| golden-gate-hd4000-planes | r2* | r2* | r2* | r2* | r2* | r4 | r4 | r4 | r4 | r4 | r4 |
+| golden-gate-hello | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r9 | r9 |
+| golden-gate-icon-caches | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
+| golden-gate-ids | - | - | - | - | - | r1 | r1 | r1 | - | - | - |
+| golden-gate-launchd-warm | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 | r3 |
+| golden-gate-live-text-service | r4* | r4* | r4* | r5 | r5 | r5 | r5 | r5 | r5 | r5 | r5 |
+| golden-gate-live-text-shared | r8* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r10 | r10 |
+| golden-gate-metal-argbuf | r5* | r5* | r5* | r5* | r5* | r5* | r5* | r6 | r6 | r6 | r6 |
+| golden-gate-metal-framebuffer | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r10 | r10 |
+| golden-gate-metal-libraries | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 | r21 |
+| golden-gate-native-identities | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
+| golden-gate-shader-caches | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 | r14 |
+| golden-gate-shared-cache | - | - | - | r3* | - | r4* | r4* | r4* | - | - | - |
+| golden-gate-shared-cache-catalog | - | - | - | - | r1* | - | - | - | - | - | - |
+| golden-gate-store | - | - | - | - | - | r1* | r2* | r2* | r4 | - | r4 |
+| golden-gate-user-seed | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 |
+| golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* | r7 | r7 |
+| golden-gate-userspace | r74* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r81 | r81 |
+| golden-gate-windowserver-filter | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
+| hao-opencore | r63* | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 |
+| hao-runtime | r78* | r80* | r80* | - | - | - | - | - | r80* | r82 | r82 |
+| hao-runtime-fold | - | - | - | r3* | r3* | r4* | r4* | r4* | - | - | - |
+| metal-compiler-compat | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r8 | r8 |
+| metalold-selectors | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
 
-| Row | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d | e49b304 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| appstore_slice_guard | - | 21df0a67* | 21df0a67* | 21df0a67* | 21df0a67* | f61a65ee | f61a65ee | f61a65ee | - | f61a65ee |
-| codeid_carrier | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | 16120d97 |
-| corespotlight_compat_shim | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc |
-| corewifi_compat | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 |
-| darwin27_kernel | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 |
-| display_install_helper | - | - | - | - | - | - | - | - | - | - |
-| display_state_shim | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd |
-| edit_engine | - | - | - | - | - | - | - | - | - | - |
-| fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
-| font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 |
-| golden_gate_userspace | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 060bd378 |
-| hao_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2 |
-| hao_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - |
-| hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e |
-| hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
-| icon_caches_golden_gate | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 |
-| ids_service | - | - | - | - | - | 6458b30d | 6458b30d | 6458b30d | - | - |
-| intel_commpage_abi | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 |
-| io80211_compat | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 |
-| kdk | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 |
-| kernel_repair_binding | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 |
-| kernel_repair_efi | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f |
-| libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 |
-| live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9 |
-| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945 | 9de18945 | 9de18945 |
-| metal_compiler_compat | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | e4780509 |
-| metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6 |
-| metal_quad_runtime_golden_gate | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 |
-| metallib_repairs_golden_gate | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 |
-| metalold_selectors | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 |
-| oclp_hardware | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 |
-| opencore_release | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a |
-| psp_2.0.5 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 |
-| python_arm64 | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d |
-| python_site | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc |
-| python_x86_64 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 |
-| rebuilt_cache | - | - | - | a8a847b6* | - | a8a847b6* | a8a847b6* | a8a847b6* | - | - |
-| rebuilt_cache_catalog | - | - | - | - | d56244ea | - | - | - | - | - |
-| screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | - | 285943c0 |
-| shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
-| store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52 | - |
-| tahoe_boot_donors | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 2bef5543 |
-| tahoe_driverkit_donors | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* |
-| tahoe_extensions_donors | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* |
-| tahoe_kc_builder | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b |
-| tahoe_kmutil | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 |
-| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | bd1fc6d2* |
-| tahoe_recovery_donors | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | 9b21f27f |
-| test_authorized_key | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | - | 8522212b |
-| test_host_key | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | - | 474bf917 |
-| user_template_golden_gate | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 |
-| wifip2p_compat | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 |
-| windowserver_filter_shim | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b |
+| Row | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d | e49b304 | 31355fe |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| appstore_slice_guard | - | 21df0a67* | 21df0a67* | 21df0a67* | 21df0a67* | f61a65ee | f61a65ee | f61a65ee | - | f61a65ee | - |
+| codeid_carrier | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | 16120d97 | 16120d97 |
+| corespotlight_compat_shim | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc |
+| corewifi_compat | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 |
+| darwin27_kernel | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 | 3c931751 |
+| display_install_helper | - | - | - | - | - | - | - | - | - | - | - |
+| display_state_shim | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd | 187c53cd |
+| edit_engine | - | - | - | - | - | - | - | - | - | - | - |
+| fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
+| font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 |
+| golden_gate_userspace | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 060bd378 | 060bd378 |
+| hao_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2 | 4f9784a2 |
+| hao_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - | - |
+| hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e |
+| hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
+| icon_caches_golden_gate | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 |
+| ids_service | - | - | - | - | - | 6458b30d | 6458b30d | 6458b30d | - | - | - |
+| intel_commpage_abi | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 |
+| io80211_compat | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 |
+| kdk | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 |
+| kernel_repair_binding | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 |
+| kernel_repair_efi | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f |
+| libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 | 9c273f39 |
+| live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9 | 69126df9 |
+| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945 | 9de18945 | 9de18945 | 9de18945 |
+| metal_compiler_compat | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | e4780509 | e4780509 |
+| metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6 | 6dba1ab6 |
+| metal_quad_runtime_golden_gate | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 |
+| metallib_repairs_golden_gate | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 |
+| metalold_selectors | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 |
+| oclp_hardware | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 |
+| opencore_release | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a |
+| psp_2.0.5 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 |
+| python_arm64 | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d | 9763f43d |
+| python_site | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc |
+| python_x86_64 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 |
+| rebuilt_cache | - | - | - | a8a847b6* | - | a8a847b6* | a8a847b6* | a8a847b6* | - | - | - |
+| rebuilt_cache_catalog | - | - | - | - | d56244ea | - | - | - | - | - | - |
+| screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | - | 285943c0 | - |
+| shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
+| store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52 | - | 032e5b52 |
+| tahoe_boot_donors | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 2bef5543 | 2bef5543 |
+| tahoe_driverkit_donors | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | 2d8f0993 |
+| tahoe_extensions_donors | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | e0b2c6cf |
+| tahoe_kc_builder | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b |
+| tahoe_kmutil | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 |
+| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | bd1fc6d2* | b29646a7 |
+| tahoe_recovery_donors | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | 9b21f27f | 9b21f27f |
+| test_authorized_key | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | - | 8522212b | - |
+| test_host_key | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | - | 474bf917 | - |
+| user_template_golden_gate | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 | 4e8121b7 |
+| wifip2p_compat | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 | 20822cf1 |
+| windowserver_filter_shim | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b | 6cc11d3b |
 
 ## 3. On the laptops now
 
@@ -463,9 +463,6 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - hao-runtime-fold r5 is newer than every image built with it (newest r4).
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).
-- row tahoe_driverkit_donors 2d8f0993 is in no image yet (images have c0a18b6b).
-- row tahoe_extensions_donors e0b2c6cf is in no image yet (images have b9cd0402).
-- row tahoe_native_donors b29646a7 is in no image yet (images have 3b1692f2, a227bc59, bd1fc6d2).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
