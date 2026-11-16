@@ -38,7 +38,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-userspace | r79 | oclp-hook | experiment |  | x | x |  |  | **needs** | r79 2026-11-16 Row `codeid_carrier`: its sha256 leaves out build.json (16120d97), so a source build of the sam |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r64 | post | experiment |  | x | x |  |  | **needs** | r64 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e t |
-| hao-runtime | r81 | oclp-hook | experiment |  | x | x |  |  | **needs** | r81 2026-11-16 Row `hao_runtime` (26B131): its sha256 leaves out root/usr/lib/hao/aot (52b89e0a), which the us |
+| hao-runtime | r82 | oclp-hook | experiment |  | x | x |  |  | **needs** | r82 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 0e75f64 payload (4f9784a2, manifest 6c448c23): the 1a |
 | hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
