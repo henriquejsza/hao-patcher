@@ -37,9 +37,18 @@ fi
 # OCLP's source at the assembly's commit: from the repository (git archive), or, on a Mac without git (an Intel Mac
 # on macOS 27 has no command-line tools), from the archive the assets folder carries: store/oclp-source/OCLP.tar
 # (git archive of that commit) with OCLP.commit holding the full commit.
+# A store filled by `hao fetch` and `pipeline/place` has it as the oclp_source row instead (the commit is the archive's
+# pax comment, as git archive writes it).
 OCLP_TAR=${OCLP_TAR:-$TOP/store/oclp-source/$OCLP.tar}
+if [[ ! -f $OCLP_TAR && ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]]; then
+    OCLP_TAR=$(common oclp_source)
+fi
 if [[ -f $OCLP_TAR ]] && { [[ ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]] || ! command -v git >/dev/null 2>&1 || ! git --version >/dev/null 2>&1; }; then
-    tar -x -C $SHARE/oclp -f $OCLP_TAR; OCLP_FULL=$(cat ${OCLP_TAR:r}.commit)
+    tar -x -C $SHARE/oclp -f $OCLP_TAR
+    if [[ -f ${OCLP_TAR:r}.commit ]]; then OCLP_FULL=$(cat ${OCLP_TAR:r}.commit)
+    else OCLP_FULL=$(python3 -I -c 'import sys, tarfile; print(tarfile.open(sys.argv[1]).pax_headers.get("comment", ""))' $OCLP_TAR)
+    fi
+    [[ $OCLP_FULL == $OCLP* ]] || { print -u2 "inputs.sh: $OCLP_TAR is OCLP ${OCLP_FULL:-(no commit)}, not $OCLP"; exit 1; }
 else
     git -C $OCLP_REPO archive $OCLP | tar -x -C $SHARE/oclp; OCLP_FULL=$(git -C $OCLP_REPO rev-parse $OCLP)
 fi
