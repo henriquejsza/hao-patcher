@@ -13,7 +13,8 @@
         producer, a row with no content class), unless --allow-pending, which writes it with "state": "incomplete";
         a beta is never written incomplete. --no-harvested-assets leaves the harvested caches out of this cut (listed as
         harvested, made on the user's Mac) whatever release-classes.json's harvested_assets says. --allow-pending-row ROW (repeatable) allows only those rows' own
-        problems (each still marked pending, the release incomplete); any other problem still refuses. Every channel is a prerelease (there is no final channel yet).
+        problems (each still marked pending, the release incomplete); any other problem still refuses. Every channel is a prerelease
+        (there is no final channel yet) unless --not-prerelease (DECISIONS 2026-11-16: "v0.0.1 no pre release").
         Promotion (alpha -> beta) is a new --write from the same commits with the new --channel: the release.json
         then differs only in channel (and state/prerelease where the channel rules change them).
 
@@ -571,6 +572,7 @@ def main(argv):
             stage.mkdir(parents=True, exist_ok=True)
         try:
             rel, problems = build_release(assembly, opts['--release'], stage, channel=opts['--channel'],
+                                          prerelease='--not-prerelease' not in argv,
                                           version=opts['--version'],
                                           harvested_assets='--no-harvested-assets' not in argv)
         except ValueError as x:
