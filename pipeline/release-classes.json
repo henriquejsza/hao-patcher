@@ -111,6 +111,10 @@
    ],
    "reason": "profile.json (tools/kernel-fixes binding profile: hashes, offsets and the repairs' find/replace byte patterns) and metadata-review.json; build.json is left out (home-folder paths; no recipe reads it)"
   },
+  "edit_engine": {
+   "class": "in-checkout",
+   "reason": "tools/edit-engine, tracked files of hao-patcher at the release commit (stub-edit for recipe hooks)"
+  },
   "display_install_helper": {
    "class": "in-checkout",
    "reason": "patches/golden-gate-windowserver-filter/src/install_dss.py, a tracked file of hao-patcher at the release commit"
@@ -174,9 +178,9 @@
   "hao_runtime": {
    "class": "ours",
    "publish": "file",
-   "source": "../hao-runtime-26B131-c66997a2a0bb-public.tar.gz",
-   "source_sha256": "b2bb589af682559ffcd412f4ccf5761ab333c5a23a8ccacaa71d6e66287b9626",
-   "reason": "hao-runtime's public archive of the c66997a payload (its make-public-archive.py, deterministic): hao's own binaries (hao, libhao, libhao_identity, libhao_async_contract, HaoExec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
+   "source": "../hao-runtime-26B131-1a290d743d0c-public.tar.gz",
+   "source_sha256": "3e26607664d72881a70663e3c67123249866ed51bfe7e3e9b50d46b555c7913c",
+   "reason": "hao-runtime's public archive of the 1a290d7 payload (its make-public-archive.py, deterministic): hao's own binaries (hao, libhao, libhao_identity, libhao_async_contract, HaoExec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
    "made_on_mac_files": [
     {
      "path": "payload/embed/stubs",
@@ -336,8 +340,12 @@
    ]
   },
   "store_service": {
-   "class": "pending",
-   "reason": "pending"
+   "class": "ours",
+   "publish": "tar",
+   "include": [
+    "libhao-appstore-policy.dylib"
+   ],
+   "reason": "built by tools/appstore-policy/prepare.py from src/store_policy.m"
   },
   "tahoe_boot_donors": {
    "class": "made-on-mac",
@@ -426,9 +434,9 @@
   "hao_runtime_fold": {
    "class": "ours",
    "publish": "file",
-   "source": "../hao-runtime-26B131-96870dd3f441-public.tar.gz",
-   "source_sha256": "cfe27394e71a40b02485dbe5170d12cf8305fcc83ea133f41af21f3dd7a9a0a2",
-   "reason": "hao-runtime's public archive of the 96870dd fold-in payload (its make-public-archive.py, deterministic), as hao_runtime's: hao's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
+   "source": "../hao-runtime-26B131-1a290d743d0c-public.tar.gz",
+   "source_sha256": "e574b8c78644cc9f8c6160a9c54bb2e80b3f7bb20ee35ef88887cc52becf8f9f",
+   "reason": "hao-runtime's public archive of the 1a290d7 fold-in payload (its make-public-archive.py, deterministic), as hao_runtime's: hao's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
    "made_on_mac_files": [
     {
      "path": "payload/embed/stubs",

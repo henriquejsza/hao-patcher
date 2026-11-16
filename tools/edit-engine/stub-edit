@@ -150,21 +150,76 @@ def write_in_place(target, data):
         f.write(data)
 
 
+def edit_x86_slice(spec, data, path):
+    """DATA (universal) with its one x86_64 slice edited and signed as SPEC says, bundle slots carried; every other
+    slice checked unchanged. Returns (output, index of the x86_64 slice, its name, the parts, the edit record)."""
+    parts, wide = fat_slices(data)
+    x86 = [i for i, p in enumerate(parts) if p[0] == CPU_X86_64]
+    if len(x86) != 1:
+        raise Refused('%s: %d x86_64 slices (expected exactly one)' % (path, len(x86)))
+    i = x86[0]
+    thin = parts[i][3]
+    try:
+        edited, record = engine.apply(spec, thin, repo=str(HERE.parents[1]))
+    except engine.EditError as x:
+        raise Refused('edit refused: %s' % x)
+    if not spec.get('sign'):
+        raise Refused('the spec must sign the edited slice')
+    try:
+        edited = signing.sign(edited, spec['sign'], thin, None, S.codesign_args)
+    except signing.SignatureError as x:
+        raise Refused(str(x))
+    edited = carry_bundle_slots(thin, edited)
+    new_parts = list(parts)
+    cpu, sub, align, _ = parts[i]
+    new_parts[i] = (cpu, sub, align, edited)
+    out = fat_join(new_parts, wide)
+    check, _ = fat_slices(out)
+    for j, (a, b) in enumerate(zip(parts, check)):
+        if j != i and a[3] != b[3]:
+            raise Refused('%s: slice %d changed (only the x86_64 slice may)' % (path, j))
+    return out, i, signing.slice_name(cpu, sub), parts, record
+
+
+def native_edit(spec, spec_path, path, target, data, record_path):
+    """An Apple universal program: its lineage is its sha256, which must be a key of SPEC's `expect`; the x86_64
+    slice is edited and signed as for a stub; no stub-identities line (golden-gate-native-identities lists it)."""
+    expect = spec.get('expect') or {}
+    before = sha256(data)
+    if before not in expect:
+        raise Refused('%s: sha256 %s is not an input the spec\'s expect lists (%s)'
+                      % (path, before[:12], ', '.join(k[:12] for k in expect) or 'none'))
+    out, i, name, parts, record = edit_x86_slice(spec, data, path)
+    write_in_place(target, out)
+    after = sha256(out)
+    result = {'path': path, 'kind': 'apple', 'spec_sha256': sha256(Path(spec_path).read_bytes()),
+              'before': {'sha256': before}, 'after': {'sha256': after, 'cdhash': cdhashes(out)[name]},
+              'expected_sha256': expect[before], 'as_expected': after == expect[before],
+              'kept_slices': {signing.slice_name(c, s_): sha256(b) for j, (c, s_, _, b) in enumerate(parts) if j != i},
+              'edits': record}
+    if record_path:
+        Path(record_path).write_text(json.dumps(result, indent=1) + '\n')
+    return result
+
+
 def stub_edit(system, spec_path, record_path=None):
     system = Path(system)
     spec = S.load(str(spec_path))
     path = spec.get('path', '')
-    if spec.get('arch') != 'x86_64' or (spec.get('origin') or {}).get('kind') != 'hao':
-        raise Refused('the spec must say arch x86_64 and origin kind hao (a stub hao generated)')
+    kind = (spec.get('origin') or {}).get('kind')
+    if spec.get('arch') != 'x86_64' or kind not in ('hao', 'apple'):
+        raise Refused('the spec must say arch x86_64 and origin kind hao (a stub hao generated) or apple')
     if not path or path.startswith('/') or '..' in Path(path).parts:
         raise Refused('the spec path must be relative to the System root')
     target, stubs = system / path, system / STUBS
     if target.is_symlink() or not target.is_file():
         raise Refused('%s is not a file' % path)
+    data = target.read_bytes()
+    if kind == 'apple':
+        return native_edit(spec, spec_path, path, target, data, record_path)
     lines = stubs.read_text().splitlines()
     at = stub_line(lines, path)
     stub_cd, apple_cd, arch = lines[at].split(None, 3)[:3]
-    data = target.read_bytes()
     parts, wide = fat_slices(data)
     names = {signing.slice_name(cpu, sub): i for i, (cpu, sub, _, _) in enumerate(parts)}
     seen = cdhashes(data)
@@ -223,8 +278,14 @@ def main():
     except (Refused, OSError, ValueError) as x:
         print('stub-edit: refused: %s' % x, file=sys.stderr)
         return 1
-    print('stub-edit: %s: stub %s -> %s; other slices unchanged; stub-identities updated'
-          % (r['path'], r['before']['stub_cdhash'][:12], r['after']['stub_cdhash'][:12]))
+    if r.get('kind') == 'apple':
+        print('stub-edit: %s: %s -> %s (%s); other slices unchanged' % (
+            r['path'], r['before']['sha256'][:12], r['after']['sha256'][:12],
+            'as the spec expects' if r['as_expected'] else 'the spec expects %s: signature padding differs on this Mac'
+            % r['expected_sha256'][:12]))
+    else:
+        print('stub-edit: %s: stub %s -> %s; other slices unchanged; stub-identities updated'
+              % (r['path'], r['before']['stub_cdhash'][:12], r['after']['stub_cdhash'][:12]))
     return 0
 
 

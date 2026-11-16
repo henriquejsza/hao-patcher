@@ -18,7 +18,7 @@ class Recipe(unittest.TestCase):
         sets = PATCH.parents[1]/'pipeline/sets'
         names = lambda p: [l.split()[0] for l in p.read_text().splitlines() if l.strip() and not l.startswith('#')]
         users = sorted(p.name for p in sets.glob('*.txt') if 'hao-runtime-fold' in names(p))
-        self.assertEqual(users, ['dev-beta-candidate-fold.txt', 'dev-bs-test-fold-catalog.txt', 'dev-bs-test-fold.txt'])
+        self.assertEqual(users, ['alpha-v0.1.0-fold.txt', 'dev-beta-candidate-fold.txt', 'dev-bs-test-fold-catalog.txt', 'dev-bs-test-fold.txt'])
         for name in users:
             self.assertNotIn('hao-runtime', names(sets/name))
 

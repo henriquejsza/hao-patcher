@@ -152,6 +152,13 @@ slices and does not change. Checked on a 26B131 application stub: every slice an
 edit made by hand with lipo (only the slice order differs: stub-edit keeps the installer's). Tests:
 `tests/test_stub_edit.py`.
 
+The same tool edits an Apple universal program (`origin.kind` apple, e.g. a daemon whose x86_64 code a recipe
+changes): its lineage is its sha256, which must be a key of the spec's `expect`; the x86_64 slice alone is edited and
+signed as above, every other slice kept byte for byte, and no stub-identities line is touched
+(golden-gate-native-identities lists the re-signed program). An output other than `expect`'s is reported, not refused:
+signature padding differs between Macs. Checked on a 26B131 daemon: every slice and CDHash equal the hand-made edit;
+only the slice offsets differ (stub-edit keeps the input's alignment, lipo used 4 KB).
+
 `src/signlint.py` is the static half: a recipe whose hook signs with another file's entitlements
 (`codesign … --entitlements FILE`) or keeps the input's metadata (`--preserve-metadata=…`) needs a signed spec that
 says so (`entitlements_from`, `preserve`). `verify-declaration` runs both: signlint on every changed recipe, and

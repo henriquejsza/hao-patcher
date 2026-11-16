@@ -31,16 +31,16 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-shared-cache | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
+| golden-gate-shared-cache | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `rebuilt_cache` hashes the artifact without its build.json (`# hash: without build.json`), s |
 | golden-gate-shared-cache-catalog | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
-| golden-gate-store | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-15 Adds libhao-ios-coordinator-test.dylib, which the replaced appstoreagent loads. |
+| golden-gate-store | r4 | oclp-hook | product |  |  |  |  |  | **needs** | r4 2026-11-16 Row `store_service` carries its build record (hash without build.json). Installed bytes unchange |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
 | golden-gate-userspace | r79 | oclp-hook | experiment |  | x | x |  |  | **needs** | r79 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
-| hao-runtime | r80 | oclp-hook | experiment |  | x | x |  |  | **needs** | r80 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
-| hao-runtime-fold | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
+| hao-runtime | r80 | oclp-hook | experiment |  | x | x |  |  | **needs** | r80 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 1a290d7 payload for the unfolded cache (manifest d605 |
+| hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
 | metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
