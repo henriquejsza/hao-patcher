@@ -412,11 +412,11 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
 | store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52 | - |
 | tahoe_boot_donors | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 2bef5543 |
-| tahoe_driverkit_donors | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b | c0a18b6b |
-| tahoe_extensions_donors | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 | b9cd0402 |
+| tahoe_driverkit_donors | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* |
+| tahoe_extensions_donors | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* |
 | tahoe_kc_builder | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b | a8653d9b |
 | tahoe_kmutil | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 | 8117f099 |
-| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | bd1fc6d2 |
+| tahoe_native_donors | a227bc59* | a227bc59* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | 3b1692f2* | bd1fc6d2* |
 | tahoe_recovery_donors | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | e0e5686e* | 9b21f27f |
 | test_authorized_key | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | 8522212b | - | 8522212b |
 | test_host_key | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | 474bf917 | - | 474bf917 |
@@ -463,6 +463,9 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - hao-runtime-fold r5 is newer than every image built with it (newest r4).
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).
+- row tahoe_driverkit_donors 2d8f0993 is in no image yet (images have c0a18b6b).
+- row tahoe_extensions_donors e0b2c6cf is in no image yet (images have b9cd0402).
+- row tahoe_native_donors b29646a7 is in no image yet (images have 3b1692f2, a227bc59, bd1fc6d2).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
