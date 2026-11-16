@@ -77,9 +77,7 @@ There is no end-user installer yet. The `hao` command ([tools/hao](tools/hao)) i
 
 ## Building
 
-On the build Mac, with the assets folder in place (`A`). Building on the Mac itself is new: the images tested so
-far were built on an Apple silicon Mac with a builder virtual machine, as [Building an image](docs/building.md)
-describes.
+On the build Mac, with the assets folder in place (`A`). No Apple silicon Mac and no virtual machine are needed.
 
 ```sh
 curl -L https://codeload.github.com/lythka/hao-patcher/tar.gz/main -o hao-patcher.tar.gz
@@ -98,7 +96,7 @@ and conventions.
 |---|---|
 | `pipeline/` | Image assembly, input rows, targets and patch sets |
 | `patches/` | Installation recipes, one folder per fix ([catalog](docs/PATCHES.md)) |
-| `tools/` | Fix builders, input preparation, builder VM, image and QEMU tools |
+| `tools/` | Fix builders, input preparation, image and QEMU tools |
 | `cache/` | Metal library and shader generators |
 | `docs/` | Status, architecture, inputs and build guide |
 
