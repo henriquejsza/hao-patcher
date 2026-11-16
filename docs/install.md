@@ -23,10 +23,12 @@ MacBook Pro.
 2. Plug in the USB stick and run:
 
    ```sh
-   sudo ./hao create-installer
+   ./hao create-installer
    ```
 
-   Choose the USB stick and confirm. This erases the USB stick.
+   Choose the USB stick and confirm. This erases the USB stick; you may be asked for your password.
+   Today this step is still four commands (fetch, place, make-on-Mac, create-installer); [the developer
+   guide](building.md) lists them until `create-installer` does all four.
 3. On the MacBook Pro, hold Option at startup and choose **HAOBOOT**. In the Recovery, open Utilities > Terminal and
    run `/Volumes/HAO/install`.
 4. After the first start-up, run once:
@@ -54,5 +56,5 @@ To build hao and its kit yourself, follow [the developer guide](building.md):
 
 ```sh
 git clone https://github.com/lythka/hao-patcher && cd hao-patcher
-sudo tools/hao/hao create-installer
+tools/hao/hao create-installer
 ```
