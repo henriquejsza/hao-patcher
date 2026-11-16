@@ -54,7 +54,7 @@ Detail levels for every command: --quiet, default, --show or -v (files), --show-
 On a terminal the step being worked on has a spinner (or a bar) and its time, redrawn in place, with colour; in a
 pipe, a log, with NO_COLOR or TERM=dumb the same lines come plain, with a "still working" line every 30 s.
 HAO_ASCII=1 draws spinners and bars in ASCII. What the backends print (commands, tool output) goes to the log file
-named on failure (the stick's logs folder when run from the stick), not to the screen.
+named on failure (the USB installer's logs folder when run from the USB installer), not to the screen.
 
 --state defaults to ROOT/private/var/db/hao, and with --live to /private/var/db/hao. Deferred steps come from
 --deferred FILE, else from deferred.json beside the overlays (the materialiser's output folder), when there is one.
