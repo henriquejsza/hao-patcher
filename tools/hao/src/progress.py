@@ -94,23 +94,40 @@ def output_log(command, now=None, env=None):
     return folder / ('%s-%s.log' % (command, stamp))
 
 
-def tree_size(path):
-    """(files, bytes) under PATH, symlinks not followed; (0, 0) when it is not there."""
+def tree_size(path, seen=None, shared=None):
+    """(files, bytes) under PATH, symlinks not followed; (0, 0) when it is not there. A hard link's bytes count once;
+    with SHARED (a set), a file under inputs/ counts once across calls (recipes share input rows, and the USB
+    installer carries each once)."""
     files = size = 0
-    for root, dirs, names in os.walk(str(path)):
+    seen = set() if seen is None else seen
+    base = str(path)
+    for root, dirs, names in os.walk(base):
         for n in names:
+            full = os.path.join(root, n)
             try:
-                st = os.lstat(os.path.join(root, n))
+                st = os.lstat(full)
             except OSError:
                 continue
             files += 1
+            if st.st_nlink > 1:
+                if (st.st_dev, st.st_ino) in seen:
+                    continue
+                seen.add((st.st_dev, st.st_ino))
+            if shared is not None:
+                rel = os.path.relpath(full, base)
+                if rel.startswith('inputs' + os.sep):
+                    key = (rel, st.st_size)
+                    if key in shared:
+                        continue
+                    shared.add(key)
             size += st.st_size
     return files, size
 
 
 def recipe_folders(share):
-    """{recipe: (files, bytes)} of a kit's hooks/NN-NAME and post/NN-NAME folders (what each recipe brings)."""
-    out = {}
+    """{recipe: (files, bytes)} of a kit's hooks/NN-NAME and post/NN-NAME folders (what each recipe brings); an input
+    row two recipes share counts for the first."""
+    out, seen, shared = {}, set(), set()
     for sub in ('hooks', 'post'):
         base = Path(share) / sub
         if not base.is_dir():
@@ -118,7 +135,7 @@ def recipe_folders(share):
         for d in sorted(base.iterdir()):
             if d.is_dir() and '-' in d.name:
                 name = d.name.split('-', 1)[1]
-                f, b = tree_size(d)
+                f, b = tree_size(d, seen, shared)
                 of, ob = out.get(name, (0, 0))
                 out[name] = (of + f, ob + b)
     return out
@@ -397,7 +414,7 @@ class Kit:
             self.show_packs()
         if words and words[0] == 'ditto' and len(words) >= 3:
             total = tree_size(words[-2])[1]
-            self.begin('copy ' + (say or Path(words[-2]).name), total=total or None)
+            self.begin('%-38s' % ('copy ' + (say or Path(words[-2]).name)), total=total or None)
             self.copy = (words[-2], words[-1])
             return
         if 'inputs.sh' in cmd:

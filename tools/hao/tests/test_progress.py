@@ -207,7 +207,7 @@ class Steps(unittest.TestCase):
             '  metal-3802                  1 files    1.0 KB  ✓',
             '  intel-hd4000                1 files    2.0 KB  ✓',
             '  other fixes                 1 files      10 B  ✓',
-            "  copy Tahoe's Intel system programs ████████████████████ 5.0 KB / 5.0 KB  ✓",
+            "  copy Tahoe's Intel system programs  ████████████████████ 5.0 KB / 5.0 KB  ✓",
             '  OpenCore for this Mac  ✓']])
 
     def test_kernel_lines_and_the_proven_build(self):
@@ -228,6 +228,18 @@ class Steps(unittest.TestCase):
         self.assertIn('  BootKC and SystemKC linked, Boot 875abf7d221c…  ✓  matches the proven build', got)
         self.assertIn('  HaoExec stamped for kernel 037e7b860ac8…  ✓', got)
         self.assertIn('  4 kernel repairs bound to this kernel, IntelCommpage added  ✓', got)
+
+
+class Sizes(unittest.TestCase):
+    def test_a_shared_input_row_counts_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            for recipe in ('02-golden-gate-userspace', '16-golden-gate-native-identities'):
+                f = Path(d) / 'hooks' / recipe / 'inputs' / 'golden_gate_userspace' / 'os.dmg'
+                f.parent.mkdir(parents=True)
+                f.write_bytes(b'z' * 4096)
+                (Path(d) / 'hooks' / recipe / 'make.sh').write_bytes(b'#' * 10)
+            got = PROG.recipe_folders(d)
+        self.assertEqual(got, {'golden-gate-userspace': (2, 4106), 'golden-gate-native-identities': (2, 10)})
 
 
 class Downloads(unittest.TestCase):
