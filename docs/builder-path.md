@@ -76,9 +76,9 @@ and reused between builds, keyed on their inputs and on the builder's tools.
 |---|---|---|
 | `hao detect` | the Mac, its devices and packs | works |
 | `hao fetch` / `hao verify` | a release's pinned downloads and assets; checks an installed system against its manifests | works |
-| `hao create-installer` | the user's one command, on any Mac: asks which Mac and which stick, downloads, prepares packs, writes the USB stick | asks, checks the stick, downloads and checks the release's files; making the kit from them and writing the stick are not built |
+| `hao create-installer` | the user's one command, on any Mac: asks which Mac and which USB drive, downloads, prepares packs, writes the USB installer | asks, checks the drive, downloads and checks the release's files; making the kit from them and writing the USB installer are not built |
 | `hao report` | one text file for a GitHub issue, without serial, user or Wi-Fi names | works |
-| `hao install` | on the target, from the stick: lay out the disk, copy macOS, add Intel support, apply packs, link the kernel, seal, make it bootable | builds from the stick's kit in a Recovery that relaxes SIP and AMFI; host tests only, not yet run onto a real disk |
+| `hao install` | on the target, from the USB installer: lay out the disk, copy macOS, add Intel support, apply packs, link the kernel, seal, make it bootable | builds from the USB installer's kit in a Recovery that relaxes SIP and AMFI; host tests only, not yet run onto a real disk |
 | `hao build-disk` | the same assembly onto an external SSD | stages the kit and builds onto the SSD, under the same conditions as `install`; host tests only |
 | `hao build-image` | an image file, for development | works, in the builder VM |
 | `hao patch` / `--revert` | live updates of packs on the running Mac, undone by snapshot | works on a folder; on the running Mac it waits for a laptop proof of snapshot and revert |
@@ -100,7 +100,7 @@ why it matters, what was left untouched and what to do next.
   yet the laptop.
 - **The kit's first real run:** `hao install` or `hao build-disk` from a kit, first in the Tahoe Recovery on the
   laptop, with no virtual machine involved.
-- **The USB installer:** the Recovery-on-a-stick launcher in Golden Gate's Recovery. Its riskiest unknowns (bundled
+- **The USB installer:** the Recovery-on-USB launcher in Golden Gate's Recovery. Its riskiest unknowns (bundled
   Python, kmutil and the binder, cryptex sealing, volume groups and firmlinks) pass in the laptop's Tahoe Recovery
   ([`tools/recovery-spikes`](../tools/recovery-spikes/README.md)); they run again in Golden Gate's.
 - **A first release.** `pipeline/release-cut --write` stages a prerelease (`--allow-pending`): our compiled shims and recipe data as assets, Apple's and third-party files as pinned downloads, the rest made on the Mac. Held: hao-runtime's payload (its split of our files from those generated from Apple binaries), three rows whose build records hold home-folder paths (kernel repairs, Live Text, the Metal compiler service), the firmlink tool (no build record) and OCLP's Python packages (no single URL). Caches harvested from a running laptop ship only for the MacBookPro9,2 (owner, 2026-11-14), and only once `harvested_assets` in `pipeline/release-classes.json` turns them on (off until the owner chooses how they ship); other models warm them up on the first boot (not built yet). `release.json` (format 2) carries the release version (`--version v0.1.0`) and channel (`--channel dev|alpha|beta`) beside the kit version (`--release`); a beta is never cut incomplete, and promotion re-cuts from the same commits with the new channel.

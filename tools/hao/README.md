@@ -4,25 +4,25 @@
 
 1. Download the release archive from the project's GitHub Releases page and unpack it.
 2. In Terminal, in the unpacked folder, run `sudo ./hao create-installer`. It asks which Mac the installer is for
-   and which disk is the USB stick, asks you to type the stick's name, then downloads and checks everything and
-   writes the stick.
-3. Plug the stick into the Intel Mac, hold Option while it starts, and choose **hao Installer**.
+   and which disk is the USB drive, asks you to type the drive's name, then downloads and checks everything and
+   writes the USB installer.
+3. Plug the USB installer into the Intel Mac, hold Option while it starts, and choose **hao Installer**.
 4. If something fails, run `./hao report` and attach the file it writes to a GitHub issue. It holds no serial
    number, user names or Wi-Fi names.
 
 | You need | |
 |---|---|
 | An Intel Mac | proven: MacBookPro9,2 (MacBook Pro 13-inch, Mid 2012) |
-| A USB stick | at least 64 GB; everything on it is erased |
+| A USB drive | at least 64 GB; everything on it is erased |
 | An internet connection | for Apple's and the project's files, each checked by size and sha256 |
-| A Mac to make the stick on | any Mac; it can be the Intel Mac itself |
+| A Mac to make the USB installer on | any Mac; it can be the Intel Mac itself |
 | Xcode Command Line Tools | for their Python 3, which runs `hao`: `xcode-select --install` |
 
 Not built yet: making the macOS 27 files from Apple's downloads on your Mac. Until then `create-installer` writes
-the stick only on a developer's Mac that has the project's files.
+the USB installer only on a developer's Mac that has the project's files.
 
-On the Intel Mac, in the stick's Recovery, open Terminal (Utilities menu) and run `/Volumes/HAO/install`; if
-something fails, `/Volumes/HAO/report` writes the report onto the stick (`HAO/reports`).
+On the Intel Mac, in the USB installer's Recovery, open Terminal (Utilities menu) and run `/Volumes/HAO/install`; if
+something fails, `/Volumes/HAO/report` writes the report onto the USB installer (`HAO/reports`).
 
 ## For developers
 
@@ -39,10 +39,10 @@ On a terminal the output has the mockups' colours: green check marks and `sha256
 headers, pack names and the banner, dim notes and paths, yellow warnings, notes and "will be erased", red `✗` and
 `STOPPED`, and origin tags (Apple grey, Tahoe orange, OCLP purple, hao teal). The colours are 256-colour values that
 read on the Recovery's white Terminal as well as a dark one; a terminal without 256 colours gets the 8 basic ones.
-There is no colour when the output is not a terminal (a pipe, a file, the stick's log), when `NO_COLOR` is set to
+There is no colour when the output is not a terminal (a pipe, a file, the USB installer's log), when `NO_COLOR` is set to
 anything, when `TERM=dumb`, or with `--log json`, and the events kept for a record never hold colour codes.
 
-`create-installer` has three steps, not the mockups' four (Download, Unpack, Prepare packs, Write the USB stick):
+`create-installer` has three steps, not the mockups' four (Download, Unpack, Prepare packs, Write the USB installer):
 nothing is unpacked on the user's Mac yet. The kit comes from `--kit` or from this checkout's store, so the
 mockups' Unpack step (decoding the installers, extracting the Tahoe donors) is not there. It comes back when the
 kit is made from the downloads on the user's Mac (plan steps 12/13).
@@ -55,8 +55,8 @@ hao fetch RELEASE.json [--cache DIR] [--verify] [--host-check] [--assets-from DI
 hao verify [ROOT] [--manifests OVERLAY_DIR|MANIFEST]...
 hao build-image REPO --model MacBookPro9,2 [--overlay-system ROOT] [--dry-run]
 sudo hao build-disk /dev/diskN --model MacBookPro9,2 [--dry-run]     # output (b): an external SSD
-sudo hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run]  # output (a): the USB stick
-hao install /dev/diskN [--dry-run] [--resume WORK]   # on the target, from the stick's Recovery
+sudo hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run]  # output (a): the USB installer
+hao install /dev/diskN [--dry-run] [--resume WORK]   # on the target, from the USB installer's Recovery
 hao report [--output FILE]                      # one text file for a GitHub issue
 ```
 
@@ -80,7 +80,7 @@ hao report [--output FILE]                      # one text file for a GitHub iss
   (ssdinstall's checks: whole, physical disk, not the running system's or the inputs', big enough; `external` for
   build-disk, `internal` for install), then ask for the typed confirmation (`--confirm` gives it ahead). Then they
   build from the relocatable kit (`pipeline/kit.py`, workflow plan step 16): build-disk stages it
-  (`golden-run --stage-kit`, or takes `--kit`), install takes the stick's (`--kit`, required); both run
+  (`golden-run --stage-kit`, or takes `--kit`), install takes the USB installer's (`--kit`, required); both run
   `pipeline/stages/golden-assemble.sh` onto the disk, where golden-image.py's DiskTarget checks it again under the
   same policy, and build-disk keeps the sealed cryptex images for the next build (`golden-run --collect-kit`).
   Before staging anything they need what the builder VM gives the assembly: root, SIP's filesystem protection off
@@ -93,22 +93,22 @@ hao report [--output FILE]                      # one text file for a GitHub iss
   confirmed with RESUME.
 - **create-installer** (`src/installer.py`) is the user's one command. It asks, one question at a time with
   numbered choices: which Mac (the release's proven models, the first by default; this Mac through `hao detect`,
-  offered on an Intel Mac; or a profile file), which disk is the stick (`diskutil list external physical`, each
-  checked by `src/disks.py`: internal disks, the running system's and disk images are never listed; a stick under
+  offered on an Intel Mac; or a profile file), which disk is the USB drive (`diskutil list external physical`, each
+  checked by `src/disks.py`: internal disks, the running system's and disk images are never listed; a drive under
   60 * 10^9 bytes, what one sold as 64 GB holds at least, or one holding hao's folder or its cache is listed with
   the reason and cannot be chosen), and the disk's name typed. The disk argument, `--model`/`--profile` and
   `--confirm diskN` answer ahead; `--dry-run` asks and shows the plan. Then: Download (everything `release.json`
   beside `hao`, or `--release FILE`, pins, through `tools/acquire` into `--cache`), Prepare packs (the profile's
   packs and recipes, and the kit: `--kit DIR`, else staged now with `golden-run --stage-kit` from the checkout's
-  store), Write the USB stick (`src/stick.py`). The stick: the EFI partition diskutil makes; `HAOBOOT` (FAT32) with
+  store), Write the USB installer (`src/stick.py`). The USB installer: the EFI partition diskutil makes; `HAOBOOT` (FAT32) with
   the target's OpenCore (the target's ESP row) as `EFI/BOOT/BOOTX64.EFI`, its config changed as
   `pipeline/stages/netrec.sh` changes it (a test keeps the two equal), and `com.apple.recovery.boot/BaseSystem.dmg`
   (the donor build's stock Tahoe BaseSystem, row `unpack`, or `--basesystem FILE`); `HAO` (Mac OS Extended) with
   `hao/` (the tracked files), `kit/` (identical files of 64 MB or more hard-linked: the userspace payload is in two
   hooks), `install` and `report` (run hao with the kit's CPython), `release.json`, `stick.json` (what was written,
-  with sha256s) and `reports/`. `--image FILE [--image-size BYTES]` (development) writes a sparse raw stick image
+  with sha256s) and `reports/`. `--image FILE [--image-size BYTES]` (development) writes a sparse raw USB installer image
   instead, with no root, disk question or confirmation; `tools/qemu-vm start --usb-disk FILE` boots it as a USB
-  stick. Not built yet: the kit made from the downloads on the user's Mac (plan steps 12/13). Its console events
+  drive. Not built yet: the kit made from the downloads on the user's Mac (plan steps 12/13). Its console events
   are kept as a log (below).
 - **report** (`src/report.py`) writes one text file (default `hao-report-DATE.txt` in the current folder; under
   sudo it belongs to the user who ran sudo): hao's release and commit, `sw_vers`, model, CPU, memory, SIP and boot

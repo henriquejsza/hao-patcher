@@ -96,7 +96,7 @@ image commit ~23 GB; an assembly can say more with `disk_need_gb`), a kit alone 
 it boots, and each refuses when it would leave less than 150 GB free (`HAO_DISK_FLOOR_GB`). `HAO_DISK_CHECK=COMMAND`
 hands the decision to a host-wide guard (`COMMAND check --need GB --who NAME --what TEXT`, exit 3 = refused).
 
-`golden-run` (also with `--stage-kit`, which the stick's kit comes from) and `release-cut --write` refuse to start
+`golden-run` (also with `--stage-kit`, which the USB installer's kit comes from) and `release-cut --write` refuse to start
 while a live swap proven on a laptop has no resolution. The swapper records the proof when a bench pass or the owner
 shows the swap works: `python3.14 -I pipeline/swaps.py proven LAPTOP-PATH --evidence "bench ITEM"` (or
 `"owner: THEIR WORDS"`), which adds a `proven` line to the swap ledger. The refusal names each path, its sha256, who
@@ -108,7 +108,7 @@ That Recovery (Tahoe 25G342) has fewer commands than a full macOS. The ones it h
 `pipeline/stages/recovery-commands-25G342.txt`. `install`, `shasum`, `cmp` and `readlink` are missing, and the
 kit's `recovery-tools.py` stands in for them. `rsync` is missing too, so the assembly uses `ditto`.
 `pipeline/tests/test_recovery_commands.py` checks every command the install path runs against that list.
-`golden-run --recovery-commands` builds in the VM with only those commands on PATH, as the stick's install does.
+`golden-run --recovery-commands` builds in the VM with only those commands on PATH, as the USB installer's install does.
 The assembly also holds a sleep assertion for its whole run (`caffeinate`, or `recovery-tools.py awake`).
 Copies onto the FAT ESP carry data only (`FAT_COPY` in `golden-image.py`: `ditto --norsrc --noextattr --noacl`):
 the Recovery runs no `doubleagentd`, which keeps a FAT volume's extended attributes, so a copy with attributes fails
@@ -123,7 +123,7 @@ shape System up to `darwin27-kernel`). `golden-run --stage-kit` copies the entry
 linking. `hao create-installer` refuses a kit without them: build the image once in the VM first. Producing them
 without the VM is open (see the VM-free build plan).
 
-The Recovery mounts the stick's HAO volume `noowners`, so every file the install copies from the kit arrives owned
+The Recovery mounts the USB installer's HAO volume `noowners`, so every file the install copies from the kit arrives owned
 by `_unknown` (99:99). `golden-image.py` gives such files root:wheel after the base layers, the recipes and the
 posts, and records the counts in `build.json` `owners_fixed`. kmutil refuses kexts with those owners, which is why
 the Recovery linked a kernel-only collection before. In the builder VM there are none.

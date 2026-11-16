@@ -72,7 +72,7 @@ Pre-alpha, and this path is still being validated. Installing erases the MacBook
 
 1. Get hao at the release tag: `git clone --branch v0.0.9 https://github.com/lythka/hao-patcher`, then
    `cd hao-patcher/tools/hao`.
-2. Run `./hao create-installer`, choose the USB stick and confirm (the stick is erased; you may be asked for your
+2. Run `./hao create-installer`, choose the USB drive and confirm (the drive is erased; you may be asked for your
    password). Today this is still four commands; [the developer guide](docs/building.md) lists them.
 3. On the MacBook Pro, hold Option at startup, choose **EFI Boot** (a silent pause of several minutes follows)
    and run `/Volumes/HAO/install` from the Recovery's Terminal.

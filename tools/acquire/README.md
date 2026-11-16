@@ -49,7 +49,7 @@ python3.14 -I tools/acquire/host-check [--json] [--need-gb N]
 - edit and sign files;
 - rebuild Metal libraries (Xcode's Metal toolchain, or the bundled LLVM via `HAO_LLVM_BUNDLE`);
 - Rosetta on Apple silicon;
-- write the USB stick (root).
+- write the USB installer (root).
 
 Running it on each host the release supports gives the plan's host matrix.
 
