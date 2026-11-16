@@ -4,22 +4,22 @@ Lets macOS 27.2.1's own x86_64 `Metal.framework` (383.1) drive the Intel HD 4000
 legacy compilers and driver, instead of OCLP's `MetalOld` + our [metal-wrapper](../metal-wrapper/README.md). The
 fallback, and what every image ships today, is still the wrapper.
 
-**Status: laptop test, and a dev-only installed trial.** The test bundle loads 27's Metal with `DYLD_FRAMEWORK_PATH`
-inside a sandboxed test process; nothing on the system is changed. Compute is proven on the laptop (r2); render
-aborted on the laptop in r3 (27's reflection reader, reached through the image's `libmetal-framebuffer` hook); r4
-fixes that, and compute, render and reflection pass on the laptop with it. `make.py installed` builds the same pieces
+**Status: a test bundle, and a dev-only installed trial.** The test bundle loads 27's Metal with `DYLD_FRAMEWORK_PATH`
+inside a sandboxed test process; nothing on the system is changed. Compute is proven on the target (r2); render
+aborted on the target in r3 (27's reflection reader, reached through the image's `libmetal-framebuffer` hook); r4
+fixes that, and compute, render and reflection pass on the target with it. `make.py installed` builds the same pieces
 for the whole system (every process, WindowServer included); the dev-only recipe
 [golden-gate-metal27](../../patches/golden-gate-metal27/README.md) (pack `metal27-trial`, in no default set)
 installs them. Not booted yet.
 
 | Piece | Source | What |
 |---|---|---|
-| Metal27 | (input) | 27.2.1's own x86_64 Metal, cut from the 26B131 Rosetta dyld cache with hao-tools' `cache-dylib`, under Apple's install name, plus `LC_REEXPORT_DYLIB` of the shim ([src/add_reexport.py](src/add_reexport.py)) |
+| Metal27 | (input) | 27.2.1's own x86_64 Metal, cut from the 26B131 Rosetta dyld cache with `cache-dylib` (in the private tooling repository), under Apple's install name, plus `LC_REEXPORT_DYLIB` of the shim ([src/add_reexport.py](src/add_reexport.py)) |
 | `libHaoMetalShim.dylib` | [src/shim.c](src/shim.c), [src/ivars.inc](src/ivars.inc), `layouts.inc` (generated at build) | the 44 ivar offsets OCLP's 11.7.10 HD 4000 driver (31) and 31001 MTLCompiler (13) bind from Metal and 27's Metal no longer exports; a `copyAndNullifyRefsInDescriptor` stub; the `isInternalBuild` flip; the driver's view of three private descriptor structs in MetalOld's layout (render) |
 | compiler stand-in | [src/standin.c](src/standin.c) | `MTLCompiler.framework/Versions/{32023,32024}/MTLCompiler`, the in-process compiler 27's Metal `dlopen`s; routes every request to OCLP's 31001 and 3802 |
 | test program | [src/test.m](src/test.m), [src/kernels.metal](src/kernels.metal), [src/render.metal](src/render.metal) | one compute kernel checked against a CPU reference, or one offscreen draw read back pixel by pixel |
 | `q2log.dylib` | [src/q2log.c](src/q2log.c) | passive: echoes LLVM/MTLCompiler `os_log` faults to stderr, private strings included |
-| runner | [run.sh](run.sh) | the laptop run: manifest check, one sandboxed process per case, summary |
+| runner | [run.sh](run.sh) | the target run: manifest check, one sandboxed process per case, summary |
 | builder | [make.py](make.py), [inputs.json](inputs.json), [abi.py](abi.py) | the bundle; the host replay runtime; the descriptor layout table |
 | host replay | [host-replay.sh](host-replay.sh), [host-control.sh](host-control.sh) | the bundle against the fake HD 4000; the same under MetalOld, with its requests captured |
 | installed trial | `make.py installed` | Metal27 (the bundle's file), and the installed builds of the shim and the stand-in, as System files |
@@ -95,24 +95,24 @@ Tables copied out of Apple binaries (`layouts.inc`) are generated on the buildin
 | Input | Where | Pin |
 |---|---|---|
 | 26B131 x86_64 dyld cache | `System/Library/dyld` of the 26B131 IPSW's Rosetta cryptex (input row `ipsw_27_0`), mounted read-only; `--cache DIR` | sha256 of the 7 cache files and `.map`; the unsigned Metal cut `dbb5e8e8…` |
-| hao-tools `tools/cache-dylib` | a hao-tools checkout next to this repository, or `CACHE_DYLIB=DIR` | r6, commit `7e5dd2a6`, sha256 of `cache_dylib.py`, `check.py`, `dsc.py` |
+| `tools/cache-dylib` of the tooling repository | its checkout next to this repository, or `CACHE_DYLIB=DIR` | r6, commit `7e5dd2a6`, sha256 of `cache_dylib.py`, `check.py`, `dsc.py` |
 | type-7 template | built from the framing in `inputs.json`; or `--template FILE`, the MetalOld capture r2 shipped (sha256 `ce4640d4…`) | see below |
-| OCLP's compilers, HD 4000 driver, plugin chain | on the laptop, at their installed paths, only read | `run.sh` records their sha256 in `system.txt` |
+| OCLP's compilers, HD 4000 driver, plugin chain | on the target, at their installed paths, only read | `run.sh` records their sha256 in `system.txt` |
 | OCLP's `MetalOld.dylib` | OCLP hardware artifact, `payload/13.2.1-25/System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`; `--metalold FILE` | sha256 `90a1ff7a…`; with the Metal cut, `abi.py` generates `OUT/work/layouts.inc` from it (never committed) |
 | a cache/shaders replay runtime | host replay only (`make.py host-runtime --from RT`) | the runtime's own `sources.json` |
 
 **The template.** r2 shipped MetalOld's captured type-7 request for `add1` (3,504 bytes). The stand-in only uses its
 framing: it replaces the name and the module, and shifts the five header words that point at the module end. The
 default template is that framing with an 8-byte placeholder module (248 bytes, `inputs.json`), so no captured AIR
-is needed. Rebuilt from laptop run 2's own type-1 requests, the stand-in sends byte-identical type-7 requests with
+is needed. Rebuilt from target run 2's own type-1 requests, the stand-in sends byte-identical type-7 requests with
 either template (tests).
 
-## Building the laptop bundle
+## Building the test bundle
 
 On the Apple-silicon host, with Xcode (macOS 27 SDK) and the cache mounted:
 
 ```sh
-CACHE_DYLIB=PATH/hao-tools/tools/cache-dylib \
+CACHE_DYLIB=PATH/tools/cache-dylib \
 python3.14 -I tools/metal-adapter/make.py bundle OUT --cache ROSETTA_CRYPTEX/System/Library/dyld \
     --metalold OCLP_ARTIFACT/payload/13.2.1-25/System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib --tar
 # OUT/metal27-adapter-test/, OUT/metal27-adapter-test.tgz (+ .sha256), OUT/work/ (cut, cache-dylib report and check,
@@ -133,16 +133,16 @@ r2's `MANIFEST.sha256` exactly, except `bin/q2log.dylib`: r2 built it without an
 scratch build path; this builder names it `@loader_path/q2log.dylib`. It is loaded by path through
 `DYLD_INSERT_LIBRARIES`, so the install name is never used. Metal27 (`e0d38ca0…`, UUID `0A0F6749…`), the shim,
 both stand-ins, the test program and both metallibs were byte-identical. The host replay of that rebuild gave 6/6
-COMPILE-OK with request dumps byte-identical to laptop run 2's.
+COMPILE-OK with request dumps byte-identical to target run 2's.
 
-## On the laptop
+## Running the test bundle
 
-Copy only the tarball and unpack it in the test user's home; `scp -r` or Finder would break the symlinks into
+Copy only the tarball and unpack it in the test user's home; a recursive copy or Finder would break the symlinks into
 `/System`.
 
 ```sh
-scp OUT/metal27-adapter-test.tgz LAPTOP:
-# on the laptop, as the logged-in user (no sudo)
+# copy OUT/metal27-adapter-test.tgz to the target user's home
+# on the target, as the logged-in user (no sudo)
 tar -xzf ~/metal27-adapter-test.tgz -C ~ && cd ~/metal27-adapter-test && ./run.sh
 ```
 
@@ -157,9 +157,9 @@ On the image, OCLP's HD 4000 driver carries two weak dylibs (`/usr/lib/libmetal-
 [golden-gate-metal-framebuffer](../../patches/golden-gate-metal-framebuffer/README.md), `libmetalold-selectors.dylib`
 from [metalold-selectors](../../patches/metalold-selectors/README.md)); they load into the adapter's process with the
 driver. The framebuffer dylib hooks the device's render pipeline factories and asks every render pipeline for
-argument reflection, so on the laptop every render case goes through 27's reflection reader, with or without
+argument reflection, so on the target every render case goes through 27's reflection reader, with or without
 `HAO_REFLECTION`. `system.txt` records both dylibs and whether the driver names them (by `grep`: `otool`
-would ask to install the developer tools on the laptop).
+would ask to install the developer tools on the target).
 
 | run | Metal in the process | compile path | device |
 |---|---|---|---|
@@ -208,7 +208,7 @@ pixels: `pixel(0,63)`, `pixel(63,0)`).
 ## The installed trial (`make.py installed`)
 
 ```sh
-CACHE_DYLIB=PATH/hao-tools/tools/cache-dylib \
+CACHE_DYLIB=PATH/tools/cache-dylib \
 python3.14 -I tools/metal-adapter/make.py installed OUT --cache ROSETTA_CRYPTEX/System/Library/dyld --metalold OCLP_METALOLD
 # OUT/root/System/...: the four files below; OUT/build.json: inputs, toolchain, commit, sha256 of each, Metal27's UUID
 ```
@@ -227,7 +227,7 @@ path instead of the cache's copy (an on-disk root) because dyld counts as an int
 What the installed builds change (the routing, the flip, the layouts and the reflection cut are the same code):
 
 - **Shim:** the in-process compiler is on unless `HAO_METAL27_INTERNAL=0` (the image's `MTLCompilerService` is OCLP's
-  13.2.1 build, which cannot serve 27's Metal: `xpc-*` in laptop run 2). Nothing on stderr unless `HAO_SHIM_LOG=1`.
+  13.2.1 build, which cannot serve 27's Metal: `xpc-*` in target run 2). Nothing on stderr unless `HAO_SHIM_LOG=1`.
   A refusal (another Metal, MetalOld loaded, the flip's pattern or offset not found) never ends the process: it goes
   to the unified log (`log show --predicate 'subsystem == "org.hao.metal27"'`) and the shim does nothing more there.
 - **Stand-in:** carries the type-7 template (generated from `inputs.json` at build); `HAO_DOWNGRADE_TEMPLATE` still
@@ -257,7 +257,7 @@ tools/metal-adapter/host-control.sh REPLAY_RUNTIME OUT/metal27-adapter-test OUT/
 ```
 
 `REPLAY_RUNTIME` is a runtime made by `cache/shaders/lib/prepare.py` (r38 was used). `--laptop-paths` restores OCLP
-31001 libLLVM's relative helper path, as installed on the laptop. `host-control.sh` runs the same case under the
+31001 libLLVM's relative helper path, as installed on the target. `host-control.sh` runs the same case under the
 runtime's MetalOld with the stand-in in capture mode (`HAO_STANDIN_ROUTE=3802`), so MetalOld's 3802 requests and
 replies land next to the adapter's for a byte comparison.
 
@@ -275,7 +275,7 @@ Intel plugin. Then every adapter run aborted (signal 6) in the stand-in: `dlopen
 `Library not loaded: System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM_helper.dylib`.
 OCLP's 31001 `libLLVM.dylib` (payload 13.2.1-25) links its helper by a relative path, which dyld resolves against
 the current directory: `/` in `MTLCompilerService`, the bundle folder in the test. The host never hit it because
-its runtime had the helper relinked to `@loader_path`. The requests were not the cause: the laptop's dumps were
+its runtime had the helper relinked to `@loader_path`. The requests were not the cause: the target's dumps were
 byte-identical to the host's.
 
 **Laptop run 2 (r2, 2026-11-12 16:42): PASS (compute).** r2 preloads the helper by its absolute path and moves the
@@ -311,7 +311,7 @@ alone, for compute too: every adapter pipeline that asks for reflection aborted,
 `HAO_REFLECTION=1`, and every argument's reflection (name, type, index, active, access, buffer alignment, size and
 data type, texture type and data type, array length) is identical to MetalOld's for the same case
 (`host-control.sh`). With the image's framebuffer and selector dylibs on the replay driver, all render and compute
-cases give their pipeline; `HAO_STANDIN_REFLECTION=0` aborts as on the laptop. Fragment replies are not changed;
+cases give their pipeline; `HAO_STANDIN_REFLECTION=0` aborts as on the target. Fragment replies are not changed;
 vertex replies lose 44 bytes (one table entry), compute replies 8 (an empty table).
 
 ## Verify
@@ -345,9 +345,9 @@ switch set with nothing on stderr, off with `HAO_METAL27_INTERNAL=0`, the shim's
 `METAL_ADAPTER_BUNDLE` runs a Rosetta probe that makes texture, render pipeline and colour
 attachment descriptors through 27's public API and reads their private structs through the shim, from a dylib in a
 folder named like a driver bundle, checking every value at MetalOld's offset (and that ordinary callers still get
-27's struct). `METAL_ADAPTER_R2_RESULTS` makes the stand-in rebuild laptop run 2's own type-7 and spliced type-1
+27's struct). `METAL_ADAPTER_R2_RESULTS` makes the stand-in rebuild target run 2's own type-7 and spliced type-1
 requests from its type-1 requests and 31001 replies, byte for byte, with the built template (and the captured one,
-with `METAL_ADAPTER_TEMPLATE`). `METAL_ADAPTER_R3_RESULTS` runs the reflection cut on laptop run 3's own 3802
+with `METAL_ADAPTER_TEMPLATE`). `METAL_ADAPTER_R3_RESULTS` runs the reflection cut on target run 3's own 3802
 render replies: each vertex reply loses only its table, each fragment reply is left alone.
 
 Host replay of the reflection matrix: each case with `HAO_REFLECTION=1` through `host-control.sh` and

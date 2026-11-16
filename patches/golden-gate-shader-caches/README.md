@@ -2,7 +2,7 @@
 
 The HD 4000 Metal shader caches of this OS build, so Language Chooser, Setup, the login window and the first desktop
 use compiled shaders instead of compiling them on the 2012 CPU. One input, `shader_caches_golden_gate`, made by
-`cache/seeds/make` from a laptop harvest of an image of the same build (`cache/seeds/README.md`).
+`cache/seeds/make` from a harvest of an image of the same build (`cache/seeds/README.md`).
 
 | From `data.tar` | Installed at | Read by |
 |---|---|---|
@@ -12,25 +12,20 @@ use compiled shaders instead of compiling them on the 2012 CPU. One input, `shad
 Post patch; list it after golden-gate-user-seed (apply.sh refuses otherwise). apply.sh refuses a pack whose
 `build.json` names another build than the System's.
 
-## Why a pack per build
-FACT 2026-11-11: a Metal function-binary or 31001 record's key follows the function's bitcode hash, and Apple
-rebuilds every metallib per OS build. 26A428 -> 26B131 (metalfe 32023.921 -> 32023.922) kept 0 of 3,437 function
-hashes in the six libraries cache/metallib repairs (RenderBox, Tungsten, MetalFX, CoreRE, MPSImage,
-MPSNeuralNetwork). r7's 26A428 pack (35,173 records) would have shipped only misses.
+## When the pack must be remade
+- **Another OS build.** A record's key follows the function's bitcode hash, and Apple rebuilds every metallib per
+  build: 26A428 -> 26B131 kept none of the 3,437 function hashes in the six libraries cache/metallib repairs.
+- **A change in the Metal compiler stack** (the iCBE wrapper of golden-gate-metal-argbuf, the compiler compat
+  library, the 31001 downgrader). MetalOld's cache key ignores the compiler, so a record made before the change is
+  served as it is. Harvest from an image that has the current stack.
+- A repaired library that changed only makes its old records dead (misses, size).
 
-## Symptom and evidence
-bf10de4 (26B131, no pack): MTLCompilerService 4:21 CPU at Setup + 9 min, load 476 at ~6 min, SSH unanswered ~1 min;
-benchtest's first login compiled again in its own trees. The harvest (`harvest-26B131-bf10de4-20261111-1135`) shows
-the caches persist: Setup's iconservicesagent tree was last written on boot 1 and only Setup Assistant, Control
-Center and the video decoder added records on boot 2.
+Without a pack, the first boot of 26B131 spends minutes of CPU in MTLCompilerService during Setup.
 
 ## Coverage
-r8 input `shader-caches-26B131-20261111-c5a3fe51f6ee`: what bf10de4 compiled in 3 boots, Setup through account
-creation and about 20 min of benchtest's first desktop (46 system-account files, 24 user files, 57 trees, 65 MB; 17 MB of
-functions.data/libraries.data in the user's iconservicesagent tree alone). Apps not opened on that laptop
-(Safari, Spotlight, Notification Center use, Settings panes) are not covered. Closed loop: harvest a boot of an
-image with this pack and run `cache/seeds/make compare PACK HARVEST`; each new or changed file is a miss to fold into
-the next pack.
+What the harvested image compiled from Setup through account creation and the first desktop, and the apps opened on
+it. Apps not opened there are not covered. To find misses, harvest a boot of an image with this pack and run
+`cache/seeds/make compare PACK HARVEST`; each new or changed file is a miss for the next pack.
 
 ## Declared files
 `patch.json` `files` lists the 118 regular files of `data.tar`, all whole files from row `shader_caches_golden_gate` (no edit
@@ -42,15 +37,13 @@ the per-account copy golden-gate-user-seed makes at run time (its path holds the
 ## Verify
 Declaration: `python3.14 -I -B -m unittest discover -s patches/golden-gate-shader-caches/tests` (with SHADER_CACHES_ARTIFACT=the artifact folder it also compares the artifact manifest).
 Host: `patches/golden-gate-user-seed/tests` (the seed chain). On the image: the system accounts' `com.apple.metal`
-trees with their owners (0, 88, 248, 92). On the laptop: MTLCompilerService CPU at Setup + 9 min and the load peak
-against bf10de4 (4:21, 476); then `make compare` on a new harvest.
+trees with their owners (0, 88, 248, 92); MTLCompilerService CPU during Setup's first minutes stays low; then
+`make compare` on a new harvest.
 
 ## Validation
-NEEDS VALIDATION (r11): an image with this pack keeps the first-boot result below, and a new account's Preview
-compiles Metal source (SceneKit scenes shaded, no "PCH was compiled with module cache path" error). r10 on the laptop:
-Laptop 2026-11-11, image 4d1c48c (26B131): MTLCompilerService was not among the busiest processes during first boot (bf10de4 without the seed: 4:21 CPU at 9 min).
-Earlier: r8 is built and chain-tested on the host only; no image with it has booted.
-r9 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r8's, so the result above stands.
+NEEDS VALIDATION (r11 and later). Image 4d1c48c (26B131) with r10, 2026-11-11: MTLCompilerService was not among the
+busiest processes during first boot (without the pack: 4:21 CPU at 9 min). The current pack was harvested before
+golden-gate-metal-argbuf and has to be remade from an image with it.
 
 ## Revisions
 - r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.

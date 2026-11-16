@@ -185,7 +185,7 @@ Revision r21, status experiment. [Recipe](../patches/golden-gate-metal-libraries
 
 ## golden-gate-metal27
 
-Revision r3, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
+Revision r4, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image (an on-disk root): tools/metal-adapter's stand-in, installed build; routes 27's in-process compiles to OCLP's 31001 and 3802. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
@@ -439,7 +439,7 @@ Revision r7, status experiment. [Recipe](../patches/metal-compiler-compat/README
 
 ## metal-metalold
 
-Revision r1, status unfinished. [Recipe](../patches/metal-metalold/README.md)
+Revision r2, status unfinished. [Recipe](../patches/metal-metalold/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`: from Apple macOS 13 · macOS 13.2.1 (22D68) Metal 306.3.5 (row metalold_22d68); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier. Installed mode 0755, owner root:wheel.
   1. `legacy-slice-for-any-device`: literal in __TEXT,__text, 12 bytes, `48 89 C3 48 85 C0 74 72 4D 85 E4 74` → `48 89 C3 48 85 C0 90 90 4D 85 E4 74` (`test rax,rax; je +0x72` → `test rax,rax; nop; nop`).

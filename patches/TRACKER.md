@@ -24,7 +24,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-argbuf | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-15 libargbuf from d9fa28e7 (fix 26c6afc6): the texture and render-pipeline factory hooks return the |
 | golden-gate-metal-framebuffer | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-15 build/tests: the AIR version lookup's linearity test compares 4x the input against the base size |
 | golden-gate-metal-libraries | r21 | oclp-hook | experiment |  | x | x |  |  | **needs** | r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their p |
-| golden-gate-metal27 | r3 | oclp-hook | dev |  |  |  |  |  | **needs** | r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
+| golden-gate-metal27 | r4 | oclp-hook | dev |  |  |  |  |  | **needs** | r4 2026-11-15 README: how to try it on a running image, at the level of commands; no file change. |
 | golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
 | golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
 | golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
@@ -35,7 +35,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | hao-opencore | r61 | post | experiment |  | x | x |  |  | **needs** | r61 2026-11-14 Input row `kernel_repair_binding` now hashes only the files a release can give a user's Mac (`# |
 | hao-runtime | r77 | oclp-hook | experiment |  | x | x |  |  | **needs** | r77 2026-11-13 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 399e78e t |
 | metal-compiler-compat | r7 | oclp-hook | experiment |  | x |  |  |  | **needs** | r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`#  |
-| metal-metalold | r1 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (hao-tools cache-dylib r5) plus the declared je->nop ed |
+| metal-metalold | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-15 edits/metalold.json's evidence line names the comparison instead of a private document; the edit |
 | metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
 | rec-audio | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the three kext bundles and the kernel collection link in `patch.json` `files` and `edits |
 | rec-bluetooth-input | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the four kext bundles, btpower, its plist and the kernel collection link in `patch.json` |
