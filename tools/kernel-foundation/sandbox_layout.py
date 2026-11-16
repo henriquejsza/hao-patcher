@@ -15,7 +15,6 @@ from pathlib import Path
 import re
 import runpy
 import struct
-import subprocess
 
 HERE = Path(__file__).resolve().parent
 MACHO = runpy.run_path(str(HERE/'commpage_build.py'))
@@ -365,11 +364,11 @@ def main():
     donor = donor_identity(kext)
     layout = op_layout(target['names'], donor['names'], donor['operation_count'])
     layout['mig'] = mig_layout(target_mig(cache, args.image), donor_mig(kext), donor['names'])
-    git = lambda *a: subprocess.check_output(['git', '-C', str(HERE), *a], text=True).strip()
+    source = runpy.run_path(str(HERE.parents[1]/'pipeline'/'source_commit.py'))
     revision = runpy.run_path(str(HERE/'unit.py'))['REVISION']
     record = dict(unit='tools/kernel-foundation', revision=revision, operation='sandbox-layout',
-        date=datetime.datetime.now(datetime.timezone.utc).isoformat(), commit=git('rev-parse', 'HEAD'),
-        dirty=bool(git('status', '--porcelain')),
+        date=datetime.datetime.now(datetime.timezone.utc).isoformat(), commit=source['commit'](HERE.parents[1]),
+        dirty=source['dirty'](HERE.parents[1]),
         target=dict(cache=str(args.dyld_cache.resolve()), cache_uuid=cache.uuid, cache_sha256=digest(args.dyld_cache),
                     **target),
         donor_sha256=hashlib.sha256(kext).hexdigest(), donor=dict(path=str(args.sandbox_kext.resolve()), **donor),

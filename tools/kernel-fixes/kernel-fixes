@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import plistlib
 import shutil
+import runpy
 import subprocess
 import sys
 
@@ -156,11 +157,9 @@ def build_repairs(capture, collection, commpage, output):
     (oc/'Kexts').mkdir(parents=True)
     shutil.copytree(commpage/'IntelCommpage.kext', oc/'Kexts/IntelCommpage.kext')
     (oc/'config.plist').write_bytes(plistlib.dumps(config))
-    git = subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], capture_output=True, text=True)
+    source = runpy.run_path(str(REPO/'pipeline'/'source_commit.py'))
     record = dict(unit='tools/kernel-fixes', revision=REVISION, operation='kernel-repairs',
-                  commit=git.stdout.strip() if git.returncode == 0 else None,
-                  dirty=bool(subprocess.run(['git', '-C', str(ROOT), 'status', '--porcelain'],
-                                            capture_output=True, text=True).stdout.strip()),
+                  commit=source['commit'](REPO) or None, dirty=source['dirty'](REPO),
                   date=datetime.now(timezone.utc).isoformat(),
                   inputs=dict(early_vm_repair=repair, commpage=early_vm.repo_path(commpage)),
                   validation='BUILT ONLY; VM/hardware acceptance is separate')

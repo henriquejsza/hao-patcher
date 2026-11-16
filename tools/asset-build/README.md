@@ -26,4 +26,5 @@ The kernel repairs (`kernel_repair_efi`, `kernel_repair_binding`, `intel_commpag
 rebuild identically from tools/kernel-foundation and tools/kernel-fixes given their recorded inputs, some of which
 are not yet rows a user's Mac can make.
 
-Tests: `python3.14 -I -B -m unittest discover -s tools/asset-build/tests`
+Tests: `python3.14 -I -B -m unittest discover -s tools/asset-build/tests`. test_from_archive.py builds from `git archive HEAD`
+(a folder with no .git) and checks the rows and build records there; its docstring names the env vars it needs.

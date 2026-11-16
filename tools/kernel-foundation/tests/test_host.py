@@ -176,7 +176,6 @@ class PackageCalls(unittest.TestCase):
             argv = ['vm-esp', '--reference', str(reference), '--donor-esp', str(donor), '--darwin-major', '27',
                     '--early-vm-capture', str(capture), '--boot-kc', str(collection), '--out', str(root/'efi')]
             with patch.object(vm, 'ROOT', root), patch.object(sys, 'argv', argv), \
-                    patch.object(vm.subprocess, 'check_output', return_value='fixture\n'), \
                     contextlib.redirect_stdout(io.StringIO()):
                 vm.main()
             config = plistlib.loads((root/'efi/EFI/OC/config.plist').read_bytes())
