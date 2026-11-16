@@ -628,7 +628,7 @@ class Assembly:
         title = ph.title.lower() if ph else 'preparing'
         if self.bar is None:
             self.bar = self.c.task('Installing macOS 27', 'quiet', total=1000, unit='%')
-            self.bar.width = 30
+            self.bar.width, self.bar.bar_at = 30, 0       # the mockup: "Installing macOS 27  ████ 42%  Copying macOS 27…"
         self.bar.update(done=int(1000 * (before + within) / total), tail=title[0].upper() + title[1:] + '…')
 
     # -- the backend's lines
@@ -741,8 +741,9 @@ class Assembly:
         if rc == 0:
             self.flush()
             if self.bar:
-                self.bar.update(done=1000, tail='Done')
-                self.bar.end(True)
+                self.bar.update(done=1000)
+                self.bar.final_note = 'Done'
+                self.bar.end(None, timed=False)
             return
         why = self.c.paint('bad', self.r.error[:56]) if self.r.error else ''
         if self.task is None and self.c.at('steps'):

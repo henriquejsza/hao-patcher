@@ -463,7 +463,8 @@ class Task:
         line = self.text
         if self.total:
             f = min(1.0, self.done / float(self.total)) if self.total else 0
-            line = at_column(line, c.bar_column) if len(plain(line)) < c.bar_column else line + ' '
+            at = getattr(self, 'bar_at', c.bar_column)
+            line = at_column(line, at) if len(plain(line)) < at else line + ' '
             line += c.paint('bar', bar(f, getattr(self, 'width', None) or c.bar_width, utf)) + ' ' + self.count()
         if self.tail and final is None:
             line += '  ' + c.paint('dim', self.tail)
