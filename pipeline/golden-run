@@ -34,6 +34,7 @@ KIT = runpy.run_path(str(TOP/'pipeline/kit.py'))
 PRELINKED = runpy.run_path(str(TOP/'pipeline/prelinked_kc.py'))
 DISK = runpy.run_path(str(TOP/'pipeline/diskguard.py'))
 DISK_BUILD_GB, DISK_KIT_GB = 175, 90
+DISK_KIT_ON_DRIVE_GB = 15     # create-installer: the userspace images are on the USB drive, the kit is mostly clones
 
 
 def source_identity():
@@ -349,7 +350,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
     workspace_image=work/'workspace.img'
     # Disk (measured on the 26B131 fold builds): the share's staged inputs ~82 GB, the workspace image ~66 GB and the
     # image commit ~23 GB; a kit alone is the share. An assembly may say more with "disk_need_gb".
-    need=recipe.get('disk_need_gb',DISK_KIT_GB if kit_only else DISK_BUILD_GB)
+    need=recipe.get('disk_need_gb',(DISK_KIT_ON_DRIVE_GB if os.environ.get('KIT_ON_DRIVE') else DISK_KIT_GB) if kit_only else DISK_BUILD_GB)
     try:DISK['check'](need,'golden-run',job,str(store))
     except DISK['Refused'] as x:raise SystemExit('golden-run: %s'%x)
     work.mkdir(parents=True,exist_ok=False);record.mkdir(parents=True,exist_ok=False)

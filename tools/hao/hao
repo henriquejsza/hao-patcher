@@ -605,6 +605,8 @@ def main():
     q.set_defaults(fn=guarded(lambda a, c: BUILD.build_disk(a, c, MAC.SystemHost(), run=c.run), log='build-disk'))
     q = sub.add_parser('create-installer'); builder_args(q)
     q.add_argument('--minimum-bytes', type=int, help='smallest stick accepted (default %d)' % INST.MINIMUM_BYTES)
+    q.add_argument('--plan', action='store_true', help='print the disk space each stage needs (this Mac, the USB '
+                   'drive) and stop; the same check runs before anything is written')
     q.add_argument('--release', help='the release.json to download from (default: beside hao)')
     q.add_argument('--cache', type=Path, default=CACHE)
     q.add_argument('--kit', help='the kit to put on the stick (default: staged now with golden-run --stage-kit)')

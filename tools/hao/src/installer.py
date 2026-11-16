@@ -33,6 +33,8 @@ import builder as BUILD
 import detect as DETECT
 import disks as DISKS
 import livepatch as LP
+import shutil
+import space as SPACE
 import stick as STICK
 
 TOP = Path(__file__).resolve().parents[3]
@@ -302,11 +304,55 @@ def download(c, release_path, cache, acquire, dry_run):
                       why='hao uses only the exact files the release pins',
                       options=['check the internet connection and run the same command again: finished files are '
                                'kept and a partial one resumes', REPORT],
-                      untouched='the stick was not touched')
+                      untouched='the USB drive is erased and holds no installer yet')
     if tty:
         print('\r' + ' ' * 40 + '\r', end='', file=c.out, flush=True)
     c.item('%d files, %s' % (len(rows), human_size(total)), ok=True, ev='download.done', files=len(rows))
     return rows
+
+
+def show_plan(c, release, cache):
+    p = SPACE.plan(release, cache)
+    for line in SPACE.lines(p):
+        c.print(line, 'quiet')
+    c.event('space.plan', mac_peak_gb=round(p['mac_peak'], 1), drive_need_gb=round(p['drive_need'], 1),
+            drive_size_gb=SPACE.drive_size_gb(p), download_gb=round(p['download'], 1))
+    return p
+
+
+def check_space(c, release, cache, drive_bytes):
+    """Before anything is written: this Mac's free space against the plan's peak, the drive against its need."""
+    p = SPACE.plan(release, cache)
+    where = cache if Path(cache).exists() else Path.home()
+    bad = SPACE.problems(p, shutil.disk_usage(where).free, drive_bytes)
+    c.event('space.check', mac_peak_gb=round(p['mac_peak'], 1), drive_need_gb=round(p['drive_need'], 1),
+            problems=bad)
+    if bad:
+        raise Stopped(bad[0], why='hao checks the space every stage needs before it writes anything',
+                      options=['see each stage: ./hao create-installer --plan'] + (
+                          ['free space on this Mac and run it again'] if 'this Mac' in bad[0] else
+                          ['use a USB drive of at least %d GB' % SPACE.drive_size_gb(p)]),
+                      untouched='nothing was downloaded or written')
+    c.item('space  %.1f GB at the peak on this Mac, %.1f GB on the USB drive' % (p['mac_peak'], p['drive_need']),
+           ok=True)
+    return p
+
+
+def make_rows(a, c, release_path, cache, userspace_on, run=subprocess.call):
+    """place + make-on-mac: the rows the release does not ship, made here from Apple's files (the IPSW and the
+    installer read by range), the userspace images straight onto the drive. The plan's check has run, so the
+    maintainers' disk floor (pipeline/diskguard.py) is not applied."""
+    env = dict(os.environ, HAO_DISK_FLOOR_GB=os.environ.get('HAO_DISK_FLOOR_GB', '1'))
+    (TOP / 'store').mkdir(exist_ok=True)
+    for cmd in ([sys.executable, '-I', str(TOP / 'pipeline' / 'place'), str(release_path), str(cache)],
+                [sys.executable, '-I', str(TOP / 'pipeline' / 'make-on-mac'), str(release_path),
+                 '--userspace-on', str(userspace_on)]):
+        c.event('command', argv=cmd)
+        if run(cmd, env=env):
+            raise Stopped('making the inputs failed (%s)' % Path(cmd[2]).name,
+                          options=['run the same command again: rows already made are kept', REPORT],
+                          untouched='the USB drive is erased and holds no installer yet')
+    c.item('the rows made on this Mac all check (pipeline/make-on-mac)', ok=True)
 
 
 def create_installer(a, c, host, acquire=None):
@@ -314,6 +360,11 @@ def create_installer(a, c, host, acquire=None):
     cache = Path(getattr(a, 'cache', None) or BUILD.BUILDS.parent)
     minimum = getattr(a, 'minimum_bytes', None) or MINIMUM_BYTES
     release = load_release(release_path)
+    if getattr(a, 'plan', False):
+        if release is None:
+            raise no_release(release_path)
+        show_plan(c, release, cache)
+        return 0
     c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which stick, then works on '
             'its own.', 'quiet')
     image = getattr(a, 'image', None)
@@ -346,6 +397,23 @@ def create_installer(a, c, host, acquire=None):
         c.print('')
         if not c.confirm('Everything on %s will be erased.' % DISKS.label(info), disk, a.confirm):
             raise Stopped('not confirmed', untouched='nothing was downloaded or written')
+    make_here = bool(release and release.get('made_on_mac') and not getattr(a, 'kit', None))
+    if make_here and not a.dry_run:
+        check_space(c, release, cache, info.get('TotalSize') or info.get('Size'))
+    parts = None
+    if not a.dry_run:
+        # erase the drive first: the userspace images are made straight onto it
+        opencore = opencore_input(a, asm)
+        if image:
+            disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
+            c.item('stick image %s attached as /dev/%s' % (image, disk), 'files')
+        try:
+            parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
+                                  on_step=lambda text: c.item(text, 'steps', ok=True))
+        except (STICK.StickError, OSError, LP.PatchError) as x:
+            raise Stopped('erasing the USB drive failed', cause=str(x).splitlines()[0], options=[REPORT],
+                          untouched='nothing was downloaded')
+        a.drive_build = Path(parts[STICK.KIT_NAME][1]) / STICK.BUILD_DIR
     c.steps(len(STEPS))
     c.step(STEPS[0], plan=a.dry_run)
     if getattr(a, 'kit', None):
@@ -359,6 +427,8 @@ def create_installer(a, c, host, acquire=None):
                                              profile['model']), ok=not a.dry_run, ev='packs', packs=profile['packs'])
     for pack, names in groups.items():
         c.item('%s %d recipes' % (c.paint('bold', '%-22s' % pack), len(names)), 'files')
+    if make_here and not a.dry_run:
+        make_rows(a, c, release_path, cache, a.drive_build)
     if a.dry_run:
         c.step(STEPS[2], plan=True)
         c.item('erase %s; partition 1: OpenCore and the Recovery; partition 2: hao, the kit and the install command'
@@ -368,15 +438,12 @@ def create_installer(a, c, host, acquire=None):
     kit = prepare_kit(a, c, path)
     basesystem, opencore = stick_inputs(a, asm)
     c.step(STEPS[2])
-    if image:
-        disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
-        c.item('stick image %s attached as /dev/%s' % (image, disk), 'files')
     record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
                   target=asm['target'], assembly=path.stem, golden_build=asm['golden_build'],
                   donor_build=asm['donor_build'], basesystem=Path(basesystem).name)
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
-                          record=record, on_step=lambda text: c.item(text, 'steps', ok=True))
+                          record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)
     except (STICK.StickError, OSError, LP.PatchError) as x:
         raise Stopped('writing the USB stick failed', cause=str(x).splitlines()[0],
                       why='the stick is erased and incomplete; it will not start',
@@ -406,6 +473,12 @@ def lock_path(*argv):
         raise Stopped('an input is missing or has the wrong sha256', cause=r.stderr.decode(errors='replace').strip()[:300],
                       untouched='the stick was not touched')
     return Path(r.stdout.decode().strip())
+
+
+def opencore_input(a, asm):
+    if getattr(a, 'opencore', None):
+        return Path(a.opencore).expanduser().resolve()
+    return lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
 
 
 def stick_inputs(a, asm):
@@ -442,11 +515,15 @@ def prepare_kit(a, c, path, run=subprocess.call):
     else:
         work = Path(getattr(a, 'work', None) or BUILD.BUILDS / datetime.datetime.now().strftime('%Y%m%d-%H%M%S')).resolve()
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit'] + (
-            ['--link-on-target'] if getattr(a, 'link_on_target', False) else []) + [
+            ['--link-on-target'] if getattr(a, 'link_on_target', False) else []) + (
+            [] if getattr(a, 'cryptex_cache', False) else ['--no-cryptex-cache']) + [
                '--work', str(work / 'stage'), '--record', str(work / 'record')]
         c.event('command', argv=cmd)
         c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
-        if run(cmd):
+        drive = getattr(a, 'drive_build', None)
+        env = dict(os.environ, KIT_ON_DRIVE=str(Path(drive).resolve()),
+                   HAO_DISK_FLOOR_GB=os.environ.get('HAO_DISK_FLOOR_GB', '1')) if drive else None
+        if (run(cmd, env=env) if env else run(cmd)):
             raise Stopped('preparing the kit failed', options=['the record is in %s' % (work / 'record'), REPORT],
                           untouched='the stick was not touched')
         kit = work / 'stage' / 'share'
