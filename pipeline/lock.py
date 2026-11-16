@@ -106,9 +106,19 @@ def check_row(lock, name, p):
             continue
         import runpy   # the vendored checker, as pipeline/tests/test_contract.py loads it
         contract = runpy.run_path(os.path.join(TOP, 'tools', 'hao-contract', 'hao_contract.py'))
+        # a listed file under the row's `# hash: without` paths may be absent (made later on the user's Mac);
+        # when it is there its sha256 is still checked
+        absent_ok = without(lock, name)
         bad += ['%s: %s' % (name, b) for b in contract['check_payload'](
-            TOP, {'manifest': manifest, 'os_build': kv['os_build'], 'layout_version': int(kv['layout_version'])})]
+            TOP, {'manifest': manifest, 'os_build': kv['os_build'], 'layout_version': int(kv['layout_version'])})
+            if not optional_missing(b, absent_ok)]
     return bad
+
+
+def optional_missing(problem, paths):
+    """True for check_payload's 'payload: REL is listed but missing' when REL is one of PATHS or below one."""
+    m = re.match(r'^payload: (.+) is listed but missing$', problem)
+    return bool(m) and any(m.group(1) == w or m.group(1).startswith(w.rstrip('/') + '/') for w in paths)
 
 
 def in_scope(rel, only):

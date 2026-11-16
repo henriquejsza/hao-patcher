@@ -76,6 +76,18 @@ class Lock(unittest.TestCase):
         r = lock('path', self.row('# check: payload os_build=26B131 layout_version=1\n- %s\n' % pl), 'hao_runtime')
         self.assertNotEqual(r.returncode, 0); self.assertIn('does not match', r.stderr)
 
+    def test_payload_row_listed_file_under_without_may_be_absent(self):
+        pl = self.payload(files={'libhao.dylib': hashlib.sha256(b'hao').hexdigest(),
+                                 'later/x.bin': hashlib.sha256(b'x').hexdigest()})
+        check = '# check: payload os_build=26B131 layout_version=1\n'
+        r = lock('path', self.row(check + '- %s\n' % pl), 'hao_runtime')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('later/x.bin is listed but missing', r.stderr)
+        d = self.row(check + '# hash: without later\n- %s\n' % pl)
+        r = lock('path', d, 'hao_runtime'); self.assertEqual(r.returncode, 0, r.stderr)
+        (pl / 'later').mkdir(); (pl / 'later' / 'x.bin').write_bytes(b'wrong')
+        r = lock('path', d, 'hao_runtime')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('later/x.bin does not match', r.stderr)
+
     def test_payload_row_dirty_or_unchecked(self):
         pl = self.payload(clean=False)
         r = lock('path', self.row('# check: payload os_build=26B131 layout_version=1\n- %s\n' % pl), 'hao_runtime')
