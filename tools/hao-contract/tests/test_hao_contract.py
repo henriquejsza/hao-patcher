@@ -192,6 +192,13 @@ class Release(unittest.TestCase):
                      'stray.bin is staged but not an asset'):
             self.assertIn(want, bad)
 
+    def test_an_asset_without_a_public_commit_stands_on_its_sha256(self):
+        a = self.r['assets'][0]
+        a['commit'] = ''
+        self.assertEqual(self.check(), [])                     # no repo, commit "": published by sha256 alone
+        a['repo'] = 'hao-patcher'
+        self.assertIn('asset hao_runtime lacks commit', '\n'.join(self.check()))   # a named repo needs its commit
+
     def test_harvested_asset_only_for_an_allowed_target(self):
         (self.d / 'icon_caches.tar').write_bytes(b'tar')
         self.r['harvested'].remove('icon_caches')

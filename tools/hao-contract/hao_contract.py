@@ -286,7 +286,9 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
         rows.setdefault(e.get('row'), []).append('downloads')
     files = set()
     for e in r['assets']:
-        b = pinned('asset', e, ASSET_FIELDS)
+        # An asset with no public producing commit is published by its sha256 alone: no repo and commit "".
+        sha_only = 'repo' not in e and e.get('commit') == ''
+        b = pinned('asset', e, tuple(f for f in ASSET_FIELDS if not (sha_only and f == 'commit')))
         bad += b
         rows.setdefault(e.get('row'), []).append('assets')
         if b:
