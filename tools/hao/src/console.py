@@ -19,7 +19,9 @@ basic ones.
 import json
 import os
 import re
+import shutil
 import sys
+import threading
 import time
 
 LEVELS = ('quiet', 'steps', 'files', 'edits', 'json')
@@ -70,6 +72,49 @@ class Style:
         return ERASED.sub(lambda m: self('warn', m.group(1)), text) if self.on else text
 
 
+# Spinner frames and bar cells: braille dots and blocks on a UTF-8 terminal (Terminal, the Recovery's Terminal, SSH),
+# ASCII where the stream is not UTF-8 or HAO_ASCII is set.
+SPIN = {True: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏', False: '-\\|/'}
+CELLS = {True: ('█', '░'), False: ('#', '.')}
+TICK = 0.1                    # seconds between redraws of a live line
+HEARTBEAT = 30                # seconds between "still working" lines when the output is not a terminal
+
+
+def animate_for(stream, env=None):
+    """Whether STREAM gets lines redrawn in place: a terminal, NO_COLOR unset or empty, TERM not "dumb"."""
+    return colour_for(stream, env)
+
+
+def elapsed(seconds):
+    """41s, 3m 52s, 1h 02m."""
+    s = int(round(seconds))
+    if s < 60:
+        return '%ds' % s
+    if s < 3600:
+        return '%dm %02ds' % divmod(s, 60)
+    return '%dh %02dm' % (s // 3600, s % 3600 // 60)
+
+
+def fit(text, width):
+    """TEXT cut to WIDTH visible characters (colour codes kept, a reset added when cut), so a line redrawn with \\r
+    never wraps."""
+    if width <= 0 or len(plain(text)) <= width:
+        return text
+    out, seen, i = [], 0, 0
+    while i < len(text) and seen < width - 1:
+        m = ANSI.match(text, i)
+        if m:
+            out.append(m.group()); i = m.end(); continue
+        out.append(text[i]); seen += 1; i += 1
+    return ''.join(out) + '…' + ('\033[0m' if '\033[' in text else '')
+
+
+def bar(fraction, width, utf=True):
+    full, empty = CELLS[utf]
+    n = max(0, min(width, int(round(fraction * width))))
+    return full * n + empty * (width - n)
+
+
 def plain(text):
     return ANSI.sub('', text) if isinstance(text, str) else text
 
@@ -90,7 +135,7 @@ def level_of(a):
 def add_level_flags(parser):
     g = parser.add_mutually_exclusive_group()
     g.add_argument('--quiet', action='store_true', help='progress only')
-    g.add_argument('--show', action='store_true', help='one line per file or repair')
+    g.add_argument('-v', '--show', action='store_true', help='one line per file or repair')
     g.add_argument('--show-edits', action='store_true', help='every edit: origin, bytes, reason')
     g.add_argument('--log', choices=['json'], help='every event as one JSON line')
 
@@ -98,9 +143,10 @@ def add_level_flags(parser):
 class Stopped(Exception):
     """A check failed: the command stops and Console.stopped prints what happened, why it matters, what to do."""
 
-    def __init__(self, what, why=None, cause=None, options=(), untouched=None):
+    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None):
         super().__init__(what)
         self.what, self.why, self.cause, self.options, self.untouched = what, why, cause, list(options), untouched
+        self.log = log
 
 
 class Console:
@@ -118,8 +164,15 @@ class Console:
         self._err, self._colour, self._env = err, colour, env
         self.paint = Style(level != 'json' and (colour_for(self.out, env) if colour is None else colour), env)
         enc = (getattr(self.out, 'encoding', None) or 'utf-8').lower()
-        self.ok = self.paint('ok', '✓' if 'utf' in enc else 'ok')
-        self.bad = self.paint('bad', '✗' if 'utf' in enc else 'FAILED')
+        e = os.environ if env is None else env
+        self.utf = 'utf' in enc and not e.get('HAO_ASCII')
+        self.ok = self.paint('ok', '✓' if self.utf else 'ok')
+        self.bad = self.paint('bad', '✗' if self.utf else 'FAILED')
+        self.animate = level != 'json' and (animate_for(self.out, env) if colour is None else colour)
+        self.width = lambda: shutil.get_terminal_size((100, 24)).columns
+        self.live = None          # the Task whose line is being redrawn, if any
+        self.lock = threading.RLock()
+        self.heartbeat = HEARTBEAT
 
     # -- plumbing
     @property
@@ -138,7 +191,25 @@ class Console:
 
     def print(self, text='', level='steps'):
         if self.at(level):
-            print(self.paint.erased(text), file=self.out, flush=True)
+            with self.lock:
+                self._clear_live()
+                print(self.paint.erased(text), file=self.out, flush=True)
+                self._draw_live()
+
+    def _clear_live(self):
+        if self.live is not None and self.animate:
+            self.out.write('\r\033[K')
+
+    def _draw_live(self):
+        if self.live is not None and self.animate:
+            self.out.write(fit(self.live.render(), self.width() - 1))
+            self.out.flush()
+
+    def task(self, text, level='steps', total=None, unit=None, **fields):
+        """A line that is being worked on: a spinner (or a bar, with TOTAL) and the time so far, redrawn in place on a
+        terminal; elsewhere nothing until it ends, and a "still working" line every HEARTBEAT seconds. End it with
+        .end(); as a context manager it ends with ✓, or ✗ when the block raises."""
+        return Task(self, text, level, total, unit, fields)
 
     def event(self, ev, **fields):
         e = dict(ev=ev, t=round(self.clock() - self.started, 3), **{k: plain(v) for k, v in fields.items()})
@@ -156,9 +227,13 @@ class Console:
     def steps(self, n):
         self.total, self.index = n, 0
 
-    def step(self, title, note=None, **fields):
+    def step(self, title, note=None, quiet=True, **fields):
+        """A numbered step's header ([N/M] TITLE  NOTE); at --quiet its title, unless QUIET is False (a command whose
+        --quiet output is one bar)."""
         self.index += 1
         self.event('step.start', step=title, index=self.index, of=self.total, **fields)
+        if self.level == 'quiet' and not quiet:
+            return
         if self.level == 'quiet':
             self.print(self.paint('bold', '%s...' % title), 'quiet')
         else:
@@ -184,7 +259,10 @@ class Console:
     def warning(self, text):
         self.event('warning', text=text)
         if self.level != 'json':
-            print(self.paint_err('warn', 'warning:') + ' ' + text, file=self.err, flush=True)
+            with self.lock:
+                self._clear_live()
+                print(self.paint_err('warn', 'warning:') + ' ' + text, file=self.err, flush=True)
+                self._draw_live()
 
     def confirm(self, question, word, given=None):
         """Ask QUESTION and require WORD typed (or GIVEN, from a flag). False when it does not match."""
@@ -196,16 +274,30 @@ class Console:
         self.event('confirmed' if ok else 'declined')
         return ok
 
+    def took(self):
+        """The time since the command started, as the last line says it ("in 41m 18s")."""
+        return elapsed(self.clock() - self.started)
+
     def done(self, text, **fields):
-        self.event('run.end', ok=True, text=text, seconds=round(self.clock() - self.started, 1), **fields)
-        self.print('%s %s' % (self.ok, text), 'quiet')
+        took = self.clock() - self.started
+        self.event('run.end', ok=True, text=text, seconds=round(took, 1), **fields)
+        self.print('%s %s%s' % (self.ok, text, '  ' + self.paint('dim', 'in ' + elapsed(took))
+                                if took >= 60 and ' in ' not in text else ''), 'quiet')
 
     def stopped(self, x):
-        self.event('run.end', ok=False, what=x.what, why=x.why, cause=x.cause, options=x.options)
+        """The failure layout (variation 7): STOPPED and what was left untouched, then what happened, why it
+        matters, the likely cause, numbered things to do, and the log."""
+        self.event('run.end', ok=False, what=x.what, why=x.why, cause=x.cause, options=x.options, log=x.log)
+        with self.lock:
+            if self.live is not None:
+                self.live.end(False)
         if self.level == 'json':
             return
         w, s = self.err, self.paint_err
-        print('\n%s %s' % (s('bad', 'STOPPED'), x.untouched or ''), file=w)
+        untouched = x.untouched or ''
+        if untouched:
+            untouched = untouched[0].upper() + untouched[1:] + ('' if untouched.endswith('.') else '.')
+        print('\n%s\n' % ' '.join(x for x in (s('bad', 'STOPPED'), untouched) if x), file=w)
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
                 print('  %s%s' % (s('bold', '%-17s' % label), text), file=w)
@@ -213,7 +305,140 @@ class Console:
             print('\n  ' + s('bold', 'What you can do'), file=w)
             for i, o in enumerate(x.options, 1):
                 print('    %d  %s' % (i, o), file=w)
+        if x.log:
+            print('\n  ' + s('dim', 'Log: %s' % x.log), file=w)
         w.flush()
+
+
+class Task:
+    """One line being worked on (Console.task). update() changes its text or count; end() prints its final line."""
+
+    def __init__(self, c, text, level, total, unit, fields):
+        self.c, self.text, self.level, self.total, self.unit = c, text, level, total, unit
+        self.done = 0
+        self.tail = ''
+        self.started = c.clock()
+        self.frame = 0
+        self.ended = False
+        self.shown = c.at(level)
+        self.beat = self.started
+        self.fields = fields
+        c.event('task.start', text=text, total=total, unit=unit, **fields)
+        if self.shown:
+            with c.lock:
+                if c.live is not None:          # one live line at a time: the older one ends as it stands
+                    c.live.end(None)
+                c.live = self
+                c._draw_live()
+            self._thread = None
+            if c.animate:
+                self._stop = threading.Event()
+                self._thread = threading.Thread(target=self._spin, daemon=True)
+                self._thread.start()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, kind, value, tb):
+        if not self.ended:
+            self.end(kind is None)
+        return False
+
+    def _spin(self):
+        while not self._stop.wait(TICK):
+            with self.c.lock:
+                if self.ended:
+                    return
+                self.frame += 1
+                self.c._clear_live()
+                self.c._draw_live()
+
+    def seconds(self):
+        return self.c.clock() - self.started
+
+    def render(self, final=None):
+        """The line as it stands: text, then a bar and count (with a total) or a spinner, then the time so far."""
+        c, utf = self.c, self.c.utf
+        line = self.text
+        if self.total:
+            f = min(1.0, self.done / float(self.total)) if self.total else 0
+            line += ' ' + c.paint('bar', bar(f, 20, utf)) + ' ' + self.count()
+        if self.tail and final is None:
+            line += '  ' + c.paint('dim', self.tail)
+        if final is None:
+            spin = SPIN[utf]
+            line += '  ' + c.paint('bar', spin[self.frame % len(spin)]) + ' ' + c.paint('dim', elapsed(self.seconds()))
+        return line
+
+    def count(self):
+        if self.unit == 'bytes':
+            return '%s / %s' % (human_size(self.done), human_size(self.total))
+        if self.unit == '%':
+            return '%3d%%' % (100 * self.done // max(self.total, 1))
+        return '%d/%d%s' % (self.done, self.total, ' ' + self.unit if self.unit else '')
+
+    def update(self, text=None, done=None, total=None, tail=None):
+        with self.c.lock:
+            if text is not None:
+                self.text = text
+            if total is not None:
+                self.total = total
+            if done is not None:
+                self.done = done
+            if tail is not None:
+                self.tail = tail
+            if self.shown and not self.ended:
+                if self.c.animate:
+                    self.c._clear_live()
+                    self.c._draw_live()
+                elif self.c.clock() - self.beat >= self.c.heartbeat:
+                    self.pulse()
+
+    def pulse(self):
+        """Without a terminal: one "still working" line (called by update and by Runner's ticks)."""
+        if self.shown and not self.c.animate and not self.ended:
+            self.beat = self.c.clock()
+            what = plain(self.text).strip()
+            more = ' ' + plain(self.count()) if self.total else ''
+            print('  ... %s%s (%s so far)' % (what, more, elapsed(self.seconds())), file=self.c.out, flush=True)
+
+    def drop(self):
+        """End without a final line (a line another one sums up)."""
+        c = self.c
+        with c.lock:
+            if self.ended:
+                return
+            self.ended = True
+            if c.live is self:
+                c._clear_live()
+                c.live = None
+            c.event('task.end', text=self.text, ok=True, seconds=round(self.seconds(), 1), shown=False, **self.fields)
+        if getattr(self, '_thread', None) is not None:
+            self._stop.set()
+
+    def end(self, ok=True, note=None, timed=True):
+        """The final line: ✓ (OK True), ✗ (False) or nothing (None), NOTE, and the time it took when TIMED."""
+        if self.ended:
+            return
+        c = self.c
+        with c.lock:
+            self.ended = True
+            if self.total and ok:
+                self.done = self.total
+            mark = {True: c.ok, False: c.bad}.get(ok, '')
+            line = self.render(final=True)
+            line += ('  ' + mark if mark else '') + ('  ' + note if note else '')
+            secs = self.seconds()
+            if timed and secs >= 1:
+                line += '  ' + c.paint('dim', elapsed(secs))
+            if c.live is self:
+                c._clear_live()
+                c.live = None
+            if self.shown:
+                print(c.paint.erased(line), file=c.out, flush=True)
+            c.event('task.end', text=self.text, ok=ok, note=note, seconds=round(secs, 1), **self.fields)
+        if getattr(self, '_thread', None) is not None:
+            self._stop.set()
 
 
 def human_size(n):
