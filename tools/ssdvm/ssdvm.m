@@ -2,7 +2,7 @@
  * ssdvm: headless arm64 macOS VM on Apple's Virtualization framework; runs the image builder's guest steps.
  *
  *   ssdvm install <vmdir> <restore.ipsw> [disk-GB]      create disk/aux/hardware model, install macOS from the IPSW
- *   ssdvm run <vmdir> [--recovery] [--vnc PORT] [--share DIR] [--mac ADDRESS] [--display WxH[@PPI]] [--usb IMG]... [--disk IMG]...
+ *   ssdvm run <vmdir> [--recovery] [--vnc PORT] [--share DIR] [--share-ro DIR] [--mac ADDRESS] [--display WxH[@PPI]] [--usb IMG]... [--disk IMG]...
  *
  * Always headless: no window, no Dock icon, no AppKit, nothing that can raise a host permission prompt.
  * run starts the VM (recoveryOS with --recovery) and a VNC server inside this process (Virtualization's private
@@ -59,7 +59,7 @@ static void die(NSString *fmt, ...) {
 static NSURL *at(NSString *dir, NSString *name) { return [NSURL fileURLWithPath:[dir stringByAppendingPathComponent:name]]; }
 
 static VZVirtualMachineConfiguration *config(NSString *dir, VZMacHardwareModel *hw, VZMacMachineIdentifier *mid,
-                                             NSString *share, NSArray *usb, NSArray *disks, NSString *mac, NSString *display) {
+                                             NSString *share, NSString *shareRO, NSArray *usb, NSArray *disks, NSString *mac, NSString *display) {
     VZVirtualMachineConfiguration *c = [[VZVirtualMachineConfiguration alloc] init];
     VZMacPlatformConfiguration *p = [[VZMacPlatformConfiguration alloc] init];
     p.hardwareModel = hw;
@@ -111,6 +111,11 @@ static VZVirtualMachineConfiguration *config(NSString *dir, VZMacHardwareModel *
         fs.share = [[VZSingleDirectoryShare alloc] initWithDirectory:[[VZSharedDirectory alloc] initWithURL:[NSURL fileURLWithPath:share] readOnly:NO]];
         c.directorySharingDevices = @[fs];
     }
+    if (shareRO) {   /* --share-ro DIR: read-only, automounted for the logged-in user at /Volumes/My Shared Files */
+        VZVirtioFileSystemDeviceConfiguration *fs = [[VZVirtioFileSystemDeviceConfiguration alloc] initWithTag:VZVirtioFileSystemDeviceConfiguration.macOSGuestAutomountTag];
+        fs.share = [[VZSingleDirectoryShare alloc] initWithDirectory:[[VZSharedDirectory alloc] initWithURL:[NSURL fileURLWithPath:shareRO] readOnly:YES]];
+        c.directorySharingDevices = [(c.directorySharingDevices ?: @[]) arrayByAddingObject:fs];
+    }
     c.entropyDevices = @[[[VZVirtioEntropyDeviceConfiguration alloc] init]];
     if (![c validateWithError:&e]) die(@"config: %@", e);
     return c;
@@ -138,7 +143,7 @@ static int install(NSString *dir, NSString *ipsw, unsigned long long gb) {
     int fd = open([dir stringByAppendingPathComponent:@"disk.img"].fileSystemRepresentation, O_RDWR | O_CREAT | O_EXCL, 0644);
     if (fd < 0 || ftruncate(fd, (off_t)(gb << 30))) die(@"disk.img: %s", strerror(errno));
     close(fd);
-    VZVirtualMachine *vm = [[VZVirtualMachine alloc] initWithConfiguration:config(dir, req.hardwareModel, mid, nil, @[], @[], nil, nil)];
+    VZVirtualMachine *vm = [[VZVirtualMachine alloc] initWithConfiguration:config(dir, req.hardwareModel, mid, nil, nil, @[], @[], nil, nil)];
     VZMacOSInstaller *ins = [[VZMacOSInstaller alloc] initWithVirtualMachine:vm restoreImageURL:[NSURL fileURLWithPath:ipsw]];
     __block int rc = 0;
     NSTimer *t = [NSTimer scheduledTimerWithTimeInterval:10 repeats:YES block:^(NSTimer *x) {
@@ -185,13 +190,14 @@ static int run(NSString *dir, NSArray<NSString *> *args) {
     int lockfd = open([runDir stringByAppendingPathComponent:@"instance.lock"].fileSystemRepresentation, O_CREAT | O_RDWR, 0600);
     if (lockfd < 0 || flock(lockfd, LOCK_EX | LOCK_NB)) die(@"this VM is already running or cannot be locked: %@", dir);
     NSString *mac = nil, *display = nil;
-    BOOL recovery = NO; uint16_t port = 0;                 /* random by default */ NSString *share = nil;
+    BOOL recovery = NO; uint16_t port = 0;                 /* random by default */ NSString *share = nil, *shareRO = nil;
     NSMutableArray *usb = [NSMutableArray new], *disks = [NSMutableArray new];
     for (NSUInteger i = 0; i < args.count; i++) {
         NSString *a = args[i];
         if ([a isEqual:@"--recovery"]) recovery = YES;
         else if ([a isEqual:@"--vnc"] && i + 1 < args.count) port = (uint16_t)args[++i].intValue;
         else if ([a isEqual:@"--share"] && i + 1 < args.count) share = args[++i].stringByStandardizingPath;
+        else if ([a isEqual:@"--share-ro"] && i + 1 < args.count) shareRO = args[++i].stringByStandardizingPath;
         else if ([a isEqual:@"--mac"] && i + 1 < args.count) mac = args[++i];
         else if ([a isEqual:@"--display"] && i + 1 < args.count) display = args[++i];
         else if ([a isEqual:@"--usb"] && i + 1 < args.count) [usb addObject:args[++i]];
@@ -204,7 +210,7 @@ static int run(NSString *dir, NSArray<NSString *> *args) {
     VZMacMachineIdentifier *mid = [[VZMacMachineIdentifier alloc] initWithDataRepresentation:midd];
     Runner *r = [Runner new];
     r.dir = dir;
-    r.vm = [[VZVirtualMachine alloc] initWithConfiguration:config(dir, hw, mid, share, usb, disks, mac, display)];
+    r.vm = [[VZVirtualMachine alloc] initWithConfiguration:config(dir, hw, mid, share, shareRO, usb, disks, mac, display)];
     r.vm.delegate = r;
     /* VNC: localhost-only is not configurable, so a random password guards it; vmctl reads it from vnc.json */
     NSString *pw = [[NSUUID UUID].UUIDString substringToIndex:8];
@@ -257,7 +263,7 @@ int main(int argc, char **argv) {
         if (a.count >= 2 && [a[0] isEqual:@"run"])
             return run(a[1].stringByStandardizingPath, [a subarrayWithRange:NSMakeRange(2, a.count - 2)]);
         fprintf(stderr, "usage: ssdvm install <vmdir> <restore.ipsw> [disk-GB]\n"
-                        "       ssdvm run <vmdir> [--recovery] [--vnc PORT] [--share DIR] [--mac ADDRESS] [--display WxH[@PPI]] [--usb IMG[:ro]]... [--disk IMG[:ro]]...\n");
+                        "       ssdvm run <vmdir> [--recovery] [--vnc PORT] [--share DIR] [--share-ro DIR] [--mac ADDRESS] [--display WxH[@PPI]] [--usb IMG[:ro]]... [--disk IMG[:ro]]...\n");
         return 2;
     }
 }

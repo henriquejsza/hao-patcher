@@ -10,14 +10,15 @@ address and a loopback-only VNC server for scripted control (`pipeline/vm/vmctl`
 
 ```
 ssdvm install VMDIR RESTORE.ipsw [GB]
-ssdvm run VMDIR [--recovery] [--vnc PORT] [--share DIR] [--mac ADDR] [--display WxH[@PPI]]
+ssdvm run VMDIR [--recovery] [--vnc PORT] [--share DIR] [--share-ro DIR] [--mac ADDR] [--display WxH[@PPI]]
                 [--usb IMG[:ro]]... [--disk IMG[:ro]]...
 ssdvm capabilities
 ```
 
 - `install` makes a new VM from a macOS restore IPSW.
 - `run` boots it (recoveryOS with `--recovery`). `--share` exposes a folder as the
-  virtiofs tag `ssd`; `--usb` attaches a raw image as a USB disk and `--disk` as a
+  virtiofs tag `ssd`; `--share-ro` adds a read-only folder that macOS
+  automounts for the logged-in user at `/Volumes/My Shared Files`; `--usb` attaches a raw image as a USB disk and `--disk` as a
   virtio disk. `--display` sets the guest's one display (default 1440x900@100).
 - `capabilities` prints what the build supports.
 
