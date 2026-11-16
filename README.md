@@ -45,7 +45,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Accounts | iMessage; App Store sign-in and installs |
 | ARM-only programs | macOS 27's ARM-only programs and apps built only for Apple silicon run on the Intel CPU through hao-runtime |
 
-**Releases:** none yet. The next is v0.0.9 (pre-alpha); planned versions are the
+**Releases:** none yet. The next is v0.0.1; planned versions are the
 [milestones](https://github.com/lythka/hao-patcher/milestones).
 
 **Installing:** being validated; see [Install](#install).
@@ -70,7 +70,7 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
-1. Get hao at the release tag: `git clone --branch v0.0.9 https://github.com/lythka/hao-patcher`, then
+1. Get hao at the release tag: `git clone --branch v0.0.1 https://github.com/lythka/hao-patcher`, then
    `cd hao-patcher/tools/hao`.
 2. Run `./hao create-installer`, choose the USB drive and confirm (the drive is erased; you may be asked for your
    password). Today this is still four commands; [the developer guide](docs/building.md) lists them.
