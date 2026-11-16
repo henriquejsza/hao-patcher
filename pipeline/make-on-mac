@@ -275,24 +275,31 @@ def steps(r, fs, a):
         r.sh(*PY, tool, root_view(), rosetta / 'System/Library/dyld', top)
 
     def root_view():
-        """The 26B131 System as a booted Mac sees it: the System image, with the OS and App cryptexes at
-        System/Volumes/Preboot/Cryptexes/{OS,App} (runtime's stubs come from programs in both). Symlinks only."""
+        """A small real System root for runtime's tool: only the files its manifest reads (each program, the files its
+        stub binds, usr/lib/dyld), copied from the System image and the OS and App cryptex images to the paths a booted
+        Mac has (System/Volumes/Preboot/Cryptexes/{OS,App}/...). Real copies: hao-embed refuses a path that resolves
+        outside ROOT, so symlinks or a read-only System image without those folders do not serve."""
         view = r.work / 'root-view'
         if view.exists() or r.dry:
             return view
         system = root()
         cryptexes = {'OS': r.mount(userspace() / 'os.dmg', 'os'), 'App': r.mount(userspace() / 'app.dmg', 'app')}
-        view.mkdir()
-        for e in system.iterdir():
-            if e.name != 'System':
-                (view / e.name).symlink_to(e)
-        (view / 'System').mkdir()
-        for e in (system / 'System').iterdir():
-            if e.name != 'Volumes':
-                (view / 'System' / e.name).symlink_to(e)
-        (view / 'System/Volumes/Preboot/Cryptexes').mkdir(parents=True)
-        for name, mount in cryptexes.items():
-            (view / 'System/Volumes/Preboot/Cryptexes' / name).symlink_to(mount)
+        manifest = json.loads((P('hao_runtime') / 'embed/manifest.json').read_text())
+        rels = {'usr/lib/dyld'}
+        for e in manifest['files']:
+            rels.add(e['path'])
+            rels.update(b['file'] for b in e.get('bound', []) if b.get('file'))
+        prefix = 'System/Volumes/Preboot/Cryptexes/'
+        for rel in sorted(rels):
+            if rel.startswith(prefix):
+                name, _, inner = rel[len(prefix):].partition('/')
+                src = cryptexes[name] / inner
+            else:
+                src = system / rel
+            dst = view / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if src.is_file():
+                shutil.copy2(src, dst)
         return view
 
     completions = [(['hao_runtime'], runtime)]
