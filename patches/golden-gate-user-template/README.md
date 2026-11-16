@@ -104,6 +104,7 @@ the 26B131 sets; not built into an image or booted yet. Before that: the rule is
 cpio). Not built into an image or booted.
 
 ## Revisions
+- r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its harvested row is not there. Installed bytes unchanged.
 - r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh unchanged.
 - r4 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.

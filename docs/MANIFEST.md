@@ -38,7 +38,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 | golden-gate-shared-cache-catalog | r2 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog d56244ea rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e |
 | golden-gate-store | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-user-seed | r9 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-user-template | r6 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
+| golden-gate-user-template | r7 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
 | golden-gate-userspace | r79 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 6cdafc3b payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier fdd622b1 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 0d579f6d payload |
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | hao-opencore | r65 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 0d579f6d payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
@@ -180,7 +180,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 - **golden-gate-user-seed** r9
   - `Library/LaunchDaemons/local.peruser-seed.plist`: from hao
   - `Library/Application Support/PerUserSeed/build`: from hao
-- **golden-gate-user-template** r6
+- **golden-gate-user-template** r7
   - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from hao (row user_template_golden_gate)
@@ -359,7 +359,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-shared-cache-catalog | - | - | - | - | r1* | - | - | - | - |
 | golden-gate-store | - | - | - | - | - | r1* | r2* | r2* | r4 |
 | golden-gate-user-seed | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 | r9 |
-| golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6 | r6 | r6 | r6 |
+| golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* |
 | golden-gate-userspace | r74* | r79 | r79 | r79 | r79 | r79 | r79 | r79 | r79 |
 | golden-gate-windowserver-filter | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 | r7 |
 | hao-opencore | r63* | r65 | r65 | r65 | r65 | r65 | r65 | r65 | r65 |
@@ -460,6 +460,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 
 - golden-gate-shared-cache r5 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
+- golden-gate-user-template r7 is newer than every image built with it (newest r6).
 - hao-runtime-fold r5 is newer than every image built with it (newest r4).
 - row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
 - row rebuilt_cache 8dfb9ce7 is in no image yet (images have a8a847b6).

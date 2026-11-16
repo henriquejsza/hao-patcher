@@ -1,5 +1,5 @@
 {
- "revision": 6,
+ "revision": 7,
  "stage": "post",
  "applies": {
   "models": [
@@ -14,6 +14,7 @@
  ],
  "status": "experiment",
  "validated": false,
+ "optional": "caches",
  "files": [
   {
    "path": "Library/User Template/Non_localized/Library/Containers",
