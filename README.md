@@ -48,7 +48,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 **Releases:** none yet. The next is v0.0.9 (pre-alpha); planned versions are the
 [milestones](https://github.com/lythka/hao-patcher/milestones).
 
-**Installing:** not yet a supported path for users; [Building an image](docs/building.md) describes the developer path.
+**Installing:** being validated; see [Install](#install).
 
 [Progress](docs/progress.md) has the detailed lists, what's new and every fix.
 
@@ -66,21 +66,21 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 - To recover: hold Option at startup and boot another disk or Internet Recovery (Command-Option-R), reset NVRAM
   (Command-Option-P-R), then erase the disk and reinstall a supported macOS or restore a backup.
 
-## Requirements
+## Install
 
-The path below is being validated; it is not yet a supported path.
+Pre-alpha, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
-- **Target:** a MacBook Pro (13-inch, Mid 2012), the first supported model.
-- **Build Mac:** any Mac, Intel or Apple silicon, on its normal macOS. No root and no SIP or AMFI changes: `hao fetch`,
-  the made-on-Mac step and `create-installer` run as your user.
-- **Install:** runs on the target, from the USB stick's Recovery, which starts with the permissions the install needs.
-- **Inputs:** downloaded by `hao fetch` from Apple and this project's releases ([Build inputs](docs/inputs.md)). Apple's
-  files are not in this repository.
+1. Download `hao` from the [releases page](https://github.com/lythka/hao-patcher/releases).
+2. Run `sudo ./hao create-installer`, choose the USB stick and confirm (the stick is erased).
+3. On the MacBook Pro, hold Option at startup, choose **HAOBOOT** and run `/Volumes/HAO/install` from the Recovery's
+   Terminal.
+4. After the first start-up, run `sudo /usr/libexec/hao --aot` once.
+
+[Install](docs/install.md) has the requirements, logs for a bug report and building from source.
 
 ## Building
 
-[Building an image](docs/building.md) has the steps: fetch the inputs, make the Mac-specific files, write the USB
-stick, install on the target. It covers the inputs, what the build does and testing in QEMU;
+For developers: [Building an image](docs/building.md) covers the inputs, what the build does and testing in QEMU;
 [architecture](docs/architecture.md) explains how the pieces fit, and [CONTRIBUTING.md](CONTRIBUTING.md) the tests
 and conventions.
 
