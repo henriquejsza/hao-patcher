@@ -11,7 +11,9 @@ MANIFEST is JSON: {"downloads": [{"name": NAME, "url": URL, "size": BYTES, "sha2
 from their own URLs only when it lacks them. Files are kept content-addressed in DIR/sha256/<hex>. A file already
 there with the right hash is never fetched again. A partial download (DIR/partial/<hex>) resumes with an HTTP Range
 request. A file whose size or sha256 differs is refused and never moved into place; the next mirror is tried. An
-entry without a URL is refused. Standard library only.
+entry without a URL is refused. A download marked "stream" (the IPSW, the installer) is not fetched: the producers
+read only the members they need from its URL, each checked against the release's "pins" (pipeline/unpack/ranged.py).
+Standard library only.
 """
 import argparse
 import hashlib
@@ -114,6 +116,9 @@ def fetch(rows, cache, *, only=None, on_event=None):
     for row in rows:
         if only and row['name'] not in only:
             continue
+        if row.get('stream'):
+            emit({'ev': 'streamed', 'name': row['name'], 'size': row['size']})
+            continue
         if intact(cache, row):
             emit({'ev': 'reused', 'name': row['name'], 'sha256': row['sha256']})
             results[row['name']] = str(final_path(cache, row))
@@ -153,6 +158,8 @@ def printer(level):
             return
         if k == 'reused':
             print('  %-40s already here, sha256 ok' % ev['name'])
+        elif k == 'streamed':
+            print('  %-40s not downloaded: read by range when the rows are made' % ev['name'])
         elif k == 'fetch':
             print('  %-40s %s' % (ev['name'], ev['url']))
         elif k == 'progress':
@@ -188,7 +195,7 @@ def main():
             level = 'json' if a.log == 'json' else 'quiet' if a.quiet else 'steps'
             fetch(rows, a.cache, only=set(a.only or []), on_event=printer(level))
         elif a.action == 'verify':
-            bad = [r['name'] for r in rows if not intact(a.cache, r)]
+            bad = [r['name'] for r in rows if not r.get('stream') and not intact(a.cache, r)]
             for n in bad:
                 print('missing or damaged: %s' % n)
             if bad:

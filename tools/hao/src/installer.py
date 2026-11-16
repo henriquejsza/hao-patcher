@@ -16,7 +16,7 @@ stick (stick.py: OpenCore and the Recovery on a FAT32 partition, hao and the kit
 
 Until the kit is made from the downloads on the user's Mac (workflow plan steps 12/13), the kit is staged from the
 checkout's store (golden-run --stage-kit) or named with --kit; the Recovery is the donor build's stock Tahoe
-BaseSystem (row `unpack`), or --basesystem FILE. --image FILE (development) writes a raw stick image instead of a
+BaseSystem (row `tahoe_basesystem`), or --basesystem FILE. --image FILE (development) writes a raw stick image instead of a
 disk: no root, no disk question, no confirmation; QEMU or `dd` take it from there.
 """
 import datetime
@@ -262,7 +262,7 @@ def download(c, release_path, cache, acquire, dry_run):
     except acquire['AcquireError'] as x:
         raise Stopped('release.json is damaged: %s' % x, why='every file must be pinned by URL, size and sha256',
                       options=['download the release archive again'], untouched='nothing was downloaded or written')
-    total = sum(r['size'] for r in rows)
+    total = sum(r['size'] for r in rows if not r.get('stream'))   # a streamed one is read by range, not downloaded
     have = [r for r in rows if acquire['final_path'](cache, r).is_file() and
             acquire['final_path'](cache, r).stat().st_size == r['size']] if dry_run else []
     c.event('download.plan', files=len(rows), bytes=total, cache=str(cache))
@@ -284,6 +284,9 @@ def download(c, release_path, cache, acquire, dry_run):
                       end='', file=c.out, flush=True)
             return
         c.event('fetch.' + k, **{x: y for x, y in ev.items() if x != 'ev'})
+        if k == 'streamed':
+            c.item('%s %-44s %s' % (c.paint.origin(origin_of(by_name.get(ev['name'], {})), 6), ev['name'],
+                                    'read by range when the rows are made'), 'files', ok=True)
         if k in ('ok', 'reused'):
             done[ev['name']] = next(r['size'] for r in rows if r['name'] == ev['name'])
             c.item('%s %-44s %s' % (c.paint.origin(origin_of(by_name.get(ev['name'], {})), 6), ev['name'],
@@ -406,13 +409,14 @@ def lock_path(*argv):
 
 
 def stick_inputs(a, asm):
-    """(BaseSystem.dmg, the target's ESP tar): --basesystem or the donor build's stock Tahoe BaseSystem; the ESP row
+    """(BaseSystem.dmg, the target's ESP tar): --basesystem or the donor build's stock Tahoe BaseSystem (row
+    tahoe_basesystem, made on the Mac by donor-inputs); the ESP row
     of targets/TARGET.json (OpenCore as OCLP installs it on that model)."""
     basesystem = getattr(a, 'basesystem', None)
     if basesystem:
         basesystem = Path(basesystem).expanduser().resolve()
     else:
-        basesystem = lock_path(TOP / 'pipeline' / 'inputs' / asm['donor_build'], 'unpack') / 'out' / 'BaseSystem-x86_64.dmg'
+        basesystem = lock_path(TOP / 'pipeline' / 'inputs' / asm['donor_build'], 'tahoe_basesystem')
     if not basesystem.is_file():
         raise Stopped('no BaseSystem.dmg at %s' % basesystem, untouched='the stick was not touched')
     if getattr(a, 'opencore', None):

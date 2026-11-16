@@ -464,7 +464,7 @@ def cmd_fetch(a, c):
     c.banner('hao fetch  %d files pinned by %s (%d downloads, %d assets)' % (
         len(rows), a.release, kinds.count('download'), kinds.count('asset')), release=a.release, cache=str(a.cache))
     if a.verify:
-        bad = [r['name'] for r in rows if not acquire['intact'](a.cache, r)]
+        bad = [r['name'] for r in rows if not r.get('stream') and not acquire['intact'](a.cache, r)]
         for r in rows:
             c.item('%-8s %-44s %s' % (r['kind'], r['name'], 'missing or damaged' if r['name'] in bad else 'sha256'),
                    ok=r['name'] not in bad, ev='file.verify', name=r['name'], kind=r['kind'],
@@ -482,6 +482,8 @@ def cmd_fetch(a, c):
         c.event('fetch.' + k, **{x: y for x, y in ev.items() if x != 'ev'})
         if k in ('ok', 'reused'):
             c.item('%-44s %s' % (ev['name'], 'reused' if k == 'reused' else 'sha256'), ok=True)
+        elif k == 'streamed':
+            c.item('%-44s %s' % (ev['name'], 'read by range when the rows are made'), ok=True)
         elif k == 'mirror-failed':
             c.item('%-44s %s: %s' % (ev['name'], ev['url'], ev['error']), 'files')
     try:

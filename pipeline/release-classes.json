@@ -366,6 +366,14 @@
     "tools/tahoe-donors/make (the row's role) from {work}/donor-inputs"
    ]
   },
+  "tahoe_basesystem": {
+   "class": "made-on-mac",
+   "producer": "pipeline/unpack/donor-inputs",
+   "inputs": [
+    "installer"
+   ],
+   "reason": "Tahoe's x86_64 BaseSystem for the USB installer's Recovery, rebuilt from the installer's basesystem patch and checked against Apple's chunklist"
+  },
   "tahoe_kmutil": {
    "class": "made-on-mac",
    "producer": "pipeline/unpack/donor-inputs",
@@ -394,12 +402,14 @@
   },
   "ipsw_27_0": {
    "class": "download",
+   "stream": "ipsw",
    "name": "UniversalMac_27.2.1_26B131_Restore.ipsw",
    "url": "https://updates.cdn-apple.com/2026FallFCS/c202a724-db7e-4d56-917b-110aa0226507/UniversalMac_27.2.1_26B131_Restore.ipsw",
    "reason": "Apple's macOS 27.2.1 (26B131) restore IPSW (Apple's IPSW catalog; size checked against the server)"
   },
   "installer": {
    "class": "download",
+   "stream": "installer",
    "name": "InstallAssistant-25G342.pkg",
    "url": "https://swcdn.apple.com/content/downloads/02/21/142-54128-A_OWMUBNYT6S/xlorkwl2msc8dgn34ayr8dk2jm8xka68z3/InstallAssistant.pkg",
    "reason": "Apple's macOS 26.7.3 (25G342) InstallAssistant.pkg, catalog product 142-54128 (Apple's software update catalog; size checked)"

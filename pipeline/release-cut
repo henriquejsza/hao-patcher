@@ -43,12 +43,14 @@ By build record (whether the bytes can be made again):
   missing       the row's file is not in the store
 --dry-run exits 1 when a row has no content class or an ours row is not reproducible.
 """
+import hashlib
 import json
 import os
 from pathlib import Path
 import runpy
 import subprocess
 import sys
+import zipfile
 
 TOP = Path(__file__).resolve().parents[1]
 # Repositories a reader can see: an asset's producing commit is cited only from these. Anything else (a predecessor
@@ -410,7 +412,9 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     problems, notes = [], []
     downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
     runtime_commit = None
-    for row, hit in release_rows(assembly):
+    all_rows = list(release_rows(assembly))
+    rows = dict(all_rows)
+    for row, hit in all_rows:
         entry = data.get(row)
         if entry is None:
             problems.append('%s: not in pipeline/release-classes.json' % row)
@@ -449,8 +453,16 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             if not path or not os.path.isfile(path):
                 problems.append('%s: the download is not here to size (%s)' % (row, path))
                 continue
-            downloads.append({'row': row, 'name': entry['name'], 'url': entry['url'], 'size': os.path.getsize(path),
-                              'sha256': hit[1][0], 'reason': entry['reason']})
+            item = {'row': row, 'name': entry['name'], 'url': entry['url'], 'size': os.path.getsize(path),
+                    'sha256': hit[1][0], 'reason': entry['reason']}
+            if entry.get('stream'):
+                # read by byte range on the user's Mac, never downloaded whole: each member it can read is pinned
+                try:
+                    item['stream'], item['pins'] = entry['stream'], stream_pins(entry['stream'], path, hit[1][0], rows)
+                except (OSError, ValueError, KeyError, SystemExit) as x:
+                    problems.append('%s: its member pins could not be made: %s' % (row, x))
+                    continue
+            downloads.append(item)
         elif kind == 'ours':
             record, detail = classify(row, hit)
             if record not in ('reproducible', 'reproducible-except'):
@@ -510,6 +522,39 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     if refs:
         problems.append('release.json names %s: reword the row or its class' % ', '.join(refs))
     return rel, problems
+
+
+def stream_pins(kind, path, digest, rows):
+    """The pins of a download read by byte range (release-classes "stream"), cached in store/cache/pins/DIGEST.json:
+    ipsw: every zip member's size and sha256, and the images golden_gate_userspace decodes from them (its payload's
+    userspace.json); installer: the package TOC's sha256 and every asset zip member's size and sha256."""
+    sys.path.insert(0, str(TOP / 'pipeline' / 'unpack'))
+    import ranged, inplace
+    cache = TOP / 'store' / 'cache' / 'pins' / (digest + '.json')
+    if cache.is_file():
+        pins = json.loads(cache.read_text())
+    else:
+        if kind == 'ipsw':
+            z = zipfile.ZipFile(path)
+            pins = {'members': ranged.pins_for(z, [n for n in z.namelist() if not n.endswith('/')], 'IPSW member')}
+        elif kind == 'installer':
+            src = ranged.open_source(path)
+            _, z = inplace.open_zip(src)
+            pins = {'toc_sha256': hashlib.sha256(inplace.xar_toc(src)[2]).hexdigest(),
+                    'members': ranged.pins_for(z, [n for n in z.namelist() if not n.endswith('/')],
+                                               'installer member')}
+        else:
+            raise ValueError('unknown stream kind %r' % kind)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(pins, indent=1, sort_keys=True) + '\n')
+    if kind == 'ipsw':
+        hit = rows.get('golden_gate_userspace')
+        if not hit:
+            raise ValueError('no golden_gate_userspace row to pin the decoded images by')
+        meta = json.loads((Path(hit[1][1]) / 'userspace.json').read_text())
+        pins = dict(pins, ipsw_sha256=digest, images={role: {'size': c['size'], 'sha256': c['sha256']}
+                                                      for role, c in meta['components'].items()})
+    return pins
 
 
 def public_provenance(row, repo, commit, notes):

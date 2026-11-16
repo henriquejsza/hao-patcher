@@ -17,8 +17,9 @@ import shutil
 import subprocess
 
 TOP = Path(__file__).resolve().parents[3]
-# golden-run's own inputs besides the set's (its used_rows); the PatcherSupportPkg row follows from the OCLP commit
-FIXED = ('kdk', 'python_arm64', 'python_x86_64', 'python_site', 'fl')
+# golden-run's own inputs besides the set's (its used_rows), and the USB installer's Recovery (create-installer); the
+# PatcherSupportPkg row follows from the OCLP commit
+FIXED = ('kdk', 'python_arm64', 'python_x86_64', 'python_site', 'fl', 'tahoe_basesystem')
 # what the builder needs below store/ that no input row names: OCLP's source repository (git archive at the
 # assembly's commit) and the builder VM (base image, tools, vmctl's Python)
 TOOLS = ('oclp', 'vm/base', 'vm/bin', 'cache/vmctl-venv')
