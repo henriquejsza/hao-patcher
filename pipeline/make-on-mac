@@ -253,10 +253,22 @@ def steps(r, fs, a):
              out, '--llvm', o / '13.2.1-25/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/3802/Libraries/libLLVM.dylib',
              '--compiler', o / '11.7.10/System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib')
 
+    def live_text():
+        """A shipped asset's Apple-derived files, made here (metal's tools/live-text/on-mac; each file is checked
+        against the row's own build.json, nothing is written on a mismatch)."""
+        r.sh(*PY, 'tools/live-text/on-mac', 'runtime', P('live_text_framework'), '--system', root())
+
+    def compiler_service():
+        r.sh(*PY, 'tools/live-text/on-mac', 'compiler-service', P('metal_compiler_compat'),
+             '--oclp-hardware', P('oclp_hardware'))
+
+    completions = [(['live_text_framework'], live_text), (['metal_compiler_compat'], compiler_service)]
+    if not (TOP / 'tools/live-text/on-mac').is_file():
+        completions = []          # a checkout before the on-Mac producers: place lists those rows as waiting
     return [(['golden_gate_userspace'], gg_userspace), (['darwin27_kernel'], kernel), (['python_site'], python_site),
             (['oclp_hardware'], oclp_hardware), (DONOR_ROWS, donors), (['tahoe_kc_builder'], kc_builder),
             (['hello_metallib_golden_gate', 'metallib_repairs_golden_gate'], metallibs),
-            (['metal_quad_runtime_golden_gate'], quad)]
+            (['metal_quad_runtime_golden_gate'], quad)] + completions
 
 
 def main():
@@ -269,6 +281,8 @@ def main():
     release = json.loads(Path(args.release).read_text())
     fs, a = folders(release)
     made = [m['row'] for m in release.get('made_on_mac', [])]
+    # shipped assets whose Apple-derived files are made here (release.json "completed_on_mac")
+    made += [x['row'] for x in release.get('assets', []) if x.get('completed_on_mac') and x['row'] not in made]
     work = args.work or Path(tempfile.mkdtemp(prefix='make-on-mac-', dir=TOP / 'store' / 'tmp'
                                               if (TOP / 'store' / 'tmp').is_dir() else None))
     work.mkdir(parents=True, exist_ok=True)
