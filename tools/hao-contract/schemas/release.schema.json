@@ -9,7 +9,7 @@
               "version", "channel"],
  "properties": {
   "contract_version": {"const": 2},
-  "version": {"type": "string", "pattern": "^v\\d+\\.\\d+\\.\\d+$", "description": "the release version, e.g. v0.1.0"},
+  "version": {"type": "string", "pattern": "^v\\d+\\.\\d+\\.\\d+(-(alpha|beta)\\.\\d+)?$", "description": "the release version, e.g. v0.1.0 or v0.1.0-alpha.1"},
   "channel": {"enum": ["dev", "alpha", "beta"], "description": "written at cut time; promotion re-cuts with the new channel"},
   "state": {"enum": ["complete", "incomplete"], "description": "incomplete: cut with pending rows (--allow-pending); never for beta"},
   "release": {"type": "string", "pattern": "^\\d+(\\.\\d+){1,2}-\\d{2}[A-Z]\\d{2,4}[a-z]?\\.\\d+$",

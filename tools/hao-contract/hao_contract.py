@@ -231,7 +231,7 @@ URL_PREFIX = 'https://github.com/lythka/hao-assets/releases/download'
 RELEASE_NAME = re.compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 # release.json's own format version (2: version and channel, 2026-11-14); contract.json keeps CONTRACT_VERSION
 RELEASE_FORMAT = 2
-RELEASE_VERSION = re.compile(r'^v\d+\.\d+\.\d+$')
+RELEASE_VERSION = re.compile(r'^v\d+\.\d+\.\d+(-(alpha|beta)\.\d+)?$')   # v0.1.0, v0.1.0-alpha.1
 # Channels, earliest first. Owner, 2026-11-13 ("How do we know which is beta? Is that in the .json?"). Each is a
 # prerelease until a later, final channel exists; beta is cut complete (no pending rows), dev and alpha may not be.
 CHANNELS = ('dev', 'alpha', 'beta')
@@ -254,7 +254,7 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
     if r['contract_version'] != RELEASE_FORMAT:
         bad.append('release: contract_version %r, this checker is %d' % (r['contract_version'], RELEASE_FORMAT))
     if not isinstance(r['version'], str) or not RELEASE_VERSION.match(r['version']):
-        bad.append('release: version %r is not vX.Y.Z (e.g. v0.1.0)' % r['version'])
+        bad.append('release: version %r is not vX.Y.Z or vX.Y.Z-alpha.N / -beta.N (e.g. v0.1.0-alpha.1)' % r['version'])
     if r['channel'] not in CHANNELS:
         bad.append('release: channel %r is not one of %s' % (r['channel'], ', '.join(CHANNELS)))
     elif r['channel'] in COMPLETE_CHANNELS and r.get('state', 'complete') != 'complete':
