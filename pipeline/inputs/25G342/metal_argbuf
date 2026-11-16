@@ -1,8 +1,10 @@
-# Metal argument buffers + ASTC for the HD 4000, made by tools/metal-argbuf/make (tools at 547557ae) with
+# Metal argument buffers + ASTC for the HD 4000, made by tools/metal-argbuf/make (tools at d9fa28e7) with
 # --icbe = the repaired iCBE of the metal_quad_runtime_golden_gate row. Holds iCBE.dylib (wrapper), iCBE-real.dylib
 # (that iCBE, which the wrapper re-exports) and libargbuf.dylib. Rebuild the wrapper if that iCBE changes.
 # d9cff656: the wrapper's IGIL rewrite also handles `LD_RAW .., C-1` (diag#0016, WebGPU uniforms).
 # 547557ae: libargbuf adapts requests MetalOld refuses (MSAA/depth-stencil targets Private, packed depth/stencil, CPU-written
 # MSAA stencil emulated; diag#0002 Weather precipitation). iCBE.dylib and iCBE-real are those of the d9cff656 folder.
+# d9fa28e7 (fix 26c6afc6): the texture and pipeline factory hooks return their +1 result without retaining it again
+# (textures and pipelines were never freed). Only libargbuf changes; tools at d9fa28e7.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
-d43d2253f54a2c8bbe105b24aed8dcac1affe32c081faea7e865ebd15fc769fa store/artifacts/metal-argbuf-26B131-20261114-547557ae
+9de1894592e3f4699d77c033b37aef7fa175b9d609d0c03f3f291662949492af store/artifacts/metal-argbuf-26B131-20261115-d9fa28e7

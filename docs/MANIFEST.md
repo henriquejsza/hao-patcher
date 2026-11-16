@@ -7,9 +7,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-48 patches: 45 installable, 1 undeclared (files not declared), 2 with a row missing.
-
-Undeclared: golden-gate-metal-argbuf.
+48 patches: 46 installable, 0 undeclared (files not declared), 2 with a row missing.
 
 | Patch | Rev | Status | Stage | Installable | Sets | Rows (sha256, artifact, source commit) |
 |---|---|---|---|---|---|---|
@@ -29,7 +27,7 @@ Undeclared: golden-gate-metal-argbuf.
 | golden-gate-launchd-warm | r3 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-live-text-service | r5 | experiment | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-live-text-shared | r9 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | live_text_framework 4434cab6 framework |
-| golden-gate-metal-argbuf | r5 | product | oclp-hook | undeclared | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_argbuf d43d2253 metal-argbuf-26B131-20261114-547557ae (hao-patcher 547557ae) |
+| golden-gate-metal-argbuf | r6 | product | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_argbuf 9de18945 metal-argbuf-26B131-20261115-d9fa28e7 (hao-patcher d9fa28e7) |
 | golden-gate-metal-framebuffer | r8 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 166aa56b metal-framebuffer-26A428-20261105-f8ff3547ed3c |
 | golden-gate-metal-libraries | r21 | experiment | oclp-hook | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
 | golden-gate-metal27 | r3 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
@@ -132,6 +130,11 @@ Undeclared: golden-gate-metal-argbuf.
   - `usr/lib/hao-live-text/libLiveTextPolicy.dylib`: from hao (row live_text_framework)
   - `usr/lib/hao-live-text/libhao_input_coherence.dylib`: from hao (row live_text_framework)
   - `usr/lib/hao-live-text/build.json`: from hao (row live_text_framework)
+- **golden-gate-metal-argbuf** r6
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: from hao (row metal_argbuf)
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from hao (row metal_argbuf)
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: from hao (row metal_argbuf)
 - **golden-gate-metal-framebuffer** r8
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `usr/lib/libmetal-framebuffer.dylib`: from hao (row metal_framebuffer)
@@ -350,7 +353,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-launchd-warm | r3 | r3 | r3 | r3 | r3 | r3 | r3 |
 | golden-gate-live-text-service | r4* | r4* | r4* | r5 | r5 | r5 | r5 |
 | golden-gate-live-text-shared | r8* | r9 | r9 | r9 | r9 | r9 | r9 |
-| golden-gate-metal-argbuf | r5 | r5 | r5 | r5 | r5 | r5 | r5 |
+| golden-gate-metal-argbuf | r5* | r5* | r5* | r5* | r5* | r5* | r5* |
 | golden-gate-metal-framebuffer | r8 | r8 | r8 | r8 | r8 | r8 | r8 |
 | golden-gate-metal-libraries | r21 | r21 | r21 | r21 | r21 | r21 | r21 |
 | golden-gate-native-identities | r6 | r6 | r6 | r6 | r6 | r6 | r6 |
@@ -393,7 +396,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | kernel_repair_efi | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f | da6f167f |
 | libhelloblur | d471519b | d471519b | d471519b | d471519b | d471519b | d471519b | d471519b |
 | live_text_framework | 99675b0a* | 4434cab6 | 4434cab6 | 4434cab6 | 4434cab6 | 4434cab6 | 4434cab6 |
-| metal_argbuf | d43d2253 | d43d2253 | d43d2253 | d43d2253 | d43d2253 | d43d2253 | d43d2253 |
+| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* |
 | metal_compiler_compat | 66e1e6dd | 66e1e6dd | 66e1e6dd | 66e1e6dd | 66e1e6dd | 66e1e6dd | 66e1e6dd |
 | metal_framebuffer | 166aa56b | 166aa56b | 166aa56b | 166aa56b | 166aa56b | 166aa56b | 166aa56b |
 | metal_quad_runtime_golden_gate | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 |
@@ -462,7 +465,9 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 
 ## 4. Drift
 
+- golden-gate-metal-argbuf r6 is newer than every image built with it (newest r5).
 - golden-gate-shared-cache-catalog r2 is newer than every image built with it (newest r1).
+- row metal_argbuf 9de18945 is in no image yet (images have d43d2253).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.

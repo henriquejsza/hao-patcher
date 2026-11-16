@@ -68,9 +68,9 @@
    "result": "identical"
   },
   "metal_argbuf": {
-   "artifact": "metal-argbuf-26B131-20261114-547557ae",
+   "artifact": "metal-argbuf-26B131-20261115-d9fa28e7",
    "repo": "hao-patcher",
-   "commit": "547557ae",
+   "commit": "d9fa28e7",
    "result": "identical"
   },
   "appstore_slice_guard": {

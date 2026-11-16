@@ -31,6 +31,11 @@ Only built for 26B131.
   `iCBE.dylib` and `libargbuf.dylib`.
 - On the target: Weather opens and its four maps render. `tools/metal-argbuf/probes/webgpu-check.html` in Safari
   reads back compute and render results.
+- On the target, `probe18` (from `tools/metal-argbuf/make`, in `probes/`) prints `destroyed N/N` for textures and
+  render pipelines, and its footprint stays flat.
+- Host: `python3.14 -I -B -m unittest discover -s patches/golden-gate-metal-argbuf/tests` (the driver's edits spec
+  gives the same bytes as `add_weak_dylib.py`; `GOLDEN_GATE_METAL_ARGBUF_INPUT` = the driver after
+  golden-gate-metal-framebuffer runs it on the real file).
 - On the host: `python3.14 -I -B -m unittest discover -s tools/metal-argbuf/tests`.
 
 ## Validation
@@ -44,6 +49,7 @@ has booted yet.
 
 ## Revisions
 
+- r6 2026-11-15 libargbuf from d9fa28e7 (fix 26c6afc6): the texture and render-pipeline factory hooks return the driver's +1 result without retaining it again, so textures and pipelines are freed when apps release them (before, none was: 100 created, 0 destroyed; after, 100 and 100, in a lifecycle control on the host; tools/metal-argbuf tests pass). Laptop memory numbers: pending, on the first image with r6. patch.json declares what it installs (the driver's weak load as edits/driver.json, the three dylibs from row metal_argbuf). Wrapper and iCBE-real as r5.
 - r5 2026-11-14 libargbuf from 547557ae: requests MetalOld refuses but current Apple drivers accept are adapted where the HD 4000 can honour them (multisample/depth-stencil render targets made Private; separate Depth32Float + Stencil8 built packed; a CPU-written MSAA stencil emulated through a staging texture and per-bit stencil passes), each logged; AGB_SURVEY=1 logs every texture/pipeline/pass shape (off by default). Ends Weather's precipitation-map abort (diag#0002). Wrapper and iCBE-real as r4.
 - r4 2026-11-14 Wrapper from d9cff656: the IGIL rewrite also handles constant-pointer raw loads (`LD_RAW .., C-1`: a scalar read through an argument-buffer pointer, e.g. a WebGPU uniform `{vec4f, f32}`), which the backend refused (CompilerError 2) and which hung the GPU in Safari (diag#0016). iCBE-real and libargbuf unchanged.
 - r3 2026-11-14 Input row `metal_argbuf` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.
