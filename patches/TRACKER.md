@@ -48,7 +48,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | metal-compiler-compat | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
-| opencore-generic | r3 | post | experiment |  |  |  |  |  | **needs** | r3 2026-11-17 Lilu is OCLP's pinned 1.7.2 RELEASE (from row oclp_source), not the reference's build: the prove |
+| opencore-generic | r4 | post | experiment |  |  |  |  |  | **needs** | r4 2026-11-17 boot-args gets `-crypt_force_avx`: CryptexFixup is inert on AVX2 CPUs without it, and most machi |
 | opencore-mbp92 | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | rec-audio | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it  |
 | rec-bluetooth-input | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. |

@@ -18,6 +18,9 @@ tools/kernel-foundation vm_esp.py. This sets, in place:
   both images load the same Lilu.
 - CryptexFixup.kext (Acidanthera 1.0.5, OCLP's RELEASE payload from OCLP_SOURCE, the row oclp_source): without it APFS
   requires the image's modified OS cryptex's root hash and the boot stops at its graft (QEMU, bench 0726).
+- boot-args gets `-crypt_force_avx`: CryptexFixup does nothing on a CPU with AVX2 (Haswell and newer, AMD Ryzen) unless
+  it is set (its README; 1.0.5's code at 0x187d-0x1973), and most machines this pack is for have AVX2. A CPU without
+  AVX2 never reads it.
 
 hao-opencore runs next: the Darwin 27 kernel repairs, IntelCommpage, HaoExec and boot-args, and the check that every
 element of the finished config has a recorded reason (src/config-reasons.json there).
@@ -107,6 +110,19 @@ def add_cryptexfixup(config, esp, oclp_tar):
     add.insert([k['BundlePath'] for k in add].index('Lilu.kext') + 1, dict(CRYPTEXFIXUP_ENTRY))
 
 
+APPLE_NVRAM = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
+FORCE_AVX = '-crypt_force_avx'
+
+
+def force_avx(config):
+    """Append -crypt_force_avx to boot-args (once): CryptexFixup is inert on AVX2 CPUs without it."""
+    nvram = config.setdefault('NVRAM', {}).setdefault('Add', {}).setdefault(APPLE_NVRAM, {})
+    args = nvram.get('boot-args', '').split()
+    if FORCE_AVX not in args:
+        args.append(FORCE_AVX)
+    nvram['boot-args'] = ' '.join(args)
+
+
 def serial(length):
     return ''.join(secrets.choice(ALNUM) for _ in range(length))
 
@@ -133,10 +149,11 @@ def main(argv):
     add_smc(config, esp, reference_root)
     oclp_kext(esp, oclp_tar, LILU_ZIP, 'Lilu.kext')     # the reference's Lilu is another build
     add_cryptexfixup(config, esp, oclp_tar)
+    force_avx(config)
     fresh = platform(config)
     path.write_bytes(plistlib.dumps(config))
-    print('opencore-generic: SMBIOS %s (%s), VirtualSMC and CryptexFixup after Lilu, quirks set: %s' % (
-        PRODUCT, 'new identity' if fresh else 'identity kept',
+    print('opencore-generic: SMBIOS %s (%s), VirtualSMC and CryptexFixup after Lilu, %s, quirks set: %s' % (
+        PRODUCT, 'new identity' if fresh else 'identity kept', FORCE_AVX,
         '; '.join('%s %s' % (s, ', '.join(n)) for s, n in changed.items()) or 'none needed'))
     return 0
 
