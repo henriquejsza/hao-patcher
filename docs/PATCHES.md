@@ -7,16 +7,16 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-51 of 52 patches declare their files so far.
+52 of 54 patches declare their files so far.
 
 ## darwin27-kernel
 
-Revision r13, status product. [Recipe](../patches/darwin27-kernel/README.md)
+Revision r14, status product. [Recipe](../patches/darwin27-kernel/README.md)
 
 - `System/Library/Kernels/kernel`: whole file from Apple (row darwin27_kernel). Golden Gate's own x86_64 kernel from the IPSW, unchanged; installed once by the base layer (golden-pristine.sh finalize) and only checked by the kc-hook. Installed mode 0644, owner root:wheel.
 - `System/Library/KernelCollections/BootKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
   1. `link-boot-collection`: kc.link (applied by Tahoe's kmutil).
-     The Intel Mac boots Apple's own Darwin 27 kernel with Tahoe's Intel drivers (Ethernet, HD 4000, and the rest of the boot-time set) linked into one boot collection.
+     The Intel Mac boots Apple's own Darwin 27 kernel with Tahoe's Intel drivers (Ethernet, graphics, and the rest of the boot-time set) linked into one boot collection.
 - `System/Library/KernelCollections/BootKernelExtensions.kc.elides`: whole file from hao · Boot collection member list. The bundle identifiers of the BootKC's fileset members except com.apple.kernel, one per line, written by src/members.py; the System collection elides them. Installed mode 0644, owner root:wheel.
 - `System/Library/KernelCollections/SystemKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
   1. `link-system-collection`: kc.link (applied by Tahoe's kmutil).
@@ -45,18 +45,19 @@ Revision r7, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-diagnostics
 
-Revision r6, status dev. [Recipe](../patches/dev-diagnostics/README.md)
+Revision r9, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
-  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
-     Hao-runtime's measurement switches after hao_crash=1: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads); they cost time on every translated native call, so only bench images carry them.
+  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
+     Hao-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
      - `-nokcmismatchpanic`: OCLP adds it with RSRHelper whenever SIP is lowered (efi_builder/security.py, OCLP issue 1019): the kernel does not panic when a kernel collection's UUID differs from the one recorded, as after a rebuilt or root-patched collection.
      - `-pmap_pcid_disable`: Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it, the QEMU boots that worked did not) while the first hardware boots stalled; the next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. Effect: the kernel logs 'PMAP: PCID feature disabled' instead of 'PMAP: PCID enabled'. Stays until a laptop boot without it shows the same result.
      - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
-     - `hao_crash=1`: hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log (cheap: no cost until a crash).
+     - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
+     - `hao_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
      - `hao_nx_stats=1`: dev only: hao-runtime's NX fault tables; costs time on every translated native call.
      - `hao_bridge_stats=1`: dev only: hao-runtime's bridge statistics; costs time on every translated native call.
      - `hao_diag_time=1`: dev only: hao-runtime's phase lines and usage counters, which boot-gantt reads.
@@ -243,6 +244,14 @@ Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 - `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: whole file from hao (row metal27_installed). New file: tools/metal-adapter's shim, installed build (ivar offsets, descriptor layouts for the HD 4000 driver, the in-process compiler switch). Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: whole file from hao (row metal27_installed). 27.2.1's own x86_64 Metal cut from the 26B131 cache with LC_REEXPORT_DYLIB of the shim (the laptop bundle's file byte for byte); replaces OCLP's wrapper and golden-gate-hello's edits to it. Installed mode 0755, owner root:wheel, flags restricted.
 
+## golden-gate-model-gates-mbp92
+
+Revision r1, status product. [Recipe](../patches/golden-gate-model-gates-mbp92/README.md)
+
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 1 edit, applied by the installer on targets whose platform_data has `model_gates`.
+  1. `model-gates`: matcher (resolved sites only), resolved for 1 input.
+     Sidecar, AirPlay to Mac and Continuity Camera no longer find this Mac on their unsupported-model lists: its entry is renamed in place. golden-gate-userspace's cryptex build makes the edit (src/model_gates.py) from pipeline/targets/mbp92.json's platform_data model_gates, and its resign-4k-pages step re-signs the pages; the sites are for the Apple original.
+
 ## golden-gate-native-identities
 
 Revision r11, status product. [Recipe](../patches/golden-gate-native-identities/README.md)
@@ -257,7 +266,7 @@ Revision r11, status product. [Recipe](../patches/golden-gate-native-identities/
 
 ## golden-gate-root-launchservices
 
-Revision r4, status experiment. [Recipe](../patches/golden-gate-root-launchservices/README.md)
+Revision r5, status experiment. [Recipe](../patches/golden-gate-root-launchservices/README.md)
 
 - `private/var/db/auth.db`: whole file from hao (row root_launchservices_golden_gate). Authd's rule database as this image's authd wrote it in a builder boot (root 600).
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: whole file from hao (row root_launchservices_golden_gate). Root's LaunchServices store as this image's lsd wrote it in a builder boot (root 644); schema 35651614 is 26B131's.
@@ -332,7 +341,7 @@ Revision r10, status product. [Recipe](../patches/golden-gate-user-template/READ
 
 ## golden-gate-userspace
 
-Revision r87, status product. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r88, status product. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from hao (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -357,20 +366,18 @@ Revision r87, status product. [Recipe](../patches/golden-gate-userspace/README.m
      Swift prespecialized metadata stays on in every process although files override cache images (OCLP's Metal and Wi-Fi libraries, this recipe's CoreWiFi compat library, Apple's libsystem_kernel/platform/pthread): the two reads of _dyld_shared_cache_some_image_overridden() in libswiftCore answer false, and the descriptor-map slots of the overridden images are emptied so their names take the runtime's ordinary path (src/prespecialization.py; install.py refuses an image whose overridden set differs).
   3. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 5 edits, applied by the installer.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 4 edits, applied by the installer.
   1. `legacy-trackpad-v3`: matcher (resolved sites only), resolved for 1 input.
      The built-in trackpad works: restores the V3 touch report path (0x73 and 0x74) that Tahoe's USB multitouch driver sends and 27.x's MultitouchSupport dropped or limited to internal OS variants.
   2. `core-routine-console-uid`: matcher (resolved sites only), resolved for 1 input.
      CoreRoutine no longer reads an uninitialised console user ID when no user is logged in.
   3. `audio-no-console-notification`: matcher (resolved sites only), resolved for 1 input.
      Audio stops retrying with configd before login: no false server-death notification is sent when no console user exists (tools/audiomxd-fix).
-  4. `model-gates`: matcher (resolved sites only), resolved for 1 input.
-     Sidecar, AirPlay to Mac and Continuity Camera no longer find this Mac on their unsupported-model lists: its entry is renamed in place (src/model_gates.py, data src/model-gates.json), in place of a FeatureUnlock kext.
-  5. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
+  4. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
      The x86_64 kernel registers only 4 KiB code-signature pages for the cache; RosettaOS signs it with 16 KiB pages for Apple silicon, so the signature is made again with 4 KiB pages after the edits.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.03`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 3 edits, applied by the installer.
   1. `mps-matrix-initializer`: matcher (resolved sites only), resolved for 1 input.
-     MPSMatrix works on the HD 4000: the native fallback initializer is used for Intel device family 25 (src: tools/metal-fixes mps-plan).
+     MPSMatrix works on the legacy Intel GPUs (device family 25): the native fallback initializer is used for Intel device family 25 (src: tools/metal-fixes mps-plan).
   2. `swift-conformance-types`: matcher (resolved sites only), resolved for 1 input.
      Swift lookups by name no longer fault: Apple's broken direct conformance type references in the x86_64 cache (PaperKit, PhoneAppIntents, _MusicKitInternal_AppIntents) point at their type descriptors (src/swift_refs.py).
   3. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
@@ -520,22 +527,22 @@ Revision r9, status product. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r68, status experiment. [Recipe](../patches/hao-opencore/README.md)
+Revision r77, status product. [Recipe](../patches/hao-opencore/README.md)
 
-- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
+- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
      The Darwin 27 kernel starts on Ivy Bridge: the kernel repairs in Kernel.Patch (on 26B131: early VM range initialization, ascending early kernel-map bounds, the bootstrap physical-page alias code and its registration call) and the IntelCommpage.kext Kernel.Add entry, computed by tools/kc-binder from the BootKC this image links.
   2. `no-opencore-log`: plist.set Misc:Debug:Target = 0.
      An end-user image writes no OpenCore log and shows no OpenCore text (Target 0: logging off; it also saves the file writes at every boot); dev sets get the file log from dev-diagnostics (pack dev).
-  3. `boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 hao_crash=1 auxKCAtBoot=false".
-     The Intel Mac boots Darwin 27 with its Lilu-based drivers loading, PCID off, hao's arm64-only programs allowed to start and hao's crash lines on the console, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection.
+  3. `boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false".
+     The Intel Mac boots Darwin 27 with its Lilu-based drivers loading, PCID off, hao's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
      - `-nokcmismatchpanic`: OCLP adds it with RSRHelper whenever SIP is lowered (efi_builder/security.py, OCLP issue 1019): the kernel does not panic when a kernel collection's UUID differs from the one recorded, as after a rebuilt or root-patched collection.
      - `-pmap_pcid_disable`: Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it, the QEMU boots that worked did not) while the first hardware boots stalled; the next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. Effect: the kernel logs 'PMAP: PCID feature disabled' instead of 'PMAP: PCID enabled'. Stays until a laptop boot without it shows the same result.
      - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
-     - `hao_crash=1`: hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log (cheap: no cost until a crash).
+     - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
      - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
   4. `clear-boot-logging-overrides`: plist.set NVRAM:Delete:7C436110-AB2A-4BBB-A880-FE41995C9F82 = ["boot-args", "csr-active-config", "bootercfg", "bootercfg-once"].
      The next OpenCore boot deletes the firmware's boot logging overrides, so they cannot hide early-boot output.
@@ -710,4 +717,4 @@ Revision r4, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-opencore-mbp92
+opencore-generic, opencore-mbp92

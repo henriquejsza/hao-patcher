@@ -1,4 +1,4 @@
 # Derived for Golden Gate 26B131 with Tahoe 25G342; see the artifact build.json.
-# r42: IntelCommpage reads its collection addresses from its table; config.plist identical to r41.
-# Rebuilt at 53815151 (kernel-fixes r42): EFI/ byte-identical to kernel-repairs-26B131-r42; build.json names its inputs as store/... paths.
-da6f167f7b22afe727519e92fa7b9dee7137a2b07e0287bf45b12a3457eaf4db store/artifacts/kernel-repairs-26B131-r42-53815151
+# r44 (kernel-foundation r44): IntelCommpage without the ic_csr_internal probe and with the Sandbox adapter's shared-list
+# fix; built from r42's recorded inputs. config.plist byte-identical to r42; only IntelCommpage's executable differs.
+acc92dff3821f849e34d244a639a385ff77c20c29fd9b27dfb48b87f42f21d38 store/artifacts/kernel-repairs-26B131-r44

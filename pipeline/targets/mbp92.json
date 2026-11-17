@@ -316,5 +316,6 @@
    "disable_mediaanalysisd": true,
    "boot_efi": false
   }
- }
+ },
+ "platform_data": {"model_gates": {"renamed": "NacBookPro9,2", "note": "its entry in the unsupported-model lists of Sidecar, AirPlay to Mac and Continuity Camera, renamed by golden-gate-userspace's cryptex build (golden-gate-model-gates-mbp92 declares the edits)"}}
 }

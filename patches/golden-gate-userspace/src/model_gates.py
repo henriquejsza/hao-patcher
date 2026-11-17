@@ -1,15 +1,19 @@
-"""Take this Mac off 27.x's unsupported-model lists for Sidecar, AirPlay to Mac and Continuity Camera.
+"""Take the target Mac off 27.x's unsupported-model lists for Sidecar, AirPlay to Mac and Continuity Camera.
 
 Each image in src/model-gates.json keeps a list of unsupported Mac models as consecutive C strings in its __TEXT
-(__cstring in CMCapture, __const in SidecarCore and AirPlaySupport). This planner renames this Mac's entry in place
-(same length, one byte), so the feature's model check no longer finds it; nothing else in the image changes. The
-image must hold the model exactly once in those sections, NUL-delimited, with Mac model names on both sides;
-anything else refuses the build.
+(__cstring in CMCapture, __const in SidecarCore and AirPlaySupport). This planner renames the target's entry in place
+(same length), so the feature's model check no longer finds it; nothing else in the image changes. The image must
+hold the model exactly once in those sections, NUL-delimited, with Mac model names on both sides; anything else
+refuses the build.
+Which Mac, and its new name, are the target's platform data, not this recipe's (docs/layout.md, S15): the model is
+HAO_TARGET_MODEL and the name is HAO_TARGET_DATA's "model_gates": {"renamed": NAME}. A target without "model_gates"
+(the generic image, any Mac not on the lists) gets no edit.
 This replaces acidanthera's FeatureUnlock (which renames the same strings in every validated page at run time):
 the edit is made once, in the cache, and only in the listed images.
 The caller re-signs changed cache files before sealing the cryptex.
 """
 import json
+import os
 import re
 from pathlib import Path
 
@@ -46,10 +50,29 @@ def checker(model, renamed):
     return checked_edits
 
 
-def plan_cache_family(directory, data=DATA):
-    """{cache file: [(offset, original, replacement, reason)]} for every listed image."""
+def target_gates(model=None, target_data=None):
+    """(model, renamed) for the target, or None when its platform data has no "model_gates". MODEL and TARGET_DATA
+    (a dict) default to HAO_TARGET_MODEL and the JSON file named by HAO_TARGET_DATA, which every hook gets."""
+    if target_data is None:
+        path = os.environ.get('HAO_TARGET_DATA')
+        target_data = json.loads(Path(path).read_text()) if path else {}
+    gates = target_data.get('model_gates')
+    if gates is None:
+        return None
+    model = model or os.environ.get('HAO_TARGET_MODEL')
+    if not model:
+        raise ValueError('model gates: the target data has model_gates but no target model (HAO_TARGET_MODEL)')
+    return model, gates['renamed']
+
+
+def plan_cache_family(directory, data=DATA, gates=None):
+    """{cache file: [(offset, original, replacement, reason)]} for every listed image; {} for a target without
+    model gates. GATES: (model, renamed), by default the target's (target_gates())."""
+    gates = target_gates() if gates is None else gates
+    if not gates:
+        return {}
     plan = {}
-    edits = checker(data['model'], data['renamed'])
+    edits = checker(*gates)
     for image in data['images']:
         for path, changes in plan_family(directory, image['path'].encode(), edits).items():
             plan.setdefault(path, []).extend(

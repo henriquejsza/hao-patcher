@@ -279,7 +279,7 @@ def plan_all(cache_dir, reference, carrier):
                                          text=True)
         for path, changes in json.loads(result).items():
             out.setdefault(Path(path).name, {})[edit_id] = [tuple(c) for c in changes]
-    add('model-gates', model_gates.plan_cache_family(cache_dir))
+    add('model-gates', model_gates.plan_cache_family(cache_dir, gates=()))   # the target's gates: golden-gate-model-gates-mbp92
     add('swift-conformance-types', swift_refs.plan_cache_family(cache_dir, reference=reference))
     plan, _ = codeid_carrier.plan_cache_family(cache_dir, carrier)
     add('code-identity-carrier', plan)

@@ -1,7 +1,5 @@
 {
-  "note": "Unsupported-model lists in 27.x's x86_64 cache that name this Mac (src/model_gates.py). Each image's __TEXT,__cstring holds the model once, NUL-delimited, between other Mac model names; the planner renames that one entry (same length), so the list no longer matches this Mac. Found with `ipsw dsc str CACHE MODEL`; the other images naming the model (CoreFoundation, ProductKit, ProductKitCore, ServerInformation) are name tables, not gates, and stay.",
-  "model": "MacBookPro9,2",
-  "renamed": "NacBookPro9,2",
+  "note": "Unsupported-model lists in 27.x's x86_64 cache (src/model_gates.py); which Mac's entry is renamed is the target's platform data (model_gates). Each image's __TEXT,__cstring holds the model once, NUL-delimited, between other Mac model names; the planner renames that one entry (same length), so the list no longer matches this Mac. Found with `ipsw dsc str CACHE MODEL`; the other images naming the model (CoreFoundation, ProductKit, ProductKitCore, ServerInformation) are name tables, not gates, and stay.",
   "images": [
     {"path": "/System/Library/PrivateFrameworks/SidecarCore.framework/Versions/A/SidecarCore",
      "feature": "Sidecar (an iPad as a second display)"},

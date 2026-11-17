@@ -91,6 +91,23 @@ class StubEdit(unittest.TestCase):
                              text=True)
         self.assertIn('Identifier=com.example.x', out.stderr)
 
+    def test_when_target_skips_on_a_target_without_the_key(self):
+        spec = json.loads(self.spec.read_text())
+        self.spec.write_text(json.dumps(dict(spec, when_target='model_gates')))
+        data = Path(self.d.name) / 'target-data.json'
+        data.write_text('{}')
+        stubs = self.stubs.read_text()
+        r = E['stub_edit'](self.system, self.spec, target_data=data)
+        self.assertEqual(r['skipped'], 'the target has no platform_data model_gates')
+        self.assertEqual((self.system / PROGRAM).read_bytes(), self.before)
+        self.assertEqual(self.stubs.read_text(), stubs)
+        with self.assertRaises(ValueError):
+            E['stub_edit'](self.system, self.spec)                         # no target known: not decided
+        data.write_text(json.dumps({'model_gates': {}}))
+        r = E['stub_edit'](self.system, self.spec, target_data=data)
+        self.assertNotIn('skipped', r)
+        self.assertNotEqual((self.system / PROGRAM).read_bytes(), self.before)
+
     def test_a_stub_from_elsewhere_is_refused_and_nothing_is_written(self):
         text = self.stubs.read_text().replace(self.cds['x86_64'], 'c' * 40)
         self.stubs.write_text(text)

@@ -53,6 +53,7 @@ Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 
 (kernel file no longer copied by the hook) has not been built.
 
 ## Revisions
+- r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only.
 - r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r12 2026-11-17 Declares its scope (`requires`, docs/requires.md): its rows are the 26A428 (25G332) and 26B131 (25G342) kernel collections. Nothing it installs changes.
 - r11 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

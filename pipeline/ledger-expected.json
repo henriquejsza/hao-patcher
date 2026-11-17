@@ -69,6 +69,14 @@
     "golden-gate-launchd-warm"
    ]
   },
+  "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01": {
+   "chain": "chain",
+   "writers": [
+    "apple",
+    "golden-gate-userspace",
+    "golden-gate-model-gates-mbp92"
+   ]
+  },
   "usr/lib/dss_shim.dylib": {
    "chain": "chain",
    "writers": [

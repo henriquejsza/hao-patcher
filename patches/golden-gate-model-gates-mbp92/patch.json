@@ -1,0 +1,24 @@
+{
+ "revision": 1,
+ "pack": "mbp92",
+ "stage": "oclp-hook",
+ "status": "product",
+ "validated": false,
+ "files": [
+  {
+   "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01",
+   "edits": "edits/cache-01.json"
+  }
+ ],
+ "requires": {
+  "os": [
+   "26B131"
+  ],
+  "donor": [
+   "25G342"
+  ],
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
+}

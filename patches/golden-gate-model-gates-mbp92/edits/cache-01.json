@@ -1,0 +1,41 @@
+{
+ "format": 1,
+ "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01",
+ "origin": {
+  "kind": "apple",
+  "name": "RosettaOS x86_64 shared cache (26B131)",
+  "row": "golden_gate_userspace"
+ },
+ "applied_by": "installer",
+ "when_target": "model_gates",
+ "edits": [
+  {
+   "id": "model-gates",
+   "kind": "matcher",
+   "resolved": {
+    "2992c56ec67804a411c973c715dd86984bde657f52e5aa07dfefec69fa5bd9d5": [
+     {
+      "at": 197117575,
+      "before": "4d6163426f6f6b50726f392c32",
+      "after": "4e6163426f6f6b50726f392c32",
+      "reason": "Sidecar (an iPad as a second display): take MacBookPro9,2 off the unsupported-model list"
+     },
+     {
+      "at": 646027599,
+      "before": "4d6163426f6f6b50726f392c32",
+      "after": "4e6163426f6f6b50726f392c32",
+      "reason": "AirPlay to Mac (this Mac as an AirPlay receiver): take MacBookPro9,2 off the unsupported-model list"
+     },
+     {
+      "at": 508183874,
+      "before": "4d6163426f6f6b50726f392c32",
+      "after": "4e6163426f6f6b50726f392c32",
+      "reason": "Continuity Camera: take MacBookPro9,2 off the unsupported-model list"
+     }
+    ]
+   },
+   "reason": "Sidecar, AirPlay to Mac and Continuity Camera no longer find this Mac on their unsupported-model lists: its entry is renamed in place. golden-gate-userspace's cryptex build makes the edit (src/model_gates.py) from pipeline/targets/mbp92.json's platform_data model_gates, and its resign-4k-pages step re-signs the pages; the sites are for the Apple original"
+  }
+ ],
+ "sign": null
+}
