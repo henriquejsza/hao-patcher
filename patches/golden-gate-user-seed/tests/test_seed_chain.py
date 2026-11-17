@@ -134,6 +134,23 @@ class SeedChainTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('does not follow the template rule', r.stderr)
 
+    def test_template_leaves_out_mail(self):
+        """#47: Mail's containers are not shipped (their schema links Data/Library/Mail to ~/Library/Mail; a schema-0
+        copy let Mail open its store in the container before containermanagerd's late 0 -> 44 run replaced it)."""
+        artifacts, data, sys_root = self.artifacts(), self.data_volume(), self.system('26B131')
+        art = next(artifacts.glob('user-template-*'))
+        x = self.d / 'mail'
+        subprocess.run(['ditto', '-x', str(art / 'user-template.cpio'), str(x)], check=True)
+        mail = ('com.apple.mail', 'com.apple.mail.SpotlightIndexExtension', 'com.apple.MailShareExtension')
+        for name in mail:
+            shutil.copytree(x / TEMPLATE / 'Containers/com.apple.weather', x / TEMPLATE / 'Containers' / name)
+        (art / 'user-template.cpio').unlink()
+        subprocess.run(['ditto', '-c', str(x), str(art / 'user-template.cpio')], check=True)
+        r = self.apply('golden-gate-user-template', data, sys_root, artifacts)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(sorted(p.name for p in (data / TEMPLATE / 'Containers').iterdir()),
+                         ['com.apple.stocks.widget', 'com.apple.weather'])
+
     def test_wrong_build_refused(self):
         artifacts, data, sys_root = self.artifacts(), self.data_volume(), self.system('26B200')
         self.assertEqual(self.apply('golden-gate-user-seed', data, sys_root, artifacts).returncode, 0)

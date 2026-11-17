@@ -48,6 +48,14 @@ Why each change:
   directory"; Tahoe 07g hung Setup).
 - **Schema 0.** containermanagerd re-runs its schema on first use and makes the links itself, owned by the user
   (Tahoe: "updated schema from (0) -> (44)"); without it the links are never made.
+- **No Mail containers** (apply.sh leaves out com.apple.mail, its extensions, MailCacheDelete, MailShareExtension
+  and the Mail share services). On the image the schema ran late: when LaunchServices asked for the container, not
+  at Mail's sandbox start. Mail keeps its store under its container's `Data/Library/Mail`, which the schema makes
+  a link to `~/Library/Mail`; at schema 0 Mail made a real folder there and opened `Envelope Index`, and after an
+  iCloud sign-in containermanagerd ran "updated schema from (0) → (44), actions count = 84" for com.apple.mail while
+  it was open: SQLite "vnode unlinked while in use", the next write SQLITE_IOERR_VNODE, EmailDaemon aborts (image
+  8fb92d5, 2026-11-14, #47). Without a template entry containermanagerd creates Mail's containers at their first
+  use with the schema run and the links made, as on a stock account.
 - **No sandbox profile.** 26B131's compiled `SandboxProfileData` embeds the harvest user's name and cache folder
   (FACT, 81 of 81 profiles in the 26A428 capture); its validation info names `_HOME`, `_USER`, `_UID`, so it never
   matched another account anyway. secinitd compiles each profile at the container's first launch, as without the
@@ -92,18 +100,22 @@ chain). On the laptop after Setup made an account (read-only):
   the account's creation.
 - `find ~/Library/Containers/com.apple.weather/Data -maxdepth 2 -type l | wc -l` > 0 after the first launch
   (containermanagerd relinked; schema 44 in the metadata plist again), no "Not a directory" from contactsd.
+- `ls ~/Library/Containers | grep -ic mail` is 0 right after Create Account; after Mail's first launch
+  `readlink ~/Library/Containers/com.apple.mail/Data/Library/Mail` is `../../../../Mail` and its metadata schema 44.
 - secinitd: `log show --start <login> --end <login+10 min> --predicate 'process == "secinitd" AND eventMessage
   CONTAINS "personality"'` near 0 (4d1c48c: 158); secinitd CPU (4d1c48c: 1:58).
 - chronod: `Descriptors loaded from cache (N)` with N > 0, few watchdog lines (4d1c48c: 0 and 236).
 - load average peak and SSH reachability across the login (4d1c48c: 1005, ~3 min unanswered).
 
 ## Validation
-NEEDS VALIDATION: r3 has its 26B131 input (the 2026-11-13 harvest of the test account's first login on 3b2291a) and is in
-the 26B131 sets; not built into an image or booted yet. Before that: the rule is tested on host fixtures and was run on the 26A428 capture
-(276 containers, 9,318 symlinks and 81 sandbox profiles removed, 220 flags added, 2 PeopleWidget rows removed; 76 MB
-cpio). Not built into an image or booted.
+NEEDS VALIDATION: r11 is not built into an image yet. r5 shipped on image 8fb92d5 (booted on the laptops; #47 was
+found there: Mail's container at schema 0, migrated under Mail after iCloud sign-in). r11's change is tested on host
+fixtures (`test_template_leaves_out_mail`). Pass on an image: the Verify checks, plus on a fresh account before
+Mail's first launch `~/Library/Containers/com.apple.mail` does not exist; sign in to iCloud, launch Mail: no
+"updated schema" line for com.apple.mail during the launch, no abort.
 
 ## Revisions
+- r11 2026-11-17 Leaves out Mail's containers (8 of 336), fixes #47: a schema-0 Mail container was migrated under Mail's open database after iCloud sign-in and Mail aborted; containermanagerd now creates them at first use. Same input row.
 - r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it installs changes.
 - r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

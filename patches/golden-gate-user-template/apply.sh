@@ -4,7 +4,7 @@
 # (input user_template_golden_gate, cache/seeds/template from a first-login harvest of the same OS build; README).
 # The artifact is already cleaned by the template rule (no symlinks, no app data, schema 0, no sandbox profile,
 # personality flag set, PeopleWidget rows dropped); this extracts it, makes it root's like the stock template and
-# re-checks the rule.
+# re-checks the rule. Mail's containers are left out (below).
 A="$P/inputs/user_template_golden_gate"
 B=$(/usr/libexec/PlistBuddy -c 'Print :ProductBuildVersion' "$SYS/System/Library/CoreServices/SystemVersion.plist")
 W=$(plutil -extract build raw -o - "$A/build.json")
@@ -16,6 +16,15 @@ for r in Containers "Group Containers"; do
     [ ! -e "$T/$r" ] || { echo "golden-gate-user-template: $T/$r exists already (another recipe?)" >&2; exit 1; }
 done
 ditto -x "$A/user-template.cpio" "$DATA"
+# Mail's containers are left out (fixes #47): Mail keeps its store under Data/Library/Mail, which the schema makes
+# a link to ~/Library/Mail. Shipped at schema 0, Mail opened a real Envelope Index there, then containermanagerd's
+# lazy 0 -> 44 run (after iCloud sign-in) replaced the folder under the open database and Mail aborted. Without a
+# template entry containermanagerd creates each at its first use with the schema run and the links made.
+for c in com.apple.mail com.apple.mail.DiagnosticExtension com.apple.mail.MailNotificationContentExtension \
+         com.apple.mail.SpotlightIndexExtension com.apple.MailCacheDelete com.apple.MailShareExtension \
+         com.apple.share.Mail.compose com.apple.share.Mail.compose-back-to-sender; do
+    rm -rf "$T/Containers/$c"
+done
 # root:wheel like the stock template, whoever made the archive; account creation gives the copy to the new user
 chown -R 0:0 "$T/Containers" "$T/Group Containers" "$T/Preferences/com.apple.chronod.plist"
 # the builder's extraction may tag files; the stock template carries no provenance

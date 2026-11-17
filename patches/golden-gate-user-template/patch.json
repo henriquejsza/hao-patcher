@@ -1,5 +1,5 @@
 {
- "revision": 10,
+ "revision": 11,
  "pack": "base",
  "stage": "post",
  "inputs": [
@@ -15,7 +15,7 @@
    "origin": {
     "kind": "hao",
     "row": "user_template_golden_gate",
-    "note": "app and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation"
+    "note": "app and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders), without Mail's containers (apply.sh, #47); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation"
    },
    "install": {
     "owner": "root:wheel"
