@@ -40,6 +40,15 @@ class Elements(unittest.TestCase):
         changed['NVRAM']['Add'][APPLE]['csr-active-config'] = b'\xff\x0f\x00\x00'
         self.assertEqual(CR['missing'](changed, reasons), [f'nvram-add:{APPLE}:csr-active-config=ff0f0000'])
 
+    def test_generic_only_elements_need_the_generic_config(self):
+        cfg = config()
+        cfg['Kernel']['Add'].append({'BundlePath': 'VirtualSMC.kext', 'Enabled': True})
+        reasons = {e: 'r' for e in CR['elements'](cfg)}
+        reasons['kext:VirtualSMC.kext'] = CR['GENERIC_ONLY'] + ': an SMC for non-Apple firmware'
+        self.assertEqual(CR['missing'](cfg, reasons), ['kext:VirtualSMC.kext'])          # a Mac image: refused
+        cfg['PlatformInfo'] = {'UpdateSMBIOSMode': 'Create', 'Generic': {'SystemProductName': 'iMac20,1'}}
+        self.assertEqual(CR['missing'](cfg, reasons), [])                                 # the generic image
+
     def test_reasons_file(self):
         reasons = CR['load_reasons']()
         self.assertGreater(len(reasons), 50)
@@ -83,9 +92,11 @@ class Elements(unittest.TestCase):
 
     def test_provenance_file(self):
         provenance = json.loads((PATCH / 'src/kext-provenance.json').read_text())
-        self.assertNotIn('VirtualSMC.kext', provenance)
+        self.assertIn('generic image only', provenance['VirtualSMC.kext']['note'])     # never a Mac image's
         for name, entry in provenance.items():
-            self.assertIn(entry['kind'], ('hao', 'oclp-payload', 'oclp-generated'), name)
+            self.assertIn(entry['kind'], ('hao', 'oclp-payload', 'oclp-generated', 'acidanthera-release'), name)
+            if entry['kind'] == 'acidanthera-release':
+                self.assertTrue(entry['source'].startswith('https://github.com/acidanthera/'), name)
             if entry['kind'] == 'oclp-payload':
                 self.assertTrue(entry['source'].startswith('https://github.com/dortania/OpenCore-Legacy-Patcher/blob/'), name)
                 self.assertTrue(entry['files'], name)

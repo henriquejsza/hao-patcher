@@ -41,12 +41,13 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| hao-opencore | r72 | post | experiment |  | x | x |  |  | **needs** | r72 2026-11-17 Hardened and entitled programs keep AMFI's dyld environment policy: one `Kernel.Patch` bound to |
+| hao-opencore | r73 | post | experiment |  | x | x |  |  | **needs** | r73 2026-11-17 The generic image's elements have their reasons (VirtualSMC and the non-Apple-firmware quirks,  |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
 | metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; its pack decides the machines  |
 | metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| opencore-generic | r1 | post | experiment |  |  |  |  |  | **needs** | r1 2026-11-17 New (GEN1): SMBIOS iMac20,1 with a per-image identity, VirtualSMC, and the QEMU reference's firm |
 | opencore-mbp92 | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | rec-audio | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it  |
 | rec-bluetooth-input | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. |

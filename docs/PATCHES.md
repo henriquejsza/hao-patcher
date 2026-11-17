@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-51 of 52 patches declare their files so far.
+51 of 53 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -519,7 +519,7 @@ Revision r7, status product. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r72, status experiment. [Recipe](../patches/hao-opencore/README.md)
+Revision r73, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -709,4 +709,4 @@ Revision r4, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-opencore-mbp92
+opencore-generic, opencore-mbp92

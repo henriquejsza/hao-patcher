@@ -238,6 +238,7 @@ must still die with VM guard flavor 13 (status 137), which shows the fix leaves 
 has a 15-second alarm. Finally load a website in Safari and scroll, navigate and reload.
 
 ## Validation
+NEEDS VALIDATION (r73): the generic elements in a built generic image (GEN2). Both recorded 9,2 EFIs (golden-26B131-20261117-011907, -20261116-111912) still pass the check.
 NEEDS VALIDATION (r72): the AMFI dyld policy patch. Host tests bind it on three recorded 26B131 Boot KCs. It needs
 an image build and a laptop boot passing the AMFI checks under Verify.
 NEEDS VALIDATION (r71): `hao_crash=1` is not in an end-user image's `kern.bootargs`, and is in a dev image's.
@@ -268,6 +269,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r73 2026-11-17 The generic image's elements have their reasons (VirtualSMC and the non-Apple-firmware quirks, all "generic image only"), and VirtualSMC its provenance (Acidanthera 1.3.8). `config_reasons.py` refuses a generic-only element in any config that isn't the generic one (SMBIOS iMac20,1, created). Nothing a 9,2 image gets changes.
 - r72 2026-11-17 Hardened and entitled programs keep AMFI's dyld environment policy: one `Kernel.Patch` bound to the BootKC's AMFI (`src/amfi_dyld.py`) and `amfi_force_policy=8`, so dyld no longer honours `DYLD_INSERT_LIBRARIES` in them (owner D1, 2026-11-17).
 - r71 2026-11-17 `hao_crash=1` leaves the end-user boot-args and is removed if present (owner 2026-11-17: dev builds only); dev-diagnostics r7 adds it to dev images.
 - r70 2026-11-17 Every enabled element of the finished config.plist has a recorded reason (`src/config-reasons.json`), and every enabled third-party kext is byte-identical to its pinned upstream OCLP payload (`src/kext-provenance.json`); `apply.sh` stops the build otherwise (PROTOCOL S18). Nothing it installs changes.

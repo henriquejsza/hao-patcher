@@ -63,8 +63,23 @@ def load_reasons(path=REASONS):
     return reasons
 
 
+GENERIC_ONLY = 'generic image only'
+GENERIC_PRODUCT = 'iMac20,1'
+
+
+def is_generic(config):
+    """The generic model's config (opencore-generic): SMBIOS iMac20,1, created on firmware that has none."""
+    info = config.get('PlatformInfo', {})
+    return (info.get('Generic', {}).get('SystemProductName') == GENERIC_PRODUCT
+            and info.get('UpdateSMBIOSMode') == 'Create')
+
+
 def missing(config, reasons):
-    return [e for e in elements(config) if e not in reasons]
+    """Elements without a reason, and elements whose reason is the generic image's in a config that is not it
+    (VirtualSMC and the non-Apple-firmware quirks never reach a Mac's image)."""
+    generic = is_generic(config)
+    return [e for e in elements(config) if e not in reasons
+            or (reasons[e].startswith(GENERIC_ONLY) and not generic)]
 
 
 def provenance_problems(config, kexts, provenance):
@@ -106,7 +121,8 @@ def main():
         return 0
     lacking = missing(config, load_reasons(args.reasons))
     if lacking:
-        print('config-reasons: no recorded reason (patches/hao-opencore/src/config-reasons.json) for:', file=sys.stderr)
+        print('config-reasons: no recorded reason (patches/hao-opencore/src/config-reasons.json), or a generic-image-only'
+              ' element in a model image, for:', file=sys.stderr)
         print('\n'.join('  ' + e for e in lacking), file=sys.stderr)
         return 1
     if args.kexts:
