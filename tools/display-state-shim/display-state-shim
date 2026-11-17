@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import runpy
 import subprocess
 
 HERE = Path(__file__).resolve().parent
@@ -43,10 +44,10 @@ def build(output):
                'src/dss_shim.c', 'src/dss_convert.c', 'stubs/CoreDisplay.tbd']
     subprocess.run(command, cwd=HERE, check=True)
     subprocess.run(['codesign', '-s', '-', '-f', str(dylib)], check=True)
+    source = runpy.run_path(str(HERE.parents[1]/'pipeline'/'source_commit.py'))
     record = dict(unit=UNIT, revision=REVISION,
                   date=datetime.now(timezone.utc).isoformat(),
-                  commit=report('git', 'rev-parse', 'HEAD'),
-                  dirty=bool(report('git', 'status', '--porcelain')),
+                  commit=source['commit'](HERE.parents[1]), dirty=source['dirty'](HERE.parents[1]),
                   inputs=[dict(path=str(HERE / name), sha256=digest(HERE / name))
                           for name in (*INPUTS, 'display-state-shim')],
                   compiler=report('xcrun', 'clang', '--version'),

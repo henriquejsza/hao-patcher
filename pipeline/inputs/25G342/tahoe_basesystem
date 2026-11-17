@@ -1,0 +1,3 @@
+# Tahoe's x86_64 BaseSystem (the USB installer's Recovery), rebuilt by pipeline/unpack/donor-inputs from the 25G342
+# installer's basesystem patch and checked against Apple's BaseSystem.chunklist; the same bytes as donor-inputs/out's.
+a50b68cc5e3880a598dccc0dec09d2adc9ba00e2934acff85d8d380faf1b035b store/inputs/25G342/basesystem/BaseSystem-x86_64.dmg

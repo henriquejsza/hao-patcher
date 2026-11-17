@@ -4,7 +4,10 @@ Golden Gate merge needs, from any macOS installer, and report what is missing.
 
 Nothing here names a macOS build. REQ lists what the merge needs (paths, DriverKit cache families, the
 BaseSystem, a Preboot/Recovery layout); the build and version are read from the installer itself.
-INSTALLER is an InstallAssistant.pkg, read in place (inplace.py): no SharedSupport.dmg copy, no full unpack.
+INSTALLER is an InstallAssistant.pkg, read in place (inplace.py): no SharedSupport.dmg copy, no full unpack; a path,
+or an http(s) URL read by byte range with --pins (release.json's "installer_pins": the package TOC's sha256 and each
+asset zip member's size and sha256). With --pins, Apple's signature over the TOC is checked first, every member read
+is hashed while it streams and refused at its end if it differs, and an unpinned member is never read.
 
 OUT (new) receives:
   report.json / report.txt   every requirement: found or MISSING, required or optional, where it came from
@@ -143,7 +146,16 @@ def main():
                                             'take a donor root only where the target cannot supply it')
     ap.add_argument('--target-cache-images', help='file listing the target x86_64 shared cache image paths (one per line); '
                                                   'a root with no binaries on disk counts as supplied only if the cache has code under it')
+    ap.add_argument('--pins', help='JSON pins of the installer (toc_sha256, members); required for a URL')
+    ap.add_argument('--installer-sha256', help='the whole installer\'s sha256 as the release pins it (recorded as the '
+                                               'origin; needed when INSTALLER is a URL, which is never read whole)')
     a = ap.parse_args()
+    remote = a.installer.startswith(('http://', 'https://'))
+    if remote and not (a.pins and a.installer_sha256):
+        raise SystemExit('donor-inputs: a URL installer needs --pins and --installer-sha256')
+    pins, toc_pin = inplace.load_pins(a.pins)
+    if a.pins:
+        print('== signature', inplace.check_signature(a.installer, toc_pin), file=sys.stderr, flush=True)
     out = os.path.abspath(a.out); os.makedirs(out, exist_ok=False)
     req = json.load(open(a.requirements)); req_dir = os.path.dirname(os.path.abspath(a.requirements))
     steps, report = Steps(), []
@@ -151,7 +163,7 @@ def main():
         report.append(dict(kind=kind, item=item, status='found' if found else 'MISSING', required=required, detail=detail))
 
     t0 = datetime.datetime.now(datetime.timezone.utc)
-    zname, z = inplace.open_zip(a.installer); members = set(z.namelist())
+    zname, z = inplace.open_zip(a.installer, toc_pin); members = set(z.namelist())
     rules = layout_rules(os.path.join(req_dir, req['boot_layout']))
     optional = set(req.get('optional_roots', []))
     sys.path.insert(0, os.path.join(HERE, '../../tools/tahoe-donors'))
@@ -169,7 +181,7 @@ def main():
     # A hard-link alias has no data of its own in the payload: also take the master file of every alias needed.
     def under(p, paths): return any(p == r or p.startswith(r.rstrip('/') + '/') for r in paths)
     master = None
-    with z.open(PV2 + 'links.txt') as s:
+    with pins.open(z, PV2 + 'links.txt') as s:
         for l in s.read().decode('utf-8', 'surrogateescape').splitlines():
             if l.startswith('='):
                 master = l[1:]
@@ -180,7 +192,8 @@ def main():
         f.write(''.join(p + '\n' for p in include))
 
     # System payload: only entries under the needed paths
-    steps.run('payload-subset', PY + [os.path.join(HERE, 'inplace.py'), 'payload', a.installer,
+    steps.run('payload-subset', PY + [os.path.join(HERE, 'inplace.py')] + (['--pins', a.pins] if a.pins else []) + [
+                                      'payload', a.installer,
                                       os.path.join(out, 'include-paths.txt'), os.path.join(out, 'payload.aa')])
     steps.run('aa-extract', ['/usr/bin/aa', 'extract', '-exclude-field', 'uid,gid,flg', '-i',
                              os.path.join(out, 'payload.aa'), '-d', os.path.join(out, 'tree')])
@@ -200,7 +213,7 @@ def main():
     def take(member):
         dst = os.path.join(zdir, member); os.makedirs(os.path.dirname(dst), exist_ok=True)
         if not os.path.exists(dst):
-            with z.open(member) as s, open(dst, 'xb') as o:
+            with pins.open(z, member) as s, open(dst, 'xb') as o:
                 shutil.copyfileobj(s, o, 16 << 20)
         return dst
     for m in (PV2 + 'links.txt', PV2 + 'firmlinks_payload', PV2 + 'fixup.manifest', 'AssetData/boot/BuildManifest.plist'):
@@ -209,7 +222,7 @@ def main():
             take(m)
     if PV2 + 'fixup.manifest' not in members:
         raise SystemExit('the installer has no System metadata (fixup.manifest); cannot continue')
-    with z.open(PV2 + 'fixup.manifest') as s, open(os.path.join(out, 'fixup.yaa'), 'xb') as o:
+    with pins.open(z, PV2 + 'fixup.manifest') as s, open(os.path.join(out, 'fixup.yaa'), 'xb') as o:
         o.write(inplace.pbzx_bytes(s))
 
     inc = tuple(p.rstrip('/') for p in include)
@@ -237,7 +250,7 @@ def main():
              'full-replacement patch ' + bpatch if have else 'no %s BaseSystem patch in this installer' % arch)
         if have:
             p = os.path.join(work, 'basesystem.patch')
-            with z.open(bpatch) as s, open(p, 'xb') as f:
+            with pins.open(z, bpatch) as s, open(p, 'xb') as f:
                 shutil.copyfileobj(s, f, 16 << 20)
             dmg = os.path.join(o, 'BaseSystem-%s.dmg' % arch)
             steps.run('bx50-basesystem', PY + [os.path.join(HERE, 'bx50full.py'), p, dmg]); os.remove(p)
@@ -256,10 +269,12 @@ def main():
         osc = req.get('os_cache'); os_found = {}; os_dst = os.path.join(o, 'os-cache')
         if osc:
             os.makedirs(os_dst)
-        for member in sorted(m for m in members if re.fullmatch(re.escape(PV2) + r'image_patches/cryptex-system-[^/]+', m)):
+        # the cryptex of the build's own architecture first: when it has every family, no other one is read
+        for member in sorted((m for m in members if re.fullmatch(re.escape(PV2) + r'image_patches/cryptex-system-[^/]+', m)),
+                             key=lambda m: (not m.endswith('-' + arch), m)):
             label = member.rsplit('/', 1)[1]
             p = os.path.join(work, label + '.patch'); img = os.path.join(work, label + '.img'); mnt = os.path.join(work, 'mnt')
-            with z.open(member) as s, open(p, 'xb') as f:
+            with pins.open(z, member) as s, open(p, 'xb') as f:
                 shutil.copyfileobj(s, f, 16 << 20)
             steps.run('ripatch-' + label, [ripatch, '-', img, p], stderr=subprocess.DEVNULL); os.remove(p)
             os.makedirs(mnt)
@@ -320,7 +335,7 @@ def main():
             hits = sorted(m for m in members if fnmatch.fnmatchcase(m, src[4:]))
             if dest.endswith('/'):
                 pairs = [(dest + os.path.basename(m), 'zip/' + m) for m in hits]
-            elif len(hits) > 1 and len({hashlib.sha256(z.read(m)).hexdigest() for m in hits}) > 1:
+            elif len(hits) > 1 and len({hashlib.sha256(pins.read(z, m)).hexdigest() for m in hits}) > 1:
                 note('boot layout', '%s: %s <- %s' % (vol, dest, src), False, required,
                      'ambiguous: %d different files match' % len(hits))
                 continue
@@ -414,7 +429,8 @@ def main():
                     choices.append((r, 'target', 'target has every donor file (no binaries)'))
         req = dict(req, system_roots=donor_roots,
                    legacy_framework_base_roots=[r for r in req['legacy_framework_base_roots'] if r in donor_roots])
-    recipe = dict(req, origin=dict(build=build, version=version, installer_sha256=sha(a.installer),
+    recipe = dict(req, origin=dict(build=build, version=version,
+                                   installer_sha256=a.installer_sha256 or sha(a.installer),
                                    declaration='detected from the installer by pipeline/unpack/donor-inputs'))
     if 'owner_uid' in req['driverkit']:
         recipe['driverkit_owner_uid'] = req['driverkit']['owner_uid']
@@ -429,8 +445,10 @@ def main():
         if os.path.relpath(root, out).split(os.sep)[0] != 'tree':
             for fn in files:
                 p = os.path.join(root, fn); outputs[os.path.relpath(p, out)] = sha(p)
-    json.dump(dict(tool='pipeline/unpack/donor-inputs', date=t0.isoformat(), installer=os.path.abspath(a.installer),
-                   asset_zip=zname, build=build, version=version, kdk=kdk, requirements=os.path.abspath(a.requirements),
+    json.dump(dict(tool='pipeline/unpack/donor-inputs', date=t0.isoformat(),
+                   installer=a.installer if remote else os.path.abspath(a.installer), pinned=bool(a.pins),
+                   asset_zip=zname, build=build, version=version, kdk=kdk,
+                   members_read=sorted(pins.used | set(inplace.payload_members(z))), requirements=os.path.abspath(a.requirements),
                    requirements_sha256=sha(a.requirements), steps=steps, report=report, outputs=outputs,
                    root_choices=[dict(root=r, source=src, reason=why) for r, src, why in choices]),
               open(os.path.join(out, 'report.json'), 'w'), indent=1)

@@ -625,7 +625,7 @@ def cmd_fetch(a, c):
     c.banner('hao fetch  %d files pinned by %s (%d downloads, %d assets)' % (
         len(rows), a.release, kinds.count('download'), kinds.count('asset')), release=a.release, cache=str(a.cache))
     if a.verify:
-        bad = [r['name'] for r in rows if not acquire['intact'](a.cache, r)]
+        bad = [r['name'] for r in rows if not r.get('stream') and not acquire['intact'](a.cache, r)]
         for r in rows:
             c.item('%-8s %-44s %s' % (r['kind'], r['name'], 'missing or damaged' if r['name'] in bad else 'sha256'),
                    ok=r['name'] not in bad, ev='file.verify', name=r['name'], kind=r['kind'],
@@ -643,6 +643,8 @@ def cmd_fetch(a, c):
         c.event('fetch.' + k, **{x: y for x, y in ev.items() if x != 'ev'})
         if k in ('ok', 'reused'):
             c.item('%-44s %s' % (ev['name'], 'reused' if k == 'reused' else 'sha256'), ok=True)
+        elif k == 'streamed':
+            c.item('%-44s %s' % (ev['name'], 'read by range when the rows are made'), ok=True)
         elif k == 'mirror-failed':
             c.item('%-44s %s: %s' % (ev['name'], ev['url'], ev['error']), 'files')
     try:
@@ -785,6 +787,8 @@ def main():
     q.set_defaults(fn=guarded(lambda a, c: BUILD.build_disk(a, c, MAC.SystemHost(), run=c.run), log='build-disk'))
     q = sub.add_parser('create-installer'); builder_args(q)
     q.add_argument('--minimum-bytes', type=int, help='the smallest USB drive accepted, in bytes (default %d)' % INST.MINIMUM_BYTES)
+    q.add_argument('--plan', action='store_true', help='print the disk space each stage needs (this Mac, the USB '
+                   'drive) and stop; the same check runs before anything is written')
     q.add_argument('--release', help='the release.json to download from (default: beside hao)')
     q.add_argument('--cache', type=Path, default=CACHE, help='where downloads are kept (default %s)' % CACHE)
     q.add_argument('--kit', help='(developers) a staged kit to put on the USB drive (default: staged now)')

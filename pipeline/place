@@ -118,7 +118,7 @@ def check_or_wait(folders, folder, name, dest, waiting, problems):
 def place(release_path, cache, dry_run=False, out=print):
     release = json.loads(Path(release_path).read_text())
     folders = lock_folders(release)
-    placed, kept, problems, waiting = [], [], [], []
+    placed, kept, problems, waiting, streamed = [], [], [], [], []
     entries = [(d, 'file') for d in release.get('downloads', [])] + \
               [(a, a.get('format', 'file')) for a in release.get('assets', [])]
     for entry, form in entries:
@@ -128,6 +128,9 @@ def place(release_path, cache, dry_run=False, out=print):
             problems.append('%s: no input row of that name' % name)
             continue
         folder, want, dest = found
+        if entry.get('stream'):
+            streamed.append(name)              # read by range by its producers (make-on-mac), never placed
+            continue
         src = Path(cache) / 'sha256' / entry['sha256']
         if not src.is_file():
             problems.append('%s: not fetched (%s missing; run hao fetch)' % (name, src))
@@ -155,8 +158,9 @@ def place(release_path, cache, dry_run=False, out=print):
     made = [m['row'] for m in release.get('made_on_mac', [])]
     harvested = [h if isinstance(h, str) else h.get('row') for h in release.get('harvested', [])]
     missing = [r for r in made + harvested if find_row(folders, r) is None or not find_row(folders, r)[2].exists()]
-    out('placed %d, already there %d, waiting for made-on-Mac files %d, problems %d'
-        % (len(placed), len(kept), len(waiting), len(problems)))
+    out('placed %d, already there %d, waiting for made-on-Mac files %d, problems %d%s'
+        % (len(placed), len(kept), len(waiting), len(problems),
+           ', read by range when made: ' + ' '.join(streamed) if streamed else ''))
     for w in waiting:
         out('  ~ ' + w)
     for p in problems:

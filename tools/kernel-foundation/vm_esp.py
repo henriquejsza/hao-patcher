@@ -10,7 +10,6 @@ import json
 from pathlib import Path
 import plistlib
 import shutil
-import subprocess
 import tarfile
 import tempfile
 import runpy
@@ -112,10 +111,10 @@ def main():
         donor_config = plistlib.loads((artifact/'EFI/OC/config.plist').read_bytes())
         config['Kernel']['Patch'].extend(donor_config['Kernel']['Patch'])
     (out/'EFI/OC/config.plist').write_bytes(plistlib.dumps(config))
+    source = runpy.run_path(str(HERE.parents[1]/'pipeline'/'source_commit.py'))
     record = dict(unit='tools/kernel-foundation', revision=runpy.run_path(str(Path(__file__).resolve().parent / 'make'))['REVISION'], operation='vm-esp',
         date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        commit=subprocess.check_output(['git', '-C', str(here), 'rev-parse', 'HEAD'], text=True).strip(),
-        dirty=bool(subprocess.check_output(['git', '-C', str(here), 'status', '--porcelain'], text=True)),
+        commit=source['commit'](ROOT), dirty=source['dirty'](ROOT),
         inputs=dict(reference=str(args.reference.resolve()), reference_files=hashes(args.reference/'EFI'),
             donor_esp=str(args.donor_esp.resolve()),
             donor_sha256=hashlib.sha256(args.donor_esp.read_bytes()).hexdigest(),

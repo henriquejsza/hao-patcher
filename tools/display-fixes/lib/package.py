@@ -11,6 +11,7 @@ import plistlib
 import re
 import shutil
 import stat
+import runpy
 import subprocess
 import tempfile
 import unittest
@@ -46,13 +47,23 @@ def identity(path):
     return dict(path=str(path.resolve()), sha256=sha(path))
 
 
+def source_files():
+    """The files under SOURCES that git does not ignore; in a release archive (no .git), every file under them."""
+    if (REPO / '.git').exists():
+        names = run('git', '-C', REPO, 'ls-files', '--cached', '--others', '--exclude-standard', '-z', '--',
+                    *SOURCES).split('\0')
+    else:
+        names = [str(path.relative_to(REPO)) for top in SOURCES for path in sorted((REPO / top).rglob('*'))
+                 if '__pycache__' not in path.parts]
+    return {name: sha(REPO / name) for name in names if name and (REPO / name).is_file()}
+
+
 def record(operation, inputs, output):
+    source = runpy.run_path(str(REPO / 'pipeline' / 'source_commit.py'))
     value = dict(package='tools/display-fixes', operation=operation,
-                 commit=run('git', '-C', ROOT, 'rev-parse', 'HEAD'),
-                 dirty=bool(run('git', '-C', ROOT, 'status', '--porcelain')),
+                 commit=source['commit'](REPO), dirty=source['dirty'](REPO),
                  date=datetime.now(timezone.utc).isoformat(), inputs=inputs,
-                 sources={name: sha(REPO / name) for name in run('git', '-C', REPO, 'ls-files',
-                          '--cached', '--others', '--exclude-standard', '-z', '--', *SOURCES).split('\0') if name and (REPO / name).is_file()},
+                 sources=source_files(),
                  outputs={str(path.relative_to(output)): sha(path) for path in output.rglob('*')
                           if path.is_file() and path.name != 'build.json'})
     (output / 'build.json').write_text(json.dumps(value, indent=2) + '\n')

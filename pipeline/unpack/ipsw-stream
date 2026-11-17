@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""ipsw-stream: make golden_gate_userspace's payload by streaming only the IPSW members it needs, from a file or a URL.
+
+  ipsw-stream --ipsw PATH|URL --board BOARD --out DIR [--pins FILE | --trust-local] [--ipsw-tool TOOL]
+
+The same payload as patches/golden-gate-userspace/build/make (filesystem, os, app and rosetta .dmg plus
+identity.plist, byte for byte; tests/test_ipsw_stream.py and the 1440 run on the real IPSW show it), without the
+download: the IPSW's zip members are read by byte range, an .aea member is decrypted while it streams (its key from
+`ipsw fw aea -k` on the member's first bytes, then /usr/bin/aea decrypt, which authenticates every segment), and no
+.aea is kept. DIR may be on the USB drive.
+
+Integrity, fail closed: --pins FILE (release.json's "ipsw_pins": {"members": {NAME: {size, sha256}}, "images":
+{ROLE: {size, sha256}}}) pins each member read (hashed while it streams, checked at its end) and each image written;
+a member not pinned is not read. On any mismatch or error the image being written is deleted and nothing is left in
+DIR/payload that did not check. --trust-local reads a local IPSW without pins (a maintainer's own copy).
+"""
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import plistlib
+import runpy
+import subprocess
+import sys
+import tempfile
+import threading
+import zipfile
+
+HERE = Path(__file__).resolve().parent
+TOP = HERE.parents[1]
+sys.path.insert(0, str(HERE))
+import ranged  # noqa: E402
+
+UNIT = 'pipeline/unpack/ipsw-stream'
+REVISION = 1
+KEY_PREFIX = 4 << 20          # an AEA's prologue (auth data with the key's URL) is in its first bytes
+MAKE = runpy.run_path(str(TOP / 'patches/golden-gate-userspace/build/make'))   # one identity choice, one tool check
+ROLES = MAKE['ROLES']
+
+
+class Refused(Exception):
+    pass
+
+
+def tee(src, proc_in, err):
+    try:
+        for b in iter(lambda: src.read(8 << 20), b''):
+            proc_in.write(b)
+    except BaseException as x:       # a PinError or a read error: the decrypt is stopped by closing its input early
+        err.append(x)
+    finally:
+        try:
+            proc_in.close()
+        except OSError:
+            pass
+
+
+def write_image(stream, dest, pin, role):
+    """Copy STREAM to DEST, hashing; DEST is removed unless its size and sha256 equal PIN (when given)."""
+    h, n = hashlib.sha256(), 0
+    try:
+        with open(dest, 'xb') as o:
+            for b in iter(lambda: stream.read(8 << 20), b''):
+                o.write(b); h.update(b); n += len(b)
+        if pin is not None and (n != pin['size'] or h.hexdigest() != pin['sha256']):
+            raise ranged.PinError('image %s: got %d bytes, sha256 %s; pinned %d, %s' % (
+                role, n, h.hexdigest(), pin['size'], pin['sha256']))
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
+    return dict(sha256=h.hexdigest(), size=n)
+
+
+def decrypt(tool, z, pins, member, dest, pin, role, scratch):
+    with pins.open(z, member) as s:            # the prologue is read unpinned only to ask for the key; the decrypt
+        head = z.open(member).read(KEY_PREFIX)  # below reads (and pins) every byte, and aea authenticates them
+        prefix = Path(scratch) / ('%s.prefix.aea' % role)
+        prefix.write_bytes(head)
+        r = subprocess.run([tool, 'fw', 'aea', '-k', str(prefix)], capture_output=True, text=True)
+        prefix.unlink()
+        key = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else ''
+        if not key.startswith('base64:'):
+            raise Refused('no decryption key for %s: %s' % (member, (r.stderr or r.stdout).strip()[:300]))
+        p = subprocess.Popen(['/usr/bin/aea', 'decrypt', '-key-value', key], stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        err = []
+        t = threading.Thread(target=tee, args=(s, p.stdin, err), daemon=True)
+        t.start()
+        try:
+            rec = write_image(p.stdout, dest, pin, role)
+        finally:
+            t.join()
+            p.stdout.close()
+            rc = p.wait()
+            msg = p.stderr.read().decode(errors='replace').strip()
+        if err or rc:
+            dest.unlink(missing_ok=True)
+            if err:
+                raise err[0]
+            raise Refused('aea decrypt %s failed (%d): %s' % (member, rc, msg[:300]))
+        return rec
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('--ipsw', required=True, help='the IPSW: a path or an http(s) URL')
+    ap.add_argument('--board', required=True)
+    ap.add_argument('--out', type=Path, required=True)
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument('--pins', type=Path, help='JSON: {"members": {...}, "images": {...}} (release.json ipsw_pins)')
+    g.add_argument('--trust-local', action='store_true', help='a local IPSW, read without pins')
+    ap.add_argument('--ipsw-tool', type=Path, help='ipsw %s: its release archive or the program' % MAKE['IPSW_VERSION'])
+    a = ap.parse_args()
+    if a.trust_local and a.ipsw.startswith(('http://', 'https://')):
+        raise SystemExit('ipsw-stream: a URL is read only with --pins')
+    pin_doc = json.loads(a.pins.read_text()) if a.pins else {}
+    pins = ranged.Pins(pin_doc.get('members') if a.pins else None, 'IPSW member')
+    image_pins = pin_doc.get('images', {}) if a.pins else {}
+    a.out.mkdir(mode=0o755, parents=True)
+    payload = a.out / 'payload'
+    payload.mkdir(mode=0o755)
+    scratch = Path(tempfile.mkdtemp(prefix='ipsw-stream-'))
+    sys.path.insert(0, str(TOP / 'pipeline'))
+    import source_commit
+    tool, tool_version = MAKE['ipsw_tool'](a.ipsw_tool, TOP, scratch / 'ipsw-tool')
+    src = ranged.open_source(a.ipsw)
+    record = dict(unit=UNIT, revision=REVISION, date=datetime.now(timezone.utc).isoformat(),
+                  commit=source_commit.commit(TOP), dirty=source_commit.dirty(TOP), ipsw=a.ipsw, board=a.board,
+                  pinned=bool(a.pins), dependencies={'ipsw': tool_version}, components={}, status='building')
+
+    def save():
+        (a.out / 'build.json').write_text(json.dumps(record, indent=2) + '\n')
+
+    save()
+    try:
+        z = zipfile.ZipFile(src.reader())
+        raw = pins.read(z, 'BuildManifest.plist')
+        manifest = plistlib.loads(raw)
+        identity = MAKE['select_identity'](manifest, a.board)
+        record['build'], record['version'] = manifest['ProductBuildVersion'], manifest['ProductVersion']
+        (payload / 'identity.plist').write_bytes(plistlib.dumps(identity))
+        for role, key in ROLES.items():
+            name = identity['Manifest'][key]['Info']['Path']
+            dest = payload / ('%s.dmg' % role)
+            print('Streaming %s: %s' % (role, name), flush=True)
+            pin = image_pins.get(role)
+            if a.pins and pin is None:
+                raise ranged.PinError('image %s is not pinned by the release' % role)
+            if name.endswith('.aea'):
+                rec = decrypt(tool, z, pins, name, dest, pin, role, scratch)
+            else:
+                with pins.open(z, name) as s:
+                    rec = write_image(s, dest, pin, role)
+            record['components'][role] = dict(member=name, **rec)
+            record['fetched_bytes'] = src.fetched
+            save()
+        meta = {k: record[k] for k in ('unit', 'revision', 'commit', 'build', 'version', 'board', 'components')}
+        meta['ipsw_sha256'] = (pin_doc.get('ipsw_sha256') if a.pins else None)
+        meta['source'] = 'streamed members (%s)' % ('pinned' if a.pins else 'local, unpinned')
+        (payload / 'userspace.json').write_text(json.dumps(meta, indent=2) + '\n')
+        record['status'] = 'complete'
+        print('Userspace images ready: %s (%.1f GB read from the IPSW)' % (payload, src.fetched / 1e9), flush=True)
+    except (ranged.PinError, Refused, OSError, ValueError, KeyError, zipfile.BadZipFile) as x:
+        record['status'], record['error'] = 'failed', str(x)
+        for f in payload.iterdir():           # fail closed: nothing that did not check is left
+            f.unlink()
+        save()
+        raise SystemExit('ipsw-stream: %s' % x)
+    finally:
+        save()
+        subprocess.run(['rm', '-rf', str(scratch)])
+
+
+if __name__ == '__main__':
+    main()
