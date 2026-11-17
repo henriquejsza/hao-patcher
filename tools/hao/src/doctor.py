@@ -287,6 +287,9 @@ def check_hao_mirror(release, p, offline, env=None, opener=None, release_path=No
         return [check('apple-mirror', 'fail', 'mirror %s: index.json unreadable (%s)' % (
             SAFE.text(url), SAFE.text(str(getattr(x, 'reason', x)))[:80]))]
     needs = mirror_needs(release, release_path) if needs is None else needs
+    if not needs:
+        return [check('apple-mirror', 'warn', 'mirror %s: reachable, %d files; no release inputs to compare with (no '
+                      'verified release.json beside hao)' % (SAFE.text(url), len(index)))]
     held = [n for n in needs if isinstance(index.get(n[0]), dict) and index[n[0]].get('size') == n[1]]
     missing = [n[3] for n in needs if n not in held]
     detail = 'mirror %s: reachable, %d of %d release inputs held' % (SAFE.text(url), len(held), len(needs))

@@ -169,6 +169,12 @@ class AppleMirror(unittest.TestCase):
         self.assertEqual(r[0]['state'], 'warn')
         self.assertIn('0 of 2 release inputs held; missing: a.dmg, b.pkg', r[0]['detail'])
 
+    def test_no_release_to_compare_with(self):
+        r = D.check_hao_mirror(None, {'head_timeout_s': 1}, False, env={'HAO_MIRROR': 'http://m'}, needs=[],
+                               opener=self.opener(index={'a' * 64: {'size': 1}}))
+        self.assertEqual(r[0]['state'], 'warn')
+        self.assertIn('reachable, 1 files; no release inputs to compare with', r[0]['detail'])
+
     def test_unreachable_or_not_ok_fails(self):
         self.assertEqual(self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(health=None))[0]['state'], 'fail')
         self.assertEqual(self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(health=b'nope'))[0]['state'], 'fail')
