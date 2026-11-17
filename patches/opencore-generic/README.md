@@ -16,6 +16,7 @@ OVMF, the base of `tools/kernel-foundation vm_esp.py`) it takes:
 | Serial, MLB, system UUID, ROM: generated per image | Made the first time the recipe runs, kept after. Random, not Apple-issued: Apple services that check them (iMessage, FaceTime) need the user's own valid values. |
 | VirtualSMC.kext (Acidanthera 1.3.8), right after Lilu | macOS needs an SMC; non-Apple firmware has none. Byte-identical to the release (hao-opencore `src/kext-provenance.json`). |
 | Lilu.kext replaced by OCLP's 1.7.2 RELEASE payload | The reference carries another Lilu build; hao-opencore's provenance check accepts only the pinned bytes, and both images then load the same Lilu. VirtualSMC from the reference already equals its pin (Acidanthera 1.3.8). |
+| `-crypt_force_avx` in boot-args | CryptexFixup does nothing on a CPU with AVX2 (Haswell and newer, AMD Ryzen) unless it is set (CryptexFixup's README; 1.0.5's code at 0x187d-0x1973), and most VMs and PCs this pack is for have AVX2; without CryptexFixup's patch the OS cryptex does not graft. A CPU without AVX2 never reads it. Generic image only: the 9,2's boot-args are unchanged. |
 | CryptexFixup.kext (Acidanthera 1.0.5), right after Lilu | Without it APFS requires the root hash of the image's modified OS cryptex, the graft fails (graftdmg 80) and the boot stops before userspace (QEMU, 2026-11-17: the 9,2 config without it failed there, with it passed). Taken from OCLP's RELEASE payload in the row `oclp_source`, byte-identical to hao-opencore's pinned copy. |
 | The reference's Booter, Kernel and UEFI quirks | What non-Apple firmware needs: runtime-services memory map, KASLR slide, write protection, Apple EFI image loading, CFG Lock, VT-d tables, power-state timeouts, CPU info on a hypervisor. Each one's reason is in hao-opencore's `src/config-reasons.json`, marked "generic image only". |
 
@@ -36,6 +37,7 @@ a config that isn't this one (SMBIOS iMac20,1, created).
 NEEDS VALIDATION: host tests only; no generic image is built or booted yet.
 
 ## Revisions
+- r4 2026-11-17 boot-args gets `-crypt_force_avx`: CryptexFixup is inert on AVX2 CPUs without it, and most machines this pack is for have AVX2.
 - r3 2026-11-17 Lilu is OCLP's pinned 1.7.2 RELEASE (from row oclp_source), not the reference's build: the provenance check refused the reference's.
 - r2 2026-11-17 Adds CryptexFixup (from OCLP's payload in row oclp_source, the pinned bytes): the modified OS cryptex does not graft without it.
 - r1 2026-11-17 New (GEN1): SMBIOS iMac20,1 with a per-image identity, VirtualSMC, and the QEMU reference's firmware quirks, for VMs and non-Apple PCs.
