@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-49 of 49 patches declare their files so far.
+50 of 50 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -491,6 +491,14 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-windowserver-fil
   1. `load-windowserver-filter`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/windowserver_filter.dylib.
      WindowServer's launcher has no free load-command room, so the display-state shim it already loads depends on the filter adapter library; a required load, so the adapters (Siri filter inversion, backdrop clipping) come up with the display-state shim.
 - `usr/lib/windowserver_filter.dylib`: whole file from hao (row windowserver_filter_shim). New file: the Siri-filter inversion and backdrop-clip adapters (src/filter_shim.c, built by make). Installed mode 0755, owner root:wheel, flags restricted.
+
+## hao-command
+
+Revision r4, status experiment. [Recipe](../patches/hao-command/README.md)
+
+- `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython.
+- `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
+- `usr/local/lib/hao/hao`: whole file from every file under it from hao. Tools/hao from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh.
 
 ## hao-opencore
 

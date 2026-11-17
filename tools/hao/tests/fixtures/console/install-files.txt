@@ -14,9 +14,9 @@
     base                   golden-gate-userspace ████████████████████ 4/4 files  ✓
     metal-3802             golden-gate-hello                  ✓
     other fixes            golden-gate-store                  ✓
-  base                   1 recipe                             ✓
-  metal-3802             1 recipe                             ✓
-  other fixes            1 recipe                             ✓
+  base                    1 recipe                            ✓
+  metal-3802              1 recipe                            ✓
+  other fixes             1 recipe                            ✓
 [6/7] Seal
   update Preboot, bless, take the system snapshot             ✓
 [7/7] Make it bootable

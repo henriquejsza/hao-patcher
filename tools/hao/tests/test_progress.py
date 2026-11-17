@@ -356,10 +356,19 @@ class Edits(unittest.TestCase):
         c = CON.Console('edits', out=out, env={})
         PROG.show_edits(c, 'golden-gate-hello')
         text = out.getvalue()
-        for part in ('System/Library/Frameworks/Metal.framework/Versions/A/Metal', 'origin   OCLP', 'edit 1/3',
-                     'hello-not-skipped', 'bytes  B0 01', '→   B0 00', 'asm    mov al,1  →  mov al,0', 'why    ',
-                     'sign     ad hoc, once'):
+        for part in ('golden-gate-hello', 'System/Library/Frameworks/Metal.framework/Versions/A/Metal', 'origin  OCLP',
+                     'edit 1/3', 'hello-not-skipped', 'bytes  B0 01', '→   B0 00', 'asm    mov al,1  →  mov al,0', 'why    ',
+                     'sign    ad hoc, once'):
             self.assertIn(part, text)
+
+    def test_a_tree_on_a_rich_terminal(self):
+        out = Tty()
+        c = CON.Console('edits', out=out, env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark'})
+        PROG.show_edits(c, 'golden-gate-hello', pack='metal-3802')
+        text = CON.plain(out.getvalue())
+        self.assertIn('golden-gate-hello  metal-3802', text)
+        self.assertIn('└── ', text)                                     # Rich's tree guides
+        self.assertIn('hello-not-skipped', text)
 
     def test_not_shown_below_the_edits_level(self):
         out = Pipe()
@@ -368,6 +377,19 @@ class Edits(unittest.TestCase):
 
 
 class Live(unittest.TestCase):
+    def test_bars_fit_80_columns(self):
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c.width = lambda: 80
+        t = c.task('  copy Recovery files', total=1500 * 10 ** 6, unit='bytes')
+        t.update(done=10 ** 9)
+        self.assertLessEqual(len(CON.plain(t.render())), 80)
+        q = c.task('Installing macOS 27', 'quiet', total=1000, unit='%')
+        q.width, q.bar_at = 30, 0
+        q.update(done=500)
+        self.assertIn('█' * 15, CON.plain(q.render()))                 # the --quiet bar keeps its 30 cells
+        q.drop()
+        t.drop()
+
     def test_heartbeat_without_a_terminal(self):
         now = [0.0]
         out = Pipe()

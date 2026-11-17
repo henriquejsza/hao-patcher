@@ -36,16 +36,16 @@
   hao build-disk /dev/diskN (--model M | --profile F) [--kit KIT] [--work DIR] [--local DIR] [--dry-run]
         [--confirm diskN]   (sudo; an external SSD) stage the kit (or take KIT) and build macOS 27 onto the disk
   hao install /dev/diskN --kit KIT [--profile F] [--local DIR] [--dry-run] [--confirm ERASE]
-        (on the target, from the installer's Recovery) build macOS 27 from the stick's kit onto this Mac's disk
+        (on the target, from the installer's Recovery) build macOS 27 from the USB installer's kit onto this Mac's disk
         Both need root, SIP's filesystem protection off and AMFI relaxed, as the installer's Recovery starts; on a
         Mac's everyday macOS they stop before writing. LOCAL (default WORK/local) holds the assembly's copies and
         logs and must not be on the disk being erased.
-  hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; USB stick)
+  hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; a USB drive)
         [--kit DIR] [--basesystem DMG] [--opencore ESP.tar] [--image FILE [--image-size BYTES]]
-        asks which Mac (a proven model by default, this Mac, or a profile file) and which external disk is the stick,
+        asks which Mac (a proven model by default, this Mac, or a profile file) and which external disk is the USB drive,
         and for the disk's name typed; then downloads what release.json (beside hao) pins (nothing with --kit),
-        prepares the packs and the kit, and writes the stick: OpenCore + the Recovery on HAOBOOT, hao + the kit on
-        HAO (run /Volumes/HAO/install in the stick's Recovery). Not built yet: the kit made from the downloads, so
+        prepares the packs and the kit, and writes the USB installer: OpenCore + the Recovery on HAOBOOT, hao + the kit on
+        HAO (run /Volumes/HAO/install in its Recovery). Not built yet: the kit made from the downloads, so
         without --kit it stages one from this checkout's store. --dry-run asks and shows the plan, nothing more.
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
         its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
@@ -85,6 +85,9 @@ import installer as INST  # noqa: E402
 import report as REP     # noqa: E402
 import progress as PROG  # noqa: E402
 import frontdoor as FD   # noqa: E402
+import status as STATUS  # noqa: E402
+import run as RUN        # noqa: E402
+import aot as AOT        # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -275,6 +278,8 @@ def guarded(fn, log=None):
             finish_line(c, log)
             if log in ('install', 'build-disk'):
                 c.column = 78                 # the mockups' install layout: P(text, 76) after the indent
+                if c.rich:
+                    c.hide = ('Disk   ',)     # the Erase panel names the disk
             elif log == 'create-installer':
                 c.column, c.gap = 60, True    # P(text, 58), a blank line between steps
                 c.hide = ('hao makes a USB installer',)   # the backend's intro: the mockups open with the header
@@ -307,13 +312,7 @@ def guarded(fn, log=None):
     return run
 
 
-def dev_label(described):
-    """"dev 73b28ae2" (and "+" when the checkout has changes) from git describe's "v0.1.0-alpha.1-78-g73b28ae2e743"."""
-    if not described:
-        return None
-    import re
-    m = re.search(r'(?:^|-g)([0-9a-f]{7,})(-dirty)?$', described)
-    return 'dev %s%s' % (m.group(1)[:8], '+' if m.group(2) else '') if m else 'dev ' + described
+dev_label = FD.dev_label
 
 
 def hook_backends(a, c, build=BUILD, inst=INST):
@@ -361,7 +360,46 @@ def hook_backends(a, c, build=BUILD, inst=INST):
             raise
         live[0].drop()
         return out
+    choose = getattr(inst, 'choose', None)
+    choose = getattr(choose, 'original', choose)
+
+    def choose_hook(c2, key, question, choices, default=1):
+        """A choice as a numbered table on a Rich terminal; the same answers, retries and stop as installer.choose."""
+        if not c2.rich:
+            return choose(c2, key, question, choices, default)
+        from rich import box
+        from rich.table import Table
+        from rich.text import Text
+        numbered = [(label, value) for label, value in choices if value is not None]
+        c2.event('question', key=key, question=question, choices=[label for label, _ in choices])
+        c2.close()
+        t = Table(title=question, title_justify='left', title_style='bold', box=box.ROUNDED, show_header=False,
+                  border_style=c2.style('dim'), padding=(0, 1))
+        t.add_column(justify='right', style=c2.style('bar'), no_wrap=True)
+        t.add_column()
+        n = 0
+        for label, value in choices:
+            if value is None:
+                t.add_row('', Text(label, style=c2.style('dim')))
+            else:
+                n += 1
+                t.add_row(str(n), Text(label, style='bold' if n == default else ''))
+        c2.block(t)
+        for _ in range(3):
+            text = inst._answer(c2, 'Choice [%d]: ' % default if default else 'Choice: ')
+            if not text and default:
+                text = str(default)
+            if text.isdigit() and 1 <= int(text) <= len(numbered):
+                label, value = numbered[int(text) - 1]
+                c2.event('answer', key=key, choice=int(text), label=label)
+                return value
+            c2.print('Type a number from 1 to %d.' % len(numbered), 'quiet')
+        raise CON.Stopped('no choice made', untouched='nothing was downloaded or written',
+                          options=['run it again and type one of the numbers shown'])
     hooks = [(resolve_hook, resolve), (show_steps_hook, show_steps), (prepare_kit_hook, prepare_kit)]
+    if choose is not None:
+        hooks.append((choose_hook, choose))
+        inst.choose = choose_hook
     if write is not None:
         hooks.append((write_hook, write))
         stick.write = write_hook
@@ -371,6 +409,45 @@ def hook_backends(a, c, build=BUILD, inst=INST):
 
 
 def header(c, command, profile, asm):
+    """The header: a panel on a Rich terminal (header_panel), else the mockups' lines (header_lines)."""
+    if c.rich and c.at('steps'):
+        return header_panel(c, command, profile, asm)
+    return header_lines(c, command, profile, asm)
+
+
+def header_panel(c, command, profile, asm):
+    """The program, release and build as the panel's title; this Mac (or the target and the host) and the packs."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+    proven = profile.get('proven_model')
+    title = {'install': 'hao installer', 'build-disk': 'hao installer'}.get(command, 'hao-builder')
+    short = lambda n: (n or '').replace('Graphics ', '').split(' (')[0]
+    gpu = ', '.join(short(d.get('name') or d.get('device')) for d in profile.get('gpu', [])) or \
+        short(profile.get('gpu_name'))
+    check = ('proven model ' + c.ok) if proven else c.paint('warn', 'not proven on this model')
+    grid = Table.grid(padding=(0, 3))
+    grid.add_column(style=c.style('dim'), no_wrap=True)
+    grid.add_column()
+    if command in ('install', 'build-disk'):
+        try:
+            mem = ('%d GB' % profile['memory_gb'] if profile['memory_gb'] else '') if 'memory_gb' in profile else \
+                '%d GB' % round(os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 2.0 ** 30)
+        except (ValueError, OSError):
+            mem = ''
+        grid.add_row('Mac', Text.from_ansi(' · '.join(x for x in (profile['model'], gpu, mem) if x) + '   ' + check))
+    else:
+        grid.add_row('For', Text.from_ansi(' · '.join(x for x in (profile['model'], gpu) if x) + '   ' + check))
+        grid.add_row('Host', Text.from_ansi(host_line(c)))
+    grid.add_row('Packs', ' · '.join(profile.get('packs', [])))
+    head = Text.from_ansi('%s %s  %s' % (c.paint('bold', title), c.paint('bold', c.release or ''),
+                                         c.paint('dim', 'macOS 27 %s' % asm.get('golden_build', ''))))
+    c.block(Panel(grid, title=head, title_align='left', border_style=c.style('dim'), padding=(1, 2), expand=False))
+    detection(c, profile)
+    c.event('header', command=command, model=profile.get('model'), packs=profile.get('packs'))
+
+
+def header_lines(c, command, profile, asm):
     """The mockups' header: the program and release, then this Mac (or the host) and the packs, in columns."""
     proven = profile.get('proven_model')
     build = 'macOS 27 %s' % asm.get('golden_build', '')
@@ -430,11 +507,21 @@ def detection(c, profile, packs_dir=REPO / 'packs'):
             rows.append(('CPU', 'Intel', 'any Intel', pack))
     if not rows:
         return
-    c.print('', 'edits')
-    c.print(c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack'), 'edits')
-    for role, device, via, pack in rows:
-        c.print('  %-8s%-30s%-28s→ %s' % (role, device.replace('Graphics ', '').split(' (')[0][:28], '→ ' + via,
-                                         c.paint('bold', pack)), 'edits')
+    plain = ['', c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack')]
+    plain += ['  %-8s%-30s%-28s→ %s' % (role, device.replace('Graphics ', '').split(' (')[0][:28], '→ ' + via,
+                                       c.paint('bold', pack)) for role, device, via, pack in rows]
+
+    def table():
+        from rich import box
+        from rich.table import Table
+        t = Table(title='Detect hardware', title_justify='left', title_style='bold', box=box.SIMPLE_HEAD,
+                  show_edge=False, header_style=c.style('dim'), padding=(0, 2))
+        for name in ('', 'device', 'OCLP patch set', 'pack'):
+            t.add_column(name, no_wrap=True)
+        for role, device, via, pack in rows:
+            t.add_row(role, device.replace('Graphics ', '').split(' (')[0][:28], via, pack, style=None)
+        return t
+    c.block(table, plain, 'edits')
 
 
 def host_line(c):
@@ -482,12 +569,24 @@ def finish_line(c, command):
             if s.get('repairs'):
                 parts.append('%d kernel repairs' % s['repairs'])
             parts.append('no notes' if not s.get('notes') else '%d notes' % s['notes'])
+            rows = [('Time', took), ('Disk', disk)]
+            rows += [('Files from packs', format(s['files'], ','))] if s.get('files') else []
+            rows += [('Edits', format(s['edits'], ','))] if s.get('edits') else []
+            rows += [('Kernel repairs', str(s['repairs']))] if s.get('repairs') else []
+            rows += [('Log', str(log))] if log else []
+            restart = 'restart to use it' in text
+            card = dict(title=c.paint('ok', '✓ ') + c.paint('bold', 'macOS 27 is installed'), rows=rows,
+                        next=['Restart the Mac to start macOS 27. Setup Assistant opens first.'] if restart else [])
             return done(' · '.join(parts), lead=c.paint('ok', 'Installed'),
-                        more=more + (['Restart to use it.'] if 'restart to use it' in text else []), **fields)
+                        more=more + (['Restart to use it.'] if restart else []), card=card, **fields)
         if command == 'create-installer' and not text.startswith('dry run'):
             text = text.replace('USB stick', 'USB installer').replace('stick image', 'USB installer image')
+            head, _, rest = text.partition('. ')
+            card = dict(title=c.paint('ok', '✓ ') + c.paint('bold', head[:1].upper() + head[1:]),
+                        rows=[('Time', took)] + ([('Log', str(log))] if log else []),
+                        next=[rest] if rest else [])
             return done('in %s. %s' % (took, text[:1].upper() + text[1:]), lead=c.paint('ok', 'Done'), more=more,
-                        **fields)
+                        card=card, **fields)
         return done(text, **fields)
     c.done = wrapped
 
@@ -504,7 +603,7 @@ def cmd_detect(a, c, host=None):
     # the profile always goes to a file, named on screen, never printed (owner, 2026-11-13: "Reference the artifact")
     out = Path(a.out) if a.out else profile_output(p['model'])
     REP.write(out, json.dumps(p, indent=1) + '\n')
-    c.done('Profile written to %s  (use it with --profile on the Mac that makes the stick)' % out, profile=str(out))
+    c.done('Profile written to %s  (use it with --profile on the Mac that makes the USB installer)' % out, profile=str(out))
     return 0
 
 
@@ -580,18 +679,20 @@ def cmd_verify(a, c):
                                                                           len(r['problems']) + r['ok']),
                           why='these files are not the ones the packs installed',
                           options=['see which: hao verify --show', 'put them back: hao patch OVERLAY... (or the '
-                                   'installer for installer-phase packs)'])
+                                   'installer for installer-phase packs)'], code=4)
     c.done('%d files match their manifests' % r['ok'])
     return 0
 
 
 def builder_args(q, disk=True):
     if disk:
-        q.add_argument('disk', nargs='?')
+        q.add_argument('disk', nargs='?', help='the whole disk, /dev/diskN (asked when left out)')
         q.add_argument('--confirm', help='the typed confirmation, given ahead (scripts)')
     g = q.add_mutually_exclusive_group()
-    g.add_argument('--model'); g.add_argument('--profile')
-    q.add_argument('--assembly'); q.add_argument('--dry-run', action='store_true')
+    g.add_argument('--model', help='the Mac model to build for, e.g. MacBookPro9,2 (a proven model)')
+    g.add_argument('--profile', help='a profile file from hao detect, for a Mac that is not a proven model')
+    q.add_argument('--assembly', help='(developers) an assembly in pipeline/assemblies instead of the release\'s')
+    q.add_argument('--dry-run', action='store_true', help='ask the questions and show the plan; write nothing')
     CON.add_level_flags(q)
 
 
@@ -614,7 +715,7 @@ def cmd_assets(a, c):
 
 
 def kit_args(q):
-    q.add_argument('--kit', help='a staged kit folder (golden-run --stage-kit; on the stick for install)')
+    q.add_argument('--kit', help='a staged kit folder (on the USB installer: /Volumes/HAO/kit)')
     q.add_argument('--work', help='build folder (default ~/Library/Caches/hao/builds/DATE)')
     q.add_argument('--local', help='the assembly\'s writable folder (default WORK/local), not on the erased disk')
 
@@ -629,6 +730,8 @@ def cmd_help(a):
 
 
 def main():
+    import signal
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
     p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='action')
     q = sub.add_parser('help', help='the commands for where hao runs')
@@ -648,20 +751,25 @@ def main():
     g.add_argument('--quiet', action='store_true'); g.add_argument('--show', action='store_true')
     g.add_argument('--log', choices=['json'])
     q.set_defaults(fn=cmd_patch)
-    q = sub.add_parser('explain'); q.add_argument('what', nargs='?')
+    q = sub.add_parser('explain', help='where a file comes from and every edit to it')
+    q.add_argument('what', nargs='?', help='a file path, a file name or a recipe name (all declared files when left out)')
     q.set_defaults(fn=lambda a: subprocess.call([sys.executable, '-I', str(REPO / 'pipeline/patches.py'), 'explain']
                                                 + ([a.what] if a.what else [])))
     q = sub.add_parser('inspect'); q.add_argument('store'); q.add_argument('path')
     q.set_defaults(fn=lambda a: subprocess.call([sys.executable, '-I', str(REPO / 'tools/edit-engine/edit-engine'),
                                                  'inspect', a.store, a.path]))
-    q = sub.add_parser('detect'); q.add_argument('--out'); CON.add_level_flags(q)
+    q = sub.add_parser('detect', help='this Mac\'s hardware, OCLP patch sets and packs, as a profile file')
+    q.add_argument('--out', help='the profile file to write (default hao-profile-MODEL-DATE.json here)')
+    CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_detect))
     q = sub.add_parser('fetch'); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
     q.add_argument('--verify', action='store_true'); q.add_argument('--host-check', action='store_true')
     q.add_argument('--assets-from', help='fetch the release assets from this folder or URL prefix first')
     CON.add_level_flags(q); q.set_defaults(fn=guarded(cmd_fetch))
-    q = sub.add_parser('verify'); q.add_argument('root', nargs='?', default='/')
-    q.add_argument('--manifests', action='append', default=[]); CON.add_level_flags(q)
+    q = sub.add_parser('verify', help='every installed pack file against its manifest')
+    q.add_argument('root', nargs='?', default='/', help='the system to check (default: this Mac)')
+    q.add_argument('--manifests', action='append', default=[], help='a manifest file or folder (repeatable)')
+    CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_verify))
     q = sub.add_parser('build-image'); q.add_argument('out', metavar='REPO'); builder_args(q, disk=False)
     q.add_argument('--overlay-system'); q.add_argument('--overlay-store')
@@ -682,16 +790,16 @@ def main():
     q = sub.add_parser('build-disk'); builder_args(q); kit_args(q)
     q.set_defaults(fn=guarded(lambda a, c: BUILD.build_disk(a, c, MAC.SystemHost(), run=c.run), log='build-disk'))
     q = sub.add_parser('create-installer'); builder_args(q)
-    q.add_argument('--minimum-bytes', type=int, help='smallest stick accepted (default %d)' % INST.MINIMUM_BYTES)
+    q.add_argument('--minimum-bytes', type=int, help='the smallest USB drive accepted, in bytes (default %d)' % INST.MINIMUM_BYTES)
     q.add_argument('--plan', action='store_true', help='print the disk space each stage needs (this Mac, the USB '
                    'drive) and stop; the same check runs before anything is written')
     q.add_argument('--release', help='the release.json to download from (default: beside hao)')
-    q.add_argument('--cache', type=Path, default=CACHE)
-    q.add_argument('--kit', help='the kit to put on the stick (default: staged now with golden-run --stage-kit)')
+    q.add_argument('--cache', type=Path, default=CACHE, help='where downloads are kept (default %s)' % CACHE)
+    q.add_argument('--kit', help='(developers) a staged kit to put on the USB drive (default: staged now)')
     q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/hao/builds/DATE)')
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
     q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
-    q.add_argument('--image', help='(development) write a raw stick image FILE instead of a disk; no root needed')
+    q.add_argument('--image', help='(developers) write a raw USB installer image FILE instead of a drive; no root needed')
     q.add_argument('--prelinked', action='store_true',
                    help='(development) the kit must carry prelinked kernel collections; by default it carries none and '
                         'hao install links them as root on the target Mac')
@@ -707,6 +815,24 @@ def main():
     q.add_argument('--no-restart', action='store_true',
                    help='stay in the Recovery when the install is done (default: restart after a 10 s countdown)')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
+    q = sub.add_parser('run', help='an ARM program through the hao runtime, with its diagnostic switches')
+    q.add_argument('-v', dest='verbose', action='count', default=0, help='diagnostics (-vv for more)')
+    q.add_argument('--interp', action='store_true', help='the interpreter only')
+    q.add_argument('--stats', action='store_true', help='statistics at exit')
+    q.add_argument('--allow-unsigned', action='store_true', help='run an unsigned program')
+    q.add_argument('program', help='the ARM program to run')
+    q.add_argument('args', nargs=argparse.REMAINDER, help='its arguments')
+    q.set_defaults(fn=guarded(lambda a, c: RUN.run(a, c)))
+    q = sub.add_parser('aot', help='the runtime\'s ahead-of-time caches: build, --status, --background, --clear')
+    g = q.add_mutually_exclusive_group()
+    g.add_argument('--status', action='store_true', help='valid, missing and stale caches, and the hao.aot job')
+    g.add_argument('--background', action='store_true', help='build detached, at background priority (sudo)')
+    g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/hao (sudo)')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(lambda a, c: AOT.aot(a, c), log='aot'))
+    q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
     q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')
     CON.add_level_flags(q)

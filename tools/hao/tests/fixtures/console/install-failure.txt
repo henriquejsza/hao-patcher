@@ -11,9 +11,9 @@
 [4/7] Link the kernel  Tahoe kmutil
   kernel collections linked with Tahoe's kmutil               ✓
 [5/7] Apply packs  what each pack brings, from the kit
-  base                   1 recipe                             ✓
-  metal-3802             1 recipe                             ✓
-  other fixes            1 recipe                             ✓
+  base                    1 recipe                            ✓
+  metal-3802              1 recipe                            ✓
+  other fixes             1 recipe                            ✓
 [6/7] Seal
   update Preboot, bless, take the system snapshot             ✓
 [7/7] Make it bootable

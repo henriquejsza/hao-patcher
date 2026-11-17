@@ -14,12 +14,17 @@ import platform
 import re
 
 PLACES = {'build': 'this Mac (the build Mac)', 'installer': 'the USB installer', 'installed': 'this Mac (macOS 27 with hao)'}
+THERE = {'build': 'any Mac on its own macOS (the build Mac)', 'installer': 'the USB installer',
+         'installed': 'a Mac running macOS 27 with hao'}
 # name, where it runs, one line. Developer commands are listed by `hao help --all` only.
 COMMANDS = (
     ('create-installer', ('build',), 'make the USB installer for an Intel Mac (sudo)'),
     ('install', ('installer',), 'install macOS 27 on this Mac'),
     ('verify', ('installed',), 'check every installed file against its manifest'),
     ('explain', ('installed', 'build'), 'where a file comes from and every edit to it'),
+    ('run', ('installed',), 'an ARM program through hao, with diagnostics (-v, --stats, --interp)'),
+    ('aot', ('installed',), 'the ahead-of-time caches: build (sudo), --status, --background, --clear'),
+    ('status', ('build', 'installer', 'installed'), 'hao on this Mac: release, macOS, SIP, install, last stop'),
     ('report', ('build', 'installer', 'installed'), 'one file with what a developer needs, for a GitHub issue'),
 )
 DEVELOPER = (
@@ -49,6 +54,15 @@ def where(env=None, top=None, record=Path('/private/var/db/hao/install-record.js
     return 'build'
 
 
+def dev_label(described):
+    """"dev 73b28ae2" (and "+" when the checkout has changes) from git describe's "v0.1.0-alpha.1-78-g73b28ae2e743"."""
+    if not described:
+        return None
+    import re
+    m = re.search(r'(?:^|-g)([0-9a-f]{7,})(-dirty)?$', described)
+    return 'dev %s%s' % (m.group(1)[:8], '+' if m.group(2) else '') if m else 'dev ' + described
+
+
 def runs_in(command):
     """The places COMMAND runs, or None for a developer command (anywhere)."""
     for name, places, _ in COMMANDS:
@@ -62,7 +76,7 @@ def wrong_place(command, here):
     places = runs_in(command)
     if places is None or here in places:
         return None
-    there = ' or '.join(PLACES[p] for p in places)
+    there = ' or '.join(THERE[p] for p in places)
     return 'hao %s runs from %s; on %s, run %s' % (command, there, PLACES[here], INSTEAD[here])
 
 
