@@ -711,6 +711,25 @@ LAYERS = ('os', 'platform', 'dev')
 KINDS = ('model', 'cpu', 'gpu', 'wifi', 'audio', 'input', 'recovery')
 
 
+PLATFORM_DATA_KEY = re.compile(r'[a-z][a-z0-9_]*\Z')   # the keys an edit spec's when_target names (tools/edit-engine)
+
+
+def target_problems(t):
+    """Problems with a target (pipeline/targets/*.json, as a dict): a "model", and "platform_data", when present, an
+    object of KEY: any JSON value (data that is the platform's, not the OS layer's; docs/layout.md), each KEY lower
+    case. Hooks get it as HAO_TARGET_DATA; an edit spec's "when_target" names one of its keys."""
+    bad = []
+    if not (isinstance(t.get('model'), str) and t['model']):
+        bad.append('needs "model"')
+    data = t.get('platform_data', {})
+    if not isinstance(data, dict):
+        bad.append('platform_data must be an object {KEY: VALUE}')
+    else:
+        bad += ['platform_data: key %r must be lower-case letters, digits and _' % k
+                for k in data if not PLATFORM_DATA_KEY.match(k)]
+    return bad
+
+
 def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=ORDER, profiles=PROFILES):
     """docs/layout.md: every recipe declares one pack; a pack declares its layer (a platform pack its kind and
     platform) and lists no recipes; order.txt holds every image recipe once; a variant replaces a recipe of the same
@@ -731,6 +750,7 @@ def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=OR
         if f.endswith('.json'):
             try:
                 oclp_patchsets(os.path.join(TOP, 'pipeline', 'targets', f))
+                bad += ['%s: %s' % (f, p) for p in target_problems(json.load(open(os.path.join(TOP, 'pipeline', 'targets', f))))]
             except (ValueError, OSError) as x:
                 bad.append(str(x))
     ordered = order_names(order)
@@ -1048,9 +1068,11 @@ def catalog(root=os.path.join(TOP, 'patches')):
                                                                 attributes(entry, None, S)))
                 continue
             sign = spec.get('sign')
-            md += ['- `%s`: from %s; %d edit%s, applied by the %s%s.%s' % (
+            md += ['- `%s`: from %s; %d edit%s, applied by the %s%s%s.%s' % (
                 path, S['origin_text'](spec['origin']), len(spec['edits']), '' if len(spec['edits']) == 1 else 's',
-                spec.get('applied_by', 'installer'), ', then signed: ' + S['sign_text'](sign) if sign else '',
+                spec.get('applied_by', 'installer'),
+                ' on targets whose platform_data has `%s`' % spec['when_target'] if spec.get('when_target') else '',
+                ', then signed: ' + S['sign_text'](sign) if sign else '',
                 attributes(entry, spec, S))]
             for n, e in enumerate(spec['edits'], 1):
                 line = '  %d. `%s`: %s' % (n, e['id'], S['edit_summary'](e).replace('|', '/'))
