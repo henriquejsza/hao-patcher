@@ -447,7 +447,7 @@ class CreateInstallerTest(unittest.TestCase):
         a = ns(dry_run=True)
         self.assertEqual(INST.create_installer(a, c, FakeMac()), 0)
         self.assertEqual(a.disk, 'disk4')
-        self.assertIn('Type a number from 1 to 3.', out.getvalue())
+        self.assertIn('Type a number from 1 to 4.', out.getvalue())   # 4: this checkout's generic image
         self.assertIn('Type a number from 1 to 1.', out.getvalue())
         self.assertIn('no release.json beside hao', out.getvalue())
 
@@ -622,8 +622,8 @@ class CreateInstallerTest(unittest.TestCase):
             self.assertEqual(INST.create_installer(a, c, FakeMac(machine='arm64')), 0)
             self.assertNotIn('This Mac (', out.getvalue())
             self.assertEqual(a.profile, str(prof))
-        # an Intel Mac this release has no target for
-        c, _, _ = console(['2'])
+        # an Intel Mac this release has no target for: asked about the checkout's generic image, stops by default
+        c, _, _ = console(['2', ''])
         with self.assertRaises(CON.Stopped) as x:
             INST.create_installer(ns(), c, FakeMac(model='Macmini6,2', board=b'Mac-F65AE981FFA204ED\0'))
         self.assertIn('not one this release can install on', x.exception.what)

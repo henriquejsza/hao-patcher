@@ -166,10 +166,11 @@ def proven_problems(proven, revision):
 
 def target_facts(target):
     """What "requires" is checked against on TARGET (a targets/*.json path or its dict): model, cpu features (OCLP
-    hardware profile flags and leafs, lower case), gpu families and firmware (the target's "facts")."""
+    hardware profile flags and leafs, lower case; a target without that profile, the generic one, gives its flags as
+    "facts" "cpu"), gpu families and firmware (the target's "facts")."""
     t = json.load(open(target)) if isinstance(target, (str, os.PathLike)) else target
-    cpu = t.get('oclp_hardware_profile', {}).get('cpu', {})
     facts = t.get('facts', {})
+    cpu = t['oclp_hardware_profile'].get('cpu', {}) if 'oclp_hardware_profile' in t else facts.get('cpu', {})
     return dict(model=t.get('model'), cpu={x.lower() for x in cpu.get('flags', []) + cpu.get('leafs', [])},
                 gpu=set(facts.get('gpu', [])), firmware=facts.get('firmware'))
 

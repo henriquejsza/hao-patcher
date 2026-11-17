@@ -314,38 +314,17 @@ class VerifyTest(unittest.TestCase):
         self.assertIsNone(VERIFY.data_root('/'))
 
 
-GENERIC_FIXTURES = TOP / 'pipeline' / 'tests' / 'fixtures' / 'generic'
-
-
 class GenericTree:
-    """BUILD.PROFILES and BUILD.ASSEMBLIES with the generic image's profile and assembly beside the real ones, until
-    they land with the generic pack: the profile here names no pack (the pack is not in this tree), so it plans the
-    OS layer on target generic; the assembly is pipeline/tests/fixtures/generic/assembly.json."""
+    """BUILD.PROFILES and BUILD.ASSEMBLIES of this checkout, which carries the generic image's profile and assembly
+    (pipeline/profiles/generic.json, pipeline/assemblies/generic-26B131.json)."""
 
     def __enter__(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        d = Path(self.tmp.name)
-        profiles, assemblies = d / 'profiles', d / 'assemblies'
-        profiles.mkdir()
-        assemblies.mkdir()
-        for f in (TOP / 'pipeline' / 'profiles').glob('*.json'):
-            os.symlink(f, profiles / f.name)
-        for f in (TOP / 'pipeline' / 'assemblies').glob('*.json'):
-            os.symlink(f, assemblies / f.name)
-        prof = json.loads((GENERIC_FIXTURES / 'profile.json').read_text())
-        if not (TOP / 'packs' / 'generic.json').is_file():
-            prof.pop('packs')
-        if not (profiles / 'generic.json').exists():
-            (profiles / 'generic.json').write_text(json.dumps(prof))
-        if not (assemblies / 'generic-26B131.json').exists():
-            os.symlink(GENERIC_FIXTURES / 'assembly.json', assemblies / 'generic-26B131.json')
-        self.saved = BUILD.PROFILES, BUILD.ASSEMBLIES
-        BUILD.PROFILES, BUILD.ASSEMBLIES = profiles, assemblies
+        for f in (BUILD.PROFILES / 'generic.json', BUILD.ASSEMBLIES / 'generic-26B131.json'):
+            assert f.is_file(), f
         return self
 
     def __exit__(self, *exc):
-        BUILD.PROFILES, BUILD.ASSEMBLIES = self.saved
-        self.tmp.cleanup()
+        pass
 
 
 class ImageProfileTest(unittest.TestCase):
