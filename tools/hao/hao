@@ -403,12 +403,13 @@ def finish_line(c, command):
     """Replace the backends' last line with the mockups' ("Installed ... in 41m 18s · ...", "Done in ...")."""
     done = c.done
 
-    def wrapped(text, **fields):
+    def wrapped(text, more=(), **fields):
         took = CON.elapsed(c.clock() - c.started)
         log = getattr(getattr(c, 'run', None), 'log', None)
-        more = ['Log: %s' % log] if log else []
-        if command in ('install', 'build-disk') and 'installed on' in text:
-            disk = text.split('installed on ', 1)[1].split(';')[0]
+        more = list(more) + (['Log: %s' % log] if log else [])
+        low = text.lower()
+        if command in ('install', 'build-disk') and ('installed on ' in low or low.startswith('installed macos 27 on ')):
+            disk = text.split(' on ', 1)[1].split(';')[0]
             s = getattr(c.run, 'summary', {}) if getattr(c, 'run', None) else {}
             parts = ['macOS 27 on %s in %s' % (disk, took)]
             if s.get('files'):
@@ -416,8 +417,8 @@ def finish_line(c, command):
             if s.get('repairs'):
                 parts.append('%d kernel repairs' % s['repairs'])
             parts.append('no notes' if not s.get('notes') else '%d notes' % s['notes'])
-            return done(' · '.join(parts), lead=c.paint('ok', 'Installed'), more=more + ['Restart to use it.'],
-                        **fields)
+            return done(' · '.join(parts), lead=c.paint('ok', 'Installed'),
+                        more=more + (['Restart to use it.'] if 'restart to use it' in text else []), **fields)
         if command == 'create-installer' and not text.startswith('dry run'):
             text = text.replace('USB stick', 'USB installer').replace('stick image', 'USB installer image')
             return done('in %s. %s' % (took, text[:1].upper() + text[1:]), lead=c.paint('ok', 'Done'), more=more,

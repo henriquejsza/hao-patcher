@@ -547,6 +547,21 @@ class BuilderTest(unittest.TestCase):
         self.assertEqual(host.calls, [])
         self.assertIn('Not restarting', out.getvalue())
 
+    def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
+        hao = __import__('runpy').run_path(str(TOOL / 'hao'), run_name='hao_module')
+        def last(command, text):
+            out = io.StringIO()
+            c = CON.Console('steps', out=out, colour=False)
+            hao['finish_line'](c, command)
+            c.done(text, more=['backend line'])
+            return out.getvalue()
+        self.assertIn('Restart to use it.', last('install', 'Installed macOS 27 on /dev/disk0; restart to use it'))
+        text = last('install', 'Installed macOS 27 on /dev/disk0')        # the countdown follows: no restart hint
+        self.assertTrue(text.startswith('Installed macOS 27 on /dev/disk0 in '), text)
+        self.assertNotIn('Restart to use it.', text)
+        self.assertIn('backend line', text)
+        self.assertIn('backend line', last('create-installer', 'stick image written: /tmp/x'))
+
     def test_resumable_steps_are_the_assemblers(self):
         spec = importlib.util.spec_from_file_location('gi', BUILD.TOP / 'pipeline' / 'stages' / 'golden-image.py')
         gi = importlib.util.module_from_spec(spec); spec.loader.exec_module(gi)
