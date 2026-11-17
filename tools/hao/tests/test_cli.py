@@ -685,6 +685,20 @@ class BuilderTest(unittest.TestCase):
         BUILD.proof_gate(a, c, odd, 'build-image')           # not an install: plan's own check (builder) applies
         self.assertEqual(a.unproven_reasons, [])
 
+    def test_the_generic_image_always_needs_unproven(self):
+        generic = {'model': 'QEMU Standard PC', 'packs': ['base', 'generic'], 'proven': {'base': True, 'generic': True},
+                   'proven_model': True, 'unknown': []}
+        self.assertEqual(BUILD.unproven(generic)[0], 'the generic image is an unsupported testing baseline')
+        c, _ = console('quiet')
+        with self.assertRaises(CON.Stopped) as x:
+            BUILD.proof_gate(ns(), c, generic, 'create-installer')
+        self.assertEqual((x.exception.code, x.exception.what), (5, 'the generic image needs --unproven'))
+        c, out = console('quiet')
+        a = ns(unproven=True)
+        BUILD.proof_gate(a, c, generic, 'install')
+        self.assertIn('unsupported baseline for testing', out.getvalue())
+        self.assertIn('the generic image is an unsupported testing baseline', a.unproven_reasons)
+
     def test_unproven_install_is_in_the_record_and_the_launcher(self):
         c, _ = console('quiet')
         a = ns(kit=None)
