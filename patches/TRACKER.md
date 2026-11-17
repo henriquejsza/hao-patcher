@@ -37,7 +37,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-user-seed | r11 | post | experiment | caches | x |  |  |  | **needs** | r11 2026-11-17 Comments, README and tests name no private project or account; nothing it installs changes. |
 | golden-gate-user-template | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it  |
-| golden-gate-userspace | r85 | oclp-hook | experiment |  | x | x |  |  | **needs** | r85 2026-11-17 Declares its scope (`requires`, docs/requires.md): userspace rows for both builds. Nothing it i |
+| golden-gate-userspace | r86 | oclp-hook | experiment |  | x | x |  |  | **needs** | r86 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03: the same carrier.o and libhao_cod |
 | golden-gate-wifi-compat | r2 | oclp-hook | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): compat rows for both builds. Nothing it insta |
 | golden-gate-windowserver-filter | r9 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): profiles for 26A428 and 26B131 in src/profile |
 | hao-command | r8 | post | experiment |  | x |  |  |  | **needs** | r8 2026-11-17 the new launcher is made by mktemp; every folder from usr to bin must be root's and loses its AC |
