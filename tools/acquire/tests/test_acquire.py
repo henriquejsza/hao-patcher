@@ -261,6 +261,48 @@ class Acquire(unittest.TestCase):
                          str(A['final_path'](self.cache, self.row())))
 
 
+class CertificateStore(unittest.TestCase):
+    """An empty default store (python.org's Python, certificates not installed): macOS's own bundle is loaded."""
+
+    class Context:
+        def __init__(self, certs):
+            self.certs, self.loaded = certs, []
+
+        def get_ca_certs(self):
+            return self.certs
+
+        def load_verify_locations(self, cafile=None):
+            self.loaded.append(cafile)
+
+    def test_an_empty_store_gets_the_system_bundle(self):
+        system = Path(tempfile.mkdtemp()) / 'cert.pem'
+        system.write_text('x')
+        env = {k: v for k, v in os.environ.items() if k != 'SSL_CERT_FILE'}
+        for certs, extra, want in (([], {}, [str(system)]), ([{'subject': 'x'}], {}, []),
+                                   ([], {'SSL_CERT_FILE': '/mine.pem'}, [])):
+            ctx = self.Context(certs)
+            with mock.patch.dict(os.environ, dict(env, **extra), clear=True):
+                self.assertIs(A['https_context'](lambda: ctx, str(system)), ctx)
+            self.assertEqual(ctx.loaded, want, (certs, extra))
+        ctx = self.Context([])
+        with mock.patch.dict(os.environ, env, clear=True):
+            A['https_context'](lambda: ctx, str(system) + '.missing')
+        self.assertEqual(ctx.loaded, [])
+
+    def test_downloads_use_that_context(self):
+        made = []
+        real = A['https_context']
+        A['opener'].__globals__['https_context'] = lambda: made.append(1) or real()
+        try:
+            o = A['opener'](direct=True)
+        finally:
+            A['opener'].__globals__['https_context'] = real
+        self.assertEqual(made, [1])
+        kinds = [type(h).__name__ for h in o.handlers]
+        self.assertIn('HTTPSHandler', kinds)
+        self.assertNotIn('ProxyHandler', kinds)                    # direct: no proxy handler at all
+
+
 class Mirror(unittest.TestCase):
     """HAO_MIRROR: URL/sha256/HEX first, then the origin; HAO_MIRROR_STRICT=1 never falls back."""
     setUpClass, tearDownClass = Acquire.__dict__['setUpClass'], Acquire.__dict__['tearDownClass']

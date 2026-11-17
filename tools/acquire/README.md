@@ -23,6 +23,8 @@ python3.14 -I tools/acquire/acquire path release.json NAME --cache CACHE  # wher
   `HAO_MIRROR_STRICT=1` makes a miss (or wrong bytes from the mirror) an error naming the file and its sha256, with
   no other source tried and nothing left in the cache. Streamed files use the same variables
   (`pipeline/unpack/ranged.py`); `pipeline/mirror-list` prints what the mirror must hold.
+- **Certificates:** https uses the default certificate store; when it is empty (python.org's Python before its
+  certificates are installed) and `SSL_CERT_FILE` is unset, macOS's `/etc/ssl/cert.pem` is loaded into it.
 - **Output:** `--quiet`, the default (one line per file plus progress), or `--log json`.
 - **Dependencies:** the standard library only.
 
