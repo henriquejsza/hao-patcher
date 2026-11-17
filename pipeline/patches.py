@@ -65,7 +65,7 @@ firmware: the Mac's security chip (FIRMWARE), one of the list; cpu: CPU features
 "revision", "evidence"}] records which revision a boot proved where. Recipes in pipeline/requires-pending.txt have no
 "requires" yet; the list only shrinks.
 """
-import hashlib, json, os, re, sys
+import glob, hashlib, json, os, re, sys
 
 def directory(name, root):
     return os.path.join(root, name)
@@ -562,7 +562,41 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
         bad += dev_problems(load_packs(), root, sets_dir)
         bad += layout_problems(root)
         bad += requires_tree_problems(root)
+        bad += release_profile_problems(root)
     return bad
+
+
+RELEASE_REFUSED_STATUSES = ('dev', 'diagnostic')   # never shipped: bench and logging-only recipes
+
+
+def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
+    """Why the set NAME may not be released (empty: it may): it must be a profile marked "release": true, and none of
+    its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES."""
+    f = os.path.join(profiles, name + '.json')
+    if not os.path.isfile(f):
+        return ['set %s: not a profile (pipeline/profiles/%s.json); only release profiles are released' % (name, name)]
+    if json.load(open(f)).get('release') is not True:
+        return ['profile %s: not marked "release": true' % name]
+    packs = packs if packs is not None else load_packs(root=root)
+    layer = {r: pk.get('layer') for pk in packs.values() for r in pk.get('recipes', [])}
+    bad = []
+    for r in generate(f, root, packs, order):
+        pj = os.path.join(directory(r, root), 'patch.json')
+        status = json.load(open(pj)).get('status') if os.path.isfile(pj) else None
+        if layer.get(r) == 'dev':
+            bad.append('profile %s: %s is in a dev-layer pack' % (name, r))
+        if status in RELEASE_REFUSED_STATUSES:
+            bad.append('profile %s: %s has status %s' % (name, r, status))
+    return bad
+
+
+def release_profile_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
+    """release_problems of every profile marked "release": true."""
+    out = []
+    for f in sorted(glob.glob(os.path.join(profiles, '*.json'))):
+        if json.load(open(f)).get('release') is True:
+            out += release_problems(os.path.basename(f)[:-5], root, packs, profiles, order)
+    return out
 
 
 LAYERS = ('os', 'platform', 'dev')

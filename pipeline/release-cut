@@ -420,7 +420,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     packs = patches['load_packs']()
     data = classes()
     data_settings = settings()
-    problems, notes = [], []
+    problems, notes = list(patches['release_problems'](a['patch_set'], packs=packs)), []
     downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
     runtime_commit = None
     all_rows = list(release_rows(assembly))

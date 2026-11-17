@@ -1,7 +1,6 @@
 {
- "comment": "golden-gate-26B131: macOS 27.2.1 (26B131) image = dev-bs-test without dev-access (no root SSH, no dev diagnostics).",
+ "comment": "golden-gate-26B131: macOS 27.2.1 (26B131) image = dev-bs-test without dev-access (no root SSH, no dev diagnostics); no logging-only recipes.",
  "target": "mbp92",
- "recipes": [
-  "golden-gate-appstore-slices"
- ]
+ "recipes": [],
+ "release": true
 }

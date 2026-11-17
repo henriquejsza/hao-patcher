@@ -13,7 +13,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | dev-access | r7 | post | dev |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware |
 | dev-diagnostics | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `diagnostic-boot-args` names a reason for each boot argument (`arg_reasons`), as edit specs now  |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
-| golden-gate-appstore-slices | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| golden-gate-appstore-slices | r4 | post | diagnostic |  |  | x |  |  | **needs** | r4 2026-11-17 Status diagnostic: it only reports, so release profiles leave it out. |
 | golden-gate-av1-encoder-x86 | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): only a CPU without AVX2 needs the arm64-only  |
 | golden-gate-corespotlight-compat | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): shim rows for both builds. `proven_on` record |
 | golden-gate-dyld-internal | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): edits the 26B131 runtime's dyld. Nothing it i |
