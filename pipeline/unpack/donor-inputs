@@ -198,6 +198,10 @@ def main():
     steps.run('aa-extract', ['/usr/bin/aa', 'extract', '-exclude-field', 'uid,gid,flg', '-i',
                              os.path.join(out, 'payload.aa'), '-d', os.path.join(out, 'tree')])
     steps.run('chmod-tree', ['/bin/chmod', '-R', 'u+rwX', os.path.join(out, 'tree')])
+    if os.geteuid() == 0:
+        # as root (sudo create-installer) the extracted files carry SF_RESTRICTED, which a user's run never sets and
+        # the donor manifests read back from lstat: clear it, so root and user runs make the same rows
+        steps.run('flags-tree', ['/usr/bin/chflags', '-R', 'norestricted', os.path.join(out, 'tree')])
     tree = os.path.join(out, 'tree')
     sv = os.path.join(tree, 'System/Library/CoreServices/SystemVersion.plist')
     origin = plistlib.load(open(sv, 'rb')) if os.path.exists(sv) else {}
