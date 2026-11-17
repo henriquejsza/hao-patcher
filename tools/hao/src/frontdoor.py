@@ -14,12 +14,15 @@ import platform
 import re
 
 PLACES = {'build': 'this Mac (the build Mac)', 'installer': 'the USB installer', 'installed': 'this Mac (macOS 27 with hao)'}
+THERE = {'build': 'any Mac on its own macOS (the build Mac)', 'installer': 'the USB installer',
+         'installed': 'a Mac running macOS 27 with hao'}
 # name, where it runs, one line. Developer commands are listed by `hao help --all` only.
 COMMANDS = (
     ('create-installer', ('build',), 'make the USB installer for an Intel Mac (sudo)'),
     ('install', ('installer',), 'install macOS 27 on this Mac'),
     ('verify', ('installed',), 'check every installed file against its manifest'),
     ('explain', ('installed', 'build'), 'where a file comes from and every edit to it'),
+    ('run', ('installed',), 'an ARM program through hao, with diagnostics (-v, --stats, --interp)'),
     ('status', ('build', 'installer', 'installed'), 'hao on this Mac: release, macOS, SIP, install, last stop'),
     ('report', ('build', 'installer', 'installed'), 'one file with what a developer needs, for a GitHub issue'),
 )
@@ -72,7 +75,7 @@ def wrong_place(command, here):
     places = runs_in(command)
     if places is None or here in places:
         return None
-    there = ' or '.join(PLACES[p] for p in places)
+    there = ' or '.join(THERE[p] for p in places)
     return 'hao %s runs from %s; on %s, run %s' % (command, there, PLACES[here], INSTEAD[here])
 
 

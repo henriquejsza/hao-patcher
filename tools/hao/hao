@@ -86,6 +86,7 @@ import report as REP     # noqa: E402
 import progress as PROG  # noqa: E402
 import frontdoor as FD   # noqa: E402
 import status as STATUS  # noqa: E402
+import run as RUN        # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -791,6 +792,14 @@ def main():
     q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
+    q = sub.add_parser('run', help='an ARM program through the hao runtime, with its diagnostic switches')
+    q.add_argument('-v', dest='verbose', action='count', default=0, help='diagnostics (-vv for more)')
+    q.add_argument('--interp', action='store_true', help='the interpreter only')
+    q.add_argument('--stats', action='store_true', help='statistics at exit')
+    q.add_argument('--allow-unsigned', action='store_true', help='run an unsigned program')
+    q.add_argument('program')
+    q.add_argument('args', nargs=argparse.REMAINDER)
+    q.set_defaults(fn=guarded(lambda a, c: RUN.run(a, c)))
     q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))

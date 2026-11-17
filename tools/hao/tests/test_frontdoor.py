@@ -32,7 +32,7 @@ class Where(unittest.TestCase):
         self.assertIsNone(FD.wrong_place('fetch', 'installer'))                  # developer commands run anywhere
         self.assertEqual(FD.wrong_place('install', 'build'),
                          'hao install runs from the USB installer; on this Mac (the build Mac), run hao create-installer')
-        self.assertIn('runs from this Mac (the build Mac)', FD.wrong_place('create-installer', 'installer'))
+        self.assertIn('runs from any Mac on its own macOS (the build Mac)', FD.wrong_place('create-installer', 'installer'))
 
 
 class Listing(unittest.TestCase):
