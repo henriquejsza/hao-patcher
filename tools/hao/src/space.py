@@ -42,8 +42,8 @@ def plan(release, cache=None, data=None):
     mac += m['place_unpack_gb']
     stages.append(('place', mac, 0.0, 'our assets unpacked where the rows read them; the rest APFS clones'))
     drive = images
-    stages.append(('userspace', mac + m['scratch_gb'], drive, 'the IPSW\'s System, Rosetta and cryptex images, '
-                   'decrypted while they stream onto the drive'))
+    stages.append(('userspace', mac + m['scratch_gb'], drive, 'the IPSW\'s System, Rosetta and cryptex images; each '
+                   'encrypted one is checked on the drive, then decrypted onto it'))
     mac += m['made_small_gb']
     stages.append(('IPSW rows', mac + m['metallib_work_gb'], drive, 'kernel, Metal libraries (from the images on the '
                    'drive), OCLP hardware, Python packages'))

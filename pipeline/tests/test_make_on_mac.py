@@ -1,5 +1,5 @@
 """pipeline/make-on-mac: a local download is used only with its row's sha256 (and keeps the release's pins), the first
-failed producer or output check stops the run, and the runtime tool comes from the placed archive or an explicit flag."""
+failed producer or output check stops the run, and the runtime tool is the archive's or an explicit flag's."""
 import hashlib
 import io
 import json
