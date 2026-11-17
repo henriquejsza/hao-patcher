@@ -25,7 +25,7 @@ import console as CON      # noqa: E402
 import detect as DETECT    # noqa: E402
 import installer as INST   # noqa: E402
 import report as REP       # noqa: E402
-from test_cli import FakeMac as LaptopMac   # noqa: E402
+from test_cli import FakeMac as LaptopMac, GenericTree   # noqa: E402
 
 GB = 10 ** 9
 DISKS = {
@@ -174,6 +174,127 @@ class Release:
 
     def __exit__(self, *exc):
         self.tmp.cleanup()
+
+
+class TwoProfiles(Release):
+    """A release cut for two image profiles: the 9,2 image (first, the top level) and the generic one; one shared
+    download, one asset each of their own."""
+
+    def __enter__(self):
+        super().__enter__()
+        rel = json.loads(self.path.read_text())
+        def entry(row, name, data):
+            return {'row': row, 'name': name, 'url': 'http://127.0.0.1:9/' + name, 'size': len(data),
+                    'sha256': hashlib.sha256(data).hexdigest()}
+        rel['downloads'] = [entry('ipsw_27_2_1', 'UniversalMac_27.2.1_26B131_Restore.ipsw', b'apple')]
+        rel['assets'] = [dict(entry('esp_mbp92', 'esp_mbp92.tar', b'nine'), file='esp_mbp92.tar', format='tar'),
+                         dict(entry('esp_generic', 'esp_generic.tar', b'generic!'), file='esp_generic.tar',
+                              format='tar')]
+        for x in rel['assets']:
+            del x['name']
+        rel['harvested'] = []
+        rel['target'], rel['patch_set'] = 'mbp92', 'golden-gate-26B131'
+        rel['profiles'] = {
+            'golden-gate-26B131': {'assembly': 'mbp92-26B131', 'target': 'mbp92', 'patch_set': 'golden-gate-26B131',
+                                   'proven_models': ['MacBookPro9,2'], 'rows': ['esp_mbp92', 'ipsw_27_2_1'],
+                                   'harvested': []},
+            'generic': {'assembly': 'generic-26B131', 'target': 'generic', 'patch_set': 'generic',
+                        'proven_models': [], 'rows': ['esp_generic', 'ipsw_27_2_1'], 'harvested': ['caches']}}
+        self.path.write_text(json.dumps(rel))
+        self.tree = GenericTree().__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        self.tree.__exit__(*exc)
+        super().__exit__(*exc)
+
+
+class GenericImageTest(unittest.TestCase):
+    """create-installer and the generic image: offered when the release carries it, made only when chosen."""
+
+    def test_offered_last_and_chosen(self):
+        host = FakeMac()
+        with TwoProfiles() as r:
+            c, out, asked = console(['4', '1'])          # the generic image, the first stick
+            a = ns(release=str(r.path), cache=str(r.cache))
+            self.assertEqual(INST.create_installer(a, c, host), 0)
+        text = out.getvalue()
+        self.assertIn('    1  MacBookPro9,2', text)
+        self.assertIn('4  Another Intel Mac or a virtual machine: the generic image: software graphics', text)
+        self.assertEqual((a.image_profile, a.assembly), ('generic', 'generic-26B131'))
+        self.assertEqual(a.release_view['profile'], 'generic')
+        self.assertIn('2 files, 13 B', text)             # the shared download and the generic asset, not the 9,2's
+        self.assertTrue(a.unproven_reasons[0].startswith('the generic image generic'))
+        self.assertEqual(writes(host), [])
+
+    def test_the_9_2_downloads_only_its_own(self):
+        host = FakeMac(uid=0)
+        with TwoProfiles() as r, FakeWriter() as w:
+            fake = FakeAcquire()
+            c, _, _ = console(['', '1', 'disk4'])
+            self.assertEqual(INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c,
+                                                   host, acquire=fake.api), 0)
+            view = json.loads(Path(w.calls[0][1]['release']).read_text())
+        self.assertEqual(sorted(fake.fetched), ['UniversalMac_27.2.1_26B131_Restore.ipsw', 'esp_mbp92.tar'])
+        rec = w.calls[0][1]['record']
+        self.assertEqual((rec['model'], rec['target'], rec['assembly'], rec['unproven']),
+                         ('MacBookPro9,2', 'mbp92', 'mbp92-26B131', []))
+        self.assertNotIn('profile', rec)
+        self.assertEqual((view['profile'], view['assembly'], view['target']),
+                         ('golden-gate-26B131', 'mbp92-26B131', 'mbp92'))
+        self.assertNotIn('profiles', view)
+
+    def test_profile_generic_flag_writes_its_view_and_record(self):
+        host = FakeMac(uid=0)
+        with TwoProfiles() as r, FakeWriter() as w:
+            fake = FakeAcquire()
+            c, _, asked = console([])
+            a = ns(dry_run=False, profile='generic', disk='disk4', confirm='disk4', release=str(r.path),
+                   cache=str(r.cache))
+            self.assertEqual(INST.create_installer(a, c, host, acquire=fake.api), 0)
+            view = json.loads(Path(w.calls[0][1]['release']).read_text())
+        self.assertEqual(asked, [])
+        self.assertEqual(sorted(fake.fetched), ['UniversalMac_27.2.1_26B131_Restore.ipsw', 'esp_generic.tar'])
+        rec = w.calls[0][1]['record']
+        self.assertEqual((rec['profile'], rec['target'], rec['assembly']), ('generic', 'generic', 'generic-26B131'))
+        self.assertTrue(rec['unproven'])                  # the stick's install launcher passes --unproven
+        self.assertEqual((view['assembly'], view['harvested'], [x['row'] for x in view['assets']]),
+                         ('generic-26B131', ['caches'], ['esp_generic']))
+        self.assertEqual(Path(w.calls[0][1]['release']).parent, r.cache / 'releases')
+
+    def test_this_unknown_mac_is_asked_and_stops_by_default(self):
+        mini = dict(model='Macmini6,2', board=b'Mac-F65AE981FFA204ED\0')
+        with TwoProfiles() as r:
+            c, out, _ = console(['2', '2', '1'])         # This Mac, yes the generic image, the first stick
+            a = ns(release=str(r.path), cache=str(r.cache))
+            self.assertEqual(INST.create_installer(a, c, FakeMac(**mini)), 0)
+            self.assertIn('This Mac (Macmini6,2) is not a model this release can install on', out.getvalue())
+            self.assertEqual((a.image_profile, a.assembly, a.profile_data['model']),
+                             ('generic', 'generic-26B131', 'Macmini6,2'))
+            c, _, _ = console(['2', ''])                 # This Mac, then Return: the default is to stop
+            with self.assertRaises(CON.Stopped) as x:
+                INST.create_installer(ns(release=str(r.path), cache=str(r.cache)), c, FakeMac(**mini))
+            self.assertIn('not one this release can install on', x.exception.what)
+
+    def test_a_release_without_the_profile_refuses_it(self):
+        with Release() as r, GenericTree():
+            c, _, _ = console(['1'])
+            with self.assertRaises(CON.Stopped) as x:
+                INST.create_installer(ns(release=str(r.path), cache=str(r.cache), profile='generic'), c, FakeMac())
+            self.assertIn('has no image profile generic', x.exception.what)
+            c, out, _ = console(['', '1'])               # and does not offer it
+            INST.create_installer(ns(release=str(r.path), cache=str(r.cache)), c, FakeMac())
+            self.assertNotIn('generic image', out.getvalue())
+
+    def test_view(self):
+        with TwoProfiles() as r:
+            rel = json.loads(r.path.read_text())
+        v = INST.release_view(rel, 'generic')
+        self.assertEqual((v['profile'], v['assembly'], v['target'], v['patch_set']),
+                         ('generic', 'generic-26B131', 'generic', 'generic'))
+        self.assertEqual([x['row'] for x in v['downloads'] + v['assets']], ['ipsw_27_2_1', 'esp_generic'])
+        self.assertEqual(INST.release_assembly(rel), 'mbp92-26B131')
+        self.assertEqual(INST.release_assembly(rel, 'generic'), 'generic-26B131')
 
 
 def writes(host):

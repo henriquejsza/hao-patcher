@@ -63,6 +63,16 @@ and platform), a pack that lists recipes, an image recipe missing from `order.tx
 replaces a recipe of another pack, a profile that does not generate, and a target whose `platform_data` is malformed. `patches/TRACKER.md` and `docs/PATCHES.md`
 are regenerated from the declarations.
 
+## Profiles of a release
+
+A release carries one or more profiles, each its own image: `alpha-v0.1.0` (target `mbp92`: the OS layer plus the
+9,2's GPU, Wi-Fi, audio and model packs) and `generic` (target `generic`: the same OS layer plus the model pack
+`generic`, software graphics). The generic target has no board id and an OCLP hardware profile whose
+`patchset_order` is an explicit empty list, so detection selects no platform pack; its model pack is opt-in and named
+by the profile, so it never reaches another target's image. `hao build-image --profile NAME`, `hao create-installer`
+(`--profile generic`, or its question) and `release-cut` (one assembly per profile, `release.json` `profiles`) choose
+between them; see [building](building.md#choosing-a-profile).
+
 ## What a new Mac or GPU adds
 
 - **Another Intel Mac with a supported GPU**: `pipeline/targets/NAME.json`, its OCLP hardware profile

@@ -53,7 +53,7 @@ kit is made from the downloads on the user's Mac (plan steps 12/13).
 hao detect [--out mac.json]                     # on the target: model, board id, GPU/Wi-Fi/audio, patch sets, packs
 hao fetch RELEASE.json [--cache DIR] [--verify] [--host-check] [--assets-from DIR|URL]
 hao verify [ROOT] [--manifests OVERLAY_DIR|MANIFEST]...
-hao build-image REPO --model MacBookPro9,2 [--overlay-system ROOT] [--dry-run]
+hao build-image REPO (--model MacBookPro9,2 | --profile NAME) [--overlay-system ROOT] [--dry-run]   # NAME: an image profile, e.g. generic
 sudo hao build-disk /dev/diskN --model MacBookPro9,2 [--dry-run]     # output (b): an external SSD
 sudo hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run]  # output (a): the USB installer
 hao install /dev/diskN [--dry-run] [--resume WORK]   # on the target, from the USB installer's Recovery
@@ -64,7 +64,9 @@ hao report [--output FILE]                      # one text file for a GitHub iss
   model's recorded OCLP profile (`tools/oclp-hardware/profiles`), else from `data/detect-rules.json` (PCI ids of the
   proven laptop's devices only; an unknown GPU, Wi-Fi or audio device is named in a note). Packs follow from
   `packs/*.json` (`pipeline/patches.py select_packs`); `any_intel` packs only on an Intel Mac. The profile file is what
-  `--profile` takes; `--model` builds the same profile from the recorded one without the Mac.
+  `--profile` takes; `--model` builds the same profile from the recorded one without the Mac. `--profile NAME` (no
+  `/`, no `.json`) names an image profile instead (`pipeline/profiles/NAME.json`, e.g. `generic`: software graphics,
+  docs/building.md "Choosing a profile").
 - **fetch** runs `tools/acquire` on a release.json: its downloads (Apple's and third-party files) and its assets (our
   own files and archives) go into the content-addressed cache (default `~/Library/Caches/hao`), each checked by size
   and sha256. `--verify` checks only, `--assets-from DIR|URL` takes the assets from a staged folder or mirror first,

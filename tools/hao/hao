@@ -77,8 +77,10 @@ HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on
         download (or with --verify only check) every file the release pins: its downloads (Apple's and third-party
         files) and its assets (ours), each by size and sha256, into the content-addressed cache
   hao verify [ROOT] [--manifests DIR|FILE]...                 every installed pack file against its manifest
-  hao build-image REPO (--model M | --profile F) [--assembly NAME] [--overlay-system ROOT] [--dry-run]
-        assemble an image in the builder VM (pipeline/golden-run), committed to the image repository REPO
+  hao build-image REPO (--model M | --profile F | --profile NAME) [--assembly NAME] [--overlay-system ROOT] [--dry-run]
+        assemble an image in the builder VM (pipeline/golden-run), committed to the image repository REPO.
+        --profile NAME picks the image by its profile (pipeline/profiles/NAME.json, e.g. generic: software graphics)
+        and builds the assembly whose set it is; without it the assembly follows from the Mac's target
   hao assets make DIR (--model M) [--store STORE]           (development) the assets folder a fresh clone builds
         from: every input row the release build reads, at its path below store/, plus the builder's tools, as
         APFS clones; the stand-in for hao fetch plus the on-Mac producers until those run from the downloads
@@ -95,7 +97,8 @@ HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on
         logs and must not be on the disk being erased.
   hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; a USB drive)
         [--kit DIR] [--basesystem DMG] [--opencore ESP.tar] [--image FILE [--image-size BYTES]]
-        asks which Mac (a proven model by default, this Mac, or a profile file) and which external disk is the USB drive,
+        asks which Mac (a proven model by default, this Mac, a profile file, or the generic image when the release
+        carries one: --profile generic) and which external disk is the USB drive,
         and for the disk's name typed; then downloads what release.json (beside hao) pins (nothing with --kit),
         prepares the packs and the kit, and writes the USB installer: OpenCore + the Recovery on HAOBOOT, hao + the kit on
         HAO (run /Volumes/HAO/install in its Recovery). Not built yet: the kit made from the downloads, so
@@ -822,7 +825,8 @@ def builder_args(q, disk=True):
         q.add_argument('--confirm', help='the typed confirmation, given ahead (scripts)')
     g = q.add_mutually_exclusive_group()
     g.add_argument('--model', help='the Mac model to build for, e.g. MacBookPro9,2 (a proven model)')
-    g.add_argument('--profile', help='a profile file from hao detect, for a Mac that is not a proven model')
+    g.add_argument('--profile', help='a profile file from hao detect, for a Mac that is not a proven model; or an '
+                   'image profile by name (pipeline/profiles), e.g. generic: software graphics, a test baseline')
     q.add_argument('--assembly', help='(developers) an assembly in pipeline/assemblies instead of the release\'s')
     q.add_argument('--unproven', action='store_true',
                    help='go on with a Mac hao has not proven (an unknown GPU, unproven packs or model); without it '

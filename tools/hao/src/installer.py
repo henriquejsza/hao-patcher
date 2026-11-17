@@ -3,7 +3,10 @@
 It asks only what it must, one question at a time, with numbered choices, then runs without further questions:
 
   1. which Mac the installer is for: a proven model (the first is the default), this Mac (hao detect, offered on an
-     Intel Mac), or a profile file `hao detect --out` wrote on that Mac
+     Intel Mac), a profile file `hao detect --out` wrote on that Mac, or, when the release carries it, the generic
+     image (software graphics, a test baseline for other Intel Macs). This Mac, when it is not a model the release
+     can install on, is offered the generic image in a second question (stopping is the default); the generic image
+     is only ever made when chosen, there or with --profile generic
   2. which disk is the USB stick: the external, physical whole disks diskutil lists, never an internal disk, the disk
      of the running system or a disk image; a stick that is too small, or that holds this hao folder or its downloads,
      is shown with the reason and cannot be chosen
@@ -106,8 +109,14 @@ def proven_models(release):
     return out
 
 
+GENERIC_LABEL = 'the generic image: software graphics, no GPU acceleration; a test baseline, not proven on this Mac'
+
+
 def ask_mac(a, c, host, release):
-    """Fill a.model, a.profile or a.profile_data from the first question, unless a flag answered it."""
+    """Fill a.model, a.profile or a.profile_data from the first question, unless a flag answered it. a.profile may be
+    an image profile name (the generic image)."""
+    generic = BUILD.generic_profiles(release)
+    a.generic_offer = generic[0] if generic else None
     if getattr(a, 'model', None) or getattr(a, 'profile', None) or getattr(a, 'profile_data', None) is not None:
         return
     choices = []
@@ -119,13 +128,24 @@ def ask_mac(a, c, host, release):
         choices.append(('This Mac (you are running hao on the Mac you will install on)', ('detect', None)))
     choices.append(('Another Mac, described by a profile file (`hao detect --out mac.json` run on that Mac)',
                     ('profile', None)))
+    if a.generic_offer:
+        choices.append(('Another Intel Mac or a virtual machine: ' + GENERIC_LABEL, ('generic', a.generic_offer)))
     kind, model = choose(c, 'mac', 'Which Mac is the installer for?  (its Model Identifier: Apple menu > About This '
                                    'Mac > More Info > System Report)', choices)
     if kind == 'model':
         a.model = model
+    elif kind == 'generic':
+        a.profile = model
     elif kind == 'detect':
         profile = DETECT.profile(DETECT.facts(host))
         profile['target'], _ = DETECT.target_for_model(profile['model'])
+        if not profile['target'] and a.generic_offer:
+            pick = choose(c, 'generic', 'This Mac (%s) is not a model this release can install on. Make the generic '
+                                        'image for it instead?' % profile['model'],
+                          [('No, stop here', 'stop'), ('Yes, ' + GENERIC_LABEL, 'generic')])
+            if pick == 'generic':
+                a.profile_data, a.profile = profile, a.generic_offer
+                return
         if not profile['target']:
             raise Stopped('this Mac (%s) is not one this release can install on' % profile['model'],
                           why='its startup files and hardware support are not described yet',
@@ -137,6 +157,58 @@ def ask_mac(a, c, host, release):
         path = path.strip('\'"').replace('\\ ', ' ').strip()
         c.event('answer', key='profile', path=path)
         a.profile = str(Path(path).expanduser())
+
+
+def release_assembly(release, image=None):
+    """The assembly RELEASE builds for image profile IMAGE (its "profiles"), else its top-level assembly (the first
+    profile's: a release that knows no profiles has only that one)."""
+    if not image:
+        return release.get('assembly')
+    entry = (release.get('profiles') or {}).get(image)
+    if entry is None:
+        raise Stopped('release %s has no image profile %s' % (release.get('version') or release.get('release'), image),
+                      options=['one of: ' + (', '.join(release.get('profiles') or {}) or 'none (an older release)')],
+                      untouched='nothing was downloaded or written')
+    return entry['assembly']
+
+
+PROFILE_FIELDS = ('assembly', 'target', 'patch_set', 'recipes', 'dev_only_recipes', 'proven_models')
+
+
+def release_view(release, name):
+    """RELEASE as one image profile NAME sees it: the profile's assembly, target, set and recipes at the top, only the
+    downloads, assets and made-on-Mac rows it uses ("profiles"[NAME]["rows"]) and its own harvested rows."""
+    entry = release['profiles'][name]
+    rows = set(entry['rows'])
+    out = {k: v for k, v in release.items() if k != 'profiles'}
+    out.update({k: entry[k] for k in PROFILE_FIELDS if k in entry}, profile=name,
+               harvested=list(entry.get('harvested', release.get('harvested', []))))
+    for k in ('downloads', 'assets', 'made_on_mac'):
+        out[k] = [x for x in release.get(k, []) if x['row'] in rows]
+    return out
+
+
+def profile_release(a, path, release, cache):
+    """(path, release) the rest of create-installer reads: RELEASE itself when it carries one image profile (or knows
+    none), else its view for the chosen profile (release_view), written beside the downloads: the download, the rows
+    made on this Mac and the USB installer then hold only what that image uses."""
+    profiles = release.get('profiles') or {}
+    if len(profiles) < 2:
+        return path, release
+    name = BUILD.image_profile(a) or next((n for n, p in profiles.items() if p.get('assembly') == a.assembly), None)
+    if name is None:
+        return path, release
+    view = release_view(release, name)
+    folder = Path(cache) / 'releases'
+    if a.dry_run:
+        import tempfile
+        folder = Path(tempfile.mkdtemp(prefix='hao-release-'))
+    folder.mkdir(parents=True, exist_ok=True)
+    out = folder / ('%s-%s.json' % (release.get('release', 'release'), name))
+    out.write_text(json.dumps(view, indent=1) + '\n')
+    files = len(view['downloads']) + len(view['assets'])
+    a.release_view = dict(profile=name, path=str(out), files=files)
+    return out, view
 
 
 def plain_refusal(why):
@@ -392,11 +464,13 @@ def create_installer(a, c, host, acquire=None):
                           untouched='nothing was downloaded or written')
         if release is None and not getattr(a, 'kit', None):
             raise no_release(release_path)
+    ask_mac(a, c, host, release)
     if release and not getattr(a, 'assembly', None):
-        a.assembly = release.get('assembly')
+        a.assembly = release_assembly(release, BUILD.image_profile(a))
     if getattr(a, 'kit', None) and not getattr(a, 'assembly', None):
         a.assembly = kit_assembly(a.kit)
-    ask_mac(a, c, host, release)
+    if release:
+        release_path, release = profile_release(a, release_path, release, cache)
     a.sources = input_paths(a, cache, release_path)
     if image:
         info = dict(DeviceIdentifier='image', MediaName=str(image), TotalSize=a.image_size)
@@ -472,6 +546,8 @@ def create_installer(a, c, host, acquire=None):
                   donor_build=asm['donor_build'], basesystem=Path(basesystem).name,
                   hao_commit=BUILD.release_of()[1],      # the install record names it (a dev drive has no git)
                   unproven=list(getattr(a, 'unproven_reasons', None) or []))   # its install launcher passes --unproven
+    if getattr(a, 'image_profile', None):
+        record['profile'] = a.image_profile
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)

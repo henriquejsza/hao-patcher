@@ -133,7 +133,8 @@ def profile(f, packs=None, rules=None):
     _, matched, unknown = rule_patchsets(f.get('devices', []), rules)
     if rec:
         patchsets = list(rec['patchset_order'])
-        source = 'recorded OCLP profile %s (OCLP %s)' % (name, rec.get('oclp_version'))
+        source = 'recorded OCLP profile %s%s' % (name, ' (OCLP %s)' % rec['oclp_version'] if rec.get('oclp_version')
+                                                 else ': no OCLP patch sets')
     else:
         patchsets, _, _ = rule_patchsets(f.get('devices', []), rules)
         source = 'device rules (tools/hao/data/detect-rules.json)'
@@ -174,7 +175,7 @@ def for_model(model, packs=None):
     p = profile(f, packs)
     p['target'] = tname
     p['from'] = 'model'
-    p['gpu_name'] = target.get('gpu')
+    p['gpu_name'] = target.get('gpu') or ('software graphics' if target.get('generic') else None)
     return p
 
 

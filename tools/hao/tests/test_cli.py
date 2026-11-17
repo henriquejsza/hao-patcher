@@ -314,6 +314,119 @@ class VerifyTest(unittest.TestCase):
         self.assertIsNone(VERIFY.data_root('/'))
 
 
+GENERIC_FIXTURES = TOP / 'pipeline' / 'tests' / 'fixtures' / 'generic'
+
+
+class GenericTree:
+    """BUILD.PROFILES and BUILD.ASSEMBLIES with the generic image's profile and assembly beside the real ones, until
+    they land with the generic pack: the profile here names no pack (the pack is not in this tree), so it plans the
+    OS layer on target generic; the assembly is pipeline/tests/fixtures/generic/assembly.json."""
+
+    def __enter__(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        d = Path(self.tmp.name)
+        profiles, assemblies = d / 'profiles', d / 'assemblies'
+        profiles.mkdir()
+        assemblies.mkdir()
+        for f in (TOP / 'pipeline' / 'profiles').glob('*.json'):
+            os.symlink(f, profiles / f.name)
+        for f in (TOP / 'pipeline' / 'assemblies').glob('*.json'):
+            os.symlink(f, assemblies / f.name)
+        prof = json.loads((GENERIC_FIXTURES / 'profile.json').read_text())
+        if not (TOP / 'packs' / 'generic.json').is_file():
+            prof.pop('packs')
+        if not (profiles / 'generic.json').exists():
+            (profiles / 'generic.json').write_text(json.dumps(prof))
+        if not (assemblies / 'generic-26B131.json').exists():
+            os.symlink(GENERIC_FIXTURES / 'assembly.json', assemblies / 'generic-26B131.json')
+        self.saved = BUILD.PROFILES, BUILD.ASSEMBLIES
+        BUILD.PROFILES, BUILD.ASSEMBLIES = profiles, assemblies
+        return self
+
+    def __exit__(self, *exc):
+        BUILD.PROFILES, BUILD.ASSEMBLIES = self.saved
+        self.tmp.cleanup()
+
+
+class ImageProfileTest(unittest.TestCase):
+    """--profile NAME: the image by its profile (pipeline/profiles), e.g. generic; --profile FILE stays hao detect's."""
+
+    def build(self, **kw):
+        c, out = console('files')
+        ran = []
+        a = ns(out='/nonexistent/repo', overlay_system=None, overlay_store=None, **kw)
+        self.assertEqual(BUILD.build_image(a, c, run=ran.append), 0)
+        self.assertEqual(ran, [])
+        return a, c, out.getvalue()
+
+    def test_build_image_profile_generic(self):
+        with GenericTree():
+            a, c, text = self.build(profile='generic')
+        self.assertEqual(a.image_profile, 'generic')
+        self.assertIn('generic-26B131.json --repo /nonexistent/repo', text)
+        banner = next(e for e in c.events if e['ev'] == 'run.start')
+        self.assertEqual((banner['assembly'], banner['model'], banner['packs']), ('generic-26B131', 'iMac20,1', ['base']))
+        for platform in ('intel-hd4000', 'metal-3802', 'wifi-broadcom-modern', 'audio-modern', 'opencore-mbp92'):
+            self.assertNotIn(platform, text)
+        self.assertIn('os-extras              1 recipes', text)     # golden-gate-store, as in the 9,2 alpha image
+
+    def test_build_image_profile_of_the_9_2(self):
+        with GenericTree():
+            _, _, text = self.build(profile='alpha-v0.1.0')
+        self.assertIn('mbp92-26B131-alpha-v0.1.0.json --repo', text)
+        self.assertIn('intel-hd4000', text)
+
+    def test_default_is_unchanged(self):
+        with GenericTree():
+            a, _, text = self.build(model='MacBookPro9,2')
+        self.assertIn('mbp92-26B131.json --repo', text)
+        self.assertIsNone(getattr(a, 'image_profile', None))
+
+    def test_unknown_name_and_detect_files(self):
+        c, _ = console('quiet')
+        with GenericTree(), self.assertRaises(CON.Stopped) as x:
+            BUILD.resolve(ns(profile='nosuch'), c, 'build-image')
+        self.assertIn('no image profile nosuch', x.exception.what)
+        self.assertIn('generic', x.exception.options[0])
+        with tempfile.TemporaryDirectory() as d:          # a hao detect file is still one, even named like a profile
+            f = Path(d) / 'generic'
+            f.write_text(json.dumps(DETECT.for_model('MacBookPro9,2')))
+            a = ns(profile=str(f))
+            with GenericTree():
+                self.assertIsNone(BUILD.image_profile(a))
+                self.assertEqual(BUILD.resolve(a, c, 'build-image')[1].stem, 'mbp92-26B131')
+
+    def test_assembly_must_build_the_profile(self):
+        c, _ = console('quiet')
+        with GenericTree(), self.assertRaises(CON.Stopped) as x:
+            BUILD.resolve(ns(profile='generic', assembly='mbp92-26B131'), c, 'build-image')
+        self.assertIn('builds for target mbp92', x.exception.what)
+
+    def test_the_generic_image_is_chosen_not_gated(self):
+        c, _ = console('quiet')
+        with GenericTree():
+            for command in BUILD.GATED:
+                a = ns(profile='generic')
+                profile, path, asm, groups = BUILD.resolve(a, c, command)     # no stop: the choice is the consent
+                self.assertEqual((path.stem, profile['target']), ('generic-26B131', 'generic'))
+                self.assertTrue(a.unproven_reasons[0].startswith('the generic image generic'), a.unproven_reasons)
+            # a Mac this release does not know, detected, making the generic image: the image's packs, not the Mac's
+            a = ns(profile='generic')
+            a.profile_data = dict(DETECT.profile(DETECT.facts(FakeMac(model='Macmini6,2', board=b'Mac-F65AE981FFA204ED\0'))),
+                                  target=None)
+            profile, path, _, _ = BUILD.resolve(a, c, 'create-installer')
+            self.assertEqual((profile['model'], profile['target'], profile['packs']), ('Macmini6,2', 'generic', ['base']))
+            self.assertIn('Macmini6,2', a.unproven_reasons[0])
+        # the 9,2 image on an unproven Mac still stops, and offers the generic image when there is one
+        odd = DETECT.profile(DETECT.facts(FakeMac(model='MacBookPro9,1')))
+        a = ns()
+        a.generic_offer = 'generic'
+        with self.assertRaises(CON.Stopped) as x:
+            BUILD.proof_gate(a, c, odd, 'create-installer')
+        self.assertEqual(x.exception.code, 5)
+        self.assertIn('--profile generic', ' '.join(x.exception.options))
+
+
 class BuilderTest(unittest.TestCase):
     def test_build_image_dry_run(self):
         c, out = console('files')
