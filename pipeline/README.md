@@ -64,8 +64,8 @@ they are absent. A new check is a function added to `CHECKS`.
 
 ## Live swaps (`swaps.py`, `live-swaps.tsv`)
 
-hao-tools' `laptop-swap put` records every live swap on this Mac (ledger and bytes under
-`~/mac-image/store/laptop-swaps/`, or `HAO_SWAP_LEDGER`); the laptop's own log is lost at each push. `pipeline/build` and
-`hao build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
+The laptop swap tool records every file it puts on the laptop, on this Mac (a ledger with the bytes beside it,
+named by `HAO_SWAP_LEDGER` or the first line of `~/.config/hao/swap-ledger`); the laptop's own log is lost at each
+push. `pipeline/build` and `hao build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
 `live-swaps.tsv` (`SHA256<TAB>PATH<TAB>row NAME | recipe NAME | dropped: WHY`), or, under `/usr/lib/hao/`, the same bytes
 in the hao_runtime row's payload. `swaps.py status` lists them.

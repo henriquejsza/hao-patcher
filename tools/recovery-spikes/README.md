@@ -16,7 +16,7 @@ tools/recovery-spikes/run.sh clean    # undo every RAM disk, image and mount the
 
 Each spike checks its inputs against [`inputs.lock`](inputs.lock) (`pipeline/lock.py` format) and stages them, refuses
 unless the laptop runs Recovery `RECOVERY_BUILD` as root (`remote/common.sh gate`), makes a RAM disk
-`/Volumes/HAOSPIKE-SPIKE`, copies the inputs (`laptop-ssh --put`; the laptop checks every sha256 again), runs, copies
+`/Volumes/HAOSPIKE-SPIKE`, copies the inputs (the SSH helper's `--put`; the laptop checks every sha256 again), runs, copies
 `results/` back to `store/runs/recovery-spikes-DATE/SPIKE-TIME/`, cleans the laptop (also after a failure or ^C)
 and prints the verdict (`verdict.txt`, `verdict.json`). Environment variables are listed in `run.sh`'s header.
 
@@ -138,7 +138,7 @@ when the image on the laptop was built from the same kernel and kmutil and nothi
 python3.14 -I -B -m unittest discover -s tools/recovery-spikes/tests
 ```
 
-Host tests use fixtures and stubs only (verdicts, staging, helpers, the driver through a stub `laptop-ssh`, the
+Host tests use fixtures and stubs only (verdicts, staging, helpers, the driver through a stub SSH helper, the
 python spike on the host's Python with a stub `diskutil`); they attach, format and mount nothing. A passing suite
 proves none of the laptop answers.
 

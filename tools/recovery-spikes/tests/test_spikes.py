@@ -358,7 +358,7 @@ class Safety(unittest.TestCase):
 
 
 STUB = r'''#!/bin/bash
-# stub laptop-ssh: records each call, answers like the Recovery would
+# stub SSH helper: records each call, answers like the Recovery would
 log=$STUB_DIR/calls.txt
 args=("$@"); put=0
 while [ $# -gt 0 ]; do case $1 in -r) shift ;; -t) shift 2 ;; --put) put=1; src=$2; dest=$3; shift 3 ;; --) shift; break ;; *) break ;; esac; done
@@ -383,7 +383,7 @@ class Driver(unittest.TestCase):
         (tmp/'remote/results').mkdir(parents=True)
         (tmp/'remote/results/commands.log').write_text('x\n')
         (tmp/'spike.log').write_text(spike_log)
-        stub = tmp/'laptop-ssh'
+        stub = tmp/'ssh-helper'
         stub.write_text(STUB)
         stub.chmod(0o755)
         p = tmp/'py.tgz'
