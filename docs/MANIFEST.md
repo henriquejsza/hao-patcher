@@ -34,7 +34,7 @@ Undeclared: opencore-mbp92.
 | golden-gate-metal-framebuffer | r11 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 6dba1ab6 metal-framebuffer-26B131-20261116-2845387bf09a (hao-patcher 789a8c7d) |
 | golden-gate-metal-libraries | r22 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
 | golden-gate-metal27 | r5 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
-| golden-gate-native-identities | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
+| golden-gate-native-identities | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
 | golden-gate-root-launchservices | r4 | experiment | post | no: row root_launchservices_golden_gate | - | root_launchservices_golden_gate - root-launchservices-26B131-not-made-yet |
 | golden-gate-shader-caches | r15 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
 | golden-gate-shared-cache | r8 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 2f5ee391 rebuilt-cache-fold-in-26B131-20261117-2b471bea |
@@ -155,7 +155,7 @@ Undeclared: opencore-mbp92.
   - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: from hao (row metal27_installed)
   - `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: from hao (row metal27_installed)
   - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from hao (row metal27_installed)
-- **golden-gate-native-identities** r9
+- **golden-gate-native-identities** r10
   - `usr/lib/hao/native-identities`: from hao
   - `System/Library/CoreServices/golden-gate-native-identities.json`: from hao
   - `usr/lib/hao/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor
@@ -493,7 +493,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-metal-argbuf r7 is newer than every image built with it (newest r6).
 - golden-gate-metal-framebuffer r11 is newer than every image built with it (newest r10).
 - golden-gate-metal-libraries r22 is newer than every image built with it (newest r21).
-- golden-gate-native-identities r9 is newer than every image built with it (newest r6).
+- golden-gate-native-identities r10 is newer than every image built with it (newest r6).
 - golden-gate-shader-caches r15 is newer than every image built with it (newest r14).
 - golden-gate-shared-cache r8 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r4 is newer than every image built with it (newest r1).

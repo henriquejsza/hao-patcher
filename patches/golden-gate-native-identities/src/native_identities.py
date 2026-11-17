@@ -365,9 +365,10 @@ def signature_profile(data):
     DER entitlements that agree by type. Returns dict(cdhash, policy, entitlements): policy is a sha256 of the
     CodeDirectory's every field but its hashes (version, flags, slot counts, code limit, hash and page size,
     platform, execution segment, runtime, identifier, every special-slot hash: -2, -5 and -7 must hash the
-    requirements and entitlements blobs, the others but -1 must be empty), of the requirements blob and of the bytes between the SuperBlob and the end of the
-    signature space (zeros, or what codesign left there from the input's signature: pinned, never free);
-    entitlements a sha256 of the typed entitlements."""
+    requirements and entitlements blobs, the others but -1 must be empty) and of the requirements blob;
+    entitlements a sha256 of the typed entitlements; slack the bytes between the SuperBlob and the end of the signature
+    space, which slack_problem() requires to be exactly the original's bytes there (how much codesign reserves differs
+    between Macs, so the policy leaves them out)."""
     cmds = _commands(data)
     sig = [at for command, at, length in cmds if command == 0x1d and length == 16]
     link = [at for command, at, length in cmds
@@ -427,8 +428,24 @@ def signature_profile(data):
     if inner[1][1] != from_xml:
         raise ValueError('DER and XML entitlements differ')
     return dict(cdhash=hashlib.sha256(cd).hexdigest()[:40], identifier=ident.decode(),
-                policy=hashlib.sha256(fixed + b'\0requirements\0' + blobs[2] + b'\0slack\0' + bytes(blob[total:])).hexdigest(),
+                policy=hashlib.sha256(fixed + b'\0requirements\0' + blobs[2]).hexdigest(),
+                slack=(dataoff + total, bytes(blob[total:])),
                 entitlements=hashlib.sha256(json.dumps(from_xml, sort_keys=True).encode()).hexdigest())
+
+
+def slack_problem(profile, reference):
+    """Why the signature's slack is not exactly the one this layout allows, or None. codesign leaves the input's old
+    signature where its new one is shorter than the space it reserves, and the input's old signature is the original's
+    (the recipes edit only load commands and code). So the slack must be the original's x86_64-slice bytes at the same
+    offsets, byte for byte, and zeros past the original's end: one value for a given layout, nothing to choose. A byte
+    zeroed where the original has another is refused, like any other change."""
+    start, slack = profile['slack']
+    expected = reference[start:start + len(slack)]
+    expected += bytes(len(slack) - len(expected))
+    if slack != expected:
+        at = next(i for i in range(len(slack)) if slack[i] != expected[i])
+        return f'signature slack at offset {start + at:#x} is not the original\'s byte there (or zero past its end)'
+    return None
 
 
 def verify_observed(path):
@@ -548,6 +565,10 @@ def scan(system, sources, programs=None):
                 if not (profile['cdhash'] == sig['cdhash'] == shown) or profile['identifier'] != sig['identifier']:
                     refused[rel] = (f'its CodeDirectory is ambiguous: parsed {profile["cdhash"]}, selected '
                                     f'{sig["cdhash"]}, codesign reports {shown}')
+                    break
+                problem = slack_problem(profile, reference)
+                if problem:
+                    refused[rel] = problem
                     break
                 if seen not in want['builds']:
                     refused[rel] = (f'(original, content digest, entitlements, signature policy) = {seen} is not a '

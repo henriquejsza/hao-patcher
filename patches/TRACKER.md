@@ -29,7 +29,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-framebuffer | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
 | golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (app |
-| golden-gate-native-identities | r9 | oclp-hook | product |  | x | x |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| golden-gate-native-identities | r10 | oclp-hook | product |  | x | x |  |  | **needs** | r10 2026-11-17 The signature policy no longer hashes the slack after the SuperBlob: its size depends on the Ma |
 | golden-gate-root-launchservices | r4 | post | experiment | boot-seeds |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): seed harvested from 26B131. Nothing it instal |
 | golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-shared-cache | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 cache family. Nothing it i |
