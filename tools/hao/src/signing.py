@@ -1,18 +1,22 @@
-"""Release signatures: minisign files (Ed25519, prehashed with BLAKE2b-512) checked against the keys hao carries.
+"""Release signatures: SSH signatures (SSHSIG, `ssh-keygen -Y sign`) by an Ed25519 key, checked against the keys hao
+carries, in pure Python (no ssh-keygen needed: the Recovery has none).
 
-The owner signs each release offline with minisign (https://jedisct1.github.io/minisign/):
-    minisign -S -s KEY -m release.json SHA256SUMS -t "hao release NAME"
-which writes release.json.minisig and SHA256SUMS.minisig. hao verifies release.json.minisig against
-tools/hao/data/release-keys.pub before it reads anything in release.json, then works only from the verified bytes
-(a private copy), so the file cannot change between the check and its use.
+The owner signs each release offline, with a key file or a hardware wallet through its SSH agent (trezor-agent,
+ledger-agent), in the folder release-cut staged:
+    ssh-keygen -Y sign -f OWNER.pub -n hao-release release.json SHA256SUMS
+which writes release.json.sig and SHA256SUMS.sig. hao verifies release.json.sig against tools/hao/data/release-keys.pub
+(OpenSSH public key lines, `ssh-ed25519 AAAA... comment`) before it reads anything in release.json, then works only from
+the verified bytes (a private copy), so the file cannot change between the check and its use.
 
-  load_keys(path)          {key id: public key} from minisign public key lines (more than one for a key change)
-  verify(data, sig, keys)  (key id, trusted comment) when SIG signs DATA with one of KEYS, else SignatureError
-  verified_release(path)   the release's bytes checked, copied to a new private folder: (copy, key id, comment)
+  load_keys(path)          {public key (32 bytes): fingerprint} from ssh-ed25519 lines (more than one for a key change)
+  verify(data, sig, keys)  (fingerprint, hash) when SIG (an armored SSHSIG) signs DATA in NAMESPACE with one of KEYS
+  verified_release(path)   the release's bytes checked, copied to a new private folder: (copy, fingerprint, hash)
 
-Ed25519 verification is RFC 8032 section 6's reference code (Simplified BSD, IETF Trust; see NOTICE.md) with the
-same checks: a point that does not decode, or S >= L, fails. Verification uses no secret, so it need not run in
-constant time. `sign`/`secret_to_public` are there for the tests' own keys only.
+The format is OpenSSH's PROTOCOL.sshsig, parsed strictly: version 1, namespace hao-release, empty reserved field,
+sha512 or sha256, ssh-ed25519 key and signature, nothing left over. Ed25519 verification is RFC 8032 section 6's
+reference code (Simplified BSD, IETF Trust; see NOTICE.md) with the same checks: a point that does not decode, or
+S >= L, fails. Verification uses no secret, so it need not run in constant time. `sign`/`secret_to_public` are there for
+the tests' own keys only.
 """
 import base64
 import hashlib
@@ -154,32 +158,71 @@ def ed25519_verify(public, msg, signature):
     return _equal(_mul(s, G), _add(R, _mul(h, A)))
 
 
-# --- minisign files -----------------------------------------------------------------------------------------------
-def key_id_text(kid):
-    return kid[::-1].hex().upper()
+# --- SSH signatures (OpenSSH PROTOCOL.sshsig) -------------------------------------------------------------------
+NAMESPACE = 'hao-release'
+MAGIC = b'SSHSIG'
+HASHES = {'sha512': hashlib.sha512, 'sha256': hashlib.sha256}
+BEGIN, END = '-----BEGIN SSH SIGNATURE-----', '-----END SSH SIGNATURE-----'
 
 
-def _b64(line, size, what):
-    try:
-        raw = base64.b64decode(line.strip(), validate=True)
-    except ValueError:
-        raise SignatureError('%s is not base64' % what)
-    if len(raw) != size:
-        raise SignatureError('%s has %d bytes, not %d' % (what, len(raw), size))
-    return raw
+def _string(b):
+    return len(b).to_bytes(4, 'big') + b
+
+
+class _Reader:
+    def __init__(self, data, what):
+        self.data, self.at, self.what = data, 0, what
+
+    def take(self, n):
+        if self.at + n > len(self.data):
+            raise SignatureError('%s is cut short' % self.what)
+        out = self.data[self.at:self.at + n]
+        self.at += n
+        return out
+
+    def string(self):
+        return self.take(int.from_bytes(self.take(4), 'big'))
+
+    def end(self):
+        if self.at != len(self.data):
+            raise SignatureError('%s has bytes after its end' % self.what)
+
+
+def _ed25519_blob(blob, what, size):
+    r = _Reader(blob, what)
+    kind = r.string()
+    if kind != b'ssh-ed25519':
+        raise SignatureError('%s is %s, not ssh-ed25519' % (what, kind.decode('ascii', 'replace')[:40]))
+    value = r.string()
+    r.end()
+    if len(value) != size:
+        raise SignatureError('%s has %d bytes, not %d' % (what, len(value), size))
+    return value
+
+
+def fingerprint(public):
+    """SHA256:... as ssh-keygen -l shows it."""
+    blob = _string(b'ssh-ed25519') + _string(public)
+    return 'SHA256:' + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
 
 
 def parse_keys(text):
-    """{key id (8 bytes): public key (32 bytes)} from minisign public key files (comment lines and key lines)."""
+    """{public key: fingerprint} from OpenSSH public key lines; blank and # lines are skipped, any other line must be
+    an ssh-ed25519 key."""
     keys = {}
     for line in text.splitlines():
         line = line.strip()
-        if not line or line.startswith('untrusted comment:') or line.startswith('#'):
+        if not line or line.startswith('#'):
             continue
-        raw = _b64(line, 42, 'a public key')
-        if raw[:2] != b'Ed':
-            raise SignatureError('a public key is not an Ed25519 minisign key')
-        keys[raw[2:10]] = raw[10:]
+        parts = line.split()
+        if len(parts) < 2 or parts[0] != 'ssh-ed25519':
+            raise SignatureError('a release key is not an ssh-ed25519 public key line')
+        try:
+            blob = base64.b64decode(parts[1], validate=True)
+        except ValueError:
+            raise SignatureError('a release key is not base64')
+        pub = _ed25519_blob(blob, 'a release key', 32)
+        keys[pub] = fingerprint(pub)
     return keys
 
 
@@ -195,25 +238,45 @@ def load_keys(path=None):
     return keys
 
 
-def verify(data, sig_text, keys):
-    """(key id text, trusted comment) when SIG_TEXT (a .minisig file) signs DATA with one of KEYS."""
-    lines = sig_text.splitlines()
-    if len(lines) < 4 or not lines[0].startswith('untrusted comment:') or \
-            not lines[2].startswith('trusted comment: '):
-        raise SignatureError('the signature file is not a minisign signature')
-    raw = _b64(lines[1], 74, 'the signature')
-    if raw[:2] != b'ED':
-        raise SignatureError('the signature is not a prehashed (BLAKE2b) minisign signature')
-    kid, sig = raw[2:10], raw[10:]
-    if kid not in keys:
-        raise SignatureError('signed with key %s, which this hao does not trust' % key_id_text(kid))
-    comment = lines[2][len('trusted comment: '):]
-    gsig = _b64(lines[3], 64, 'the trusted comment signature')
-    if not ed25519_verify(keys[kid], hashlib.blake2b(data, digest_size=64).digest(), sig):
+def armored(text):
+    """The SSHSIG blob inside -----BEGIN/END SSH SIGNATURE----- (nothing else in the file but blank lines)."""
+    lines = [x.strip() for x in text.strip().splitlines()]
+    if len(lines) < 3 or lines[0] != BEGIN or lines[-1] != END:
+        raise SignatureError('the signature file is not an SSH signature')
+    try:
+        return base64.b64decode(''.join(lines[1:-1]), validate=True)
+    except ValueError:
+        raise SignatureError('the signature is not base64')
+
+
+def signed_data(namespace, hash_name, data):
+    return (MAGIC + _string(namespace.encode()) + _string(b'') + _string(hash_name.encode())
+            + _string(HASHES[hash_name](data).digest()))
+
+
+def verify(data, sig_text, keys, namespace=NAMESPACE):
+    """(fingerprint, hash name) when SIG_TEXT (an armored SSHSIG) signs DATA for NAMESPACE with one of KEYS."""
+    r = _Reader(armored(sig_text), 'the signature')
+    if r.take(6) != MAGIC:
+        raise SignatureError('the signature is not an SSH signature')
+    if int.from_bytes(r.take(4), 'big') != 1:
+        raise SignatureError('the signature is not SSH signature version 1')
+    public = _ed25519_blob(r.string(), 'the signing key', 32)
+    ns, reserved, hash_name = r.string(), r.string(), r.string()
+    sig = _ed25519_blob(r.string(), 'the signature', 64)
+    r.end()
+    if ns != namespace.encode():
+        raise SignatureError('the signature is for "%s", not "%s"' % (ns.decode('ascii', 'replace')[:40], namespace))
+    if reserved:
+        raise SignatureError('the signature\'s reserved field is not empty')
+    hash_name = hash_name.decode('ascii', 'replace')
+    if hash_name not in HASHES:
+        raise SignatureError('the signature uses hash %s, not sha512 or sha256' % hash_name[:20])
+    if public not in keys:
+        raise SignatureError('signed with key %s, which this hao does not trust' % fingerprint(public))
+    if not ed25519_verify(public, signed_data(namespace, hash_name, data), sig):
         raise SignatureError('the signature does not match the file (changed after signing, or not signed by hao)')
-    if not ed25519_verify(keys[kid], sig + comment.encode(), gsig):
-        raise SignatureError('the trusted comment was changed after signing')
-    return key_id_text(kid), comment
+    return keys[public], hash_name
 
 
 def _read(path, limit, what):
@@ -236,16 +299,16 @@ def _read(path, limit, what):
 
 
 def signature_of(path):
-    return Path(str(path) + '.minisig')
+    return Path(str(path) + '.sig')
 
 
 def verified_release(path, keys=None):
-    """(private copy of PATH, key id, trusted comment): PATH and PATH.minisig read once, verified, and the same bytes
+    """(private copy of PATH, fingerprint, hash): PATH and PATH.sig read once, verified, and the same bytes
     written with the signature into a new 0700 folder, which every later step reads instead of PATH."""
     path = Path(path)
     data = _read(path, RELEASE_LIMIT, 'release file')
-    sig = _read(signature_of(path), SIG_LIMIT, 'signature beside %s (%s.minisig)' % (path.name, path.name))
-    kid, comment = verify(data, sig.decode('utf-8', errors='replace'), load_keys() if keys is None else keys)
+    sig = _read(signature_of(path), SIG_LIMIT, 'signature beside %s (%s.sig)' % (path.name, path.name))
+    kid, hashed = verify(data, sig.decode('utf-8', errors='replace'), load_keys() if keys is None else keys)
     import safety as SAFE
     folder = Path(tempfile.mkdtemp(prefix='hao-release-'))
     import atexit
@@ -253,4 +316,4 @@ def verified_release(path, keys=None):
     atexit.register(shutil.rmtree, str(folder), True)
     copy = SAFE.create(folder / path.name, data, 0o644)
     SAFE.create(signature_of(copy), sig, 0o644)
-    return copy, kid, comment
+    return copy, kid, hashed

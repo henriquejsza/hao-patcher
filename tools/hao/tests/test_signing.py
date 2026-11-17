@@ -1,15 +1,19 @@
-"""Release signatures (src/signing.py): RFC 8032's vectors, minisign 0.12's own files, and the refusals: a changed
-file, a changed trusted comment, another file's signature, an unknown key, a missing signature, and hao fetch /
+"""Release signatures (src/signing.py): RFC 8032's vectors, ssh-keygen's own SSH signatures, and the refusals: a
+changed file, another namespace, an RSA key, an unknown key, a missing signature, malformed blobs, and hao fetch /
 create-installer / install stopping with exit 4 before anything is read or written.
 
-fixtures/signing: release.json and release.json.minisig made by `minisign -S -t "hao release test"` with a throwaway
-key whose public half is test-key.pub (its secret half was never kept)."""
+fixtures/signing (OpenSSH 10.5 ssh-keygen, throwaway keys whose secret halves were never kept):
+  release.json.sig      ssh-keygen -Y sign -f test-key -n hao-release release.json            (sha512)
+  sig-sha256            the same with -O hashalg=sha256
+  sig-other-namespace   -n file
+  sig-rsa               an RSA key (rsa-key.pub)"""
 import base64
 import hashlib
 import json
 import os
 from pathlib import Path
 import runpy
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -34,14 +38,20 @@ VECTORS = [   # RFC 8032 section 7.1, tests 1-3: secret, public, message, signat
 ]
 
 
-def minisign_files(secret, data, comment='hao release test', kid=b'12345678'):
-    """(public key file, signature file) as minisign writes them, made with SECRET (for tests' own keys)."""
+def ssh_string(b):
+    return len(b).to_bytes(4, 'big') + b
+
+
+def sshsig_files(secret, data, namespace='hao-release', hash_name='sha512'):
+    """(public key line, armored SSHSIG) as ssh-keygen writes them, made with SECRET (for tests' own keys)."""
     pub = SIGN.secret_to_public(secret)
-    sig = SIGN.sign(secret, hashlib.blake2b(data, digest_size=64).digest())
-    gsig = SIGN.sign(secret, sig + comment.encode())
-    b = lambda x: base64.b64encode(x).decode()     # noqa: E731
-    return ('untrusted comment: minisign public key\n%s\n' % b(b'Ed' + kid + pub),
-            'untrusted comment: test\n%s\ntrusted comment: %s\n%s\n' % (b(b'ED' + kid + sig), comment, b(gsig)))
+    key_blob = ssh_string(b'ssh-ed25519') + ssh_string(pub)
+    sig = SIGN.sign(secret, SIGN.signed_data(namespace, hash_name, data))
+    blob = (b'SSHSIG' + (1).to_bytes(4, 'big') + ssh_string(key_blob) + ssh_string(namespace.encode()) + ssh_string(b'')
+            + ssh_string(hash_name.encode()) + ssh_string(ssh_string(b'ssh-ed25519') + ssh_string(sig)))
+    b64 = base64.b64encode(blob).decode()
+    armor = '\n'.join([SIGN.BEGIN] + [b64[k:k + 70] for k in range(0, len(b64), 70)] + [SIGN.END]) + '\n'
+    return 'ssh-ed25519 %s test\n' % base64.b64encode(key_blob).decode(), armor
 
 
 class Ed25519(unittest.TestCase):
@@ -62,52 +72,95 @@ class Ed25519(unittest.TestCase):
         self.assertFalse(SIGN.ed25519_verify(pk, m, sg[:63]))
 
 
-class Minisign(unittest.TestCase):
+class SSHSig(unittest.TestCase):
     def setUp(self):
         self.keys = SIGN.load_keys(FIX / 'test-key.pub')
         self.data = (FIX / 'release.json').read_bytes()
-        self.sig = (FIX / 'release.json.minisig').read_text()
+        self.sig = (FIX / 'release.json.sig').read_text()
 
-    def test_minisign_made_signature_verifies(self):
-        kid, comment = SIGN.verify(self.data, self.sig, self.keys)
-        self.assertEqual(comment, 'hao release test')
-        self.assertEqual(len(kid), 16)
+    def test_ssh_keygen_signatures_verify(self):
+        kid, hashed = SIGN.verify(self.data, self.sig, self.keys)
+        self.assertEqual(kid, 'SHA256:mKzv3UcvDYUzs6dQuc9E/qAbvOkDKBkwSGLo2d4ZuhA')    # as ssh-keygen -l shows it
+        self.assertEqual(hashed, 'sha512')
+        self.assertEqual(SIGN.verify(self.data, (FIX / 'sig-sha256').read_text(), self.keys)[1], 'sha256')
+
+    def blob(self, sig=None):
+        return base64.b64decode(''.join((sig or self.sig).strip().splitlines()[1:-1]))
+
+    def armor(self, blob):
+        return '%s\n%s\n%s\n' % (SIGN.BEGIN, base64.b64encode(blob).decode(), SIGN.END)
 
     def test_refusals(self):
-        lines = self.sig.splitlines()
-        other = SIGN.parse_keys(minisign_files(b'\1' * 32, b'')[0])
+        other = SIGN.parse_keys(sshsig_files(b'\1' * 32, b'')[0])
+        blob = self.blob()
         for why, data, sig, keys in (
                 ('changed file', self.data + b' ', self.sig, self.keys),
-                ('changed comment', self.data, self.sig.replace('hao release test', 'hao release tesT'), self.keys),
+                ('other namespace', self.data, (FIX / 'sig-other-namespace').read_text(), self.keys),
+                ('rsa key', self.data, (FIX / 'sig-rsa').read_text(), self.keys),
                 ('unknown key', self.data, self.sig, other),
-                ('not minisign', self.data, 'hello', self.keys),
-                ('legacy Ed', self.data, '\n'.join([lines[0], base64.b64encode(b'Ed' + base64.b64decode(lines[1])[2:])
-                                                    .decode()] + lines[2:]), self.keys),
-                ('bad base64', self.data, '\n'.join([lines[0], '!!!'] + lines[2:]), self.keys)):
+                ('not armored', self.data, 'hello', self.keys),
+                ('bad base64', self.data, '%s\n!!!\n%s\n' % (SIGN.BEGIN, SIGN.END), self.keys),
+                ('trailing bytes', self.data, self.armor(blob + b'\0'), self.keys),
+                ('cut short', self.data, self.armor(blob[:-5]), self.keys),
+                ('version 2', self.data, self.armor(blob[:6] + (2).to_bytes(4, 'big') + blob[10:]), self.keys)):
             with self.assertRaises(SIGN.SignatureError, msg=why):
                 SIGN.verify(data, sig, keys)
 
-    def test_no_keys_refuses(self):
+    def test_reserved_and_hash_must_be_known(self):
+        secret = b'\6' * 32
+        pub_line, _ = sshsig_files(secret, self.data)
+        keys = SIGN.parse_keys(pub_line)
+        pub = SIGN.secret_to_public(secret)
+        for reserved, hash_name in ((b'x', 'sha512'), (b'', 'sha1')):
+            signed = (b'SSHSIG' + ssh_string(b'hao-release') + ssh_string(reserved) + ssh_string(hash_name.encode())
+                      + ssh_string(hashlib.sha1(self.data).digest()))
+            sig = SIGN.sign(secret, signed)
+            blob = (b'SSHSIG' + (1).to_bytes(4, 'big') + ssh_string(ssh_string(b'ssh-ed25519') + ssh_string(pub))
+                    + ssh_string(b'hao-release') + ssh_string(reserved) + ssh_string(hash_name.encode())
+                    + ssh_string(ssh_string(b'ssh-ed25519') + ssh_string(sig)))
+            with self.assertRaises(SIGN.SignatureError):
+                SIGN.verify(self.data, self.armor(blob), keys)
+
+    @unittest.skipUnless(shutil.which('ssh-keygen'), 'no ssh-keygen here')
+    def test_ssh_keygen_accepts_what_the_helper_signs(self):
+        with tempfile.TemporaryDirectory() as d:
+            pub, sig = sshsig_files(b'\7' * 32, self.data)
+            (Path(d) / 'allowed').write_text('owner ' + pub)
+            (Path(d) / 'sig').write_text(sig)
+            r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'owner',
+                                '-n', 'hao-release', '-s', str(Path(d) / 'sig')], input=self.data, capture_output=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_helper_signatures_verify_here(self):
+        pub, sig = sshsig_files(b'\7' * 32, self.data)
+        self.assertEqual(SIGN.verify(self.data, sig, SIGN.parse_keys(pub))[1], 'sha512')
+
+    def test_keys_file(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(SIGN.SignatureError):
                 SIGN.load_keys(Path(d) / 'none.pub')
-            (Path(d) / 'empty.pub').write_text('untrusted comment: nothing\n')
+            (Path(d) / 'empty.pub').write_text('# nothing\n')
             with self.assertRaises(SIGN.SignatureError):
                 SIGN.load_keys(Path(d) / 'empty.pub')
+            with self.assertRaises(SIGN.SignatureError):     # only ssh-ed25519 keys are release keys
+                SIGN.load_keys(FIX / 'rsa-key.pub')
+            two = Path(d) / 'two.pub'
+            two.write_text((FIX / 'test-key.pub').read_text() + sshsig_files(b'\1' * 32, b'')[0])
+            self.assertEqual(len(SIGN.load_keys(two)), 2)
 
     def test_verified_release_reads_once_and_keeps_a_private_copy(self):
         with tempfile.TemporaryDirectory() as d:
-            for n in ('release.json', 'release.json.minisig'):
+            for n in ('release.json', 'release.json.sig'):
                 (Path(d) / n).write_bytes((FIX / n).read_bytes())
-            copy, kid, comment = SIGN.verified_release(Path(d) / 'release.json', self.keys)
+            copy, kid, hashed = SIGN.verified_release(Path(d) / 'release.json', self.keys)
             self.assertNotEqual(copy.parent, Path(d))
             self.assertEqual(copy.read_bytes(), self.data)
             self.assertEqual(oct(copy.parent.stat().st_mode & 0o777), '0o700')
             self.assertTrue(SIGN.signature_of(copy).is_file())
-            (Path(d) / 'release.json.minisig').unlink()
+            (Path(d) / 'release.json.sig').unlink()
             with self.assertRaises(SIGN.SignatureError):
                 SIGN.verified_release(Path(d) / 'release.json', self.keys)
-            (Path(d) / 'release.json.minisig').symlink_to(FIX / 'release.json.minisig')
+            (Path(d) / 'release.json.sig').symlink_to(FIX / 'release.json.sig')
             with self.assertRaises(SIGN.SignatureError):     # not through a symlink
                 SIGN.verified_release(Path(d) / 'release.json', self.keys)
 
@@ -122,7 +175,7 @@ class Commands(unittest.TestCase):
         rel.write_text(json.dumps({'downloads': [{'name': 'a.bin', 'url': 'file:///nonexistent', 'size': 1,
                                                   'sha256': '0' * 64}]}))
         if sign:
-            (Path(d) / 'release.json.minisig').write_text(minisign_files(b'\2' * 32, rel.read_bytes())[1])
+            (Path(d) / 'release.json.sig').write_text(sshsig_files(b'\2' * 32, rel.read_bytes())[1])
         return rel
 
     def test_fetch_refuses_an_unsigned_release_with_exit_4(self):
@@ -162,8 +215,8 @@ class Commands(unittest.TestCase):
         import console as CON
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d, sign=False)
-            pub, sig = minisign_files(b'\3' * 32, rel.read_bytes())
-            (Path(d) / 'release.json.minisig').write_text(sig)
+            pub, sig = sshsig_files(b'\3' * 32, rel.read_bytes())
+            (Path(d) / 'release.json.sig').write_text(sig)
             (Path(d) / 'keys.pub').write_text(pub)
             keys = hao['SIGN'].KEYS
             hao['SIGN'].KEYS = Path(d) / 'keys.pub'

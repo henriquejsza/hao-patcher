@@ -729,7 +729,7 @@ def signed_args(q):
 
 
 def signed_release(a, c, path, required=True):
-    """PATH (a release.json) checked against its PATH.minisig and the release keys hao carries, before anything in
+    """PATH (a release.json) checked against its PATH.sig (an SSH signature) and the release keys hao carries, before anything in
     it is read; returns the private verified copy every later step uses. Exit 4 when the signature is missing or
     does not match; --unsigned (a checkout only) skips the check and says so."""
     path = Path(path)
@@ -743,15 +743,15 @@ def signed_release(a, c, path, required=True):
                checked=False)
         return path
     try:
-        copy, kid, comment = SIGN.verified_release(path)
+        copy, kid, hashed = SIGN.verified_release(path)
     except SIGN.SignatureError as x:
         raise CON.Stopped('%s is not signed by hao: %s' % (path, x),
-                          why='hao reads a release only when the signature beside it (%s.minisig) is the owner\'s'
+                          why='hao reads a release only when the signature beside it (%s.sig) is the owner\'s'
                               % path.name,
                           untouched='nothing was downloaded or written',
                           options=['download the release again from its GitHub release page'], code=4)
-    c.item('%s signed (key %s, %s)' % (path.name, kid, comment), 'files', ok=True, ev='release.signature',
-           checked=True, key=kid, comment=comment)
+    c.item('%s signed (key %s, %s)' % (path.name, kid, hashed), 'files', ok=True, ev='release.signature',
+           checked=True, key=kid, hash=hashed)
     return copy
 
 

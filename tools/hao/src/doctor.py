@@ -7,7 +7,7 @@ Checks, each ok, warn (reported, not stopping) or fail (stopping):
   xcode     Xcode and its Metal toolchain (the Metal rows are made with them); its version is the pinned one for a
             byte-for-byte release proof
   macos     the host macOS against the oldest one a build was made on (older is reported, not refused)
-  signature release.json is signed by a key hao carries (release.json.minisig, src/signing.py); for --for release the
+  signature release.json is signed by a key hao carries (release.json.sig, an SSH signature: src/signing.py); for --for release the
             keys themselves must be there
   disk      free space against the release's peak (src/space.py), when there is a release.json
   urls      a HEAD request for each URL release.json downloads from (--offline skips it)
@@ -131,10 +131,10 @@ def check_signature(release, purpose, keys_path=None):
                 return [check('signature', 'fail', str(x), 'the owner\'s public key goes in tools/hao/data/release-keys.pub')]
         return [check('signature', 'warn', 'no release.json beside hao: no signature to check')]
     try:
-        _, kid, comment = SIGN.verified_release(release, SIGN.load_keys(keys_path))
+        _, kid, hashed = SIGN.verified_release(release, SIGN.load_keys(keys_path))
     except SIGN.SignatureError as x:
         return [check('signature', 'fail', 'release.json: %s' % x, 'download the release again from its GitHub page')]
-    return [check('signature', 'ok', 'release.json signed (key %s, %s)' % (kid, comment))]
+    return [check('signature', 'ok', 'release.json signed (key %s, %s)' % (kid, hashed))]
 
 
 def check_disk(release, cache):
