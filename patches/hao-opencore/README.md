@@ -71,7 +71,17 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
 `apply.sh` runs `src/config_reasons.py check` on the config it has just written and stops the build on an element
 without a reason; `tests/test_config_reasons.py` covers it (and a real config with `HAO_OPENCORE_IMAGE_CONFIG`). A
 reason that starts with `UNTRACED:` says what is not known yet and which laptop test settles it (CryptexFixup,
-RSRHelper, VirtualSMC and the bootercfg deletes: the LS1 batch boot).
+RSRHelper, KDKlessWorkaround, the Intel I210 Ethernet driver and the bootercfg deletes: the LS1 batch boot). The list
+was taken from a real image build's finished config, not from a QEMU test ESP. Those carry VirtualSMC and OVMF quirks
+a real image does not have.
+
+Every enabled kext must also come from a known source ([src/kext-provenance.json](src/kext-provenance.json)), and
+`apply.sh` stops the build otherwise.
+- Every third-party bundle pins all of its files' sha256. Each is byte-identical to its zip in the pinned OCLP source,
+  and every one of those zips is the same git blob as upstream OCLP's `payloads/` at tag 3.0.0-rc.5 (and main).
+- Lilu, CryptexFixup, AirportBrcmFixup and BlueToolFixup also match their Acidanthera release binaries.
+- The USB maps and ECM-Override are OCLP-generated and codeless.
+- HaoExec and IntelCommpage are hao's own, checked by kc_bind.py and repairs.py.
 
 ## Boot arguments
 
@@ -187,7 +197,8 @@ has a 15-second alarm. Finally load a website in Safari and scroll, navigate and
 
 ## Validation
 NEEDS VALIDATION (r70): an image build in which `apply.sh` prints "config-reasons: every element of config.plist has a
-reason". Host: `tests/test_config_reasons.py` against the install stick's and an acceptance image's real configs.
+reason". Host: `tests/test_config_reasons.py` passes against a real alpha build's finished EFI (`HAO_OPENCORE_IMAGE_ESP`):
+reasons and kext provenance.
 NEEDS VALIDATION (r69): row `kernel_repair_efi` -> kernel-repairs-26B131-r44, whose IntelCommpage drops the
 `ic_csr_internal` probe and carries the Sandbox adapter fix. Needs a laptop boot in which:
 - the kernel log shows "IntelCommpage: Sandbox profile operation layout adapter installed" and no `ic_csr_internal`
@@ -212,7 +223,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
-- r70 2026-11-17 Every enabled element of the finished config.plist has a recorded reason (`src/config-reasons.json`); `apply.sh` stops the build on one without (PROTOCOL S18). Nothing it installs changes.
+- r70 2026-11-17 Every enabled element of the finished config.plist has a recorded reason (`src/config-reasons.json`), and every enabled third-party kext is byte-identical to its pinned upstream OCLP payload (`src/kext-provenance.json`); `apply.sh` stops the build otherwise (PROTOCOL S18). Nothing it installs changes.
 - r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no longer carries the `ic_csr_internal` probe, and the Sandbox adapter rewrites a shared modifier list once. config.plist is byte-identical to r42's; only IntelCommpage's executable changes. Row `kernel_repair_binding` -> kernel-binding-26B131-r44, the same inputs' profile, which pins that executable.
 - r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refuse a boot-args value without one); `-pmap_pcid_disable` is recorded as not known to be needed (a 2026-11-02 isolation test that did not change the stall). Declaration only: nothing it installs changes.
 - r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the new recipe opencore-mbp92 (pack mbp92), which runs just before this one; it adds no kext on any recorded build, so the config is the same.

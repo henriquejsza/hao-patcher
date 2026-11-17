@@ -89,4 +89,5 @@ PYCONFIG
 plutil -lint "$ESP/EFI/OC/config.plist"
 # Every enabled kext, kernel patch, quirk, security value and NVRAM key of the finished config has a recorded reason
 # (src/config-reasons.json, PROTOCOL S18); an unexplained one stops the build here.
-"$PY" -I "$P/src/config_reasons.py" check "$ESP/EFI/OC/config.plist"
+# Every enabled third-party kext must be byte-identical to its pinned upstream release (src/kext-provenance.json).
+"$PY" -I "$P/src/config_reasons.py" check "$ESP/EFI/OC/config.plist" --kexts "$ESP/EFI/OC/Kexts"
