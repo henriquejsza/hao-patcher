@@ -2,6 +2,9 @@
 """lock.py: read inputs locks and target files (plain data) for the pipeline's shell stages.
 
   lock.py path LOCK NAME          the row's path; a row with a sha256 is checked against the file or folder
+  lock.py take LOCK NAME DIR [FILE]
+                                  copy row NAME's file (or FILE instead) into new folder DIR, hashing what is copied;
+                                  the copy's path when it is the row's sha256, else nothing is left and it stops
   lock.py hash PATH               a row's sha256 for PATH: a file's sha256, or a folder's content_sha256
   lock.py seal LOCK NAME          give the '- PATH' row NAME in folder LOCK the sha256 of what PATH holds now
                                   (LOCK may be a target .json: NAME is then a key holding {"path", "sha256"})
@@ -245,6 +248,33 @@ def path(lock, name):
     return p
 
 
+def take(lock, name, dest, src=None):
+    """A private copy of row NAME's file (or SRC) in DEST, hashed as it is written: read once, so what is checked is
+    what later steps read. Stops unless the row has a sha256 and the copy has it."""
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    src = src or p
+    if want == '-':
+        sys.exit('%s: row %s has no sha256' % (lock, name))
+    if not os.path.isfile(src):
+        sys.exit('%s: %s is not a file (%s)' % (lock, src, name))
+    out = os.path.join(dest, os.path.basename(src))
+    h = hashlib.sha256()
+    try:
+        with open(src, 'rb') as f, open(out, 'xb') as o:
+            for b in iter(lambda: f.read(1 << 22), b''):
+                h.update(b); o.write(b)
+        if h.hexdigest() != want:
+            sys.exit('%s: %s is not %s (%s)' % (lock, src, want, name))
+    except BaseException:
+        if os.path.exists(out):
+            os.unlink(out)
+        raise
+    return out
+
+
 def row_identity(sha, p, store):
     """What a row's input is, independent of the store's location: its sha256 column; for a '-' row the file's own
     content digest, else (a folder, or not there yet) its path relative to the store (outside the store: the path).
@@ -454,5 +484,5 @@ def verify_store(*argv):
 
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
-    print({'path': path, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
+    print({'path': path, 'take': take, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
            'oclp-keys': oclp_keys, 'verify-store': verify_store}[cmd](*args))

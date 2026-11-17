@@ -3,7 +3,7 @@
 # virtiofs (use a new SHARE per run: the guest's virtiofs view caches files that change in place).
 #   SHARE/pristine      payload.yaa, links.txt, firmlinks_payload (unpack), sys/data lists, firmlinks + root_uuid metadata, tools
 #   SHARE/oclp    OCLP source at commit OCLP (git archive of $OCLP_REPO) + the Universal-Binaries.dmg it expects
-#   SHARE/kdk     the build's KDK, expanded (System/Library/Extensions + SystemVersion.plist), cached in $CACHE
+#   SHARE/kdk     the build's KDK, expanded (System/Library/Extensions + SystemVersion.plist)
 #   SHARE/py SHARE/py-x86_64 SHARE/site   arm64 and x86_64 CPython + the site-packages OCLP imports (universal)
 #   SHARE/patches.txt   the set's image patches that apply to this target and build (pipeline/patches.py plan)
 #   SHARE/optional.json the set's optional patches that ran or were skipped, with the reason
@@ -14,12 +14,17 @@
 set -eu
 SHARE=${1:?share}; TARGET=${2:?target json}; LOCK=${3:?inputs lock}; COMMON=${4:?common lock}; OCLP=${5:?OCLP commit}; SET=${6:?set}
 HERE=${0:A:h}; TOP=${HERE:h:h}; L=(python3 -I $TOP/pipeline/lock.py)
-CACHE=${CACHE:-$TOP/store/cache}; OCLP_REPO=${OCLP_REPO:-$TOP/store/oclp}
+OCLP_REPO=${OCLP_REPO:-$TOP/store/oclp}
 in() { $L path $LOCK $1; }; common() { $L path $COMMON $1; }
 
 FOUNDATION=${7:-legacy}
 case $FOUNDATION in legacy|golden-first) ;; *) print -u2 "unknown foundation: $FOUNDATION"; exit 2 ;; esac
-KDKDMG=$(in kdk)
+mkdir -p $SHARE
+# Archives that are extracted or run (KDK, OCLP source, CPython) are copied into V, checked against their rows as they
+# are copied, and extracted from there afresh on every run.
+V=$(mktemp -d ${SHARE:A:h}/.inputs.XXXXXX); trap 'rm -rf $V' EXIT
+take() { $L take $1 $2 $(mktemp -d $V/$2.XXXXXX) ${3:-}; }
+KDKDMG=$(take $LOCK kdk)
 mkdir -p $SHARE/pristine $SHARE/oclp $SHARE/kdk $SHARE/hooks $SHARE/post
 cp -p $HERE/copy-hooks.py $SHARE/copy-hooks.py
 if [[ $FOUNDATION == legacy ]]; then
@@ -39,38 +44,35 @@ fi
 # (git archive of that commit) with OCLP.commit holding the full commit.
 # A store filled by `hao fetch` and `pipeline/place` has it as the oclp_source row instead (the commit is the archive's
 # pax comment, as git archive writes it).
+# Any archive (OCLP_TAR, store/oclp-source or the row's own) must be the oclp_source row's bytes; the commit text is
+# only checked for consistency.
 OCLP_TAR=${OCLP_TAR:-$TOP/store/oclp-source/$OCLP.tar}
-if [[ ! -f $OCLP_TAR && ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]]; then
-    OCLP_TAR=$(common oclp_source)
-fi
-if [[ -f $OCLP_TAR ]] && { [[ ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]] || ! command -v git >/dev/null 2>&1 || ! git --version >/dev/null 2>&1; }; then
-    tar -x -C $SHARE/oclp -f $OCLP_TAR
-    if [[ -f ${OCLP_TAR:r}.commit ]]; then OCLP_FULL=$(cat ${OCLP_TAR:r}.commit)
-    else OCLP_FULL=$(python3 -I -c 'import sys, tarfile; print(tarfile.open(sys.argv[1]).pax_headers.get("comment", ""))' $OCLP_TAR)
+if [[ ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]] || ! command -v git >/dev/null 2>&1 || ! git --version >/dev/null 2>&1; then
+    if [[ -f $OCLP_TAR ]]; then TAR=$(take $COMMON oclp_source $OCLP_TAR); else TAR=$(take $COMMON oclp_source); fi
+    tar -x -C $SHARE/oclp -f $TAR
+    if [[ -f $OCLP_TAR && -f ${OCLP_TAR:r}.commit ]]; then OCLP_FULL=$(cat ${OCLP_TAR:r}.commit)
+    else OCLP_FULL=$(python3 -I -c 'import sys, tarfile; print(tarfile.open(sys.argv[1]).pax_headers.get("comment", ""))' $TAR)
     fi
-    [[ $OCLP_FULL == $OCLP* ]] || { print -u2 "inputs.sh: $OCLP_TAR is OCLP ${OCLP_FULL:-(no commit)}, not $OCLP"; exit 1; }
+    [[ $OCLP_FULL == $OCLP* ]] || { print -u2 "inputs.sh: $TAR is OCLP ${OCLP_FULL:-(no commit)}, not $OCLP"; exit 1; }
 else
     git -C $OCLP_REPO archive $OCLP | tar -x -C $SHARE/oclp; OCLP_FULL=$(git -C $OCLP_REPO rev-parse $OCLP)
 fi
 cp $(common psp_$($L psp $SHARE/oclp)) $SHARE/oclp/Universal-Binaries.dmg
 
-KDK=$($L kdk-name $KDKDMG); K=$CACHE/kdk-${${KDK:r}##*_}
-if [[ ! -f $K/System/Library/CoreServices/SystemVersion.plist ]]; then
-    W=$(mktemp -d); mkdir $W/m
-    hdiutil attach -readonly -nobrowse -mountpoint $W/m $KDKDMG >/dev/null
-    pkgutil --expand-full $W/m/KernelDebugKit.pkg $W/x >/dev/null; hdiutil detach $W/m >/dev/null
-    mkdir -p $K/System/Library/CoreServices
-    ditto $W/x/KDK.pkg/Payload/System/Library/Extensions $K/System/Library/Extensions
-    cp $W/x/KDK.pkg/Payload/System/Library/CoreServices/SystemVersion.plist $K/System/Library/CoreServices/
-    rm -rf $W
-fi
-ditto $K $SHARE/kdk/$KDK
+KDK=$($L kdk-name $KDKDMG)
+W=$(mktemp -d $V/kdk-x.XXXXXX); mkdir $W/m
+hdiutil attach -readonly -nobrowse -mountpoint $W/m $KDKDMG >/dev/null
+pkgutil --expand-full $W/m/KernelDebugKit.pkg $W/x >/dev/null; hdiutil detach $W/m >/dev/null
+K=$SHARE/kdk/$KDK; mkdir -p $K/System/Library/CoreServices
+ditto $W/x/KDK.pkg/Payload/System/Library/Extensions $K/System/Library/Extensions
+cp $W/x/KDK.pkg/Payload/System/Library/CoreServices/SystemVersion.plist $K/System/Library/CoreServices/
+rm -rf $W
 
 # Both CPythons: SHARE/py (arm64) and SHARE/py-x86_64; the assembly copies the one for the Mac it runs on to its py/.
 for arch dir in arm64 py x86_64 py-x86_64; do
-    PY=$CACHE/python/$arch
-    [[ -x $PY/python/bin/python3.12 ]] || { rm -rf $PY; mkdir -p $PY; tar -xzf $(common python_$arch) -C $PY; }
-    ditto $PY/python $SHARE/$dir
+    W=$(mktemp -d $V/py.XXXXXX); A=$(take $COMMON python_$arch)
+    tar -xzf $A -C $W
+    ditto $W/python $SHARE/$dir; rm -rf $W
 done
 # the x86_64 one runs in a Recovery (hao install from the stick), whose shared cache has no libedit/ncurses/panel
 python3 -I $TOP/pipeline/stages/weaken-dylibs.py $SHARE/py-x86_64/bin/python3.12

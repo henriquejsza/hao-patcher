@@ -36,6 +36,21 @@ class Lock(unittest.TestCase):
         r = lock('path', p, 'kdk'); self.assertNotEqual(r.returncode, 0); self.assertIn('is not', r.stderr)
         r = lock('path', p, 'nope'); self.assertNotEqual(r.returncode, 0); self.assertIn('no row nope', r.stderr)
 
+    def test_take_copies_only_the_rows_bytes(self):
+        p = self.write('kdk %s %s\ntree - %s\n' % (self.sha, self.f, self.f))
+        out = self.d / 'out'; out.mkdir()
+        r = lock('take', p, 'kdk', out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(Path(r.stdout.strip()).read_bytes(), b'abc')
+        other = self.d / 'other'; other.write_bytes(b'abd')
+        for args in (('kdk', out / 'o1', other), ('tree', out / 'o2')):
+            (out / args[1].name).mkdir()
+            r = lock('take', p, *args)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertEqual(list((out / args[1].name).iterdir()), [], 'nothing is left on a refusal')
+        r = lock('take', p, 'kdk', out / 'o1', self.f)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))
