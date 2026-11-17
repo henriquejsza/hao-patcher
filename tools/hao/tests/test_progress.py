@@ -272,6 +272,27 @@ class Round5(unittest.TestCase):
                 if absent:
                     self.assertNotIn(absent, got)
 
+    def test_the_system_copy_is_a_bar(self):
+        out = Pipe()
+        c = CON.Console('steps', out=out, env={})
+        r = PROG.Runner(c, 'install', log='/dev/null', popen=popen_of(''), env={})
+        view = PROG.Assembly(r, local='/L')
+        view.start()
+        view.step('layout')
+        view.line('/dev/disk11s1  41504653-0000-11AA-AA11-0030654  /V/job/tmp/golden-pristine.x/filesystem')
+        view.step('golden-system')
+        used = {'/V/job/tmp/golden-pristine.x/filesystem': 10 * 10 ** 9, '/L/work/mnt/system': 1 * 10 ** 9}
+        saved = PROG.used_bytes
+        PROG.used_bytes = lambda path: used.get(str(path))
+        try:
+            view.tick()                                    # the base: what the new volume held before the copy
+            used['/L/work/mnt/system'] = 5 * 10 ** 9
+            view.tick()
+        finally:
+            PROG.used_bytes = saved
+        self.assertEqual((view.task.done, view.task.total, view.task.unit), (4 * 10 ** 9, 10 * 10 ** 9, 'bytes'))
+        self.assertIn('4.0 / 10.0 GB', CON.plain(view.task.render()))
+
     def test_stopped_says_what_was_left_untouched(self):
         text = 'STEP layout\nSTEP golden-system\nerror: copy failed\n'
         _, _, _, r, _ = render(text, rc=1)

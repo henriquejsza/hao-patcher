@@ -123,6 +123,17 @@ def tree_size(path, seen=None, shared=None):
     return files, size
 
 
+def used_bytes(path):
+    """Bytes in use on the volume mounted at PATH, or None when nothing is mounted there."""
+    try:
+        if not os.path.ismount(str(path)):
+            return None
+        st = os.statvfs(str(path))
+    except OSError:
+        return None
+    return (st.f_blocks - st.f_bfree) * st.f_frsize
+
+
 def recipe_folders(share):
     """{recipe: (files, bytes)} of a kit's hooks/NN-NAME and post/NN-NAME folders (what each recipe brings); an input
     row two recipes share counts for the first."""
@@ -547,6 +558,8 @@ class Assembly:
         self.kit = Path(kit) if kit else None
         self.local = Path(local) if local else None
         self.seen = set()          # the steps that ran (for "what was left untouched")
+        self.copy_source = None    # the installer's filesystem image, mounted (for the System copy's bar)
+        self.copy_base = None
         self.sizes = None          # {recipe: (files, bytes)} the kit carries, read when Apply packs starts
         self.index = 0             # the phase being worked on, 1-based; 0 before the first
         self.task = None
@@ -695,7 +708,13 @@ class Assembly:
     REPAIRS = re.compile(r'^Installed (\d+) recorded kernel repairs')
     STAMP = re.compile(r'^stamped .*HaoExec\.kext for kernel ([0-9a-f]{8,})')
 
+    ATTACHED = re.compile(r'^/dev/disk\d+s\d+\s+\S+\s+(/\S+/filesystem)$')
+
     def line(self, text):
+        m = self.ATTACHED.match(text)
+        if m:
+            self.copy_source = m.group(1)          # hdiutil attach of the System's source, golden-pristine.sh
+            return
         m = self.KC.match(text)
         if m:
             how, boot = m.groups()
@@ -779,9 +798,23 @@ class Assembly:
             self.task.update(done=done, total=total)
 
     def tick(self):
-        if self.task:
+        if self.task and self.last == 'golden-system' and self.copy_source and self.local:
+            self.copy_progress()
+        elif self.task:
             self.task.update()
         self.pace()
+
+    def copy_progress(self):
+        """The System copy as a bar: bytes on the new System volume against the source image's."""
+        total = used_bytes(self.copy_source)
+        done = used_bytes(self.local / 'work' / 'mnt' / 'system')
+        if total is None or done is None:
+            self.task.update()
+            return
+        if self.copy_base is None:
+            self.copy_base = done
+        self.task.unit = 'bytes'
+        self.task.update(done=max(0, min(done - self.copy_base, total)), total=total)
 
     def end(self, rc):
         if rc == 0:
