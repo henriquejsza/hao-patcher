@@ -91,7 +91,7 @@ def runtime_payload(rows=RUNTIME_ROWS):
     """The hao_runtime row's payload folder, or None when it does not resolve."""
     try:
         return Path(runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))['path'](str(rows[0]), rows[1]))
-    except Exception:
+    except (Exception, SystemExit):         # lock.path exits when the row's folder is not in this store
         return None
 
 
