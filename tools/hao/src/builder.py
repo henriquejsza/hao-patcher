@@ -508,6 +508,21 @@ def show_statement(c):
     return text
 
 
+def check_trace(top):
+    """The manifest check's trace: TOP/logs/manifest-check-TIME.txt (logs/ is outside the manifest), one line per file
+    before it is read, and Python's fault handler writing a traceback there on SIGBUS/SIGSEGV (a page-in failure on
+    the drive the check reads). None when the folder cannot be written; the check runs either way."""
+    import faulthandler
+    import time
+    try:
+        (top / 'logs').mkdir(exist_ok=True)
+        f = open(top / 'logs' / ('manifest-check-%s.txt' % time.strftime('%Y%m%d-%H%M%S')), 'w')
+    except OSError:
+        return None
+    faulthandler.enable(file=f, all_threads=True)
+    return f
+
+
 def check_drive(a, c):
     """Before the install erases anything: the USB installer the kit is on must match the manifest create-installer
     wrote (owner O-1: custody plus an integrity check). A kit not on a USB installer (build-disk, --kit elsewhere) has
@@ -526,11 +541,23 @@ def check_drive(a, c):
     keep_awake()
     total = _manifest_bytes(top / STICK.MANIFEST)
     done = [0]
+    trace = check_trace(top)
     with c.task('check the USB installer against its manifest', total=total or None, unit='bytes') as t:
         def seen(rel, size):
             done[0] += size
             t.update(done=done[0])
-        problems = STICK.check_manifest(top, on_file=seen)
+        def start(rel, size):
+            if trace:
+                trace.write('%d %s\n' % (size, rel))
+                trace.flush()
+        try:
+            problems = STICK.check_manifest(top, on_file=seen, on_start=start)
+        finally:
+            if trace:
+                import faulthandler
+                faulthandler.disable()
+                trace.write('end\n')
+                trace.close()
     c.event('drive.check', problems=len(problems), files=None)
     if problems:
         path, what = problems[0]

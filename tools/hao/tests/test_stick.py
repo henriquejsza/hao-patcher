@@ -289,6 +289,15 @@ class StickTest(unittest.TestCase):
         with self.assertRaisesRegex(STICK.StickError, 'differs from its manifest|manifest'):
             STICK.rewrite_boot(host, 'disk4', self.esp)
 
+    def test_each_file_is_named_before_it_is_read(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        started, read = [], []
+        self.assertEqual(STICK.check_manifest(top, on_file=lambda r, s: read.append(r),
+                                              on_start=lambda r, s: started.append(r)), [])
+        self.assertEqual(started, read)          # every file read was named first, in the same order
+        self.assertIn('install', started)
+
     def test_manifest_holes_are_closed(self):
         host = FakeHost(self.mnt)
         esp, boot, top = self.written(host)

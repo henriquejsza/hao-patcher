@@ -394,9 +394,10 @@ def write_manifest(top, on_file=None):
     return m
 
 
-def check_manifest(top, on_file=None):
+def check_manifest(top, on_file=None, on_start=None):
     """What on HAO differs from its manifest: [(path, problem)], empty when the drive is as it was written. Every
-    listed file is read and hashed; a file or link that is not listed is a problem too."""
+    listed file is read and hashed; a file or link that is not listed is a problem too. ON_START(rel, size) is called
+    before each file is read (a trace names the file a crash happened in)."""
     top = Path(top)
     try:
         m = json.loads(read_plain(top / MANIFEST))
@@ -405,7 +406,7 @@ def check_manifest(top, on_file=None):
     if not _manifest_shape(m):
         return [(MANIFEST, 'not a format-1 manifest')]
     try:
-        return _compare(top, m, on_file)
+        return _compare(top, m, on_file, on_start)
     except (StickError, OSError) as x:
         return [('(drive)', 'could not be read completely: %s' % x)]
 
@@ -421,7 +422,7 @@ def _manifest_shape(m):
     return all(isinstance(v, str) for v in m['links'].values())
 
 
-def _compare(top, m, on_file):
+def _compare(top, m, on_file, on_start=None):
     problems, found, hashed = [], set(), {}
     for rel, st, kind in _manifest_walk(top):
         found.add(rel)
@@ -447,6 +448,8 @@ def _compare(top, m, on_file):
                 key = (st.st_dev, st.st_ino)            # hard links (the userspace twin) are read once
                 first = key not in hashed
                 if first:
+                    if on_start:
+                        on_start(rel, st.st_size)
                     hashed[key] = sha256(top / rel)
                 if hashed[key] != want['sha256']:
                     problems.append((rel, 'different content (sha256)'))
