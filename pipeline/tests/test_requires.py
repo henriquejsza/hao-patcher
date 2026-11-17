@@ -51,8 +51,10 @@ class Unmet(unittest.TestCase):
                                              '26B131', '25G342')[0])
         avx2 = self.facts(oclp_hardware_profile={'cpu': {'flags': ['AVX1.0'], 'leafs': ['AVX2']}})
         self.assertEqual(P['unmet'](GOOD, avx2, '26B131', '25G342'), ['cpu avx2 is present'])
-        self.assertEqual(P['unmet'](GOOD, self.facts(oclp_hardware_profile={}), '26B131', '25G342'),
-                         ['cpu avx1.0 is missing'])
+        no_avx = self.facts(oclp_hardware_profile={'cpu': {'flags': ['SSE4.2'], 'leafs': []}})
+        self.assertEqual(P['unmet'](GOOD, no_avx, '26B131', '25G342'), ['cpu avx1.0 is missing'])
+        unknown = self.facts(oclp_hardware_profile={})
+        self.assertEqual(len(P['unmet'](dict(GOOD, cpu=['!avx2']), unknown, '26B131', '25G342')), 1)  # never met
 
     def test_unknown_facts_never_meet(self):
         self.assertEqual(len(P['unmet'](GOOD, P['target_facts']({'model': 'X'}), '26B131', '25G342')), 3)

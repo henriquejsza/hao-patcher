@@ -174,7 +174,9 @@ def unmet(req, facts, os_build, donor):
         why.append('gpu %s is not one of %s' % (', '.join(sorted(facts['gpu'])) or '(unknown)', ', '.join(req['gpu'])))
     if req['firmware'] != 'any' and facts['firmware'] not in req['firmware']:
         why.append('firmware %s is not one of %s' % (facts['firmware'] or '(unknown)', ', '.join(req['firmware'])))
-    for f in [] if req['cpu'] == 'any' else req['cpu']:
+    if req['cpu'] != 'any' and not facts['cpu']:
+        why.append('cpu (unknown: the target has no OCLP cpu profile) cannot meet %s' % ', '.join(req['cpu']))
+    for f in [] if req['cpu'] == 'any' or not facts['cpu'] else req['cpu']:
         name, absent = f.lstrip('!'), f.startswith('!')
         if (name in facts['cpu']) == absent:
             why.append('cpu %s %s' % (name, 'is present' if absent else 'is missing'))
