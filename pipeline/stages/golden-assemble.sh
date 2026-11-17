@@ -29,6 +29,15 @@ while [ $# -gt 0 ]; do
         *) echo "golden-assemble.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
+# Recipe hooks and posts run from LOCAL and are plain sh: a space in its path (a second USB drive mounts as "HAO 1")
+# would split their unquoted paths. LOCAL is reached through a link without spaces; the files stay where they are.
+case $W in
+    *' '*) mkdir -p "$W" || exit $?
+           SPACELESS=$(mktemp -d /private/var/tmp/hao-local.XXXXXX) || exit $?
+           ln -s "$W" "$SPACELESS/local" || exit $?
+           W=$SPACELESS/local
+           echo "golden-assemble.sh: the work folder's path has a space; using $W" ;;
+esac
 case $(uname -m) in
     arm64) PYDIR=py ;;
     x86_64) PYDIR=py-x86_64 ;;
