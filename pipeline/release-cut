@@ -72,7 +72,7 @@ def rows_for(assembly):
     setfile = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))['set_path'](a['patch_set'])
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
-        plan = patches['plan'](setfile, target, a['donor_build'], locks=None)
+        plan = patches['plan'](setfile, target, '%s/%s' % (a['golden_build'], a['donor_build']), locks=None)
     wanted = []
     for _, _, inputs in plan:
         wanted += inputs
@@ -405,7 +405,8 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
         plan = patches['plan'](patches['set_path'](a['patch_set']),
-                               TOP / 'pipeline/targets' / (a['target'] + '.json'), a['donor_build'], locks=None)
+                               TOP / 'pipeline/targets' / (a['target'] + '.json'),
+                               '%s/%s' % (a['golden_build'], a['donor_build']), locks=None)
     packs = patches['load_packs']()
     data = classes()
     data_settings = settings()

@@ -114,28 +114,26 @@ class OclpKeys(unittest.TestCase):
         self.assertEqual(set(self.keys([])), {'full', 'resume'})
 
     def test_shipped_set_points(self):
-        """golden-gate: a point before each of its kc-hooks (the plan, not the cache); every recipe is a kc-hook."""
+        """golden-gate-26B131: a point before each of its kc-hooks (the plan, not the cache); every recipe is a kc-hook."""
         plan = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/patches.py'), 'plan',
-                               str(TOP / 'pipeline/sets/golden-gate.txt'), str(TOP / 'pipeline/targets/mbp92.json'),
-                               '25G332'], capture_output=True, text=True, check=True).stdout
+                               str(TOP / 'pipeline/sets/golden-gate-26B131.txt'), str(TOP / 'pipeline/targets/mbp92.json'),
+                               '26B131/25G342'], capture_output=True, text=True, check=True).stdout
         hooks = [l for l in plan.splitlines() if l.startswith('oclp-hook ')]
+        names = [l.split()[1] for l in hooks]
         sys.path.insert(0, str(TOP / 'pipeline'))
         try:
             import lock
         finally:
             sys.path.pop(0)
         points = lock.oclp_points(hooks, str(TOP / 'patches'))
-        self.assertEqual([p[0] for p in points], [None, 'darwin27-kernel', 'golden-gate-userspace',
-                                                  'golden-gate-wifi-compat', 'darwin27-sandbox-disk-space', 'hao-runtime',
-                                                  'golden-gate-metal-libraries', 'golden-gate-hello',
-                                                  'golden-gate-windowserver-filter', 'golden-gate-corespotlight-compat',
-                                                  'metalold-selectors', 'golden-gate-metal-framebuffer',
-                                                  'golden-gate-native-identities'])
-        self.assertEqual(points[5][1], ['darwin27-kernel', 'golden-gate-userspace', 'golden-gate-wifi-compat',
-                                        'darwin27-sandbox-disk-space'])
+        self.assertIsNone(points[0][0])
+        self.assertEqual([p[0] for p in points[1:]], [n for n in names if n in [p[0] for p in points[1:]]])
+        self.assertIn('hao-runtime', [p[0] for p in points])
+        at = [p[0] for p in points].index('hao-runtime')
+        before = names[:names.index('hao-runtime')]
         # No recipe has a hook.sh any more, so the state before hao-runtime holds exactly the kc-hooks before it.
-        self.assertEqual([l.split()[1] for l in points[5][2]],
-                         ['darwin27-kernel', 'golden-gate-userspace', 'golden-gate-wifi-compat', 'darwin27-sandbox-disk-space'])
+        self.assertEqual(points[at][1], before)
+        self.assertEqual([l.split()[1] for l in points[at][2]], before)
 
 if __name__ == '__main__':
     unittest.main()

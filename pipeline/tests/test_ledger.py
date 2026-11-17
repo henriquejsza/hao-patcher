@@ -157,7 +157,7 @@ RESTRICTED = [
 
 class Repository(unittest.TestCase):
     def test_install_attributes_the_baseline_image_has_are_declared(self):
-        led = L['build'](TOP / 'pipeline/sets/golden-gate-26B131.txt', TOP / 'pipeline/targets/mbp92.json', '25G342')
+        led = L['build'](TOP / 'pipeline/sets/golden-gate-26B131.txt', TOP / 'pipeline/targets/mbp92.json', '26B131/25G342')
         install = lambda p: next((w['install'] for w in reversed(led[p]['writers']) if w.get('install')), {})
         self.assertEqual(len(RESTRICTED), 23)
         for p in RESTRICTED:
@@ -173,7 +173,7 @@ class Repository(unittest.TestCase):
         # dev-bs-test (golden-gate-26B131 + pack dev) has the same chains, dev-diagnostics appended to config.plist's
         for name in ('golden-gate-26B131', 'dev-bs-test'):
             setfile = TOP / 'pipeline/sets' / (name + '.txt')
-            led = L['build'](setfile, TOP / 'pipeline/targets/mbp92.json', '25G342')
+            led = L['build'](setfile, TOP / 'pipeline/targets/mbp92.json', '26B131/25G342')
             self.assertEqual(L['lint'](led, L['expected_for'](name)), [], name)
 
 
