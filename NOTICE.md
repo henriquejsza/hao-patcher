@@ -18,6 +18,7 @@ you supply. Those keep their own terms.
 | frida-gum `gumx86relocator.h` (17.25.0), shared-cache tools | wxWindows Library Licence 3.1 | [tools/shared-cache/vendor/frida-gum/COPYING](tools/shared-cache/vendor/frida-gum/COPYING) |
 | Swift remote-mirror headers (caab90f), shared-cache tools | Apache 2.0 with Runtime Library Exception | [tools/shared-cache/vendor/swift-remote-mirror/LICENSE.txt](tools/shared-cache/vendor/swift-remote-mirror/LICENSE.txt) |
 | Shared-cache toolchain headers (Apple open source) | APSL 2.0, Apache 2.0, BSD (see NOTICE) | [tools/shared-cache/NOTICE.md](tools/shared-cache/NOTICE.md) |
+| Rich 13.9.4 (Will McGugan), the `hao` console | MIT | [tools/hao/vendor/rich/LICENSE](tools/hao/vendor/rich/LICENSE), [tools/hao/vendor/NOTICE.md](tools/hao/vendor/NOTICE.md) |
 | Metal fix sources | See NOTICE | [tools/metal-fixes/NOTICE.md](tools/metal-fixes/NOTICE.md) |
 | Display fix sources | See NOTICE | [tools/display-fixes/NOTICE.md](tools/display-fixes/NOTICE.md) |
 | Audio fix sources | See NOTICE | [tools/audiomxd-fix/NOTICE.md](tools/audiomxd-fix/NOTICE.md) |
