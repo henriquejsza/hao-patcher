@@ -6,5 +6,6 @@
  ],
  "recipes": [
   "golden-gate-store"
- ]
+ ],
+ "release": true
 }
