@@ -602,10 +602,11 @@ def _write_new(path, data, owner):
     """Write DATA as PATH (0644, OWNER), never through a link or into a file with other names."""
     if path.is_symlink():
         raise SystemExit(f'native-identities: {path} is a link; nothing written')
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o644)          # truncated only once checked
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode) or os.fstat(fd).st_nlink != 1:
             raise SystemExit(f'native-identities: {path} is not a plain file of its own; nothing written')
+        os.ftruncate(fd, 0)
         view = memoryview(data)
         while view:
             view = view[os.write(fd, view):]
@@ -659,8 +660,12 @@ def main():
     print(f'native-identities: walk {WALK["seconds"]:.1f} s ({WALK["entries"]} entries, {WALK["executables"]} '
           f'executables\' headers read), install {time.monotonic() - started:.1f} s in all', flush=True)
     path = args.record or args.system/RECORD
-    path.write_text(json.dumps(record, indent=2) + '\n')
-    os.chmod(path, 0o644)
+    if args.record is None:                     # inside the image: only through real folders, never through a link
+        _real_folders(args.system, path.parent, (os.getuid(), os.getgid()))
+        _write_new(path, (json.dumps(record, indent=2) + '\n').encode(), (os.getuid(), os.getgid()))
+    else:
+        path.write_text(json.dumps(record, indent=2) + '\n')
+        os.chmod(path, 0o644)
     for row in record['rows']:
         print('native identity:', row['path'], row['observed'], '->', row['reference'], f'({row["same"]} unchanged)',
               flush=True)

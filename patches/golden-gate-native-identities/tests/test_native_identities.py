@@ -148,6 +148,13 @@ class NativeIdentitiesTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs=self.kept)
         self.assertFalse((elsewhere/'list').exists())
+        (self.system/ni.LIST).unlink()
+        keep = elsewhere/'keep'
+        keep.write_text('unchanged')
+        os.link(keep, self.system/ni.LIST)                                          # a hard link: refused, not emptied
+        with self.assertRaises(SystemExit):
+            ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs=self.kept)
+        self.assertEqual(keep.read_text(), 'unchanged')
 
     def test_unlisted_program_is_refused(self):
         rows, _, refused = ni.scan(self.system, [self.source], {})
