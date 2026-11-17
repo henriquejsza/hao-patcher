@@ -298,8 +298,9 @@ def steps(r, fs, a):
                 src = system / rel
             dst = view / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
-            if src.is_file():
-                shutil.copy2(src, dst)
+            if src.is_file():                   # bytes and mode: system flags cannot be set as a user, and
+                shutil.copyfile(src, dst)       # the programs carry their signatures inside
+                shutil.copymode(src, dst)
         return view
 
     completions = [(['hao_runtime'], runtime)]
@@ -352,7 +353,7 @@ def main():
                 print('make %s' % ', '.join(rows), flush=True)
                 try:
                     fn()
-                except Failed as e:
+                except (Failed, OSError) as e:
                     print('  STOPPED: %s' % e)
                     failed += rows
                     continue
