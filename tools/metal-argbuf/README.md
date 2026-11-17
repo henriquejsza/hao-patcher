@@ -236,6 +236,9 @@ like `metalold-selectors`), or injected into a test program (`DYLD_INSERT_LIBRAR
 - ASTC ([astc.m](src/device/astc.m)): `newTextureWithDescriptor:` (device, heap) creates ASTC textures as RGBA8
   (sRGB as RGBA8 sRGB) and tags them; `replaceRegion` (slice form; the 4-argument form forwards to it) and both blit
   `copyFromBuffer:...toTexture:` variants decode the blocks with libate (`at_encoder_decompress_texels`) first.
+  `pixelFormat` answers the ASTC format to the app and RGBA8 to the Metal stack (Metal, MetalOld, MetalTools, the GPU
+  drivers, our shims; by caller address): WeatherMaps uploads a tile only when the texture's format equals the KTX's
+  (diag#0055; host model tests/astc_tile_probe.m).
 - Requests MetalOld refuses but current Apple drivers accept are adapted where the HD 4000 can honour them, each
   logged once ("adapted: ..."):
   - multisample and depth/stencil render targets created Managed or Shared are made Private (MetalOld refuses them);
@@ -247,7 +250,7 @@ like `metalold-selectors`), or injected into a test program (`DYLD_INSERT_LIBRAR
 - Log: `os_log` subsystem `com.hao.argbuf`, category `device` (`log stream --predicate 'subsystem == "com.hao.argbuf"'`);
   the compiler side writes `icbe_wrap:` lines to syslog (in MTLCompilerService).
 - Switches: `AGB_LOG=1` (stderr copy of the log), `AGB_DISABLE`, `AGB_HANDLE_BASE=T,B` (tests: start handles high),
-  `AGB_ASTC_DISABLE`, `AGB_TRACE_TEXTURES=1` (log every texture descriptor), `AGB_SURVEY=1` (log every texture,
+  `AGB_ASTC_DISABLE`, `AGB_ASTC_REPORT_RGBA8=1` (ASTC textures report RGBA8 to every caller), `AGB_TRACE_TEXTURES=1` (log every texture descriptor), `AGB_SURVEY=1` (log every texture,
   pipeline and pass shape once), `AGB_KEEP_TARGET_STORAGE=1` (no Private adaptation), `AGB_KEEP_DEPTH_STENCIL=1` (no
   packed depth/stencil). `open -a App --env VAR=1` passes one to an app.
 
@@ -317,7 +320,7 @@ weak load).
 6. Cost: every rewritten shader declares the whole ranges (96 textures, 24 buffers, 6 samplers); vertex-shader
    pointer reads pay a 24-way compare chain. Not measured.
 7. ASTC: `getBytes` returns RGBA8, texture views with an ASTC format, ASTC HDR, and buffer-backed/IOSurface ASTC
-   textures are not handled; textures report `pixelFormat` RGBA8.
+   textures are not handled.
 8. Shader caches harvested on an image without this tool hold binaries compiled without the wrapper (MetalOld's
    cache key ignores the compiler): `golden-gate-shader-caches` needs a pack harvested on an image with it.
 

@@ -4,11 +4,19 @@
 // validation aborts the process. An ASTC texture is created as RGBA8 (sRGB variants as RGBA8 sRGB) and tagged; data
 // uploaded into it (replaceRegion, blit copyFromBuffer:...toTexture:) is decoded with the system's Apple Texture
 // Encoder (libate, at_encoder_decompress_texels) at upload time. Sampling, mipmap generation and views then work on
-// the RGBA8 texture natively. The texture reports pixelFormat RGBA8.
+// the RGBA8 texture natively.
+// -pixelFormat answers the ASTC format the app asked for to callers outside the Metal stack (diag#0055: WeatherMaps
+// uploads a KTX tile only when tile.pixelFormat equals the KTX's ASTC format, else drops it as pixelFormatMismatch), and
+// RGBA8 to Metal, MetalOld, the GPU drivers and our own shims, which work on the RGBA8 texture.
+// AGB_ASTC_REPORT_RGBA8=1 turns that off (every caller sees RGBA8, as before).
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <objc/runtime.h>
 #import <os/lock.h>
+#import <dlfcn.h>
+#import <mach-o/dyld.h>
+#import <mach-o/getsect.h>
+#import <stdatomic.h>
 #import <AppleTextureEncoder.h>
 
 void agb_astc_install(Class device, Class heap, Class blit, void (*log)(const char *, ...));
@@ -65,11 +73,55 @@ static uint8_t *decode(AGBAstc *i, const void *blocks, NSUInteger bpr, NSUIntege
     return out;
 }
 
+// __TEXT ranges of the images that must see the texture as it is (RGBA8): Metal and MetalOld, MetalTools, the GPU
+// drivers (Extensions), our Metal shims and this library. Filled as images load.
+#define AGB_STACK_MAX 64
+static struct { uintptr_t lo, hi; } stack_ranges[AGB_STACK_MAX];
+static _Atomic int stack_count;
+static void stack_image(const struct mach_header *mh, intptr_t slide) {
+    Dl_info di; if (!dladdr(mh, &di) || !di.dli_fname) return;
+    static const char *const marks[] = { "/Metal.framework/", "/MetalTools.framework/", "/Extensions/", "libmetal-framebuffer",
+                                         "libmetalold-selectors", "libargbuf" };
+    int hit = 0;
+    for (size_t k = 0; k < sizeof marks / sizeof *marks && !hit; k++) hit = strstr(di.dli_fname, marks[k]) != NULL;
+    Dl_info self; if (!hit && dladdr((const void *)stack_image, &self) && self.dli_fbase == (void *)mh) hit = 1;
+    if (!hit) return;
+    unsigned long size = 0; uint8_t *text = getsegmentdata((const struct mach_header_64 *)mh, "__TEXT", &size);
+    if (!text || !size) return;
+    int n = atomic_load(&stack_count); if (n >= AGB_STACK_MAX) return;
+    stack_ranges[n].lo = (uintptr_t)text; stack_ranges[n].hi = (uintptr_t)text + size;
+    atomic_store(&stack_count, n + 1);   // dyld calls this serially
+}
+static int from_stack(uintptr_t pc) {
+    int n = atomic_load(&stack_count);
+    for (int k = 0; k < n; k++) if (pc >= stack_ranges[k].lo && pc < stack_ranges[k].hi) return 1;
+    return 0;
+}
+static char formatKey;   // the ASTC pixel format the app asked for, on the texture
+
+typedef MTLPixelFormat (*FormatIMP)(id, SEL);
+static void hook_pixel_format(Class c) {
+    if (getenv("AGB_ASTC_REPORT_RGBA8")) return;
+    static dispatch_once_t once; dispatch_once(&once, ^{ _dyld_register_func_for_add_image(stack_image); });
+    SEL s = @selector(pixelFormat);
+    Method m = class_getInstanceMethod(c, s); if (!m) { astc_log("%s lacks pixelFormat", class_getName(c)); return; }
+    __block FormatIMP orig = (FormatIMP)method_getImplementation(m);
+    IMP imp = imp_implementationWithBlock(^MTLPixelFormat(id tex) {
+        uintptr_t pc = (uintptr_t)__builtin_return_address(0);
+        if (from_stack(pc)) return orig(tex, s);
+        NSNumber *f = objc_getAssociatedObject(tex, &formatKey);
+        return f ? (MTLPixelFormat)f.unsignedLongValue : orig(tex, s);
+    });
+    // the method is usually inherited: add it to this class so the superclass (other texture classes) is untouched
+    if (!class_addMethod(c, s, imp, method_getTypeEncoding(m))) method_setImplementation(m, imp);
+}
+
 typedef void (*ReplaceIMP)(id, SEL, MTLRegion, NSUInteger, NSUInteger, const void *, NSUInteger, NSUInteger);
 static ReplaceIMP o_replace;
 static void hook_texture_class(Class c) {
     if (objc_getAssociatedObject(c, &hookedKey)) return;
     objc_setAssociatedObject(c, &hookedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    hook_pixel_format(c);
     SEL s = @selector(replaceRegion:mipmapLevel:slice:withBytes:bytesPerRow:bytesPerImage:);
     Method m = class_getInstanceMethod(c, s); if (!m) { astc_log("%s lacks replaceRegion", class_getName(c)); return; }
     o_replace = (ReplaceIMP)method_getImplementation(m);
@@ -94,7 +146,11 @@ static void hook_new_texture(Class c) {
         if (!i) return orig(owner, s, td);
         MTLTextureDescriptor *c2 = [td copy]; c2.pixelFormat = i->outFormat;
         id t = orig(owner, s, c2);
-        if (t) { objc_setAssociatedObject(t, &astcKey, i, OBJC_ASSOCIATION_RETAIN_NONATOMIC); hook_texture_class(object_getClass(t)); }
+        if (t) {
+            objc_setAssociatedObject(t, &astcKey, i, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(t, &formatKey, @(td.pixelFormat), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            hook_texture_class(object_getClass(t));
+        }
         return t;
     });
     if (!class_addMethod(c, s, imp, method_getTypeEncoding(m))) method_setImplementation(class_getInstanceMethod(c, s), imp);
