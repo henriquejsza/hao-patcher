@@ -198,7 +198,7 @@ def remove(name, root=DEFAULT_ROOT):
             save_records(root, registry)
 
 
-def recovery_install(config, agent_script):
+def recovery_install(config, agent_script, extra=''):
     # The boot disk is the only attached disk during provisioning. Resolve its Data role,
     # never a volume name, and write only Data paths; no SSV change or host mount is needed.
     return r'''set -eu
@@ -237,7 +237,7 @@ SSDVM_CLONE_PLIST
 chmod 644 "$D/Library/LaunchDaemons/local.ssdvm.agent.plist"
 chown root:wheel "$D/usr/local/ssdvm/http-agent.sh" "$D/Library/LaunchDaemons/local.ssdvm.agent.plist"
 sync
-''' + 'echo CLONE-AGENT-INSTALLED-' + config['identity'] + '\n'
+''' + extra + 'echo CLONE-AGENT-INSTALLED-' + config['identity'] + '\n'
 
 
 # Durable Python with Pillow and cryptography for vmctl's VNC commands (build/vm/make-vmctl-venv.sh); /private/tmp is wiped on restart.
@@ -255,7 +255,8 @@ def fresh_vnc(vm,started_ns):
     return path.is_file() and path.stat().st_mtime_ns>=started_ns
 
 
-def provision(vm, marker, env):
+def provision(vm, marker, env, extra=''):
+    # extra: more recoveryOS shell lines run after the agent install (clean-vm make-base turns SIP off there).
     ctl = HERE / 'vmctl'
     subprocess.run(ctl_argv(vm)[:2]+['-c','from PIL import Image; import cryptography.hazmat.decrepit.ciphers.algorithms'],check=True,capture_output=True)
     api = runpy.run_path(str(ctl))
@@ -276,7 +277,7 @@ def provision(vm, marker, env):
                 need(child.poll() is None and time.monotonic() < deadline, 'clone recovery VNC did not become ready')
                 time.sleep(.2)
             subprocess.run(ctl_argv(vm,'up'), check=True, timeout=360, stdout=log, stderr=log)
-            script = recovery_install(config, api['guest_agent'](config))
+            script = recovery_install(config, api['guest_agent'](config), extra)
             result = subprocess.run(ctl_argv(vm,'exec',script), check=False, timeout=180,
                                     capture_output=True, text=True)
             log.write(result.stdout.encode());log.write(result.stderr.encode());log.flush()

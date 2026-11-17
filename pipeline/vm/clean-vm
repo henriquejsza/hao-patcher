@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+"""clean-vm: a fresh builder VM with known tools, for reproducing a release build.
+
+  clean-vm make-base KIND IPSW --xcode XIP --python PKG [--disk-gb N]
+  clean-vm up KIND NAME
+  clean-vm down NAME
+
+KIND is tahoe or golden; its base is store/vm/base-KIND.
+make-base  installs macOS from IPSW (tools/ssdvm), puts the root agent in it from recoveryOS with SIP off and
+           amfi_get_out_of_my_way=1 (clones.py provision), boots it, installs Xcode from XIP (license accepted,
+           first launch run) and Python 3.14 from the python.org PKG, and writes BASE/base.json: the guest's tool
+           versions and the sha256 of IPSW, XIP and PKG. Refuses if the base folder exists.
+up         clones the base (clones.py clone), starts the clone with its share (clones.py start), checks that the
+           guest's tool versions equal base.json and that the share is mounted at /private/var/ssdshare, and
+           prints VMDIR and the share. On a mismatch it stops the clone and refuses.
+down       stops the clone (stop.sh) and removes it (clones.py remove-clone).
+Env: VMBIN (folder with ssdvm, default store/vm/bin), VMCTL_PYTHON (Python with Pillow and cryptography for the
+recoveryOS step, as clones.py).
+"""
+import argparse
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import runpy
+import shutil
+import subprocess
+import sys
+import time
+
+HERE = Path(__file__).resolve().parent
+TOP = HERE.parents[1]
+STORE = TOP / 'store'
+KINDS = ('tahoe', 'golden')
+GUEST_SHARE = '/private/var/ssdshare'
+GUEST_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+# What base.json records and up compares. Each runs as root in the guest with GUEST_PATH.
+PROBES = (('sw_vers', 'sw_vers'), ('xcodebuild', 'xcodebuild -version'), ('clang', 'xcrun clang --version'),
+          ('python3.14', 'python3.14 --version'), ('git', 'git --version'), ('sip', 'csrutil status'),
+          ('boot-args', 'nvram boot-args'))
+# recoveryOS lines after the agent install: the builder runs with SIP off and AMFI out of the way (start.sh).
+RECOVERY_EXTRA = ("printf 'y\\ny\\n' | /usr/bin/csrutil disable\n"
+                  "/usr/sbin/nvram boot-args='amfi_get_out_of_my_way=1'\n")
+SETUP_TIMEOUT = 4 * 3600
+
+
+class Refused(Exception):
+    pass
+
+
+def need(value, message):
+    if not value:
+        raise Refused(message)
+
+
+def base_dir(kind, store=STORE):
+    need(kind in KINDS, 'KIND must be one of: ' + ', '.join(KINDS))
+    return Path(store) / 'vm' / ('base-' + kind)
+
+
+class Host:
+    """Everything that touches a VM or a process. Tests replace it."""
+
+    def __init__(self, store=STORE):
+        self.store = Path(store)
+        self.clones = runpy.run_path(str(HERE / 'clones.py'))
+        self.env = dict(os.environ, VMBIN=os.environ.get('VMBIN', str(self.store / 'vm/bin')), VMCTL=str(HERE / 'vmctl'))
+
+    def run(self, args, capture=False):
+        args = [str(a) for a in args]
+        print('+ ' + ' '.join(args[:4]) + (' ...' if len(args) > 4 else ''), flush=True)
+        return subprocess.run(args, env=self.env, check=True, text=True, capture_output=capture)
+
+    def ssdvm(self, *args):
+        return self.run([Path(self.env['VMBIN']) / 'ssdvm', *args])
+
+    def vmctl(self, vm, *args, capture=False):
+        return self.run([sys.executable, '-I', HERE / 'vmctl', vm, *args], capture=capture)
+
+    def clones_py(self, *args, capture=False):
+        return self.run([sys.executable, '-I', HERE / 'clones.py', *args], capture=capture)
+
+    def start_sh(self, vm, share, mac):
+        return subprocess.run(['zsh', str(HERE / 'start.sh'), str(vm), str(share)],
+                              env=dict(self.env, SSDVM_MAC=mac), check=True)
+
+    def stop_sh(self, vm):
+        return self.run(['zsh', HERE / 'stop.sh', vm])
+
+    def provision(self, vm, mac):
+        self.clones['provision'](Path(vm), dict(mac=mac), self.env, RECOVERY_EXTRA)
+
+    def new_mac(self):
+        return '02:' + ':'.join('%02x' % b for b in os.urandom(5))
+
+    def place(self, source, target):
+        try:
+            self.clones['clonefile'](source, target)       # same APFS volume: no copy
+        except OSError:
+            shutil.copy2(source, target)
+
+    def records(self, root):
+        return self.clones['records'](Path(root))
+
+    def sha256(self, path):
+        h = hashlib.sha256()
+        with open(path, 'rb') as stream:
+            while chunk := stream.read(1 << 24):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def sleep(self, seconds):
+        time.sleep(seconds)
+
+    def now(self):
+        return time.monotonic()
+
+
+def probe_script():
+    lines = ['export PATH=' + GUEST_PATH]
+    for key, command in PROBES:
+        lines.append('echo "@@begin %s"; %s 2>&1; echo "@@end %s $?"' % (key, command, key))
+    return '\n'.join(lines)
+
+
+def parse_probe(text):
+    """{key: output} from probe_script's output; Refused if a probe failed or is missing."""
+    result, key, body = {}, None, []
+    for line in text.splitlines():
+        if line.startswith('@@begin '):
+            key, body = line.split(' ', 1)[1], []
+        elif line.startswith('@@end ') and key is not None:
+            _, name, rc = line.split(' ')
+            need(name == key, 'probe output out of order: ' + name)
+            need(rc == '0', 'guest probe failed: %s (exit %s): %s' % (key, rc, '\n'.join(body).strip()[-300:]))
+            result[key] = '\n'.join(body).strip()
+            key = None
+        elif key is not None:
+            body.append(line)
+    missing = [k for k, _ in PROBES if k not in result]
+    need(not missing, 'guest probe incomplete: ' + ', '.join(missing))
+    return result
+
+
+def probe(host, vm):
+    return parse_probe(host.vmctl(vm, 'exec', probe_script(), capture=True).stdout)
+
+
+def setup_script(xip, pkg):
+    """Guest script (root, in the background): Xcode from the XIP, license, first launch, Python from the PKG."""
+    out = GUEST_SHARE + '/clean-vm'
+    return '''(
+export PATH=%(path)s
+(
+set -eux
+cd /Applications
+xip --expand "%(out)s/%(xip)s"
+app=$(ls -d /Applications/Xcode*.app | head -1)
+[ "$app" = /Applications/Xcode.app ] || mv "$app" /Applications/Xcode.app
+xcode-select -s /Applications/Xcode.app/Contents/Developer
+xcodebuild -license accept
+xcodebuild -runFirstLaunch
+installer -pkg "%(out)s/%(pkg)s" -target /
+) > "%(out)s/setup.log" 2>&1
+echo $? > "%(out)s/result"
+) >/dev/null 2>&1 </dev/null & echo started''' % dict(path=GUEST_PATH, out=out, xip=xip, pkg=pkg)
+
+
+def wait_setup(host, folder, timeout=SETUP_TIMEOUT, poll=30):
+    deadline = host.now() + timeout
+    while not (folder / 'result').exists():
+        need(host.now() < deadline, 'guest setup did not finish in %d s; log: %s' % (timeout, folder / 'setup.log'))
+        host.sleep(poll)
+    rc = (folder / 'result').read_text().strip()
+    need(rc == '0', 'guest setup failed (exit %s); log: %s' % (rc, folder / 'setup.log'))
+
+
+def make_base(kind, ipsw, xcode, python, host, disk_gb=None):
+    base = base_dir(kind, host.store)
+    need(not base.exists(), 'base already exists, remove it first to make it again: ' + str(base))
+    for label, path in (('IPSW', ipsw), ('--xcode', xcode), ('--python', python)):
+        need(Path(path).is_file(), '%s is not a file: %s' % (label, path))
+    need(Path(xcode).suffix == '.xip', '--xcode must be a .xip')
+    need(Path(python).suffix == '.pkg', '--python must be a .pkg')
+    inputs = {name: dict(file=Path(path).name, sha256=host.sha256(path))
+              for name, path in (('ipsw', ipsw), ('xcode', xcode), ('python', python))}
+    share = base.parent / (base.name + '.share')
+    need(not share.exists(), 'setup share already exists (a failed make-base?): ' + str(share))
+    host.ssdvm('install', base, ipsw, *([str(disk_gb)] if disk_gb else []))
+    host.vmctl(base, 'init-agent')
+    mac = host.new_mac()
+    host.provision(base, mac)
+    folder = share / 'clean-vm'
+    folder.mkdir(parents=True)
+    host.place(xcode, folder / 'Xcode.xip')
+    host.place(python, folder / 'python.pkg')
+    try:
+        host.start_sh(base, share, mac)
+        reply = host.vmctl(base, 'exec', setup_script('Xcode.xip', 'python.pkg'), capture=True).stdout
+        need(reply.strip() == 'started', 'guest setup start reply uncertain: ' + reply.strip()[-200:])
+        wait_setup(host, folder)
+        tools = probe(host, base)
+        need('disabled' in tools['sip'], 'SIP is not off in the base: ' + tools['sip'])
+        need('amfi_get_out_of_my_way=1' in tools['boot-args'], 'boot-args lack amfi_get_out_of_my_way=1')
+    finally:
+        host.stop_sh(base)
+    record = dict(schema=1, kind=kind, base=str(base), made=datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
+                  inputs=inputs, tools=tools)
+    with (base / 'base.json').open('x') as stream:
+        json.dump(record, stream, indent=2)
+        stream.write('\n')
+    shutil.rmtree(share)
+    print('base: ' + str(base))
+    return record
+
+
+def read_base(kind, store):
+    base = base_dir(kind, store)
+    path = base / 'base.json'
+    need(path.is_file(), 'no %s: make it with clean-vm make-base %s IPSW --xcode XIP --python PKG' % (path, kind))
+    record = json.loads(path.read_text())
+    need(record.get('schema') == 1 and record.get('kind') == kind and isinstance(record.get('tools'), dict)
+         and all(k in record['tools'] for k, _ in PROBES), 'invalid ' + str(path))
+    return base, record
+
+
+def differences(want, have):
+    return sorted(k for k in want if want.get(k) != have.get(k))
+
+
+def up(kind, name, host):
+    base, record = read_base(kind, host.store)
+    marker = json.loads(host.clones_py('clone', name, '--base', base, '--root', host.store / 'vm', capture=True).stdout)
+    vm, share = Path(marker['vm']), Path(marker['share'])
+    try:
+        host.clones_py('start', vm, share)
+        tools = probe(host, vm)
+        bad = differences(record['tools'], tools)
+        need(not bad, 'guest differs from %s in: %s' % (base / 'base.json', ', '.join(bad)))
+        mounted = host.vmctl(vm, 'exec', 'mount | grep -q " %s " && echo MOUNTED' % GUEST_SHARE, capture=True).stdout
+        need(mounted.strip() == 'MOUNTED', 'share is not mounted at ' + GUEST_SHARE)
+    except BaseException:
+        host.stop_sh(vm)
+        raise
+    print('VMDIR ' + str(vm))
+    print('SHARE ' + str(share) + ' (guest ' + GUEST_SHARE + ')')
+    return vm, share
+
+
+def down(name, host):
+    root = host.store / 'vm'
+    registry = host.records(root)
+    need(name in registry, 'not a clone: ' + name)
+    host.stop_sh(registry[name]['vm'])
+    host.clones_py('remove-clone', name, '--root', root)
+
+
+def main(argv=None, host=None):
+    parser = argparse.ArgumentParser(prog='clean-vm', description=__doc__.split('\n')[0])
+    commands = parser.add_subparsers(dest='command', required=True)
+    p = commands.add_parser('make-base')
+    p.add_argument('kind', choices=KINDS)
+    p.add_argument('ipsw', type=Path)
+    p.add_argument('--xcode', type=Path, required=True)
+    p.add_argument('--python', type=Path, required=True)
+    p.add_argument('--disk-gb', type=int)
+    p = commands.add_parser('up')
+    p.add_argument('kind', choices=KINDS)
+    p.add_argument('name')
+    p = commands.add_parser('down')
+    p.add_argument('name')
+    args = parser.parse_args(argv)
+    host = host or Host()
+    try:
+        if args.command == 'make-base':
+            make_base(args.kind, args.ipsw, args.xcode, args.python, host, args.disk_gb)
+        elif args.command == 'up':
+            up(args.kind, args.name, host)
+        else:
+            down(args.name, host)
+    except (Refused, subprocess.CalledProcessError, ValueError, OSError) as error:
+        print('clean-vm: ' + str(error), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
