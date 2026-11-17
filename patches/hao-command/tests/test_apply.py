@@ -27,16 +27,39 @@ class Apply(unittest.TestCase):
             data = d / 'data'
             data.mkdir()
             env = dict(os.environ, P=str(p), DATA=str(data))
-            script = (RECIPE / 'apply.sh').read_text().replace('chown -R root:wheel', ': chown -R root:wheel') \
+            script = (RECIPE / 'apply.sh').read_text().replace('chown ', ': chown ') \
                 .replace('install -d -o root -g wheel', 'install -d')
+            # a symlink planted at the launcher's name is replaced, not written through
+            (data / 'usr/local/bin').mkdir(parents=True)
+            victim = d / 'victim'
+            victim.write_text('keep')
+            (data / 'usr/local/bin/hao').symlink_to(victim)
             r = subprocess.run(['sh', '-eu', '-c', script], env=env, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(victim.read_text(), 'keep')
+            self.assertFalse((data / 'usr/local/bin/hao').is_symlink())
             launcher = (data / 'usr/local/bin/hao').read_text()
             self.assertIn('/usr/local/lib/hao/python/bin/python3.12 -I /usr/local/lib/hao/hao/tools/hao/hao', launcher)
             self.assertTrue((data / 'usr/local/lib/hao/python/bin/python3.12').is_file())
             self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/hao').is_file())
             self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/vendor/rich/LICENSE').is_file())
             self.assertFalse((data / 'usr/local/lib/hao/hao/tools/hao/tests').exists())
+
+    def test_refuses_a_symlinked_folder(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            p = d / 'recipe'
+            (p / 'inputs').mkdir(parents=True)
+            data = d / 'data'
+            (data / 'usr').mkdir(parents=True)
+            (d / 'elsewhere').mkdir()
+            (data / 'usr/local').symlink_to(d / 'elsewhere')
+            env = dict(os.environ, P=str(p), DATA=str(data))
+            r = subprocess.run(['sh', '-eu', '-c', (RECIPE / 'apply.sh').read_text()], env=env, capture_output=True,
+                               text=True)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('is a symlink', r.stderr)
+            self.assertEqual(list((d / 'elsewhere').iterdir()), [])
 
 
 if __name__ == '__main__':

@@ -6,10 +6,13 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 TOP=$(cd "$HERE/../.." && pwd)
 OUT=${1:?output}
+rm -rf "$OUT/hao"
 mkdir -p "$OUT/hao"
 if [ -e "$TOP/.git" ]; then
-    (cd "$TOP" && git ls-files tools/hao NOTICE.md | grep -v '^tools/hao/tests/' | tar -cf - -T -) | (cd "$OUT/hao" && tar -xf -)
-    VERSION=$(git -C "$TOP" describe --always --dirty --abbrev=12)
+    # the committed bytes, not the working tree (an uncommitted change is never staged into an image)
+    git -C "$TOP" archive HEAD tools/hao NOTICE.md | (cd "$OUT/hao" && tar -xf -)
+    rm -rf "$OUT/hao/tools/hao/tests"
+    VERSION=$(git -C "$TOP" describe --always --abbrev=12)
 else
     (cd "$TOP" && find tools/hao NOTICE.md -type f ! -path 'tools/hao/tests/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
         ! -name '.DS_Store' | tar -cf - -T -) | (cd "$OUT/hao" && tar -xf -)
