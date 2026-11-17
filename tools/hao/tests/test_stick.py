@@ -225,6 +225,14 @@ class StickTest(unittest.TestCase):
             STICK.rewrite_boot(host, 'disk4', self.esp)
         self.assertTrue((esp / 'EFI/OC/OpenCore.efi').is_file())
 
+    def test_the_kit_on_the_drive_is_checked_file_by_file(self):
+        host = FakeHost(self.mnt)
+        rec = STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)
+        self.assertEqual(rec['kit_files_verified'], 6)      # cryptex-cache/in left out, the python3 link not compared
+        (self.mnt / 'HAO/kit/hooks/15-identities/inputs/u/other.dmg').write_bytes(b'short')
+        with self.assertRaisesRegex(STICK.StickError, '1 files .*other.dmg'):
+            STICK.verify_kit(self.kit, self.mnt / 'HAO/kit')
+
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)
         STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)

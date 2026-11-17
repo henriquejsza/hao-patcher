@@ -455,16 +455,40 @@ def create_installer(a, c, host, acquire=None):
         if image:
             host.run(['hdiutil', 'detach', '/dev/' + disk], check=False, timeout=300)
     c.event('stick.written', stick=rec)
+    left = finish_kit(a, c, kit)
     if image:
-        c.done('stick image written: %s' % image, disk=disk)
+        c.done('stick image written: %s' % image, disk=disk, more=left)
         return 0
     # the writer leaves the stick unmounted; eject it, so the last line can say it may be unplugged
     ejected = host.run(['diskutil', 'eject', '/dev/' + disk], check=False, timeout=300).returncode == 0
     c.done('the USB stick is ready%s. On the Intel Mac: hold Option while it starts, choose EFI Boot, then in the '
            'Recovery open Terminal and run /Volumes/HAO/install' % (
                ' and ejected: you can unplug it' if ejected else
-               ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected)
+               ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected,
+           more=left)
     return 0
+
+
+def finish_kit(a, c, kit):
+    """After the drive is written and its kit checked file by file (stick.verify_kit): remove the kit staged on this
+    Mac (its folder WORK/stage; the record stays), unless --keep-kit or the kit was given with --kit. Returns the
+    summary lines."""
+    if getattr(a, 'kit', None):
+        return []
+    stage = Path(kit).parent
+    if stage.name != 'stage' or not (stage / 'share' / 'kit.json').is_file():
+        return []
+    if getattr(a, 'keep_kit', False):
+        c.event('kit.kept', path=str(stage))
+        return ['The staged kit stays on this Mac (--keep-kit): %s' % stage]
+    size = STICK.kit_bytes(stage)
+    shutil.rmtree(stage, ignore_errors=True)
+    if stage.exists():
+        c.warning('the staged kit could not be removed: %s' % stage)
+        return ['The staged kit is still on this Mac: %s' % stage]
+    c.event('kit.removed', path=str(stage), bytes=size)
+    c.item('removed the staged kit from this Mac (%s; the USB installer has it)' % human_size(size), 'steps', ok=True)
+    return ['%s freed on this Mac: the staged kit is on the USB installer now (--keep-kit keeps it)' % human_size(size)]
 
 
 def lock_path(*argv):

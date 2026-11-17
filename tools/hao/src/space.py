@@ -55,6 +55,8 @@ def plan(release, cache=None, data=None):
     drive += m['kit_rest_drive_gb'] + m['hao_folder_gb'] + d['boot_partition_gb']
     stages.append(('write', mac + m['kit_stage_mac_gb'], drive, 'OpenCore and the Recovery, hao and the kit onto the '
                    'drive; the images are moved into the kit, not copied'))
+    stages.append(('after', mac, drive, 'the staged kit removed from this Mac (--keep-kit keeps it); downloads and '
+                   'made rows kept for the next run'))
     return dict(stages=stages, mac_peak=max(s[1] for s in stages), drive_need=max(s[2] for s in stages),
                 download=fetched, read_by_range=read, margin=d['margin_gb'], drive_fraction=d['drive_free_fraction'])
 

@@ -245,6 +245,30 @@ def copy_tree(src, dest, skip=SKIP, linked=None, skip_paths=()):
             shutil.copy2(r / f, out / f)
 
 
+def verify_kit(kit, copy, skip=('.DS_Store', '__pycache__'), skip_paths=KIT_LEFT_OUT):
+    """Every regular file of the staged KIT is in COPY (the kit on the drive) with the same size, apart from what the
+    drive leaves out; symlinks (moved in from the drive, or kept as links) are not compared. Returns the files checked;
+    raises StickError naming what is missing."""
+    kit, copy = Path(kit), Path(copy)
+    checked, bad = 0, []
+    for root, dirs, files in os.walk(kit):
+        r = Path(root)
+        dirs[:] = [d for d in dirs if d not in skip and str((r / d).relative_to(kit)) not in skip_paths
+                   and not (r / d).is_symlink()]
+        for f in files:
+            p = r / f
+            if f in skip or f.startswith('._') or p.is_symlink():
+                continue
+            q = copy / p.relative_to(kit)
+            if not q.is_file() or q.stat().st_size != p.stat().st_size:
+                bad.append(str(p.relative_to(kit)))
+            checked += 1
+    if bad:
+        raise StickError('the kit on the drive differs from the staged one: %d files (%s)'
+                         % (len(bad), ', '.join(bad[:3])))
+    return checked
+
+
 def write_boot(esp, mount, basesystem, opencore_tar, log=False):
     """OpenCore onto the EFI partition ESP, the Recovery onto HAOBOOT (MOUNT; not copied again when the same
     BaseSystem.dmg is already there). Returns what stick.json records."""
@@ -322,6 +346,7 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     copy_tree(kit, mount / 'kit', skip={'.DS_Store', '__pycache__'}, linked=linked, skip_paths=KIT_LEFT_OUT)
     adopted = adopt_drive_links(mount / 'kit', mount)
     shutil.rmtree(mount / BUILD_DIR, ignore_errors=True)
+    verified = verify_kit(kit, mount / 'kit')
     assembly = (record or {}).get('assembly')
     for name, fill in LAUNCHERS.items():
         p = mount / name
@@ -335,7 +360,7 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     rec = dict(record or {})
     rec.update(schema=1, kit_json_sha256=sha256(kit / 'kit.json'), kit_bytes=kit_bytes(mount / 'kit'),
                hard_links=[[str(Path(a).relative_to(mount)), str(Path(b).relative_to(mount))] for a, b in linked],
-               made_on_drive=[str(Path(a).relative_to(mount)) for a, _ in adopted],
+               made_on_drive=[str(Path(a).relative_to(mount)) for a, _ in adopted], kit_files_verified=verified,
                release_sha256=sha256(release) if release else None)
     prelinked = sorted(kit.glob('hooks/*darwin27-kernel/prelinked/prelinked.json'))
     rec['kernel_collections'] = (

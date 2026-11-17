@@ -202,6 +202,34 @@ class InstallQuestionTest(unittest.TestCase):
 
 
 class CreateInstallerTest(unittest.TestCase):
+    def test_staged_kit_is_removed_after_the_write_unless_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            def staged():
+                kit = Path(d) / 'work/stage/share'
+                kit.mkdir(parents=True, exist_ok=True)
+                (kit / 'kit.json').write_text('{}')
+                (kit / 'big.dmg').write_bytes(b'x' * 4096)
+                return kit
+            kit = staged()
+            c, out, _ = console([])
+            left = INST.finish_kit(ns(), c, kit)
+            self.assertFalse((Path(d) / 'work/stage').exists())
+            self.assertIn('freed on this Mac', left[0])
+            self.assertIn('removed the staged kit', out.getvalue())
+            self.assertEqual(c.events[-1]['ev'], 'kit.removed')
+            kit = staged()
+            self.assertIn('--keep-kit', INST.finish_kit(ns(keep_kit=True), c, kit)[0])
+            self.assertTrue(kit.is_dir())
+            self.assertEqual(INST.finish_kit(ns(kit=str(kit)), c, kit), [])     # a kit given with --kit is not ours
+            self.assertTrue(kit.is_dir())
+
+    def test_the_plan_counts_the_staged_kit_and_its_removal(self):
+        import space as SPACE
+        p = SPACE.plan({'downloads': [], 'assets': []})
+        stages = {name: (mac, drive) for name, mac, drive, _ in p['stages']}
+        self.assertAlmostEqual(stages['write'][0] - stages['after'][0], SPACE.load()['measured']['kit_stage_mac_gb'])
+        self.assertEqual(p['mac_peak'], max(m for m, _ in stages.values()))
+
     def test_dry_run_asks_and_shows_the_plan(self):
         host = FakeMac()
         with Release() as r:
