@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """ci: every check a push must pass, in one command, with no store and no network (PROTOCOL S8).
 
   pipeline/ci [COMMIT] [--here] [--only NAME ...] [--list] [--log FILE] [--jobs N]
@@ -7,6 +7,9 @@ By default COMMIT (HEAD) is checked out detached in a temporary worktree, so the
 tree: no store/, no ignored files, no uncommitted change. --here runs in this working tree instead (for a
 quick look before committing; a push needs the exported run). Proxies are pointed at a closed port, so a check
 that reaches for the network fails instead of passing on this machine only.
+
+First, hao doctor --for ci (tools/hao/src/doctor.py: the pinned Python, Xcode, host macOS, script shebangs) runs in
+the tree; if it fails, nothing else runs and the run exits 1 with one check, doctor, failed (PROTOCOL S14).
 
 Checks (each prints one line, ok or FAIL, and the run exits 1 if any failed):
   layout      pipeline/patches.py check (recipes, packs, order.txt, profiles, README and tracker rules)
@@ -129,6 +132,28 @@ def run_suite(tree, d):
     return rc == 0, note + '\n' + out
 
 
+def check_doctor(tree):
+    """hao doctor --for ci in TREE: (ok, its checks one per line). Its warnings are shown; only a failure stops."""
+    rc, out = run(tree, PY, '-I', 'tools/hao/hao', 'doctor', '--for', 'ci', '--log', 'json')
+    lines = []
+    for line in out.splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            lines.append(line)
+            continue
+        if isinstance(e, dict) and e.get('ev') == 'doctor.check':
+            lines.append('%-4s %-9s %s%s' % (dict(ok='ok', warn='warn').get(e['state'], 'FAIL'), e['name'],
+                                            e['detail'], '  (%s)' % e['fix'] if e.get('fix') and e['state'] != 'ok' else ''))
+        elif isinstance(e, dict) and e.get('ev') == 'run.end':
+            if not e.get('ok'):
+                lines.append('stopped: %s' % e.get('what'))
+        elif not isinstance(e, dict) or e.get('ev') != 'run.start':
+            lines.append(line)
+    head = 'hao doctor --for ci: %s' % ('ready' if rc == 0 else 'exit %d' % rc)
+    return rc == 0, '\n'.join([head] + lines) + '\n'
+
+
 CHECKS = [('layout', check_layout), ('sets', check_sets), ('edit-specs', check_edit_specs),
           ('matrix', check_matrix), ('hygiene', check_hygiene)]
 
@@ -179,6 +204,14 @@ def main(argv=None):
     results = {}
     t0 = time.time()
     try:
+        start = time.time()
+        ok, out = check_doctor(tree)
+        results['doctor'] = dict(ok=ok, seconds=round(time.time() - start, 1), tail=out[-20000:])
+        print('%-4s %-48s %s (%.0f s)' % ('ok' if ok else 'FAIL', 'doctor', out.splitlines()[0][:60],
+                                          time.time() - start), flush=True)
+        if not ok:
+            print('ci: this Mac is not ready (hao doctor --for ci failed); no other check ran', flush=True)
+            todo = []
         with concurrent.futures.ThreadPoolExecutor(a.jobs) as pool:
             futs = {}
             for name, fn in todo:

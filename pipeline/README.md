@@ -55,12 +55,19 @@ python3.14 -I pipeline/ci [COMMIT] [--log FILE]   # every check a push must pass
 python3.14 -I pipeline/ci --here --only suite:tools/hao   # this working tree, one check
 ```
 
-It checks the commit out in a temporary worktree (no `store/`, nothing uncommitted) with proxies closed, then runs
+It checks the commit out in a temporary worktree (no `store/`, nothing uncommitted) with proxies closed. First it runs
+`tools/hao/hao doctor --for ci --log json` there (the pinned Python, Xcode, host macOS and script shebangs; no disk or
+URL checks): if doctor fails, no other check runs and the run exits 1 with the one failed check `doctor`, its lines in
+the `--log` JSON (PROTOCOL S14; `hao create-installer` runs the same doctor before its first question). Then it runs
 `patches.py check`, every profile's set against its file, the edit specs and signing lint, the hygiene check of the
 tree and the commit message, and every test suite (`pipeline/tests`, `tools/*/tests`, `patches/*/tests`,
 `patches/*/build/tests`, `cache/*/tests`, `cache/metallib/lib`). One line per check, then the failing ones' output.
 No push, merge or tag without a green run on that commit (PROTOCOL S8); a test that needs Apple files skips when
 they are absent. A new check is a function added to `CHECKS`.
+
+Scripts run on the build Mac (`pipeline/`, the host tools) name `#!/usr/bin/env python3.14` and are run as
+`python3.14 -I SCRIPT`; scripts that run in the builder VM (`pipeline/stages/`, `pipeline/kit.py`), on the target or
+in the Recovery keep the interpreter they run with there.
 
 ## Live swaps (`swaps.py`, `live-swaps.tsv`)
 

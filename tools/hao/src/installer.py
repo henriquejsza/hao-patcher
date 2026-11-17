@@ -32,6 +32,8 @@ from console import Stopped, human_size
 import builder as BUILD
 import detect as DETECT
 import disks as DISKS
+import doctor as DOCTOR
+import frontdoor as FD
 import livepatch as LP
 import shutil
 import space as SPACE
@@ -41,6 +43,7 @@ TOP = Path(__file__).resolve().parents[3]
 ACQUIRE = TOP / 'tools' / 'acquire' / 'acquire'
 STICK_GB = 64                      # what the README asks for: a stick sold as 64 GB
 MINIMUM_BYTES = 60 * 10 ** 9       # sticks sold as 64 GB hold 60 to 64 * 10^9 bytes
+DOCTOR_CHECKS = DOCTOR.checks    # hao doctor's survey; tests put a fake here
 STEPS = ('Download', 'Prepare packs', 'Write the USB installer')
 # the stick's launchers export HAO_STICK (the HAO volume): there the report command is the stick's own
 REPORT = ('save a report for developers: %s/report (it writes the file into the USB installer\'s reports folder; attach it to '
@@ -356,6 +359,18 @@ def make_rows(a, c, release_path, cache, userspace_on, run=subprocess.call):
     c.item('the rows made on this Mac all check (pipeline/make-on-mac)', ok=True)
 
 
+def preflight(c, release, cache):
+    """hao doctor --for create-installer, before any question: a failed check stops with doctor's own exit code."""
+    failed = DOCTOR.show(c, DOCTOR_CHECKS('create-installer', FD.where(), release, cache, offline=False),
+                         'create-installer')
+    if failed:
+        raise Stopped('%d check%s failed: %s' % (len(failed), '' if len(failed) == 1 else 's',
+                                                 ', '.join(r['name'] for r in failed)),
+                      why='hao create-installer would stop or make different bytes on this Mac',
+                      untouched='nothing was downloaded or written',
+                      options=[r['fix'] for r in failed if r['fix']] + ['see every check: ./hao doctor'], code=5)
+
+
 def create_installer(a, c, host, acquire=None):
     release_path = Path(getattr(a, 'release', None) or TOP / 'tools' / 'hao' / 'release.json')
     cache = Path(getattr(a, 'cache', None) or BUILD.BUILDS.parent)
@@ -366,6 +381,7 @@ def create_installer(a, c, host, acquire=None):
             raise no_release(release_path)
         show_plan(c, release, cache)
         return 0
+    preflight(c, release, cache)
     c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which USB drive, then works on '
             'its own.', 'quiet')
     image = getattr(a, 'image', None)
