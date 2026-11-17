@@ -25,7 +25,7 @@ def real_dyld():
         p = Path(runpy.run_path(str(TOP / 'pipeline/lock.py'))['path'](str(TOP / 'pipeline/inputs/golden/26B131'),
                                                                         'hao_runtime')) / 'replace/dyld'
         return p if p.is_file() else None
-    except Exception:
+    except (Exception, SystemExit):
         return None
 
 
