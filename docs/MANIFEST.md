@@ -48,7 +48,7 @@ Undeclared: opencore-mbp92.
 | hao-command | r5 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
 | hao-opencore | r67 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 89aa3ccc payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r87 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 89aa3ccc payload |
-| hao-runtime-fold | r6 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 948219e4 payload |
+| hao-runtime-fold | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 059bebad payload |
 | metal-compiler-compat | r9 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r3 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r8 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
@@ -265,7 +265,7 @@ Undeclared: opencore-mbp92.
   - `System/Library/LaunchDaemons/hao.aot.plist`: from hao (row hao_runtime)
   - `usr/lib/dyld`: from hao (row hao_runtime)
   - `usr/lib/hao/install.json`: from hao
-- **hao-runtime-fold** r6
+- **hao-runtime-fold** r7
   - `usr/libexec/hao`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold)
@@ -502,11 +502,11 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-windowserver-filter r8 is newer than every image built with it (newest r7).
 - hao-opencore r67 is newer than every image built with it (newest r65).
 - hao-runtime r87 is newer than every image built with it (newest r82).
-- hao-runtime-fold r6 is newer than every image built with it (newest r4).
+- hao-runtime-fold r7 is newer than every image built with it (newest r4).
 - metal-compiler-compat r9 is newer than every image built with it (newest r8).
 - metalold-selectors r8 is newer than every image built with it (newest r7).
 - row hao_runtime 89aa3ccc is in no image yet (images have 0d579f6d, 4f9784a2, d4f8aab6, e29b10e5).
-- row hao_runtime_fold 948219e4 is in no image yet (images have 3e4feeb7).
+- row hao_runtime_fold 059bebad is in no image yet (images have 3e4feeb7).
 - row rebuilt_cache 2f5ee391 is in no image yet (images have a8a847b6).
 - row tahoe_boot_donors 02a2dd2a is in no image yet (images have 12e52f5a, 2bef5543).
 - row tahoe_recovery_donors 7e0517e9 is in no image yet (images have 9b21f27f, e0e5686e).

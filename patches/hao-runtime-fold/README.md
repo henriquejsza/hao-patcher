@@ -8,11 +8,10 @@ other set (and `pipeline/latest`, `swaps.py` and release-cut read that row by na
 
 ## Input
 
-`hao_runtime_fold` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261115-96870dd3f441-B2, a payload folder as
-`hao_runtime` (payload-manifest sha256 checked by the row). One payload serves both fold families: their images have
-the same UUIDs. libhao and libhao_identity are `hao_runtime`'s c66997a bytes; what differs is the units (the four
-libraries the fold replaces lose theirs; research's re-export-aware units for MetalOld, CoreWiFiTahoe and
-IO80211Old are added) and the cache UUID in its records.
+`hao_runtime_fold` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261117-bfce4a1-fold, a payload folder as
+`hao_runtime` (payload-manifest sha256 checked by the row), from hao-runtime bfce4a1 for family B (cache 954aa5de,
+row `rebuilt_cache`). Its records name that UUID only: the B+catalog family (row `rebuilt_cache_catalog`, set
+`dev-bs-test-fold-catalog`) has another UUID and needs its own payload before that set runs.
 
 ## How it works
 
@@ -27,11 +26,12 @@ What it installs is hao-runtime's `files` list; it is not declared again here (t
 
 ## Validation
 
-NEEDS VALIDATION: not built or booted. The payload's own checks (in its README): units 1895/1895 matched on both
-caches, 963 embedded, 965 of 969 AOT caches; one CoreWiFi record bridges without a unit and 21 Swift helper records
-have no definer on B (runtime's known limits).
+NEEDS VALIDATION: r7 not built or booted. The payload's own checks (in its README): units 1895/1895 name an image of
+954aa5de, 963 embedded, 965 of 969 AOT caches with none failed.
 
 ## Revisions
+- r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83630,
+  libhao c1a948e9), after golden-gate-shared-cache r7 rebuilt that family.
 - r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712).
 - r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.

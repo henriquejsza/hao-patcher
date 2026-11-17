@@ -1,4 +1,4 @@
-# hao runtime payload for the shared-cache fold-in images (family B 7c4bc5cb, B+catalog b3c88154), from hao-runtime
-# 1a290d7 (public squash; B3 plus its fixes): libhao d6b9b712, libhao_identity 752fd35f.
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=721ec2ebf38c65033570e115d4b88c2aaf595f565e2309d5133b254f4fec858c
-948219e46cab44ac9efdab060df91811b40ebf5af641977c740dc0c0a1be2a86 store/artifacts/hao-runtime-26B131-20261115-1a290d7-alpha/payload
+# hao runtime payload for the shared-cache fold-in images (family B 954aa5de), from hao-runtime
+# bfce4a1 (origin/main): libhao c1a948e9, units-input (1895, the alpha's set).
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=cde83630f3c1fd525f3bb573aa5ada1d10931935477f1768db78f4e382213945
+059bebad7eee3b0a432d080e2183e6bebc19c60d4e859ca8bc7078d5293ac9fb store/artifacts/hao-runtime-26B131-20261117-bfce4a1-fold/payload
