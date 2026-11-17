@@ -38,17 +38,17 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-user-seed | r14 | post | product | caches | x |  |  |  | **needs** | r14 2026-11-17 Declares its scope (`requires`, docs/requires.md): the seed runtime and the payload layout of 2 |
 | golden-gate-user-template | r10 | post | product | caches | x |  |  |  | **needs** | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
-| golden-gate-userspace | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03-ae09c83d: the same objects (same r |
+| golden-gate-userspace | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 The prespecialization gate refuses only a Swift-bearing image the overridden set gains. One it  |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r10 | post | product |  | x |  |  |  | **needs** | r10 2026-11-17 a candidate build's tools/hao/data/candidate-keys.pub is staged with hao (never tracked; releas |
-| hao-opencore | r78 | post | product |  | x | x |  |  | **needs** | r78 2026-11-17 Reasons for the generic image's run-efi-updater (Add No, and its Delete), from the QEMU referen |
+| hao-opencore | r79 | post | product |  | x | x |  |  | **needs** | r79 2026-11-17 CryptexFixup's reason is traced: without it the modified OS cryptex does not graft and the boot |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
-| opencore-generic | r1 | post | experiment |  |  |  |  |  | **needs** | r1 2026-11-17 New (GEN1): SMBIOS iMac20,1 with a per-image identity, VirtualSMC, and the QEMU reference's firm |
+| opencore-generic | r2 | post | experiment |  |  |  |  |  | **needs** | r2 2026-11-17 Adds CryptexFixup (from OCLP's payload in row oclp_source, the pinned bytes): the modified OS cr |
 | opencore-mbp92 | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | rec-audio | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it  |
 | rec-bluetooth-input | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. |

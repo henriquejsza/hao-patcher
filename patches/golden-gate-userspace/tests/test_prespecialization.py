@@ -129,15 +129,19 @@ class Gate(unittest.TestCase):
     def swift(path):   # the fixture's Swift-bearing images: everything but the AGX driver and the 10 recorded ones
         return 'AGXMetal' not in path and path not in DATA['overridden']
 
-    def test_one_more_or_one_fewer_overridden_image_stops_the_build(self):
+    def test_one_more_overridden_image_stops_the_build(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.system(tmp, DATA['overridden'] + ['/usr/lib/libobjc.A.dylib'])
             with self.assertRaisesRegex(SystemExit, r"new: \['/usr/lib/libobjc.A.dylib'\]"):
                 P.gate(root, None, paths=self.IMAGES, swift=lambda p: True)
+
+    def test_one_fewer_overridden_image_passes_and_is_recorded(self):
+        # e.g. a generic image without the Wi-Fi pack's WiFiPeerToPeer override: its slots are nulled while the cache
+        # copy loads, which only takes the ordinary (slower) path
         with tempfile.TemporaryDirectory() as tmp:
             root = self.system(tmp, DATA['overridden'][1:])
-            with self.assertRaisesRegex(SystemExit, 'gone: '):
-                P.gate(root, None, paths=self.IMAGES, swift=lambda p: True)
+            record = P.gate(root, None, paths=self.IMAGES, swift=lambda p: True)
+            self.assertEqual(record['gone_null_slots'], [DATA['overridden'][0]])
 
     def test_an_extra_image_without_swift_metadata_passes_and_is_recorded(self):
         agx = '/System/Library/Extensions/AGXMetalG14X.bundle/Contents/MacOS/AGXMetalG14X'

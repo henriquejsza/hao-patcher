@@ -1,6 +1,6 @@
 """The generic model's part of an image's OpenCore: virtual machines and non-Apple PCs, graphics in software.
 
-  generic.py ESP REFERENCE
+  generic.py ESP REFERENCE OCLP_SOURCE
 
 ESP is the image's EFI partition (EFI/OC/config.plist as pipeline/stages/build-efi.py made it for the generic target).
 REFERENCE is the row qemu_reference_efi: the OpenCore tree tested on OVMF (QEMU's UEFI), the base of
@@ -14,15 +14,21 @@ tools/kernel-foundation vm_esp.py. This sets, in place:
   conflicts with a real Mac's SMC: this pack is never for Mac hardware.
 - The reference's Booter, Kernel and UEFI quirks: each quirk the reference turns on is set to its value (only quirks
   this OpenCore's config knows).
+- CryptexFixup.kext (Acidanthera 1.0.5, OCLP's RELEASE payload from OCLP_SOURCE, the row oclp_source): without it APFS
+  requires the image's modified OS cryptex's root hash and the boot stops at its graft (QEMU, bench 0726).
 
 hao-opencore runs next: the Darwin 27 kernel repairs, IntelCommpage, HaoExec and boot-args, and the check that every
 element of the finished config has a recorded reason (src/config-reasons.json there).
 """
+import io
 import plistlib
 import secrets
 import shutil
 import sys
+import tarfile
+import tempfile
 import uuid
+import zipfile
 from pathlib import Path
 
 PRODUCT = 'iMac20,1'
@@ -63,6 +69,33 @@ def add_smc(config, esp, reference_root):
     add.insert([k['BundlePath'] for k in add].index('Lilu.kext') + 1, dict(entry, Enabled=True))
 
 
+CRYPTEXFIXUP_ZIP = 'payloads/Kexts/Acidanthera/CryptexFixup-v1.0.5-RELEASE.zip'
+CRYPTEXFIXUP_ENTRY = dict(Arch='x86_64', BundlePath='CryptexFixup.kext', Comment='CryptexFixup', Enabled=True,
+                          ExecutablePath='Contents/MacOS/CryptexFixup', MaxKernel='', MinKernel='20.0.0',
+                          PlistPath='Contents/Info.plist')            # OCLP's own entry
+
+
+def add_cryptexfixup(config, esp, oclp_tar):
+    """CryptexFixup.kext from OCLP's RELEASE payload in the pinned OCLP source, loaded right after Lilu."""
+    with tarfile.open(oclp_tar) as tar:
+        member = tar.extractfile(CRYPTEXFIXUP_ZIP)
+        if member is None:
+            raise SystemExit('opencore-generic: %s is not in the OCLP source' % CRYPTEXFIXUP_ZIP)
+        data = member.read()
+    dest = esp/'EFI/OC/Kexts/CryptexFixup.kext'
+    if dest.exists():
+        shutil.rmtree(dest)
+    with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(io.BytesIO(data)) as z:
+        z.extractall(tmp)
+        found = [p for p in Path(tmp).rglob('CryptexFixup.kext') if p.is_dir() and 'dSYM' not in str(p)]
+        if len(found) != 1:
+            raise SystemExit('opencore-generic: expected one CryptexFixup.kext in the payload, found %d' % len(found))
+        shutil.copytree(found[0], dest)
+    add = config['Kernel']['Add']
+    add[:] = [k for k in add if k['BundlePath'] != 'CryptexFixup.kext']
+    add.insert([k['BundlePath'] for k in add].index('Lilu.kext') + 1, dict(CRYPTEXFIXUP_ENTRY))
+
+
 def serial(length):
     return ''.join(secrets.choice(ALNUM) for _ in range(length))
 
@@ -81,15 +114,16 @@ def platform(config):
 
 
 def main(argv):
-    esp, reference_root = Path(argv[1]), Path(argv[2])
+    esp, reference_root, oclp_tar = Path(argv[1]), Path(argv[2]), Path(argv[3])
     path = esp/'EFI/OC/config.plist'
     config = plistlib.loads(path.read_bytes())
     reference = plistlib.loads((reference_root/'EFI/OC/config.plist').read_bytes())
     changed = quirks(config, reference)
     add_smc(config, esp, reference_root)
+    add_cryptexfixup(config, esp, oclp_tar)
     fresh = platform(config)
     path.write_bytes(plistlib.dumps(config))
-    print('opencore-generic: SMBIOS %s (%s), VirtualSMC after Lilu, quirks set: %s' % (
+    print('opencore-generic: SMBIOS %s (%s), VirtualSMC and CryptexFixup after Lilu, quirks set: %s' % (
         PRODUCT, 'new identity' if fresh else 'identity kept',
         '; '.join('%s %s' % (s, ', '.join(n)) for s, n in changed.items()) or 'none needed'))
     return 0

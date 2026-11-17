@@ -6,5 +6,5 @@ set -eu
 # The kit's Python for the Mac the assembly runs on (golden-image.py sets OCLP_PYTHON); the builder VM's share copy
 # for the legacy runner.
 PY=${OCLP_PYTHON:-/private/var/ssdshare/py/bin/python3.12}
-"$PY" -I "$P/src/generic.py" "$ESP" "$P/inputs/qemu_reference_efi"
+"$PY" -I "$P/src/generic.py" "$ESP" "$P/inputs/qemu_reference_efi" "$P/inputs/oclp_source"
 plutil -lint "$ESP/EFI/OC/config.plist"

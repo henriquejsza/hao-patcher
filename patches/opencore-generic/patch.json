@@ -1,9 +1,10 @@
 {
- "revision": 1,
+ "revision": 2,
  "pack": "generic",
  "stage": "post",
  "inputs": [
-  "qemu_reference_efi"
+  "qemu_reference_efi",
+  "oclp_source"
  ],
  "status": "experiment",
  "validated": false,

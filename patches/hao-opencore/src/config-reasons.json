@@ -37,7 +37,7 @@
  "kext:AppleUSBTopCase.kext/Contents/PlugIns/AppleUSBTCKeyboard.kext": "AppleUSBTopCase plug-in: the keyboard",
  "kext:BlueToolFixup.kext": "OCLP (Acidanthera BrcmPatchRAM's BlueToolFixup): Broadcom Bluetooth on macOS 12+ with this Mac's controller",
  "kext:CatalinaIntelI210Ethernet.kext": "UNTRACED: OCLP model data adds Catalina's Intel I210 Ethernet driver; this Mac's Ethernet is BCM5701 (opencore-mbp92), so it likely matches nothing here. LS1 batch boot without it (trace: kextstat, ifconfig en0 up with an address)",
- "kext:CryptexFixup.kext": "UNTRACED: OCLP (firmware.py, CPUs up to Ivy Bridge): forces the Rosetta cryptex install for CPUs without AVX2 during an OS install or update. The image ships its cryptexes assembled, so it may do nothing at boot; LS1 batch boot without it (trace: kextstat, its log lines, softwareupdate --list)",
+ "kext:CryptexFixup.kext": "OCLP (CPUs without AVX2): needed on this image. Without it APFS requires the root hash of the modified OS cryptex, the graft fails (graftdmg 80) and the boot stops before userspace. QEMU 2026-11-17: the image's config without it failed there, with it passed",
  "kext:ECM-Override.kext": "OCLP (codeless): ECM (USB Ethernet) matching override, no executable",
  "kext:HaoExec.kext": "hao-runtime: starts arm64-only programs through hao (hao-opencore Kernel.Add; stamped against the image's BootKC)",
  "kext:IO80211FamilyLegacy.kext": "OCLP Wi-Fi: the legacy IO80211 family for Broadcom cards on macOS 14+",

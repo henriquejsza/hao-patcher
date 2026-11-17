@@ -1,7 +1,10 @@
 """src/generic.py on a fixture ESP and the real qemu_reference_efi row when the store has it."""
 from pathlib import Path
+import io
 import os
 import plistlib
+import tarfile
+import zipfile
 import runpy
 import shutil
 import tempfile
@@ -25,6 +28,19 @@ def reference(root):
         'UEFI': {'Quirks': {'RequestBootVarRouting': True}}}))
 
 
+def oclp_tar(path):
+    """An OCLP source tar holding the CryptexFixup RELEASE zip (a fake kext, as the payload lays it out)."""
+    z = io.BytesIO()
+    with zipfile.ZipFile(z, 'w') as zf:
+        zf.writestr('CryptexFixup.kext/Contents/Info.plist', b'plist')
+        zf.writestr('CryptexFixup.kext/Contents/MacOS/CryptexFixup', b'fixup')
+        zf.writestr('CryptexFixup.kext.dSYM/Contents/Info.plist', b'dsym')
+    with tarfile.open(path, 'w') as tar:
+        info = tarfile.TarInfo(G['CRYPTEXFIXUP_ZIP']); info.size = len(z.getvalue())
+        tar.addfile(info, io.BytesIO(z.getvalue()))
+    return path
+
+
 def esp(root, lilu=True):
     (root/'EFI/OC/Kexts').mkdir(parents=True)
     add = [{'BundlePath': 'Lilu.kext', 'Enabled': True}] if lilu else []
@@ -39,10 +55,10 @@ def esp(root, lilu=True):
 class Generic(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, self.tmp)
-        reference(self.tmp/'ref'); esp(self.tmp/'esp')
+        reference(self.tmp/'ref'); esp(self.tmp/'esp'); self.oclp = oclp_tar(self.tmp/'oclp.tar')
 
     def run_it(self):
-        G['main'](['generic.py', str(self.tmp/'esp'), str(self.tmp/'ref')])
+        G['main'](['generic.py', str(self.tmp/'esp'), str(self.tmp/'ref'), str(self.oclp)])
         return plistlib.loads((self.tmp/'esp/EFI/OC/config.plist').read_bytes())
 
     def test_quirks_smc_and_smbios(self):
@@ -50,7 +66,9 @@ class Generic(unittest.TestCase):
         self.assertTrue(c['Booter']['Quirks']['SetupVirtualMap'])
         self.assertTrue(c['Kernel']['Quirks']['DisableIoMapper'])
         self.assertNotIn('OnlyInReference', c['Booter']['Quirks'])         # only quirks this config knows
-        self.assertEqual([k['BundlePath'] for k in c['Kernel']['Add']], ['Lilu.kext', 'VirtualSMC.kext', 'RestrictEvents.kext'])
+        self.assertEqual([k['BundlePath'] for k in c['Kernel']['Add']],
+                         ['Lilu.kext', 'CryptexFixup.kext', 'VirtualSMC.kext', 'RestrictEvents.kext'])
+        self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext/Contents/MacOS/CryptexFixup').read_bytes(), b'fixup')
         self.assertTrue((self.tmp/'esp/EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS/VirtualSMC').is_file())
         g = c['PlatformInfo']['Generic']
         self.assertEqual((g['SystemProductName'], c['PlatformInfo']['UpdateSMBIOSMode']), ('iMac20,1', 'Create'))
@@ -63,7 +81,7 @@ class Generic(unittest.TestCase):
         self.assertEqual(first, again)
         other = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, other)
         esp(other/'esp')
-        G['main'](['generic.py', str(other/'esp'), str(self.tmp/'ref')])
+        G['main'](['generic.py', str(other/'esp'), str(self.tmp/'ref'), str(self.oclp)])
         third = plistlib.loads((other/'esp/EFI/OC/config.plist').read_bytes())['PlatformInfo']['Generic']
         self.assertNotEqual(first['SystemSerialNumber'], third['SystemSerialNumber'])   # one per image
 
@@ -87,6 +105,16 @@ class Generic(unittest.TestCase):
         self.assertIn('kext:VirtualSMC.kext', added)
         for e in sorted(added):
             self.assertIn(e, reasons, e)
+
+    @unittest.skipUnless((TOP/'store/artifacts/oclp-source-fd83bda09-9d111ed9/oclp-source.tar').is_file(), 'needs the OCLP source row')
+    def test_real_cryptexfixup_is_the_pinned_payload(self):
+        import hashlib, json
+        self.oclp = TOP/'store/artifacts/oclp-source-fd83bda09-9d111ed9/oclp-source.tar'
+        self.run_it()
+        kext = self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext'
+        pinned = json.loads((TOP/'patches/hao-opencore/src/kext-provenance.json').read_text())['CryptexFixup.kext']['files']
+        have = {str(f.relative_to(kext)): hashlib.sha256(f.read_bytes()).hexdigest() for f in kext.rglob('*') if f.is_file()}
+        self.assertEqual(have, pinned)
 
     def test_apply_runs_before_hao_opencore(self):
         order = [l.split('#')[0].strip() for l in (TOP/'pipeline/order.txt').read_text().splitlines()]

@@ -13,9 +13,12 @@ generator (`make prespecialization-overrides`), do two things:
 The third reader, the conformance-block callback, stays: dyld's conformance table is invalid for an overridden image
 with __swift5_proto.
 
-The edits are right only for the set of overridden images they were made for. gate() refuses an image whose set
-differs: the generator's gate showed 0 of 2,762 Apple entries and 0 of 1,282 catalog keys referencing an image of that set,
-and a changed set changes the descriptor slots to drop.
+The edits are right for the set of overridden images they were made for and for any smaller one. An image the set
+gains could hand out a cache descriptor for a library loaded from disk, so gate() refuses it (the generator's gate showed
+0 of 2,762 Apple entries and 0 of 1,282 catalog keys referencing an image of that set). An image the set loses (e.g. a
+generic image without the Wi-Fi platform pack's WiFiPeerToPeer override) only has its descriptor slots nulled while
+the cache copy is the one loaded: those names take the runtime's ordinary path, correct and a little slower, so gate()
+records it and goes on.
 
     python3.14 -I prespecialization.py plan CACHE_DIR          print the planned edits per cache file
     python3.14 -I prespecialization.py gate SYSTEM CACHE_DIR   check SYSTEM's overridden set against the recipe's
@@ -103,7 +106,9 @@ def swift_sections(directory):
 
 
 def gate(system, directory, data=None, paths=None, swift=None):
-    """Refuse (SystemExit) unless SYSTEM's overridden set equals the one the edits were made for; returns the record.
+    """Refuse (SystemExit) if SYSTEM overrides a Swift-bearing cache image the edits were not made for; returns the
+    record. An image of the edits' set that SYSTEM does not override is recorded (gone_null_slots), not refused: its
+    slots are nulled while the cache copy is loaded, which is correct (the ordinary path), only slower.
 
     An image the set gains or loses counts only if it carries Swift metadata: the edits depend on the overridden set
     only through the descriptors and conformances in those images (the switch edits do not depend on it), so an image
@@ -119,12 +124,11 @@ def gate(system, directory, data=None, paths=None, swift=None):
         added, gone = [p for p in added if p not in without], [p for p in gone if p not in without]
     else:
         without = []
-    if added or gone:
-        raise SystemExit('prespecialization: the image overrides other cache images than the edits were made for '
-                         f'(new: {added or "none"}; gone: {gone or "none"}; each carries Swift metadata). '
-                         f'Regenerate: {REGENERATE}')
+    if added:
+        raise SystemExit('prespecialization: the image overrides cache images the edits were not made for '
+                         f'(new: {added}; each carries Swift metadata). Regenerate: {REGENERATE}')
     return dict(overridden=len(found), descriptor_slots_dropped=sum(data['descriptor_slots_dropped'].values()),
-                blocked=data['blocked'], ignored_without_swift=without)
+                blocked=data['blocked'], ignored_without_swift=without, gone_null_slots=gone)
 
 
 def main(argv=None):
