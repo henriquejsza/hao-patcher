@@ -131,9 +131,14 @@ class FakeWriter:
     def __enter__(self):
         self.tmp = tempfile.TemporaryDirectory()
         d = Path(self.tmp.name)
-        self.saved = INST.prepare_kit, INST.stick_inputs, INST.STICK.write, INST.STICK.attach_image
+        self.saved = (INST.prepare_kit, INST.stick_inputs, INST.STICK.write, INST.STICK.attach_image,
+                      INST.STICK.prepare, INST.opencore_input)
         INST.prepare_kit = lambda a, c, path: d / 'kit'
         INST.stick_inputs = lambda a, asm: (d / 'BaseSystem.dmg', d / 'esp.tar')
+        INST.opencore_input = lambda a, asm: d / 'esp.tar'
+        self.prepared = []
+        INST.STICK.prepare = lambda host, disk, *a, **k: self.prepared.append(disk) or {
+            INST.STICK.KIT_NAME: ('%ss3' % disk, str(d / 'HAO'))}
         INST.STICK.attach_image = lambda host, image, size: self.attached.append((image, size)) or 'disk9'
 
         def write(host, disk, *args, **kw):
@@ -145,7 +150,8 @@ class FakeWriter:
         return self
 
     def __exit__(self, *exc):
-        INST.prepare_kit, INST.stick_inputs, INST.STICK.write, INST.STICK.attach_image = self.saved
+        (INST.prepare_kit, INST.stick_inputs, INST.STICK.write, INST.STICK.attach_image, INST.STICK.prepare,
+         INST.opencore_input) = self.saved
         self.tmp.cleanup()
 
 
@@ -380,14 +386,15 @@ class CreateInstallerTest(unittest.TestCase):
 
     def test_download_failure(self):
         host = FakeMac(uid=0)
-        with Release() as r:
+        with Release() as r, FakeWriter() as w:
             c, _, _ = console(['', '1', 'disk4'])
             with self.assertRaises(CON.Stopped) as x:
                 INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c, host,
                                       acquire=FakeAcquire(fail='x.ipsw: no source gave the pinned file').api)
         self.assertEqual(x.exception.what, 'a download failed')
         self.assertIn(INST.REPORT, x.exception.options)
-        self.assertIn('stick was not touched', x.exception.untouched)
+        self.assertEqual(w.prepared, ['disk4'])          # the drive is erased first, then filled
+        self.assertIn('holds no installer yet', x.exception.untouched)
 
     def test_this_mac_and_profile_file(self):
         c, out, _ = console(['2', '1'])                 # This Mac (detected), first stick
