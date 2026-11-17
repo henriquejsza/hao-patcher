@@ -183,6 +183,78 @@ class GoldenRun(unittest.TestCase):
                 self.assertEqual('iMac20,1',RUN['target_environment'](dict(target='gen'),'/k')['HAO_TARGET_MODEL'])
                 with self.assertRaises(ValueError):RUN['stage_target'](dict(target='bad'),share)
 
+    def mbp92_configs(self):
+        """The fixture share of fixtures/golden-run/mbp92-guest-config.json, configured as there."""
+        recipe=json.loads((TOP/'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json').read_text())
+        rows=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('oclp-hook','later-fix'),('post','post-one')]
+        kit=runpy.run_path(str(TOP/'pipeline/kit.py'))
+        out={}
+        with tempfile.TemporaryDirectory() as folder:
+            share=self.share(folder,rows)
+            for name,kw in (('plain',{}),('cryptex',dict(cryptex_cache=True)),('overlays',dict(overlays=True,cryptex_cache=True))):
+                c=RUN['guest_config'](recipe,share,'/Volumes/builder-work-X/job',**kw)
+                out[name]=dict(config=c,kit=kit['template'](c,'mbp92-26B131-alpha-v0.1.0',RUN['GUEST'],'/Volumes/builder-work-X/job'))
+        return out
+
+    def test_the_9_2_guest_config_is_unchanged(self):
+        # The fixture was written by golden-run before targets without an OCLP hardware overlay existed: the 9,2's
+        # guest configuration and kit.json stay byte-identical.
+        want=(TOP/'pipeline/tests/fixtures/golden-run/mbp92-guest-config.json').read_text()
+        got=self.mbp92_configs()
+        self.assertEqual(json.dumps(got,indent=1,sort_keys=True)+'\n',want)
+        self.assertEqual(got['plain']['config']['hardware']['tool'],'/Volumes/builder-work-X/job/source/hardware/apply')
+
+    def test_the_generic_target_has_no_hardware_overlay_and_no_esp_row(self):
+        recipe=json.loads((TOP/'pipeline/assemblies/generic-26B131.json').read_text())
+        self.assertNotIn('hardware',recipe['inputs'])
+        self.assertNotIn('esp',json.loads((TOP/'pipeline/targets/generic.json').read_text()))
+        self.assertFalse(RUN['hardware_overlay'](recipe))
+        nine_recipe=json.loads((TOP/'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json').read_text())
+        rows=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('post','opencore-generic'),('post','hao-opencore')]
+        with tempfile.TemporaryDirectory() as folder:
+            share=self.share(folder,rows)
+            config=RUN['guest_config'](recipe,share,'/guest/job',cryptex_cache=True)
+            nine=RUN['guest_config'](nine_recipe,share,'/guest/job',cryptex_cache=True)
+        self.assertIsNone(config['hardware'])
+        self.assertEqual('iMac20,1',config['environment']['HAO_TARGET_MODEL'])
+        self.assertEqual(config['esp'],'/guest/job/source/esp')     # the ESP build-efi.py makes, not a harvested tar
+        self.assertFalse([v for v in runpy.run_path(str(TOP/'pipeline/kit.py'))['strings'](config)
+                          if 'assembly-inputs/hardware' in v or 'pristine-ESP' in v])
+        # everything else as the 9,2 has it
+        self.assertEqual({k:v for k,v in config.items() if k not in ('hardware','environment')},
+                         {k:v for k,v in nine.items() if k not in ('hardware','environment')})
+
+    def test_a_hardware_input_must_match_the_targets_patch_sets(self):
+        nine=json.loads((TOP/'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json').read_text())
+        self.assertTrue(RUN['hardware_overlay'](nine))
+        self.assertTrue(RUN['hardware_overlay']({}))                 # no target (fixtures): as before
+        without=dict(nine,inputs={k:v for k,v in nine['inputs'].items() if k!='hardware'})
+        with self.assertRaisesRegex(ValueError,'names no "hardware" input'):RUN['hardware_overlay'](without)
+        generic=json.loads((TOP/'pipeline/assemblies/generic-26B131.json').read_text())
+        extra=dict(generic,inputs=dict(generic['inputs'],hardware='oclp_hardware'))
+        with self.assertRaisesRegex(ValueError,'selects no OCLP patch sets.*oclp_hardware'):RUN['hardware_overlay'](extra)
+
+    def test_the_esp_comes_from_the_targets_efi_build_only(self):
+        nine=json.loads((TOP/'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json').read_text())
+        self.assertEqual(RUN['efi_build_of'](nine),json.loads((TOP/'pipeline/targets/mbp92.json').read_text())['efi_build'])
+        build=runpy.run_path(str(TOP/'pipeline/stages/build-efi.py'))
+        with tempfile.TemporaryDirectory() as folder:
+            target=Path(folder)/'efi-less.json';target.write_text('{"model": "iMac20,1"}')
+            with self.assertRaisesRegex(ValueError,'efi-less has no "efi_build"'):
+                build['build'](folder,None,target,'fd83bda09',Path(folder)/'OpenCore-1.0.5-RELEASE.zip',Path(folder)/'esp')
+        # The generic target's ESP is the qemu_reference_efi tree with the pinned OpenCore release, not OCLP's build.
+        generic=json.loads((TOP/'pipeline/assemblies/generic-26B131.json').read_text())
+        self.assertEqual(RUN['efi_build_of'](generic)['base'],'qemu_reference')
+        self.assertNotIn('base',RUN['efi_build_of'](nine))             # the 9,2: OCLP's build, as before
+        with tempfile.TemporaryDirectory() as folder:
+            targets=Path(folder)/'pipeline/targets';targets.mkdir(parents=True)
+            (targets/'odd.json').write_text('{"model": "iMac20,1", "efi_build": {"base": "harvested"}}')
+            (Path(folder)/'pipeline/stages').mkdir()
+            shutil.copy2(TOP/'pipeline/stages/build-efi.py',Path(folder)/'pipeline/stages/build-efi.py')
+            with mock.patch.dict(RUN['efi_build_of'].__globals__,TOP=Path(folder)):
+                with self.assertRaisesRegex(ValueError,"odd: unknown \"efi_build\" base 'harvested'"):
+                    RUN['efi_build_of'](dict(target='odd'))
+
     def test_skipped_optional_groups_merge_assembly_and_flag(self):
         self.assertEqual(RUN['skipped_groups']({}),[])
         self.assertEqual(RUN['skipped_groups']({'skip_optional':['caches']},['caches','other']),['caches','other'])

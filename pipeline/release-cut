@@ -2,9 +2,9 @@
 """release-cut: what a release of an assembly ships, and whether each input could be made again.
 
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
-  release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z[-alpha.N|-beta.N] [--stage DIR]
+  release-cut --write OUT.json ASSEMBLY [ASSEMBLY ...] --release NAME --channel dev|alpha|beta --version vX.Y.Z[-alpha.N|-beta.N] [--stage DIR]
               [--no-harvested-assets]
-              [--allow-pending | --allow-pending-row ROW ...] [--candidate]
+              [--allow-pending | --allow-pending-row ROW ...] [--candidate [--dev]]
         the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
         hao-assets contract's release schema, format 2), release version VERSION (e.g. v0.1.0) on CHANNEL: downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
         the rows made on the user's Mac (producer, Apple input rows), harvested rows, plus pending rows, recipe
@@ -20,6 +20,14 @@
         --candidate cuts a candidate for the proof images: recipes not yet validated (or status experiment) are allowed
         and listed in "unvalidated", and release.json says "candidate": true. A cut without it is final: every recipe
         of the profile validated, or waived by the owner (pipeline/release-waivers.json); never publish a candidate.
+        --dev (with --candidate only) cuts a dev candidate for bench boots: the assembly's profile must not be a
+        release profile, and its dev-layer packs and dev/diagnostic recipes are allowed; release.json says "dev": true
+        and "candidate": true. A dev release.json must never be published.
+        Several assemblies (one per profile, e.g. the MacBookPro9,2 image and the generic one) cut one release from
+        one commit: an asset they share is one file, each is listed once in SHA256SUMS, and "profiles" {PATCH_SET:
+        {assembly, target, patch_set, recipes, dev_only_recipes, proven_models, rows, harvested}} says which
+        downloads, assets and made-on-Mac rows ("rows") each profile uses. The top-level assembly, target, set and
+        recipes are the first assembly's (readers that know no "profiles" see that image).
 
 Rows: every input the assembly's set and donors use, the rows golden-run reads besides them (KDK, CPythons, site
 packages, the firmlink tool, OpenCore, PatcherSupportPkg) and the Apple inputs of the rows made on the Mac, resolved
@@ -33,6 +41,8 @@ Each row has two classes. By content (pipeline/release-classes.json, with a reas
   download      Apple or third-party bytes the user's Mac fetches by url, size and sha256 (tools/acquire)
   harvested     made on a running laptop (caches, seeds): never shipped; the target makes its own at first boot
   in-checkout   a tracked file of hao-patcher, delivered with the source at the release commit
+  dev-local     a dev pack's private input (the bench's SSH keys): never published; only a dev candidate cut (--dev)
+                lists it, in "dev_local", and the Mac that makes the dev USB installer uses its own store copy
   pending       held out of this release for the reason given
 No asset may hold a private reference (the contract's patterns: home folders, private repositories).
 By build record (whether the bytes can be made again):
@@ -194,7 +204,7 @@ def harvested_ship(settings, target):
 
 def classes():
     """pipeline/release-classes.json: what each row is by content (ours, made-on-mac, download, harvested,
-    in-checkout, pending), with its reason."""
+    in-checkout, dev-local, pending), with its reason."""
     return json.loads((TOP / 'pipeline' / 'release-classes.json').read_text())['rows']
 
 
@@ -402,7 +412,7 @@ VERSION = __import__('re').compile(r'^v\d+\.\d+\.\d+(-(alpha|beta)\.\d+)?$')   #
 
 
 def build_release(assembly, name, stage=None, prerelease=True, channel='dev', version='v0.0.0', harvested_assets=True,
-                  candidate=False):
+                  candidate=False, dev=False):
     """(release.json as a dict, problems). Every row of release_rows is placed by its content class
     (release-classes.json): ours rows become assets (made, hashed and, with STAGE, written there), downloads carry
     their URL, made-on-mac rows their producer and Apple inputs. A problem is anything that keeps the release from
@@ -414,6 +424,8 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
         raise ValueError('channel %r is not one of %s' % (channel, ', '.join(CHANNELS)))
     if not VERSION.match(version):
         raise ValueError('version %r is not vX.Y.Z or vX.Y.Z-alpha.N / -beta.N (e.g. v0.1.0-alpha.1)' % version)
+    if dev and not candidate:
+        raise ValueError('--dev cuts only a candidate (--candidate --dev)')
     patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
     a = json.loads(Path(assembly).read_text())
     import contextlib, io
@@ -424,12 +436,14 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     packs = patches['load_packs']()
     data = classes()
     data_settings = settings()
-    problems, notes = list(patches['release_problems'](a['patch_set'], packs=packs, gate=False)), []
+    devkw = {'dev': True} if dev else {}
+    problems, notes = list(patches['release_problems'](a['patch_set'], packs=packs, gate=False, **devkw)), []
     # the validation gate: a candidate cut (for the proof images) records what is not yet validated; a final cut refuses
-    unvalidated = [p for p in patches['release_problems'](a['patch_set'], packs=packs, gate=True) if p not in problems]
+    unvalidated = [p for p in patches['release_problems'](a['patch_set'], packs=packs, gate=True, **devkw)
+                   if p not in problems]
     if not candidate:
         problems += unvalidated
-    downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
+    downloads, assets, made, harvested, in_checkout, pending, dev_local = [], [], [], [], [], [], []
     runtime_commit = None
     all_rows = list(release_rows(assembly))
     rows = dict(all_rows)
@@ -461,6 +475,11 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
         elif kind == 'in-checkout':
             in_checkout.append({'row': row, 'path': os.path.relpath(hit[1][1], TOP) if hit else None,
                                 'reason': entry['reason']})
+        elif kind == 'dev-local':
+            if dev:
+                dev_local.append({'row': row, 'reason': entry['reason']})
+            else:
+                problems.append('%s: dev-local, cut only into a dev candidate (--candidate --dev)' % row)
         elif kind == 'made-on-mac':
             made.append({'row': row, 'producer': entry['producer'], 'inputs': entry.get('inputs', []),
                          'reason': entry['reason']})
@@ -524,7 +543,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             problems.append('%s: needs %s, harvested and not shipped, but is not optional: a build from this release '
                             'would stop there' % (n, ', '.join(left_out)))
     rel = {'contract_version': 2, 'release': name, 'version': version, 'channel': channel, 'prerelease': prerelease,
-           'candidate': candidate, 'unvalidated': unvalidated if candidate else [],
+           'candidate': candidate, **({'dev': True} if dev else {}), 'unvalidated': unvalidated if candidate else [],
            'proven_models': sorted({m for p in packs.values() for m in p.get('proven_on', [])}),
            'assembly': Path(assembly).stem, 'golden_build': a['golden_build'], 'donor_build': a['donor_build'],
            'oclp': a['oclp'], 'hao_patcher': head, 'hao_runtime': runtime_commit or '',
@@ -536,12 +555,82 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
            'recipes': {n: patches['revision'](n) for _, n, _ in plan},
            'dev_only_recipes': sorted(n for _, n, inputs in plan if set(harvested) & set(inputs)),
            'packs': {n: {'phase': p['phase'], 'recipes': p.get('recipes', [])} for n, p in sorted(packs.items())},
-           'in_checkout': in_checkout, 'pending': pending, 'notes': notes,
+           'in_checkout': in_checkout, **({'dev_local': dev_local} if dev else {}), 'pending': pending, 'notes': notes,
            'archive_format': json.loads((TOP / 'pipeline' / 'release-classes.json').read_text())['archive']}
+    rel['profiles'] = {a['patch_set']: profile_entry(rel, patches, packs)}
     refs = private_refs(json.dumps(rel).encode())
     if refs:
         problems.append('release.json names %s: reword the row or its class' % ', '.join(refs))
     return rel, problems
+
+
+PLACED = ('downloads', 'assets', 'made_on_mac')      # the entries a profile's "rows" name (each has a "row")
+PROFILE_KEYS = ('assembly', 'target', 'patch_set', 'recipes', 'dev_only_recipes')
+
+
+def profile_entry(rel, patches, packs):
+    """release.json "profiles"[PATCH_SET] of a one-assembly release REL: its assembly, target, set and recipes, the
+    models proven for it (its target's model when every pack the target detects is proven on it), the rows of its
+    downloads, assets and made-on-Mac entries, and its harvested rows not shipped."""
+    target = TOP / 'pipeline/targets' / (rel['target'] + '.json')
+    model = json.loads(target.read_text()).get('model')
+    import contextlib, io
+    with contextlib.redirect_stderr(io.StringIO()):
+        found = patches['detect_packs'](str(target), packs)
+    proven = [model] if found and all(model in packs[n].get('proven_on', []) for n in found) else []
+    return dict({k: rel[k] for k in PROFILE_KEYS}, proven_models=proven,
+                rows=sorted(x['row'] for k in PLACED for x in rel[k]), harvested=sorted(rel['harvested']))
+
+
+def merge_releases(cuts):
+    """(release.json, problems) of one release from CUTS, [(release, problems)] each of one assembly (profile) at the
+    same commit: one macOS build, donor and OCLP. The top-level fields that name one image (assembly, target,
+    patch_set, recipes, dev_only_recipes) are the first profile's, so a reader that knows no "profiles" sees that
+    image; downloads, assets and made-on-Mac rows are listed once (an asset two profiles use is one file); "profiles"
+    says which rows each profile uses. A row two profiles place differently is a problem."""
+    rel, problems = json.loads(json.dumps(cuts[0][0])), list(cuts[0][1])
+    rel.setdefault('profiles', {})
+    for other, more in cuts[1:]:
+        for k in ('release', 'version', 'channel', 'golden_build', 'donor_build', 'oclp', 'hao_patcher', 'candidate',
+                  'dev'):
+            if other.get(k) != rel.get(k):
+                raise ValueError('the profiles of one release must share %s (%r, %r)' % (k, rel.get(k), other.get(k)))
+        problems += [p for p in more if p not in problems]
+        for name in other.get('profiles', {}):
+            if name in rel['profiles']:
+                raise ValueError('profile %s is cut twice' % name)
+        rel['profiles'].update(other.get('profiles', {}))
+        for k in PLACED + ('in_checkout', 'pending', 'dev_local'):
+            have = {x['row']: x for x in rel.get(k, [])}
+            for x in other.get(k, []):
+                if x['row'] not in have:
+                    rel.setdefault(k, []).append(x)
+                elif have[x['row']] != x:
+                    problems.append('%s: the profiles place it differently in %s' % (x['row'], k))
+        rel['harvested'] = sorted(set(rel.get('harvested', [])) | set(other.get('harvested', [])))
+        rel['unvalidated'] = rel.get('unvalidated', []) + [u for u in other.get('unvalidated', [])
+                                                           if u not in rel.get('unvalidated', [])]
+        rel['proven_models'] = sorted(set(rel.get('proven_models', [])) | set(other.get('proven_models', [])))
+        rel['notes'] = rel.get('notes', []) + [n for n in other.get('notes', []) if n not in rel.get('notes', [])]
+    placed = {x['row'] for k in PLACED for x in rel.get(k, [])}
+    for k in PLACED:
+        for x in rel.get(k, []):
+            if sum(x['row'] in {y['row'] for y in rel.get(kk, [])} for kk in PLACED) > 1:
+                problems.append('%s: the profiles place it in different ways' % x['row'])
+    # a row one profile ships (e.g. a harvested cache as an asset for its target) and another leaves harvested is
+    # listed once, as placed; that profile's own "harvested" still names it
+    rel['harvested'] = sorted(set(rel.get('harvested', [])) - placed)
+    files = [x['file'] for x in rel.get('assets', [])]
+    problems += ['asset file %s is made by two rows' % f for f in sorted({f for f in files if files.count(f) > 1})]
+    problems = list(dict.fromkeys(problems))
+    if 'state' in rel:
+        rel['state'] = 'complete' if not problems else 'incomplete'
+    return rel, problems
+
+
+def build_releases(assemblies, name, stage=None, **kw):
+    """build_release for each of ASSEMBLIES (one per profile), merged into one release (merge_releases)."""
+    return merge_releases([build_release(a, name, stage, **kw) for a in assemblies])
 
 
 def stream_pins(kind, path, digest, rows):
@@ -647,7 +736,9 @@ def main(argv):
         if '--final' in argv:
             print('release-cut: --final: there is no final channel yet; every release is a prerelease', file=sys.stderr)
             return 2
-        assembly = next(a for a in argv if not a.startswith('--'))
+        assemblies = [a for a in argv if not a.startswith('--')]
+        if not assemblies:
+            sys.exit(__doc__)
         # No release while a fix proven on the laptop exists only there (pipeline/swaps.py; no override).
         refusal = runpy.run_path(str(Path(__file__).resolve().parent / 'swaps.py'))['gate']()
         if refusal:
@@ -660,11 +751,11 @@ def main(argv):
                 return 1
             stage.mkdir(parents=True, exist_ok=True)
         try:
-            rel, problems = build_release(assembly, opts['--release'], stage, channel=opts['--channel'],
+            rel, problems = build_releases(assemblies, opts['--release'], stage, channel=opts['--channel'],
                                           prerelease='--not-prerelease' not in argv,
                                           version=opts['--version'],
                                           harvested_assets='--no-harvested-assets' not in argv,
-                                          candidate='--candidate' in argv)
+                                          candidate='--candidate' in argv, dev='--dev' in argv)
         except ValueError as x:
             print('release-cut: %s' % x, file=sys.stderr)
             return 2
@@ -689,13 +780,16 @@ def main(argv):
                     (stage / 'external').rmdir()
             return 1
         out_path.write_text(json.dumps(rel, indent=1) + '\n')
+        if rel.get('dev'):
+            print('release-cut: DEV CANDIDATE (dev packs, for bench boots): never publish %s or its stage' % out_path,
+                  file=sys.stderr)
         bad = check_stage(rel, stage) if stage is not None else []
         if stage is not None and not bad:
             write_sums(stage, out_path)
         for b in bad:
             print('release-cut: ' + b, file=sys.stderr)
-        print('release-cut: wrote %s (%s; %d downloads, %d assets, %d made on the Mac, %d harvested, %d pending)' % (
-            out_path, rel['state'], len(rel['downloads']), len(rel['assets']), len(rel['made_on_mac']),
+        print('release-cut: wrote %s (%s; %s; %d downloads, %d assets, %d made on the Mac, %d harvested, %d pending)' % (
+            out_path, rel['state'], 'profiles ' + ', '.join(rel.get('profiles') or ['-']), len(rel['downloads']), len(rel['assets']), len(rel['made_on_mac']),
             len(rel['harvested']), len(rel['pending'])))
         for p in problems:
             print('  ' + p)

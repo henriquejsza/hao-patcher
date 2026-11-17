@@ -1,0 +1,393 @@
+{
+ "cryptex": {
+  "config": {
+   "cryptex_cache": "/private/var/ssdshare/cryptex-cache",
+   "declared": "/private/var/ssdshare/declared.json",
+   "donor_tool": "/Volumes/builder-work-X/job/source/tahoe-donors/make",
+   "donors": {
+    "boot": "/private/var/ssdshare/assembly-inputs/boot",
+    "driverkit": "/private/var/ssdshare/assembly-inputs/driverkit",
+    "extensions": "/private/var/ssdshare/assembly-inputs/extensions",
+    "native": "/private/var/ssdshare/assembly-inputs/native",
+    "recovery": "/private/var/ssdshare/assembly-inputs/recovery"
+   },
+   "environment": {
+    "HAO_TARGET_DATA": "/private/var/ssdshare/target-data.json",
+    "HAO_TARGET_MODEL": "MacBookPro9,2",
+    "OCLP": "/private/var/ssdshare/oclp",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPATH": "/Volumes/builder-work-X/job/site",
+    "S": "/private/var/ssdshare",
+    "TMPDIR": "/Volumes/builder-work-X/job/tmp"
+   },
+   "esp": "/Volumes/builder-work-X/job/source/esp",
+   "fl": "/Volumes/builder-work-X/job/source/fl",
+   "hardware": {
+    "artifact": "/private/var/ssdshare/assembly-inputs/hardware",
+    "tool": "/Volumes/builder-work-X/job/source/hardware/apply"
+   },
+   "hooks": [
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/01-darwin27-kernel/kc-hook.sh",
+     "name": "darwin27-kernel"
+    },
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/02-golden-gate-userspace/kc-hook.sh",
+     "name": "golden-gate-userspace"
+    },
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/03-later-fix/kc-hook.sh",
+     "name": "later-fix"
+    }
+   ],
+   "image": "/Volumes/builder-work-X/job/target.img",
+   "kdk": "/private/var/ssdshare/kdk/KDK_25.kdk",
+   "kdk_preparer": "/Volumes/builder-work-X/job/source/kdk_intel_payload.py",
+   "kernel": "/Volumes/builder-work-X/job/hooks/01-darwin27-kernel/inputs/darwin27_kernel",
+   "layout_helper": "/Volumes/builder-work-X/job/source/golden-layout.py",
+   "name": "macOS",
+   "payload": "/private/var/ssdshare/hooks/02-golden-gate-userspace/inputs/golden_gate_userspace",
+   "posts": [
+    {
+     "folder": "/Volumes/builder-work-X/job/post/04-post-one",
+     "name": "post-one",
+     "script": "/Volumes/builder-work-X/job/post/04-post-one/apply.sh"
+    }
+   ],
+   "pristine_script": "/Volumes/builder-work-X/job/source/golden-pristine.sh",
+   "python": "/Volumes/builder-work-X/job/py/bin/python3.12",
+   "size_bytes": 85899345920,
+   "work": "/Volumes/builder-work-X/job/work"
+  },
+  "kit": {
+   "assembly": "mbp92-26B131-alpha-v0.1.0",
+   "config": {
+    "cryptex_cache": "${KIT}/cryptex-cache",
+    "declared": "${KIT}/declared.json",
+    "donor_tool": "${LOCAL}/source/tahoe-donors/make",
+    "donors": {
+     "boot": "${KIT}/assembly-inputs/boot",
+     "driverkit": "${KIT}/assembly-inputs/driverkit",
+     "extensions": "${KIT}/assembly-inputs/extensions",
+     "native": "${KIT}/assembly-inputs/native",
+     "recovery": "${KIT}/assembly-inputs/recovery"
+    },
+    "environment": {
+     "HAO_TARGET_DATA": "${KIT}/target-data.json",
+     "HAO_TARGET_MODEL": "MacBookPro9,2",
+     "OCLP": "${KIT}/oclp",
+     "PYTHONDONTWRITEBYTECODE": "1",
+     "PYTHONPATH": "${LOCAL}/site",
+     "S": "${KIT}",
+     "TMPDIR": "${LOCAL}/tmp"
+    },
+    "esp": "${LOCAL}/source/esp",
+    "fl": "${LOCAL}/source/fl",
+    "hardware": {
+     "artifact": "${KIT}/assembly-inputs/hardware",
+     "tool": "${LOCAL}/source/hardware/apply"
+    },
+    "hooks": [
+     {
+      "kc_hook": "${LOCAL}/hooks/01-darwin27-kernel/kc-hook.sh",
+      "name": "darwin27-kernel"
+     },
+     {
+      "kc_hook": "${LOCAL}/hooks/02-golden-gate-userspace/kc-hook.sh",
+      "name": "golden-gate-userspace"
+     },
+     {
+      "kc_hook": "${LOCAL}/hooks/03-later-fix/kc-hook.sh",
+      "name": "later-fix"
+     }
+    ],
+    "kdk": "${KIT}/kdk/KDK_25.kdk",
+    "kdk_preparer": "${LOCAL}/source/kdk_intel_payload.py",
+    "kernel": "${LOCAL}/hooks/01-darwin27-kernel/inputs/darwin27_kernel",
+    "layout_helper": "${LOCAL}/source/golden-layout.py",
+    "name": "macOS",
+    "payload": "${KIT}/hooks/02-golden-gate-userspace/inputs/golden_gate_userspace",
+    "posts": [
+     {
+      "folder": "${LOCAL}/post/04-post-one",
+      "name": "post-one",
+      "script": "${LOCAL}/post/04-post-one/apply.sh"
+     }
+    ],
+    "pristine_script": "${LOCAL}/source/golden-pristine.sh",
+    "python": "${LOCAL}/py/bin/python3.12",
+    "size_bytes": 85899345920,
+    "work": "${LOCAL}/work"
+   },
+   "python_dirs": {
+    "arm64": "py",
+    "x86_64": "py-x86_64"
+   },
+   "schema": 1
+  }
+ },
+ "overlays": {
+  "config": {
+   "cryptex_cache": "/private/var/ssdshare/cryptex-cache",
+   "declared": "/private/var/ssdshare/declared.json",
+   "donor_tool": "/Volumes/builder-work-X/job/source/tahoe-donors/make",
+   "donors": {
+    "boot": "/private/var/ssdshare/assembly-inputs/boot",
+    "driverkit": "/private/var/ssdshare/assembly-inputs/driverkit",
+    "extensions": "/private/var/ssdshare/assembly-inputs/extensions",
+    "native": "/private/var/ssdshare/assembly-inputs/native",
+    "recovery": "/private/var/ssdshare/assembly-inputs/recovery"
+   },
+   "environment": {
+    "HAO_TARGET_DATA": "/private/var/ssdshare/target-data.json",
+    "HAO_TARGET_MODEL": "MacBookPro9,2",
+    "OCLP": "/private/var/ssdshare/oclp",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPATH": "/Volumes/builder-work-X/job/site",
+    "S": "/private/var/ssdshare",
+    "TMPDIR": "/Volumes/builder-work-X/job/tmp"
+   },
+   "esp": "/Volumes/builder-work-X/job/source/esp",
+   "fl": "/Volumes/builder-work-X/job/source/fl",
+   "hardware": {
+    "artifact": "/private/var/ssdshare/assembly-inputs/hardware",
+    "tool": "/Volumes/builder-work-X/job/source/hardware/apply"
+   },
+   "hooks": [
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/01-darwin27-kernel/kc-hook.sh",
+     "name": "darwin27-kernel"
+    },
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/02-golden-gate-userspace/kc-hook.sh",
+     "name": "golden-gate-userspace"
+    },
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/03-later-fix/kc-hook.sh",
+     "name": "later-fix"
+    }
+   ],
+   "image": "/Volumes/builder-work-X/job/target.img",
+   "kdk": "/private/var/ssdshare/kdk/KDK_25.kdk",
+   "kdk_preparer": "/Volumes/builder-work-X/job/source/kdk_intel_payload.py",
+   "kernel": "/Volumes/builder-work-X/job/hooks/01-darwin27-kernel/inputs/darwin27_kernel",
+   "layout_helper": "/Volumes/builder-work-X/job/source/golden-layout.py",
+   "name": "macOS",
+   "overlays": {
+    "files": "/private/var/ssdshare/overlay-files",
+    "installer": "/Volumes/builder-work-X/job/source/golden-overlays.py",
+    "livepatch": "/Volumes/builder-work-X/job/source/livepatch.py",
+    "plan": "/private/var/ssdshare/overlay-plan.json"
+   },
+   "payload": "/private/var/ssdshare/hooks/02-golden-gate-userspace/inputs/golden_gate_userspace",
+   "posts": [
+    {
+     "folder": "/Volumes/builder-work-X/job/post/04-post-one",
+     "name": "post-one",
+     "script": "/Volumes/builder-work-X/job/post/04-post-one/apply.sh"
+    }
+   ],
+   "pristine_script": "/Volumes/builder-work-X/job/source/golden-pristine.sh",
+   "python": "/Volumes/builder-work-X/job/py/bin/python3.12",
+   "size_bytes": 85899345920,
+   "work": "/Volumes/builder-work-X/job/work"
+  },
+  "kit": {
+   "assembly": "mbp92-26B131-alpha-v0.1.0",
+   "config": {
+    "cryptex_cache": "${KIT}/cryptex-cache",
+    "declared": "${KIT}/declared.json",
+    "donor_tool": "${LOCAL}/source/tahoe-donors/make",
+    "donors": {
+     "boot": "${KIT}/assembly-inputs/boot",
+     "driverkit": "${KIT}/assembly-inputs/driverkit",
+     "extensions": "${KIT}/assembly-inputs/extensions",
+     "native": "${KIT}/assembly-inputs/native",
+     "recovery": "${KIT}/assembly-inputs/recovery"
+    },
+    "environment": {
+     "HAO_TARGET_DATA": "${KIT}/target-data.json",
+     "HAO_TARGET_MODEL": "MacBookPro9,2",
+     "OCLP": "${KIT}/oclp",
+     "PYTHONDONTWRITEBYTECODE": "1",
+     "PYTHONPATH": "${LOCAL}/site",
+     "S": "${KIT}",
+     "TMPDIR": "${LOCAL}/tmp"
+    },
+    "esp": "${LOCAL}/source/esp",
+    "fl": "${LOCAL}/source/fl",
+    "hardware": {
+     "artifact": "${KIT}/assembly-inputs/hardware",
+     "tool": "${LOCAL}/source/hardware/apply"
+    },
+    "hooks": [
+     {
+      "kc_hook": "${LOCAL}/hooks/01-darwin27-kernel/kc-hook.sh",
+      "name": "darwin27-kernel"
+     },
+     {
+      "kc_hook": "${LOCAL}/hooks/02-golden-gate-userspace/kc-hook.sh",
+      "name": "golden-gate-userspace"
+     },
+     {
+      "kc_hook": "${LOCAL}/hooks/03-later-fix/kc-hook.sh",
+      "name": "later-fix"
+     }
+    ],
+    "kdk": "${KIT}/kdk/KDK_25.kdk",
+    "kdk_preparer": "${LOCAL}/source/kdk_intel_payload.py",
+    "kernel": "${LOCAL}/hooks/01-darwin27-kernel/inputs/darwin27_kernel",
+    "layout_helper": "${LOCAL}/source/golden-layout.py",
+    "name": "macOS",
+    "overlays": {
+     "files": "${KIT}/overlay-files",
+     "installer": "${LOCAL}/source/golden-overlays.py",
+     "livepatch": "${LOCAL}/source/livepatch.py",
+     "plan": "${KIT}/overlay-plan.json"
+    },
+    "payload": "${KIT}/hooks/02-golden-gate-userspace/inputs/golden_gate_userspace",
+    "posts": [
+     {
+      "folder": "${LOCAL}/post/04-post-one",
+      "name": "post-one",
+      "script": "${LOCAL}/post/04-post-one/apply.sh"
+     }
+    ],
+    "pristine_script": "${LOCAL}/source/golden-pristine.sh",
+    "python": "${LOCAL}/py/bin/python3.12",
+    "size_bytes": 85899345920,
+    "work": "${LOCAL}/work"
+   },
+   "python_dirs": {
+    "arm64": "py",
+    "x86_64": "py-x86_64"
+   },
+   "schema": 1
+  }
+ },
+ "plain": {
+  "config": {
+   "declared": "/private/var/ssdshare/declared.json",
+   "donor_tool": "/Volumes/builder-work-X/job/source/tahoe-donors/make",
+   "donors": {
+    "boot": "/private/var/ssdshare/assembly-inputs/boot",
+    "driverkit": "/private/var/ssdshare/assembly-inputs/driverkit",
+    "extensions": "/private/var/ssdshare/assembly-inputs/extensions",
+    "native": "/private/var/ssdshare/assembly-inputs/native",
+    "recovery": "/private/var/ssdshare/assembly-inputs/recovery"
+   },
+   "environment": {
+    "HAO_TARGET_DATA": "/private/var/ssdshare/target-data.json",
+    "HAO_TARGET_MODEL": "MacBookPro9,2",
+    "OCLP": "/private/var/ssdshare/oclp",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPATH": "/Volumes/builder-work-X/job/site",
+    "S": "/private/var/ssdshare",
+    "TMPDIR": "/Volumes/builder-work-X/job/tmp"
+   },
+   "esp": "/Volumes/builder-work-X/job/source/esp",
+   "fl": "/Volumes/builder-work-X/job/source/fl",
+   "hardware": {
+    "artifact": "/private/var/ssdshare/assembly-inputs/hardware",
+    "tool": "/Volumes/builder-work-X/job/source/hardware/apply"
+   },
+   "hooks": [
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/01-darwin27-kernel/kc-hook.sh",
+     "name": "darwin27-kernel"
+    },
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/02-golden-gate-userspace/kc-hook.sh",
+     "name": "golden-gate-userspace"
+    },
+    {
+     "kc_hook": "/Volumes/builder-work-X/job/hooks/03-later-fix/kc-hook.sh",
+     "name": "later-fix"
+    }
+   ],
+   "image": "/Volumes/builder-work-X/job/target.img",
+   "kdk": "/private/var/ssdshare/kdk/KDK_25.kdk",
+   "kdk_preparer": "/Volumes/builder-work-X/job/source/kdk_intel_payload.py",
+   "kernel": "/Volumes/builder-work-X/job/hooks/01-darwin27-kernel/inputs/darwin27_kernel",
+   "layout_helper": "/Volumes/builder-work-X/job/source/golden-layout.py",
+   "name": "macOS",
+   "payload": "/private/var/ssdshare/hooks/02-golden-gate-userspace/inputs/golden_gate_userspace",
+   "posts": [
+    {
+     "folder": "/Volumes/builder-work-X/job/post/04-post-one",
+     "name": "post-one",
+     "script": "/Volumes/builder-work-X/job/post/04-post-one/apply.sh"
+    }
+   ],
+   "pristine_script": "/Volumes/builder-work-X/job/source/golden-pristine.sh",
+   "python": "/Volumes/builder-work-X/job/py/bin/python3.12",
+   "size_bytes": 85899345920,
+   "work": "/Volumes/builder-work-X/job/work"
+  },
+  "kit": {
+   "assembly": "mbp92-26B131-alpha-v0.1.0",
+   "config": {
+    "declared": "${KIT}/declared.json",
+    "donor_tool": "${LOCAL}/source/tahoe-donors/make",
+    "donors": {
+     "boot": "${KIT}/assembly-inputs/boot",
+     "driverkit": "${KIT}/assembly-inputs/driverkit",
+     "extensions": "${KIT}/assembly-inputs/extensions",
+     "native": "${KIT}/assembly-inputs/native",
+     "recovery": "${KIT}/assembly-inputs/recovery"
+    },
+    "environment": {
+     "HAO_TARGET_DATA": "${KIT}/target-data.json",
+     "HAO_TARGET_MODEL": "MacBookPro9,2",
+     "OCLP": "${KIT}/oclp",
+     "PYTHONDONTWRITEBYTECODE": "1",
+     "PYTHONPATH": "${LOCAL}/site",
+     "S": "${KIT}",
+     "TMPDIR": "${LOCAL}/tmp"
+    },
+    "esp": "${LOCAL}/source/esp",
+    "fl": "${LOCAL}/source/fl",
+    "hardware": {
+     "artifact": "${KIT}/assembly-inputs/hardware",
+     "tool": "${LOCAL}/source/hardware/apply"
+    },
+    "hooks": [
+     {
+      "kc_hook": "${LOCAL}/hooks/01-darwin27-kernel/kc-hook.sh",
+      "name": "darwin27-kernel"
+     },
+     {
+      "kc_hook": "${LOCAL}/hooks/02-golden-gate-userspace/kc-hook.sh",
+      "name": "golden-gate-userspace"
+     },
+     {
+      "kc_hook": "${LOCAL}/hooks/03-later-fix/kc-hook.sh",
+      "name": "later-fix"
+     }
+    ],
+    "kdk": "${KIT}/kdk/KDK_25.kdk",
+    "kdk_preparer": "${LOCAL}/source/kdk_intel_payload.py",
+    "kernel": "${LOCAL}/hooks/01-darwin27-kernel/inputs/darwin27_kernel",
+    "layout_helper": "${LOCAL}/source/golden-layout.py",
+    "name": "macOS",
+    "payload": "${KIT}/hooks/02-golden-gate-userspace/inputs/golden_gate_userspace",
+    "posts": [
+     {
+      "folder": "${LOCAL}/post/04-post-one",
+      "name": "post-one",
+      "script": "${LOCAL}/post/04-post-one/apply.sh"
+     }
+    ],
+    "pristine_script": "${LOCAL}/source/golden-pristine.sh",
+    "python": "${LOCAL}/py/bin/python3.12",
+    "size_bytes": 85899345920,
+    "work": "${LOCAL}/work"
+   },
+   "python_dirs": {
+    "arm64": "py",
+    "x86_64": "py-x86_64"
+   },
+   "schema": 1
+  }
+ }
+}

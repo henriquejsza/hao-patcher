@@ -39,6 +39,8 @@ import assets as ASSETS
 
 TOP = Path(__file__).resolve().parents[3]
 ASSEMBLIES = TOP / 'pipeline' / 'assemblies'
+PROFILES = TOP / 'pipeline' / 'profiles'      # image profiles: what an image is (target, packs, recipes)
+TARGETS = TOP / 'pipeline' / 'targets'
 
 # The step lists of the console mockups (Hao Console Variations), per command.
 HOST_STEPS = ('Download', 'Unpack', 'Prepare packs')
@@ -171,10 +173,65 @@ def _quiet(fn, *args, **kw):
         return fn(*args, **kw)
 
 
+def target_data(name):
+    """pipeline/targets/NAME.json, or {} when there is none."""
+    try:
+        return json.loads((TARGETS / (name + '.json')).read_text()) if name else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def is_generic_target(target):
+    """Whether TARGET is the generic one (software graphics, "generic": true): the image for Macs without their own."""
+    return bool(target_data(target).get('generic'))
+
+
+def image_profiles():
+    """{name: profile} of pipeline/profiles."""
+    return {p.stem: json.loads(p.read_text()) for p in sorted(PROFILES.glob('*.json'))}
+
+
+def generic_profiles(release=None):
+    """The image profiles whose target is generic: those RELEASE carries ("profiles"), or with no release this
+    checkout's. A release without "profiles" carries none."""
+    if release is not None:
+        return [n for n, p in sorted((release.get('profiles') or {}).items()) if is_generic_target(p.get('target'))]
+    return [n for n, p in image_profiles().items() if is_generic_target(p.get('target'))]
+
+
+def image_profile(a):
+    """--profile NAME when NAME is an image profile (pipeline/profiles/NAME.json, e.g. generic), kept in a.image_profile;
+    None when --profile is a hao detect profile file (a path to an existing file, or a name ending in .json)."""
+    if getattr(a, 'image_profile', None):
+        return a.image_profile
+    value = getattr(a, 'profile', None)
+    if not value or value.endswith('.json') or '/' in value or Path(value).expanduser().is_file():
+        return None
+    if not (PROFILES / (value + '.json')).is_file():
+        raise Stopped('no image profile %s' % value,
+                      why='--profile takes an image profile by name or a profile file from hao detect',
+                      options=['one of: ' + (', '.join(image_profiles()) or 'none in this checkout'),
+                               'or a file: --profile mac.json (hao detect --out mac.json on that Mac)'],
+                      untouched='nothing was downloaded or written')
+    a.image_profile = value
+    return value
+
+
 def mac(a):
-    """The profile a command works for: --profile FILE (hao detect), --model MODEL, or this Mac (install)."""
+    """The profile a command works for: --profile FILE (hao detect), --model MODEL, or this Mac (install); with
+    --profile NAME (an image profile) and no Mac, the model of that profile's target."""
     if getattr(a, 'profile_data', None) is not None:
         return a.profile_data
+    name = image_profile(a)
+    if name:
+        target = image_profiles()[name].get('target')
+        model = target_data(target).get('model')
+        try:
+            p = DETECT.for_model(model)
+        except DETECT.DetectError as x:
+            raise Stopped('image profile %s: its target %s has no recorded profile' % (name, target), cause=str(x))
+        p['target'] = target
+        return p
     if getattr(a, 'profile', None):
         return DETECT.load(a.profile)
     if getattr(a, 'model', None):
@@ -184,8 +241,9 @@ def mac(a):
                            '--profile mac.json'])
 
 
-def assembly(name, profile, golden=None):
-    """(path, assembly) for --assembly NAME, else the one for the profile's target (TARGET-GOLDEN, no dev recipes)."""
+def assembly(name, profile, golden=None, image=None):
+    """(path, assembly) for --assembly NAME, else the one that builds image profile IMAGE (its patch_set), else the one
+    for the profile's target (TARGET-GOLDEN, no dev recipes)."""
     if name:
         p = Path(name) if Path(name).is_file() else ASSEMBLIES / (name + '.json')
         if not p.is_file():
@@ -195,8 +253,20 @@ def assembly(name, profile, golden=None):
         if profile.get('target') and a.get('target') != profile['target']:
             raise Stopped('assembly %s builds for target %s, the Mac is %s' % (p.stem, a.get('target'),
                                                                                profile['target']))
+        if image and a.get('patch_set') != image:
+            raise Stopped('assembly %s builds set %s, not image profile %s' % (p.stem, a.get('patch_set'), image))
         return p, a
     found = []
+    if image:
+        for p in sorted(ASSEMBLIES.glob('*.json')):
+            a = json.loads(p.read_text())
+            if a.get('runner', 'golden') == 'golden' and a.get('patch_set') == image and \
+                    (golden is None or a.get('golden_build') == golden):
+                found.append((p, a))
+        if len(found) != 1:
+            raise Stopped('%s assemblies build image profile %s' % (len(found) or 'no', image),
+                          options=['name one: --assembly NAME (pipeline/assemblies)'])
+        return found[0]
     for p in sorted(ASSEMBLIES.glob('*.json')):
         a = json.loads(p.read_text())
         if a.get('runner', 'golden') == 'golden' and a.get('target') == profile.get('target') and \
@@ -208,12 +278,18 @@ def assembly(name, profile, golden=None):
     return found[0]
 
 
+def set_file(patches, name):
+    """The set NAME: its image profile in PROFILES, else what patches.py set_path finds (a profile or a set file)."""
+    p = PROFILES / (name + '.json')
+    return p if p.is_file() else patches['set_path'](name)
+
+
 def recipes_by_pack(asm, profile):
     """{pack: [recipe, ...]} of the assembly's set with the profile's packs, plus "(no pack)" for the rest."""
     patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
     defs = patches['load_packs']()
     owner = {r: n for n, d in defs.items() for r in d.get('recipes', [])}
-    rows = _quiet(lambda: list(patches['plan'](patches['set_path'](asm['patch_set']),
+    rows = _quiet(lambda: list(patches['plan'](set_file(patches, asm['patch_set']),
                                                TOP / 'pipeline/targets' / (asm['target'] + '.json'),
                                                '%s/%s' % (asm['golden_build'], asm['donor_build']),
                                                packs=profile['packs'])))
@@ -257,6 +333,23 @@ def proof_gate(a, c, profile, command):
     """Stop COMMAND (exit 5) on an unknown or unproven Mac unless --unproven; with it, warn and keep the reasons for
     the install record (a.unproven_reasons)."""
     reasons = unproven(profile) if command in GATED else []
+    image = getattr(a, 'image_profile', None)
+    if command in GATED and image and is_generic_target(profile.get('target')):
+        # the generic image, chosen by name (--profile generic or its question), is for virtual machines and non-Apple
+        # PCs (its VirtualSMC conflicts with a Mac's SMC): for a Mac (Apple firmware, or a Mac model named) it needs
+        # --unproven. Otherwise the choice is the consent; the install record and the stick's launcher keep it.
+        if (profile.get('firmware_vendor') or '').startswith('Apple') or getattr(a, 'model', None):
+            if not getattr(a, 'unproven', False):
+                raise Stopped('the generic image is for virtual machines and non-Apple PCs, not a Mac',
+                              why=GENERIC_LINE, code=5, untouched='nothing was downloaded or written',
+                              options=['choose your Mac model instead', 'or add --unproven to make it anyway (kept in '
+                                       'the install record)'])
+        reasons = ['the generic image %s (software graphics) for %s, not a proven Mac'
+                   % (image, profile.get('model') or 'a virtual machine or non-Apple PC')] + reasons
+        a.unproven_reasons = reasons
+        c.event('unproven', reasons=reasons, allowed=True, image_profile=image)
+        c.warning('making the generic image (software graphics, a test baseline): %s' % '; '.join(reasons))
+        return
     a.unproven_reasons = reasons
     if command in GATED and is_generic(profile):
         c.print(c.paint('warn', GENERIC_LINE), 'quiet')     # before any confirmation (patcher GEN1, pm)
@@ -276,15 +369,27 @@ def proof_gate(a, c, profile, command):
                                'keeps it'])
     raise Stopped('%s is not a Mac hao has proven' % profile.get('model'), why='; '.join(reasons), code=5,
                   untouched='nothing was downloaded or written',
-                  options=['use a proven Mac (hao detect shows what it finds)',
-                           'or, to try it anyway, run the same command with --unproven: the install record keeps it'])
+                  options=['use a proven Mac (hao detect shows what it finds)'] + (
+                      ['or make the generic image (software graphics, a test baseline; for a Mac only with '
+                       '--unproven): the same command with --profile %s --unproven' % a.generic_offer]
+                      if getattr(a, 'generic_offer', None) else []) +
+                          ['or, to try it anyway, run the same command with --unproven: the install record keeps it'])
 
 
 def resolve(a, c, command):
     """Profile, assembly and recipes, shown on C; the common head of every builder command."""
     profile = mac(a)
+    image = image_profile(a)
+    target = image_profiles()[image].get('target') if image else None
+    if image and is_generic_target(target):
+        # the generic image is the same on every Mac: its target's packs (the OS layer), not what this Mac detects
+        patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
+        profile = dict(profile, target=target,
+                       packs=_quiet(patches['detect_packs'], str(TARGETS / (target + '.json'))))
+    elif image and profile.get('target') != target:
+        raise Stopped('image profile %s is for target %s, the Mac is %s' % (image, target, profile.get('target')))
     proof_gate(a, c, profile, command)
-    path, asm = assembly(getattr(a, 'assembly', None), profile)
+    path, asm = assembly(getattr(a, 'assembly', None), profile, image=image)
     groups = recipes_by_pack(asm, profile)
     proven = 'proven model %s' % c.ok if profile.get('proven_model') else 'not proven on this model'
     c.banner('hao %s  macOS 27 %s for %s  (%s)' % (command, asm['golden_build'], profile['model'], proven),
@@ -640,7 +745,7 @@ def install(a, c, host, run=subprocess.call):
     work = assemble_onto(a, c, host, path, info, 'internal', run)
     write_install_record(c, host, DISKS.normalize(a.disk),
                          install_record(a, c, profile, path, asm, groups, DISKS.normalize(a.disk), a.kit))
-    blessed = set_startup_disk(c, host, DISKS.normalize(a.disk))
+    blessed = start_up(c, host, profile, DISKS.normalize(a.disk))
     # no automatic restart when the start-up disk was not set: the Mac could start something else
     wait = None if getattr(a, 'no_restart', False) or not blessed else (key_within if sys.stdin.isatty() else None)
     if wait is None:
@@ -763,6 +868,15 @@ def write_install_record(c, host, disk, record):
 
 RESTART_SECONDS = 10
 BOOTSTRAP = 'System/Library/CoreServices/boot.efi'     # OpenCore's Bootstrap on the EFI partition (as OCLP installs it)
+
+
+def start_up(c, host, profile, disk):
+    """Make DISK the one the machine starts: bless OpenCore's Bootstrap on a Mac; on a VM or PC (the generic image) the
+    firmware starts EFI/BOOT/BOOTx64.efi by itself, and bless (Apple firmware only) is not run. True when set."""
+    if is_generic_target(profile.get('target')):
+        c.item('start-up disk  the firmware starts EFI/BOOT/BOOTx64.efi (no bless on a VM or PC)', 'files', ok=True)
+        return True
+    return set_startup_disk(c, host, disk)
 
 
 def set_startup_disk(c, host, disk):

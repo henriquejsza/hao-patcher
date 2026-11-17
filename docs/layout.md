@@ -37,6 +37,18 @@ letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neu
 
 `patches.py check` refuses a `platform_data` that is not an object or has a key of another form.
 
+## Target ESP base
+
+The target's `"efi_build"` says what the image's base ESP is built from (`pipeline/stages/build-efi.py`, with the
+assembly's pinned OpenCore release; the set's post recipes then complete it). golden-run refuses a target without
+one, or with another `base`, before staging anything.
+
+- `"base": "oclp"` (the default when `base` is absent; `mbp92`): OCLP's OpenCore build for the target's `model`
+  from the pinned OCLP source, with `"settings"` (OCLP build settings).
+- `"base": "qemu_reference"` (`generic`): the row `qemu_reference_efi` (OpenCore tested on OVMF:
+  `EFI/BOOT/BOOTx64.efi`, `EFI/OC` with its drivers, kexts and `config.plist`), copied as
+  `tools/kernel-foundation/vm_esp.py` copies it, with the release's binaries. No OCLP configuration; no `settings`.
+
 ## Sets are generated
 
 - `pipeline/order.txt` lists every image recipe once, in build order, each with the reason for its position.
@@ -62,6 +74,16 @@ letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neu
 and platform), a pack that lists recipes, an image recipe missing from `order.txt` or listed twice, a variant that
 replaces a recipe of another pack, a profile that does not generate, and a target whose `platform_data` is malformed. `patches/TRACKER.md` and `docs/PATCHES.md`
 are regenerated from the declarations.
+
+## Profiles of a release
+
+A release carries one or more profiles, each its own image: `alpha-v0.1.0` (target `mbp92`: the OS layer plus the
+9,2's GPU, Wi-Fi, audio and model packs) and `generic` (target `generic`: the same OS layer plus the model pack
+`generic`, software graphics). The generic target has no board id and an OCLP hardware profile whose
+`patchset_order` is an explicit empty list, so detection selects no platform pack; its model pack is opt-in and named
+by the profile, so it never reaches another target's image. `hao build-image --profile NAME`, `hao create-installer`
+(`--profile generic`, or its question) and `release-cut` (one assembly per profile, `release.json` `profiles`) choose
+between them; see [building](building.md#choosing-a-profile).
 
 ## What a new Mac or GPU adds
 

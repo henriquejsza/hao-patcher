@@ -192,6 +192,23 @@ class Release(unittest.TestCase):
                      'stray.bin is staged but not an asset'):
             self.assertIn(want, bad)
 
+    def test_profiles_name_their_rows(self):
+        self.r['profiles'] = {'alpha-v0.1.0': {'assembly': 'mbp92-26B131', 'target': 'mbp92', 'patch_set': 'alpha-v0.1.0',
+                                               'rows': ['kdk', 'hao_runtime', 'tahoe_boot_donors']},
+                              'generic': {'assembly': 'generic-26B131', 'target': 'generic', 'patch_set': 'generic',
+                                          'rows': ['kdk', 'hao_runtime']}}
+        self.assertEqual(self.check(), [])
+        self.r['profiles']['generic']['rows'].append('nothing')
+        self.r['profiles']['alpha-v0.1.0']['rows'].remove('tahoe_boot_donors')
+        self.r['assets'][0]['harvested'] = True
+        self.r['target'] = 'mbp92'
+        self.r['assembly'] = 'other'
+        bad = '\n'.join(self.check())
+        for want in ('profile generic names row nothing', 'row tahoe_boot_donors belongs to no profile',
+                     'profile generic (target generic) uses harvested asset hao_runtime',
+                     'assembly other is none of the profiles'):
+            self.assertIn(want, bad)
+
     def test_an_asset_without_a_public_commit_stands_on_its_sha256(self):
         a = self.r['assets'][0]
         a['commit'] = ''

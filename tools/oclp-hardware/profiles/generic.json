@@ -1,0 +1,9 @@
+{
+ "schema": 1,
+ "name": "generic-no-oclp-patchsets",
+ "model": "iMac20,1",
+ "comment": "The generic target (pipeline/targets/generic.json): software graphics, no OCLP root patch sets, so no GPU, Wi-Fi or audio platform pack is detected. An explicit empty patchset_order, not a missing profile: patches.py refuses a target without its profile.",
+ "patchset_order": [],
+ "patches": {},
+ "entries": []
+}

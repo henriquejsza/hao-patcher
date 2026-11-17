@@ -90,6 +90,38 @@ python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json --repo /
 The [assembly](../pipeline/assemblies/mbp92-26B131.json) selects target, OS and donor
 builds, image sizes, donor rows and the patch set.
 
+### Choosing a profile
+
+An image is named by its profile ([layout](layout.md)): `alpha-v0.1.0` is the MacBookPro9,2 image, `generic` the
+software-graphics image for Intel hardware without its own target (target `generic`: model iMac20,1, no board id, no
+GPU, Ivy Bridge CPU flags, an OCLP profile with no patch sets; first proof an x86_64 QEMU VM run with
+`-cpu IvyBridge`). `hao build-image REPO --profile NAME` builds the one assembly whose `patch_set` is NAME
+(`--assembly` must agree); without `--profile` the assembly follows from the Mac's target as before
+(`TARGET-GOLDEN`). `--profile` still takes a `hao detect` file: a path, or a name ending in `.json`.
+
+`hao create-installer` offers the generic image only when the release carries it: as the last answer to "Which
+Mac", and as a second question when This Mac is a model the release cannot install on (stopping is the default).
+`--profile generic` answers it ahead. The generic image is never picked for an unknown Mac on its own; choosing it is
+the consent the proof gate otherwise asks for with `--unproven`, and the install record and the USB installer's
+launcher keep it as unproven.
+
+`release-cut --write OUT ASSEMBLY [ASSEMBLY ...]` cuts several profiles from one commit into one release: an asset
+two profiles share is one file, every file is listed once in `SHA256SUMS`, and `release.json` `profiles` names each
+profile's assembly, target, set, recipes and the `rows` (downloads, assets, made-on-Mac rows) it uses. The top level
+stays the first profile's image, so a reader that knows no `profiles` sees the MacBookPro9,2 image. create-installer
+works from the chosen profile's view of the release (`~/Library/Caches/hao/releases/RELEASE-PROFILE.json`): it
+downloads, makes and puts on the USB installer only that profile's rows.
+
+The generic image is `pipeline/profiles/generic.json` (the OS layer plus the opt-in model pack `generic`, whose
+`opencore-generic` runs right before `hao-opencore`), its set `pipeline/sets/generic.txt` and its assembly
+`pipeline/assemblies/generic-26B131.json`. Its target selects no OCLP patch sets, so `golden-run` stages no
+`hardware` input and golden-image's step `hardware` installs nothing (the configuration's `hardware` is null); an
+assembly whose `hardware` input disagrees with its target's patch sets is refused. The base ESP is always the one
+`stages/build-efi.py` makes from the target's `efi_build` (never a harvested ESP or another target's): the generic
+target's is `"base": "qemu_reference"`, the `qemu_reference_efi` tree (OpenCore tested on OVMF, started from
+`EFI/BOOT/BOOTx64.efi`) with the pinned OpenCore release's binaries, not OCLP's iMac20,1 build (the 5K iMac's
+Apple-firmware boot layout, which non-Apple firmware cannot start). See [layout](layout.md#target-esp-base).
+
 Before writing anything, `golden-run`, `hao build-image --here`, `tools/qemu-vm` and the builder VM's start check the
 free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the
 image commit ~23 GB; an assembly can say more with `disk_need_gb`), a kit alone 90 GB, a QEMU run the size of the disks

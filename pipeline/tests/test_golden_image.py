@@ -130,6 +130,22 @@ class GoldenImageTests(unittest.TestCase):
 
     def commands(self):return [row['command'] for row in self.fake.entries]
 
+    def test_final_esp_reasons_checked_once_after_the_last_post(self):
+        self.config['posts'].append(dict(name='hao-opencore',script='/staged/posts/oc/apply.sh',folder='/staged/posts/oc'))
+        self.config['posts'].append(dict(name='later',script='/staged/posts/later/apply.sh',folder='/staged/posts/later'))
+        golden.assemble(self.config,self.fake);a=self.commands()
+        checks=[i for i,x in enumerate(a) if '/staged/posts/oc/src/config_reasons.py' in x]
+        self.assertEqual(len(checks),1)
+        x=a[checks[0]];payload=str(Path(self.config['work'])/'boot-efi/payload')
+        self.assertEqual(x[:5],['/staged/python','-I','-B','/staged/posts/oc/src/config_reasons.py','check'])
+        self.assertEqual(x[5:],[payload+'/EFI/OC/config.plist','--kexts',payload+'/EFI/OC/Kexts'])
+        later=next(i for i,y in enumerate(a) if '/staged/posts/later/apply.sh' in y)
+        self.assertLess(later,checks[0])
+
+    def test_no_reasons_check_without_hao_opencore(self):
+        golden.assemble(self.config,self.fake)
+        self.assertFalse(any('config_reasons.py' in ' '.join(map(str,x)) for x in self.commands()))
+
     def test_full_order_preserves_golden_identity_and_declared_roles(self):
         record=golden.assemble(self.config,self.fake);a=self.commands()
         self.assertIn(['/sbin/mount_msdos','-o','nobrowse','/dev/disk70s1',str(Path(self.config['work'])/'mnt/esp')],a)
@@ -221,6 +237,16 @@ class GoldenImageTests(unittest.TestCase):
         record=json.loads((Path(self.config['work'])/'build.json').read_text())
         self.assertEqual(record['status'],'failed');self.assertIsNone(record['attached_device'])
         self.assertTrue(Path(self.config['image']).is_file())
+
+    def test_no_hardware_overlay_runs_nothing_and_says_so(self):
+        # golden-run's config for a target that selects no OCLP patch sets (the generic one): hardware null
+        self.config['hardware']=None
+        record=golden.assemble(self.config,self.fake)
+        self.assertEqual(record['status'],'assembled')
+        self.assertFalse(any('/staged/hardware' in x for a in self.commands() for x in a))
+        self.assertIn('hardware',[row['name'] for row in record['steps']])
+        self.assertIsNone(json.loads((Path(self.config['work'])/'hardware.json').read_text())['overlay'])
+        self.assertNotIn('/staged/hardware',golden.source_paths(self.config))
 
     def test_unmount_failure_retains_attached_image_and_fails_completion(self):
         data=str(Path(self.config['work'])/'mnt/data')

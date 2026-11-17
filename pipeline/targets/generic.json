@@ -1,0 +1,22 @@
+{
+ "model": "iMac20,1",
+ "generic": true,
+ "comment": "generic: any Intel x86_64 machine with software graphics, the test baseline for hardware without its own target (first proof: an x86_64 QEMU VM). Model iMac20,1: the SMBIOS the generic pack's OpenCore configuration gives the machine (Tahoe supports it natively). No board id, no GPU, no Apple firmware: detection selects only the OS layer (its OCLP hardware profile has no patch sets); the image's model pack is named by its profile (pipeline/profiles/generic.json).",
+ "efi_build": {
+  "base": "qemu_reference",
+  "comment": "The ESP base is the qemu_reference_efi row (OpenCore tested on OVMF: EFI/BOOT/BOOTx64.efi, the path non-Apple firmware starts) with the pinned OpenCore release's binaries, not OCLP's iMac20,1 build (the 5K iMac's Apple-firmware layout: OpenCore hidden as Product.efi behind Apple's diagnostics launcher, no EFI/BOOT/BOOTx64.efi). opencore-generic and hao-opencore complete it."
+ },
+ "facts": {
+  "gpu": [],
+  "firmware": "none",
+  "cpu": {
+   "class": "Ivy Bridge",
+   "why": "The image is proven on an Ivy Bridge CPU (MacBookPro9,2, i5-3210M), so the baseline is the instruction set that CPU and QEMU's IvyBridge CPU model share: SSE4.2, POPCNT, AES, PCLMULQDQ, XSAVE, AVX 1.0, RDRAND, F16C, no AVX2. QEMU's default x86_64 CPU (qemu64) lacks SSE4.1, SSE4.2, POPCNT, AES and AVX, so a VM runs with -cpu IvyBridge (or a newer model, or host on an Intel host). The 9,2's bits QEMU does not model (VMX, EST, TM, TM2, DS, ACPI, PBE, DTES64, MON, DSCPL, PDCM, TPR, SS, HTT, PCID) are left out.",
+   "flags": [
+    "FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT",
+    "PSE36", "CLFSH", "MMX", "FXSR", "SSE", "SSE2", "SSE3", "PCLMULQDQ", "SSSE3", "CX16", "SSE4.1", "SSE4.2",
+    "x2APIC", "POPCNT", "AES", "XSAVE", "OSXSAVE", "TSCTMR", "AVX1.0", "RDRAND", "F16C"
+   ]
+  }
+ }
+}

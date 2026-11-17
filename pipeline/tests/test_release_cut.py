@@ -16,7 +16,9 @@ import unittest
 TOP = Path(__file__).resolve().parents[2]
 R = runpy.run_path(str(TOP / 'pipeline' / 'release-cut'))
 ASSEMBLY = TOP / 'pipeline/assemblies/mbp92-26B131.json'
-CONTENT = {'ours', 'made-on-mac', 'download', 'harvested', 'in-checkout', 'pending'}
+ALPHA_ASSEMBLY = TOP / 'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json'
+DEV_ASSEMBLY = TOP / 'pipeline/assemblies/dev-26B131-alpha-v0.1.0.json'
+CONTENT = {'ours', 'made-on-mac', 'download', 'harvested', 'in-checkout', 'dev-local', 'pending'}
 STORE = (TOP / 'store/artifacts').is_dir()
 
 
@@ -305,6 +307,36 @@ class Write(unittest.TestCase):
             rel, problems = R['build_release'](a, '27.2.1-26B131.0')
         self.assertIn('profile dev-bs-test: not marked "release": true', problems)
 
+    def test_dev_cuts_only_a_candidate(self):
+        with self.assertRaises(ValueError):
+            R['build_release'](DEV_ASSEMBLY, '27.2.1-26B131.0', dev=True)
+        r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', '/nonexistent/r.json',
+                            str(DEV_ASSEMBLY), '--release', '27.2.1-26B131.0', '--channel', 'dev', '--version',
+                            'v0.0.1', '--dev'], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn('--candidate --dev', r.stderr)
+
+    def test_dev_refuses_a_release_profile(self):
+        rel, problems = R['build_release'](ALPHA_ASSEMBLY, '27.2.1-26B131.0', candidate=True, dev=True)
+        self.assertIn('profile alpha-v0.1.0: a release profile is cut without --dev', problems)
+
+    def test_a_dev_candidate_is_marked_and_allows_the_dev_pack(self):
+        rel, problems = R['build_release'](DEV_ASSEMBLY, '27.2.1-26B131.0', candidate=True, dev=True)
+        self.assertIs(rel['dev'], True)
+        self.assertIs(rel['candidate'], True)
+        self.assertEqual([p for p in problems if 'dev-layer' in p or 'status dev' in p or 'release": true' in p
+                          or 'dev-local' in p], [])
+        self.assertEqual({x['row'] for x in rel['dev_local']},
+                         {'test_host_key', 'test_authorized_key', 'screensharing_users'})
+        self.assertTrue(any('dev-access' in u for u in rel['unvalidated']))
+        # without --dev the same profile is refused, and its private rows are problems, never assets
+        plain, plain_problems = R['build_release'](DEV_ASSEMBLY, '27.2.1-26B131.0', candidate=True)
+        self.assertNotIn('dev', plain)
+        self.assertNotIn('dev_local', plain)
+        self.assertIn('profile dev-alpha-v0.1.0: not marked "release": true', plain_problems)
+        self.assertIn('test_host_key: dev-local, cut only into a dev candidate (--candidate --dev)', plain_problems)
+        self.assertNotIn('test_host_key', [x['row'] for x in plain['assets'] + rel['assets']])
+
     def test_release_cut_refuses_an_experiment_recipe(self):
         # release-cut runs release_problems with the validated/experiment gate on; here against a small tree whose
         # release profile holds one experiment recipe.
@@ -375,6 +407,121 @@ class PendingRows(unittest.TestCase):
         self.assertEqual(self.cut('alpha', '--allow-pending-row', 'a'), (1, False))
         self.assertEqual(self.cut('alpha', '--allow-pending-row', 'a', '--allow-pending-row', 'b'), (0, True))
         self.assertEqual(self.cut('beta', '--allow-pending-row', 'a', '--allow-pending-row', 'b'), (1, False))
+
+
+def one_cut(profile, target, assets, downloads=(), harvested=(), problems=()):
+    """A one-assembly release as build_release returns it (the fields merge_releases reads)."""
+    rows = sorted([a['row'] for a in assets] + [d['row'] for d in downloads])
+    rel = {'contract_version': 2, 'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'channel': 'alpha',
+           'prerelease': True, 'golden_build': '26B131', 'donor_build': '25G342', 'oclp': 'fd83bda09',
+           'hao_patcher': 'c' * 40, 'hao_runtime': '', 'state': 'complete' if not problems else 'incomplete',
+           'proven_models': ['MacBookPro9,2'], 'assembly': '%s-26B131' % target, 'target': target,
+           'patch_set': profile, 'recipes': {'base-recipe': 1}, 'dev_only_recipes': [],
+           'downloads': list(downloads), 'assets': list(assets), 'made_on_mac': [], 'harvested': list(harvested),
+           'in_checkout': [], 'pending': [], 'notes': [], 'expected': {}}
+    rel['profiles'] = {profile: {'assembly': rel['assembly'], 'target': target, 'patch_set': profile,
+                                 'recipes': rel['recipes'], 'dev_only_recipes': [],
+                                 'proven_models': ['MacBookPro9,2'] if target == 'mbp92' else [], 'rows': rows,
+                                 'harvested': sorted(harvested)}}
+    return rel, list(problems)
+
+
+def asset(row, data, harvested=False):
+    import hashlib
+    x = {'row': row, 'file': row + '.tar', 'url': R['ASSET_URL'] % ('27.2.1-26B131.0', row + '.tar'),
+         'size': len(data), 'sha256': hashlib.sha256(data).hexdigest(), 'commit': '', 'format': 'tar'}
+    if harvested:
+        x['harvested'] = True
+    return x
+
+
+DATA = {'runtime': b'shared runtime', 'esp_mbp92': b'9,2 only', 'caches': b'harvested 9,2 caches',
+        'esp_generic': b'generic only'}
+KDK = {'row': 'kdk', 'name': 'KDK.dmg', 'url': 'https://example.invalid/KDK.dmg', 'size': 1, 'sha256': '1' * 64}
+
+
+def two_profiles():
+    nine = one_cut('alpha-v0.1.0', 'mbp92', [asset('runtime', DATA['runtime']), asset('esp_mbp92', DATA['esp_mbp92']),
+                                             asset('caches', DATA['caches'], harvested=True)], [KDK])
+    generic = one_cut('generic', 'generic', [asset('runtime', DATA['runtime']), asset('esp_generic', DATA['esp_generic'])],
+                      [KDK], harvested=['caches'])
+    return [nine, generic]
+
+
+class Profiles(unittest.TestCase):
+    """One release, several profiles (the 9,2 image and the generic one), cut from one commit."""
+
+    def test_shared_assets_once_each_profile_says_its_rows(self):
+        rel, problems = R['merge_releases'](two_profiles())
+        self.assertEqual(problems, [])
+        self.assertEqual([x['row'] for x in rel['assets']], ['runtime', 'esp_mbp92', 'caches', 'esp_generic'])
+        self.assertEqual([x['row'] for x in rel['downloads']], ['kdk'])
+        self.assertEqual(rel['harvested'], [])                       # shipped for the 9,2: listed once, as an asset
+        self.assertEqual(sorted(rel['profiles']), ['alpha-v0.1.0', 'generic'])
+        self.assertEqual(rel['profiles']['generic']['rows'], ['esp_generic', 'kdk', 'runtime'])
+        self.assertEqual(rel['profiles']['generic']['harvested'], ['caches'])
+        self.assertEqual(rel['profiles']['alpha-v0.1.0']['rows'], ['caches', 'esp_mbp92', 'kdk', 'runtime'])
+        # the top level is the first profile's image, as a reader without "profiles" knows it
+        self.assertEqual((rel['assembly'], rel['target'], rel['patch_set']), ('mbp92-26B131', 'mbp92', 'alpha-v0.1.0'))
+        C = runpy.run_path(str(TOP / 'tools/hao-contract/hao_contract.py'))
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / 'release.json').write_text(json.dumps(rel))
+            self.assertEqual(C['check_release_file'](Path(d) / 'release.json'), [])
+
+    def test_each_profile_entry_names_its_proven_models(self):
+        patches = runpy.run_path(str(TOP / 'pipeline/patches.py'))
+        packs = patches['load_packs']()
+        for target, proven in (('mbp92', ['MacBookPro9,2']), ('generic', [])):
+            rel = dict(assembly='x', target=target, patch_set='s', recipes={}, dev_only_recipes=[], made_on_mac=[],
+                       downloads=[KDK], assets=[asset('runtime', b'r')], harvested=['caches'])
+            entry = R['profile_entry'](rel, patches, packs)
+            self.assertEqual((entry['proven_models'], entry['rows'], entry['harvested']),
+                             (proven, ['kdk', 'runtime'], ['caches']), target)
+
+    def test_a_row_two_profiles_make_differently_is_a_problem(self):
+        cuts = two_profiles()
+        cuts[1][0]['assets'][0] = asset('runtime', b'another build')
+        rel, problems = R['merge_releases'](cuts)
+        self.assertIn('runtime: the profiles place it differently in assets', problems)
+        self.assertEqual(rel['state'], 'incomplete')
+
+    def test_one_macos_build_per_release(self):
+        cuts = two_profiles()
+        cuts[1][0]['golden_build'] = '26C5'
+        with self.assertRaises(ValueError):
+            R['merge_releases'](cuts)
+        cuts = two_profiles()
+        cuts[1][0]['profiles'] = cuts[0][0]['profiles']
+        with self.assertRaises(ValueError):
+            R['merge_releases'](cuts)
+
+    def test_written_staged_and_summed_once(self):
+        g = R['main'].__globals__
+        saved = g['build_release']
+        cuts = dict(zip(('mbp92', 'generic'), two_profiles()))
+
+        def fake(assembly, name, stage=None, **kw):
+            rel, problems = cuts[Path(assembly).stem]
+            for x in rel['assets']:
+                (Path(stage) / x['file']).write_bytes(DATA[x['row']])
+            return json.loads(json.dumps(rel)), problems
+        g['build_release'] = fake
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                out, stage = Path(d) / 'release.json', Path(d) / 'stage'
+                rc = R['main'](['--write', str(out), 'mbp92.json', 'generic.json', '--release', '27.2.1-26B131.0',
+                                '--channel', 'alpha', '--version', 'v0.0.1', '--stage', str(stage)])
+                self.assertEqual(rc, 0)
+                rel = json.loads(out.read_text())
+                self.assertEqual(sorted(rel['profiles']), ['alpha-v0.1.0', 'generic'])
+                sums = (stage / 'SHA256SUMS').read_text().splitlines()
+                self.assertEqual(sorted(l.split()[1] for l in sums),
+                                 sorted(['caches.tar', 'esp_generic.tar', 'esp_mbp92.tar', 'runtime.tar', 'release.json'])
+                                 if (stage / 'release.json').exists() else
+                                 ['caches.tar', 'esp_generic.tar', 'esp_mbp92.tar', 'runtime.tar'])
+                self.assertEqual(R['check_stage'](rel, stage), [])
+        finally:
+            g['build_release'] = saved
 
 
 if __name__ == '__main__':

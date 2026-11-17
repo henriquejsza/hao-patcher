@@ -1,0 +1,16 @@
+darwin27-kernel
+golden-gate-userspace
+hao-runtime
+golden-gate-dyld-internal
+golden-gate-launchd-warm
+golden-gate-windowserver-filter
+golden-gate-corespotlight-compat
+golden-gate-store
+golden-gate-native-identities
+opencore-generic
+hao-opencore
+golden-gate-user-seed
+golden-gate-user-template
+golden-gate-font-registry
+golden-gate-icon-caches
+hao-command

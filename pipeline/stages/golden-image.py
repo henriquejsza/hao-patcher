@@ -8,7 +8,8 @@ passes DiskTarget's checks, with confirm_disk), a new work directory, size_bytes
 (the image size, or a disk's minimum), name, python, layout_helper,
 pristine_script, kdk_preparer, payload (filesystem/os/app/rosetta.dmg), kernel, kdk, fl,
 donor_tool, donors {native,extensions,boot,driverkit,recovery}, esp (tree),
-hardware {tool,artifact}, hooks [{name,kc_hook}] in set order, posts
+hardware {tool,artifact} (or null: the target selects no OCLP patch sets, so
+the step hardware installs nothing), hooks [{name,kc_hook}] in set order, posts
 [{name,script,folder}] in set order, environment (every step, hook and post
 runs with it; golden-run puts the target there: HAO_TARGET_MODEL, the target's
 model, and HAO_TARGET_DATA, the kit's JSON file of its platform_data), and optionally overlays
@@ -322,7 +323,7 @@ class DiskTarget(Target):
 def source_paths(config):
     """Folders and files the build reads or writes outside the target: none may live on a disk it erases."""
     paths = [config['work']]+[config[key] for key in ('python','payload','kernel','kdk','fl','esp','donor_tool')]
-    paths += list(config.get('donors',{}).values())+[config['hardware']['artifact']]
+    paths += list(config.get('donors',{}).values())+([config['hardware']['artifact']] if config['hardware'] else [])
     return list(dict.fromkeys(map(str,paths)))
 
 
@@ -530,6 +531,13 @@ class Assembler:
 
     def hardware(self):
         c = self.config
+        if c['hardware'] is None:
+            # The target selects no OCLP patch sets (golden-run's hardware_overlay): nothing to install, said so.
+            (self.work/'hardware.json').write_text(json.dumps(dict(overlay=None,
+                why='the target selects no OCLP patch sets'),indent=2)+'\n')
+            print('golden-image: hardware: no OCLP hardware overlay (the target selects no patch sets)', flush=True)
+            self.fix_owners('base layers',('system','data','preboot','recovery'))
+            return
         self.run(c['python'],'-I',c['hardware']['tool'],'apply','--artifact',c['hardware']['artifact'],
                  '--system-root',self.mounts['system'],'--data-root',self.mounts['data'],
                  '--report',self.work/'hardware.json')
@@ -668,6 +676,12 @@ class Assembler:
         destination = self.work/'boot-efi'
         destination.mkdir(mode=0o755)
         self.run(*FAT_COPY,self.mounts['esp'],destination/'payload')
+        # Every OpenCore setting needs a recorded reason, on the ESP as the last post left it (recipes after
+        # hao-opencore change it too): hao-opencore's own check, run once more on the final copy.
+        for post in self.config['posts']:
+            if post['name']=='hao-opencore':
+                self.run(self.config['python'],'-I','-B',str(Path(post['folder'])/'src/config_reasons.py'),'check',
+                         destination/'payload/EFI/OC/config.plist','--kexts',destination/'payload/EFI/OC/Kexts')
         config = plistlib.loads((destination/'payload/EFI/OC/config.plist').read_bytes())
         system = self.mounts['system']
         version = plistlib.loads((system/'System/Library/CoreServices/SystemVersion.plist').read_bytes())

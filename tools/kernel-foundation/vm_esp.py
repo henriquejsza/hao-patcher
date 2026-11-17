@@ -23,6 +23,26 @@ def hashes(root):
             for p in sorted(root.rglob('*')) if p.is_file()}
 
 
+def reference_tree(reference, out):
+    """Copy the tested reference's EFI/ into the new folder OUT; return its parsed EFI/OC/config.plist.
+    Shared with pipeline/stages/build-efi.py (base qemu_reference)."""
+    out.mkdir(parents=True, exist_ok=False)
+    shutil.copytree(reference/'EFI', out/'EFI')
+    return plistlib.loads((out/'EFI/OC/config.plist').read_bytes())
+
+
+def add_apfs_driver(config, out, apfs):
+    """Load APFS driver APFS from OUT's EFI/OC/Drivers (copied there unless it is that file) and connect it to every
+    APFS container: host-created APFS containers may lack a usable jumpstart driver (archived B1/B2)."""
+    dest = out/'EFI/OC/Drivers'/apfs.name
+    if not (dest.exists() and dest.samefile(apfs)):
+        shutil.copy2(apfs, dest)
+    if not any(entry['Path'] == apfs.name for entry in config['UEFI']['Drivers']):
+        config['UEFI']['Drivers'].append(dict(Arguments='', Comment=apfs.name,
+            Enabled=True, LoadEarly=False, Path=apfs.name))
+    config['UEFI']['APFS']['GlobalConnect'] = True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--reference', type=Path, required=True, help='Directory containing tested VM EFI/')
@@ -42,9 +62,7 @@ def main():
     if (args.early_vm_capture or args.kernel_repair_artifact) and not args.boot_kc:
         parser.error('kernel repairs require --boot-kc')
     out = args.out.resolve()
-    out.mkdir(parents=True, exist_ok=False)
-    shutil.copytree(args.reference/'EFI', out/'EFI')
-    config = plistlib.loads((out/'EFI/OC/config.plist').read_bytes())
+    config = reference_tree(args.reference, out)
     with tempfile.TemporaryDirectory() as temporary:
         donor = Path(temporary)
         with tarfile.open(args.donor_esp) as archive:
@@ -74,13 +92,7 @@ def main():
                     deleted = config['NVRAM']['Delete'].setdefault(guid, [])
                     if key not in deleted:
                         deleted.append(key)
-        # Host-created APFS containers may lack a usable jumpstart driver (archived B1/B2).
-        apfs = donor/'EFI/OC/Drivers/apfs_aligned.efi'
-        shutil.copy2(apfs, out/'EFI/OC/Drivers'/apfs.name)
-        if not any(entry['Path'] == apfs.name for entry in config['UEFI']['Drivers']):
-            config['UEFI']['Drivers'].append(dict(Arguments='', Comment=apfs.name,
-                Enabled=True, LoadEarly=False, Path=apfs.name))
-        config['UEFI']['APFS']['GlobalConnect'] = True
+        add_apfs_driver(config, out, donor/'EFI/OC/Drivers/apfs_aligned.efi')
     if args.commpage_kext:
         shutil.copytree(args.commpage_kext, out/'EFI/OC/Kexts/IntelCommpage.kext')
         config['Kernel']['Add'].append(dict(Arch='x86_64', BundlePath='IntelCommpage.kext',

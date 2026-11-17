@@ -263,7 +263,10 @@ class Repo(unittest.TestCase):
                 self.assertEqual([len(x) for x in data if x], [2], '%s/%s' % (d.name, f.name))
         for t in (TOP / 'pipeline/targets').glob('*.json'):
             j = json.loads(t.read_text())
-            self.assertTrue({'model', 'board_id', 'esp', 'oclp_hardware_profile'} <= set(j), t.name)
+            # the generic target (software graphics) has no board id and no OCLP hardware; its ESP and OpenCore
+            # configuration come with its model pack
+            want = {'model', 'facts'} if j.get('generic') else {'model', 'board_id', 'esp', 'oclp_hardware_profile'}
+            self.assertTrue(want <= set(j), t.name)
 
     def test_run_needs_four_arguments(self):
         r = subprocess.run(['zsh', str(TOP / 'pipeline/run'), 'mbp92', '25G332'], capture_output=True, text=True)

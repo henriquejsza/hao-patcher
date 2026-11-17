@@ -260,7 +260,9 @@ class NoProfileStops(unittest.TestCase):
 
     def test_every_target_has_its_profile(self):
         for t in (TOP / 'pipeline/targets').glob('*.json'):
-            self.assertTrue(patches.oclp_patchsets(t), t.name)
+            sets = patches.oclp_patchsets(t)                 # stops when the profile is missing
+            # only the generic target (software graphics) has an empty list: no OCLP patch sets
+            self.assertEqual(bool(sets), not json.loads(t.read_text()).get('generic'), t.name)
 
 
 class DevPack(unittest.TestCase):
