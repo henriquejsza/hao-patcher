@@ -36,7 +36,7 @@ row changes. Not declared: folders and their owners, and the per-account copy go
 ## Verify
 Declaration: `python3.14 -I -B -m unittest discover -s patches/golden-gate-icon-caches/tests` (with ICON_CACHES_ARTIFACT=the artifact folder it also compares the artifact manifest).
 Host: `patches/golden-gate-user-seed/tests` (the seed chain). On the laptop: iconservicesagent CPU at Setup + 9 min
-against bf10de4 (1:24 Setup, 2:13 benchtest at 08:22); `log show --predicate 'subsystem == "com.apple.iconservices"'`
+against bf10de4 (1:24 Setup, 2:13 test account at 08:22); `log show --predicate 'subsystem == "com.apple.iconservices"'`
 with private data shows records served, not generated.
 
 ## Validation

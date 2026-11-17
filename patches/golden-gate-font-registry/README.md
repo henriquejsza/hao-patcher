@@ -16,7 +16,7 @@ Split out of golden-gate-user-seed r2/r3 (26A428 registry), so the font seed can
 A registry's version (26B131: 104/88) and its font rows follow the build's fonts; fontd compares each font's
 stored bookmark with a fresh one, so a registry from another build is at best rescanned.
 26B131 artifact `font-registry-26B131-20261111-81a2b271420f`: 3,921 fonts in both registries; the user seed names no
-`/Users/benchtest` path.
+`/Users/<account>` path.
 
 ## Declared files
 `patch.json` `files` lists the two files apply.sh installs on the Data volume, both whole files from row
