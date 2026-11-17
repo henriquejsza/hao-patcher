@@ -144,6 +144,8 @@ def _from_mirror(url, sha256, name):
     base = os.environ.get('HAO_MIRROR', '').strip()
     if not base:
         return None
+    if url.startswith(base.rstrip('/') + '/sha256/'):  # already the mirror's URL (from mirrored()): read it as is
+        return None
     strict = os.environ.get('HAO_MIRROR_STRICT', '') == '1'
     name = name or urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit('/', 1)[-1]) or url
     if not (isinstance(sha256, str) and re.fullmatch(r'[0-9a-f]{64}', sha256)):
