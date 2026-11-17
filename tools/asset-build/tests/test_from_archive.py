@@ -1,5 +1,5 @@
 """The producers run from a release archive, a folder with no .git: `git archive HEAD` of this checkout, with `store`
-linked to this checkout's store. Two assets (asset-build) and two Tahoe donor sets (tools/tahoe-donors/make) built
+linked to this checkout's store. Four assets (asset-build) and two Tahoe donor sets (tools/tahoe-donors/make) built
 there equal their rows, and each build record names the archive's commit.
 
   ASSET_BUILD_COMPILE=1 python3.14 -I -B -m unittest discover -s tools/asset-build/tests -p test_from_archive.py
@@ -46,7 +46,7 @@ class FromArchive(unittest.TestCase):
         self.assertEqual((self.src/'pipeline/SOURCE_COMMIT').read_text().strip(), self.commit)
 
     def test_assets_equal_their_rows(self):
-        for row in ('display_state_shim', 'io80211_compat'):
+        for row in ('display_state_shim', 'io80211_compat', 'fl', 'ripatch'):
             out = Path(self.tmp.name)/('asset-' + row)
             line = self.run_tool(self.src/'tools/asset-build/asset-build', row, out).split()
             self.assertEqual(line[1], row)   # asset-build exits 1 unless the sha256 is the row's

@@ -1,12 +1,7 @@
 {
- "revision": 7,
+ "revision": 8,
  "pack": "base",
  "stage": "post",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "inputs": [
   "icon_caches_golden_gate"
  ],
@@ -6091,5 +6086,7 @@
    },
    "source": "user/store.index"
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"},
+ "proven_on": [{"model": "MacBookPro9,2", "os": "26B131", "donor": "25G342", "revision": 3, "evidence": "laptop boot 2026-11-11, image 4d1c48c: iconservicesagent idle during first boot"}]
 }

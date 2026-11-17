@@ -24,7 +24,11 @@ class Refused(Exception):
 
 
 def free_gb(path='/'):
-    return shutil.disk_usage(path).free / 1e9
+    """Free GB on the volume that holds PATH; a PATH not made yet (a fresh checkout's store) counts on its parent's."""
+    p = os.path.abspath(path)
+    while not os.path.exists(p) and os.path.dirname(p) != p:
+        p = os.path.dirname(p)
+    return shutil.disk_usage(p).free / 1e9
 
 
 def check(need, who='', what='', path=None, out=print):

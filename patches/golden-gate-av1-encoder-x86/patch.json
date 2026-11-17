@@ -1,8 +1,7 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "intel-hd4000",
  "stage": "oclp-hook",
- "applies": {"builds": ["25G332", "25G342"]},
  "status": "experiment",
  "validated": false,
  "files": [
@@ -11,5 +10,6 @@
    "edits": "edits/av1-encoder-info.json",
    "install": {"mode": "0644", "owner": "root:wheel", "flags": ["restricted"]}
   }
- ]
+ ],
+ "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": ["!avx2"], "gpu": "any", "firmware": "any"}
 }

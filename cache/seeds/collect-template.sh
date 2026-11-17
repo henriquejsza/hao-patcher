@@ -1,7 +1,7 @@
 #!/bin/sh
 # cache/seeds/collect-template.sh: read-only harvest of what macOS made in one account's Library at its first login,
 # for cache/seeds/template (the User Template, patches/golden-gate-user-template). Run on the laptop as root:
-#   ssh root@LAPTOP 'SEED_USER=benchtest sh -s' < cache/seeds/collect-template.sh \
+#   ssh root@LAPTOP 'SEED_USER=ACCOUNT sh -s' < cache/seeds/collect-template.sh \
 #       > store/artifacts/template-harvest-<build>-<image>-<stamp>.cpio
 # Output on stdout: a ditto (cpio) archive, because tar's headers cannot carry the containermanager xattrs (the
 # data-container personality is ~0.1-2 MB). Paths in it:

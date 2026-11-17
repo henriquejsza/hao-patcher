@@ -35,7 +35,8 @@ No asset may hold a private reference (the contract's patterns: home folders, pr
 By build record (whether the bytes can be made again):
   download      under a download root of the store
   reproducible  an artifact whose build.json names a clean commit of a producer found here (hao-patcher, hao-runtime,
-                hao-tools, or the repository the store belongs to), or a tracked, committed source file
+                the repositories HAO_PRODUCER_REPOS or ~/.config/hao/producer-repos lists, or the repository the
+                store belongs to), or a tracked, committed source file
   reproducible-except  rebuilt from a clean commit, identical except a documented stamp (pipeline/reproductions.json)
   dirty         built from a tree with uncommitted changes
   harvested     a harvest record
@@ -72,7 +73,7 @@ def rows_for(assembly):
     setfile = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))['set_path'](a['patch_set'])
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
-        plan = patches['plan'](setfile, target, a['donor_build'], locks=None)
+        plan = patches['plan'](setfile, target, '%s/%s' % (a['golden_build'], a['donor_build']), locks=None)
     wanted = []
     for _, _, inputs in plan:
         wanted += inputs
@@ -95,10 +96,19 @@ def store_repository():
     return Path(marker.read_text().strip()) if marker.is_file() else store.parent
 
 
+def producer_repositories():
+    """Further producer checkouts outside this repository: HAO_PRODUCER_REPOS (os.pathsep-separated), else one path
+    per line of ~/.config/hao/producer-repos (a local file, never tracked), else none."""
+    env = os.environ.get('HAO_PRODUCER_REPOS')
+    conf = Path.home() / '.config/hao/producer-repos'
+    lines = env.split(os.pathsep) if env else conf.read_text().splitlines() if conf.is_file() else []
+    return [Path(os.path.expanduser(l.strip())) for l in lines if l.strip() and not l.lstrip().startswith('#')]
+
+
 def commit_known(commit):
     # hao-patcher, its sibling repositories, and the predecessor repository the store belongs to
     store_repo = store_repository()
-    for repo in (TOP, Path.home() / 'hao-runtime', Path.home() / 'hao-tools', store_repo):
+    for repo in (TOP, Path.home() / 'hao-runtime', *producer_repositories(), store_repo):
         if repo.is_dir() and subprocess.run(['git', '-C', str(repo), 'cat-file', '-e', commit + '^{commit}'],
                                             capture_output=True).returncode == 0:
             return 'hao-patcher' if repo == TOP else repo.name
@@ -405,11 +415,12 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
         plan = patches['plan'](patches['set_path'](a['patch_set']),
-                               TOP / 'pipeline/targets' / (a['target'] + '.json'), a['donor_build'], locks=None)
+                               TOP / 'pipeline/targets' / (a['target'] + '.json'),
+                               '%s/%s' % (a['golden_build'], a['donor_build']), locks=None)
     packs = patches['load_packs']()
     data = classes()
     data_settings = settings()
-    problems, notes = [], []
+    problems, notes = list(patches['release_problems'](a['patch_set'], packs=packs)), []
     downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
     runtime_commit = None
     all_rows = list(release_rows(assembly))
@@ -566,11 +577,18 @@ def public_provenance(row, repo, commit, notes):
     return None, ''
 
 
+# D5: the owner signs release.json and SHA256SUMS offline after the cut (minisign -S -m release.json SHA256SUMS); hao
+# checks release.json.minisig against tools/hao/data/release-keys.pub. SHA256SUMS does not list the signatures.
+SIGNED = ('release.json', 'SHA256SUMS')
+SIGNATURES = tuple(n + '.minisig' for n in SIGNED)
+
+
 def write_sums(stage, release_json):
     """STAGE/SHA256SUMS (owner: every release ships a checksum file): `shasum -a 256` lines for each file at STAGE's top,
     release.json included when it is written there; STAGE/external/ (hosted by another repository) gets its own."""
     def sums(folder, extra=()):
-        by_name = {p.name: p for p in list(Path(folder).iterdir()) + list(extra) if p.is_file() and p.name != 'SHA256SUMS'}
+        by_name = {p.name: p for p in list(Path(folder).iterdir()) + list(extra) if p.is_file() and p.name != 'SHA256SUMS'
+                   and p.name not in SIGNATURES and not p.name.startswith('.')}
         files = [by_name[n] for n in sorted(by_name)]
         if files:
             (Path(folder) / 'SHA256SUMS').write_text(''.join('%s  %s\n' % (sha256_file(p), p.name) for p in files))
@@ -581,7 +599,8 @@ def write_sums(stage, release_json):
 
 
 def check_stage(rel, stage):
-    """Problems: every asset staged with its size and sha256, nothing else staged but release.json and dotfiles."""
+    """Problems: every asset staged with its size and sha256, nothing else staged but release.json, SHA256SUMS, their
+    signatures (SIGNATURES) and dotfiles."""
     stage = Path(stage)
     bad = []
     names = {x['file'] for x in rel['assets'] if x.get('url', ASSET_URL).startswith(ASSET_URL.split('%s')[0])}
@@ -592,7 +611,7 @@ def check_stage(rel, stage):
         elif f.stat().st_size != x['size'] or sha256_file(f) != x['sha256']:
             bad.append('staged %s is not the file release.json pins' % x['file'])
     bad += ['%s is staged but not an asset' % p.name for p in sorted(stage.iterdir())
-            if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') and not p.name.startswith('.')]
+            if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') + SIGNATURES and not p.name.startswith('.')]
     return bad
 
 
@@ -668,6 +687,8 @@ def main(argv):
             len(rel['harvested']), len(rel['pending'])))
         for p in problems:
             print('  ' + p)
+        if stage is not None and not bad:
+            print('release-cut: to sign (owner, offline): cd %s && minisign -S -m %s' % (stage, ' '.join(SIGNED)))
         return 1 if bad else 0
     if '--dry-run' not in argv or len([a for a in argv if not a.startswith('--')]) != 1:
         sys.exit(__doc__)

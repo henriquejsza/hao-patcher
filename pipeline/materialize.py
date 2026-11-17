@@ -415,7 +415,7 @@ def run(setfile, target, build, out, store=None, system=None, packs='auto', only
     ledger_mod = runpy.run_path(str(TOP / 'pipeline' / 'ledger.py'))
     defs = patches['load_packs']()
     selected = patches['detect_packs'](target, defs) if packs == 'auto' else packs.split(',')
-    ledger = ledger_mod['build'](setfile, target, build)
+    ledger = ledger_mod['build'](setfile, target, '%s/%s' % (golden, build) if golden else build)
     rows = repo_rows(build, golden)
     member = {r: n for n, d in defs.items() for r in d.get('recipes', [])}
     pack_of = lambda recipe: member.get(recipe) if member.get(recipe) in selected else None

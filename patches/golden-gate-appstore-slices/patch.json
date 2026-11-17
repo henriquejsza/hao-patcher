@@ -1,12 +1,12 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "os-extras",
  "stage": "post",
  "applies": "any",
  "inputs": [
   "appstore_slice_guard"
  ],
- "status": "product",
+ "status": "diagnostic",
  "validated": false,
  "files": [
   {

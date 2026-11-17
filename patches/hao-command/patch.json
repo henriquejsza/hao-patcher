@@ -1,8 +1,7 @@
 {
- "revision": 7,
+ "revision": 8,
  "pack": "base",
  "stage": "post",
- "applies": "any",
  "inputs": ["python_x86_64"],
  "status": "experiment",
  "validated": false,
@@ -10,5 +9,6 @@
   {"path": "usr/local/bin/hao", "origin": {"kind": "hao", "note": "the hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython"}},
   {"path": "usr/local/lib/hao/python", "tree": true, "origin": {"kind": "hao", "row": "python_x86_64", "note": "the kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3"}},
   {"path": "usr/local/lib/hao/hao", "tree": true, "origin": {"kind": "hao", "note": "tools/hao from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh"}}
- ]
+ ],
+ "requires": {"os": "any", "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
 }

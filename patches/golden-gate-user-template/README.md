@@ -13,13 +13,13 @@ mechanisms are a pair (`user-template` + `user-seed`), as on the Tahoe images.
 
 ## Why (the first-login storm, 26B131)
 Image 4d1c48c (hao-patcher adfd15a0, golden-gate-user-seed r4 with icon, Metal and font seeds), owner's Setup,
-account `benchtest` created 10:37:31, auto-login 10:37:46: load 1005 at 10:41, SSH unanswered ~3 min (the maintainers' laptop evidence
+the test account created 10:37:31, auto-login 10:37:46: load 1005 at 10:41, SSH unanswered ~3 min (the maintainers' laptop evidence
 for image 4d1c48c). FACT, read on the laptop afterwards:
 - seed.zsh did its part: account seen 2.3 s after creation, icon index, font registry and 17 Metal trees placed by
   10:37:37, before the login (`/private/var/log/peruser-seed.log`).
 - The stock User Template has no `Containers`; the first login made 328 containers (147 by 10:39, 167 more by 10:49)
   and 73 group containers.
-- secinitd (benchtest's, arm64e translated by hao) 1:58 CPU, the largest user-session process. 10:37:40-10:48:00:
+- secinitd (the test account's, arm64e translated by hao) 1:58 CPU, the largest user-session process. 10:37:40-10:48:00:
   194 sandbox initializations and 158 `Failed to set LS data container personality info`. Each initialization queries
   the container (~0.25 s), compiles the app's sandbox profile, then tries to synthesize the container's personality
   (connects to iconservices, TCC, WindowServer, which a background secinitd may not reach) and fails to store it, so
@@ -98,17 +98,18 @@ chain). On the laptop after Setup made an account (read-only):
 - load average peak and SSH reachability across the login (4d1c48c: 1005, ~3 min unanswered).
 
 ## Validation
-NEEDS VALIDATION: r3 has its 26B131 input (the 2026-11-13 harvest of benchtest's first login on 3b2291a) and is in
+NEEDS VALIDATION: r3 has its 26B131 input (the 2026-11-13 harvest of the test account's first login on 3b2291a) and is in
 the 26B131 sets; not built into an image or booted yet. Before that: the rule is tested on host fixtures and was run on the 26A428 capture
 (276 containers, 9,318 symlinks and 81 sandbox profiles removed, 220 flags added, 2 PeopleWidget rows removed; 76 MB
 cpio). Not built into an image or booted.
 
 ## Revisions
+- r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it installs changes.
 - r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its harvested row is not there. Installed bytes unchanged.
 - r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r5 2026-11-13 Documentation only: the rule's origin is described without naming earlier repositories. apply.sh unchanged.
 - r4 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
-- r3 2026-11-13 26B131 input row user_template_golden_gate (harvest of benchtest's first login on image 3b2291a: 336 containers, 31 chronod descriptors, 3 Reminders stores) and status experiment; in golden-gate-26B131, dev-bs-test and dev-metal27 after golden-gate-user-seed. apply.sh unchanged.
+- r3 2026-11-13 26B131 input row user_template_golden_gate (harvest of the test account's first login on image 3b2291a: 336 containers, 31 chronod descriptors, 3 Reminders stores) and status experiment; in golden-gate-26B131, dev-bs-test and dev-metal27 after golden-gate-user-seed. apply.sh unchanged.
 - r2 2026-11-11 Back for 26B131 with BETA7's full rule (personality flag on every container, no sandbox profile cache, chronod reduced to its descriptor cache without PeopleWidget), made on the host by cache/seeds/template from a collect-template.sh harvest and checked by apply.sh. Root cause of the 4d1c48c login storm: a54ec244 removed the template, so the first login made 328 containers and secinitd retried each personality (this commit).
 - r1 2026-11-06 From user-template r5's rule without its container list, for a 27.0 first-login harvest (removed again before r2).

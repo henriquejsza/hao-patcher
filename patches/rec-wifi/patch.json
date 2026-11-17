@@ -1,8 +1,7 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "recovery-mbp92",
  "stage": "recovery",
- "applies": "any",
  "status": "product",
  "validated": false,
  "files": [
@@ -14,5 +13,6 @@
     "note": "a whole folder: replaces the BaseSystem's copy with the root-patched System's (ditto), which holds OCLP's framework; no byte is edited"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

@@ -107,7 +107,7 @@ class Optional(unittest.TestCase):
         # the repository's dev-bs-test set with no rows at all: the cache group is skipped, the rest planned as before
         rec = self.d / 'optional.json'; empty = self.d / 'empty'; empty.mkdir()
         cmd = [sys.executable, '-I', str(TOP / 'pipeline/patches.py'), 'plan', str(TOP / 'pipeline/sets/dev-bs-test.txt'),
-               str(TOP / 'pipeline/targets/mbp92.json'), '25G342']
+               str(TOP / 'pipeline/targets/mbp92.json'), '26B131/25G342']
         full = subprocess.run(cmd + ['--locks', str(empty), '--skip-optional', 'none'], capture_output=True, text=True)
         r = subprocess.run(cmd + ['--locks', str(empty), '--record', str(rec)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -142,13 +142,21 @@ class MissingRow(unittest.TestCase):
 
 
 class Repo(unittest.TestCase):
-    def test_shipped_sets_plan_for_every_target_and_build(self):
-        for s in (TOP / 'pipeline/sets').glob('*.txt'):
-            for t in (TOP / 'pipeline/targets').glob('*.json'):
-                for lock in [d for d in (TOP / 'pipeline/inputs').iterdir() if d.is_dir() and d.name.startswith('25')]:
-                    r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/patches.py'), 'plan', str(s), str(t),
-                                        lock.name], capture_output=True, text=True)
-                    self.assertEqual(r.returncode, 0, '%s %s %s: %s' % (s.name, t.name, lock.name, r.stderr))
+    def test_assemblies_plan_for_their_builds(self):
+        # every assembly of a macOS 27 build this tree has rows for plans its set with its own OS/DONOR pair
+        # (requires stops a set on another pair; the matrix shows those)
+        golden = {d.name for d in (TOP / 'pipeline/inputs/golden').iterdir() if d.is_dir()}
+        n = 0
+        for f in sorted((TOP / 'pipeline/assemblies').glob('*.json')):
+            a = json.loads(f.read_text())
+            if a.get('golden_build') not in golden:
+                continue
+            n += 1
+            r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/patches.py'), 'plan',
+                                patches.set_path(a['patch_set']), str(TOP / 'pipeline/targets' / (a['target'] + '.json')),
+                                '%s/%s' % (a['golden_build'], a['donor_build'])], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, '%s: %s' % (f.name, r.stderr))
+        self.assertGreater(n, 5)
         self.assertEqual(patches.names(TOP / 'pipeline/sets/stock.txt'), [])
 
     def test_every_patch_folder_has_its_recipe(self):
@@ -229,12 +237,30 @@ class Packs(unittest.TestCase):
 
     def test_mbp92_plan_is_unchanged_with_detected_packs(self):
         target = TOP / 'pipeline/targets/mbp92.json'
-        for s in ('golden-gate-26B131', 'golden-gate'):
+        for s in ('golden-gate-26B131',):
             setfile = TOP / 'pipeline/sets' / (s + '.txt')
-            for build in ('25G332', '25G342'):
+            for build in ('26B131/25G342',):
                 with contextlib.redirect_stderr(io.StringIO()):
                     self.assertEqual(patches.plan(setfile, target, build),
                                      patches.plan(setfile, target, build, packs=patches.detect_packs(target)), s)
+
+
+class NoProfileStops(unittest.TestCase):
+    """A target without its OCLP hardware profile stops detection (and so set generation and plan --packs auto)."""
+
+    def test_missing_profile_stops(self):
+        with tempfile.TemporaryDirectory() as d:
+            t = Path(d) / 'nosuchmac.json'
+            t.write_text(json.dumps({'model': 'X', 'board_id': 'Mac-0'}))
+            with self.assertRaises(ValueError) as e:
+                patches.detect_packs(t)
+            self.assertIn('no OCLP hardware profile', str(e.exception))
+            with self.assertRaises(ValueError):
+                patches.generate({'target': 'nosuchmac'})
+
+    def test_every_target_has_its_profile(self):
+        for t in (TOP / 'pipeline/targets').glob('*.json'):
+            self.assertTrue(patches.oclp_patchsets(t), t.name)
 
 
 class DevPack(unittest.TestCase):
@@ -244,8 +270,9 @@ class DevPack(unittest.TestCase):
         sets = TOP / 'pipeline/sets'
         dev = patches.load_packs()['dev']
         self.assertTrue(dev['opt_in'])
-        for bench, end_user, extra in (('dev-bs-test', 'golden-gate-26B131', ()),
-                                       ('dev-metal27', 'golden-gate-26B131', ('golden-gate-metal27',))):
+        diagnostic = ('golden-gate-appstore-slices',)          # reports only: bench sets keep it, releases do not
+        for bench, end_user, extra in (('dev-bs-test', 'golden-gate-26B131', diagnostic),
+                                       ('dev-metal27', 'golden-gate-26B131', ('golden-gate-metal27',) + diagnostic)):
             b, e = patches.names(sets / (bench + '.txt')), patches.names(sets / (end_user + '.txt'))
             self.assertEqual([n for n in b if n not in dev['recipes'] and n not in extra], e, bench)
             self.assertEqual(sorted(set(b) - set(e) - set(extra)), sorted(dev['recipes']), bench)

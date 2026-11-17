@@ -1,9 +1,11 @@
 #!/usr/bin/python3 -I
 """patches.py: which patches of a set apply to a build, and at which stage.
 
-  patches.py plan SET TARGET BUILD [--locks DIR:DIR...] [--skip-optional GROUP]... [--record FILE] [--packs auto|A,B]
+  patches.py plan SET TARGET [OS/]BUILD [--locks DIR:DIR...] [--skip-optional GROUP]... [--record FILE] [--packs auto|A,B]
                                      one line per patch that applies, in set order: STAGE NAME [INPUT ...]
-                                     (SET = pipeline/sets/SET.txt, TARGET = pipeline/targets/MODEL.json). Rows of
+                                     (SET = pipeline/sets/SET.txt, TARGET = pipeline/targets/MODEL.json, BUILD the
+                                     donor build and OS the macOS 27 build, e.g. 26B131/25G342; it stops when a
+                                     recipe that would run does not meet its "requires"). Rows of
                                      optional patches are looked up in --locks (default pipeline/inputs/BUILD then
                                      pipeline/inputs/common); --record writes which optional patches ran or were skipped
                                      --packs: a recipe listed in a pack (packs/NAME.json) runs only when its pack is
@@ -12,6 +14,7 @@
   patches.py revisions NAME ...      NAME rN per patch, for the build record (MANIFEST.txt)
   patches.py tracker [OUT]           the patch tracker (patches/TRACKER.md): every patch, revision, sets, validation
 
+  patches.py requires                every recipe's "requires" and "proven_on", or that it has none yet
   patches.py check                   every patch against the patch format below; one line per problem, exit 1 if any
   patches.py digest NAME             sha256 of everything that decides what NAME installs (for validated_digest)
   patches.py explain [NAME | PATH]   what each declared file comes from and every edit to it, with reasons (one patch,
@@ -53,8 +56,16 @@ uchg, sunlnk, hidden, nodump): declare what the hook sets, e.g. ["restricted"] w
 A file made on the target (an origin without a row, or an external op) may name what it must come after there:
 "after": [INSTALLED_PATH | "overlays"] ("overlays": every overlay file installed first). An edits file is an edit spec for
 tools/edit-engine (format in its README) and must name the same path; every patches/NAME/edits/*.json must be declared.
+
+"requires" (docs/requires.md) states where a recipe is valid, as data: {"os": ..., "donor": ..., "cpu": ..., "gpu": ...,
+"firmware": ...}, every key present, each "any" or a list. os: macOS 27 builds (an assembly's golden_build); donor:
+Tahoe donor builds (its donor_build; this replaces "applies"); gpu: GPU families (GPUS), at least one on the Mac;
+firmware: the Mac's security chip (FIRMWARE), one of the list; cpu: CPU features, each present, or absent when written
+!NAME. plan stops when a recipe that would run does not meet it. "proven_on": [{"model", "os", "donor" (optional),
+"revision", "evidence"}] records which revision a boot proved where. Recipes in pipeline/requires-pending.txt have no
+"requires" yet; the list only shrinks.
 """
-import hashlib, json, os, re, sys
+import glob, hashlib, json, os, re, sys
 
 def directory(name, root):
     return os.path.join(root, name)
@@ -90,6 +101,131 @@ def applies(rule, model, build):
     if not isinstance(rule, dict) or not rule or set(rule) - set(APPLIES):
         raise ValueError('applies must be "any" or an object with %s, not %r' % (' and/or '.join(APPLIES), rule))
     return model in rule.get('models', [model]) and build in rule.get('builds', [build])
+
+
+REQUIRES = ('os', 'donor', 'cpu', 'gpu', 'firmware')
+# GPU families (requires.gpu, a target's facts.gpu): vendor-generation; add one with its first recipe or target
+GPUS = ('intel-snb', 'intel-ivb', 'intel-hsw', 'intel-bdw', 'intel-skl', 'intel-kbl', 'nvidia-tesla',
+        'nvidia-kepler', 'amd-terascale', 'amd-gcn', 'amd-polaris', 'amd-vega', 'amd-navi')
+FIRMWARE = ('none', 't1', 't2')        # the Mac's security chip (requires.firmware, a target's facts.firmware)
+BUILD_ID = re.compile(r'\d\d[A-Z]\d{1,4}[a-z]?')
+CPU_FEATURE = re.compile(r'!?[a-z0-9][a-z0-9_.]*')
+PROVEN_KEYS = {'model', 'os', 'donor', 'revision', 'evidence'}
+REQUIRES_PENDING = os.path.join(TOP, 'pipeline', 'requires-pending.txt')
+
+
+def requires_problems(req):
+    """What is wrong with a recipe's "requires" (empty: nothing)."""
+    if not isinstance(req, dict):
+        return ['requires must be an object with %s' % ', '.join(REQUIRES)]
+    bad = []
+    if set(req) != set(REQUIRES):
+        bad.append('requires needs exactly the keys %s (each "any" or a list)' % ', '.join(REQUIRES))
+    ok = dict(os=BUILD_ID.fullmatch, donor=BUILD_ID.fullmatch, cpu=CPU_FEATURE.fullmatch,
+              gpu=lambda v: v in GPUS, firmware=lambda v: v in FIRMWARE)
+    for k in REQUIRES:
+        v = req.get(k)
+        if v == 'any' or k not in req:
+            continue
+        if not (isinstance(v, list) and v and all(isinstance(x, str) for x in v)):
+            bad.append('requires.%s must be "any" or a non-empty list' % k)
+            continue
+        wrong = [x for x in v if not ok[k](x)]
+        if wrong:
+            known = {'gpu': ' (one of %s)' % ', '.join(GPUS), 'firmware': ' (one of %s)' % ', '.join(FIRMWARE)}
+            bad.append('requires.%s: %s not valid%s' % (k, ', '.join(wrong), known.get(k, '')))
+    return bad
+
+
+def proven_problems(proven, revision):
+    if not isinstance(proven, list):
+        return ['proven_on must be a list of {model, os, donor, revision, evidence}']
+    bad = []
+    for i, e in enumerate(proven):
+        if not isinstance(e, dict) or set(e) - PROVEN_KEYS or not {'model', 'os', 'revision', 'evidence'} <= set(e):
+            bad.append('proven_on[%d] needs model, os, revision, evidence (and may have donor), nothing else' % i)
+            continue
+        if not all(isinstance(e.get(k), str) and BUILD_ID.fullmatch(e[k]) for k in ('os', 'donor') if k in e):
+            bad.append('proven_on[%d]: os/donor must be build ids' % i)
+        if not (isinstance(e['revision'], int) and 1 <= e['revision'] <= (revision or 0)):
+            bad.append('proven_on[%d]: revision must be this recipe\'s revision or an earlier one' % i)
+        if not (isinstance(e['model'], str) and e['model'] and isinstance(e['evidence'], str) and e['evidence'].strip()):
+            bad.append('proven_on[%d]: model and evidence must be named' % i)
+    return bad
+
+
+def target_facts(target):
+    """What "requires" is checked against on TARGET (a targets/*.json path or its dict): model, cpu features (OCLP
+    hardware profile flags and leafs, lower case), gpu families and firmware (the target's "facts")."""
+    t = json.load(open(target)) if isinstance(target, (str, os.PathLike)) else target
+    cpu = t.get('oclp_hardware_profile', {}).get('cpu', {})
+    facts = t.get('facts', {})
+    return dict(model=t.get('model'), cpu={x.lower() for x in cpu.get('flags', []) + cpu.get('leafs', [])},
+                gpu=set(facts.get('gpu', [])), firmware=facts.get('firmware'))
+
+
+def unmet(req, facts, os_build, donor):
+    """Why REQ is not met on FACTS with the two builds (empty: it is). An unknown fact never meets a requirement."""
+    why = []
+    for key, have in (('os', os_build), ('donor', donor)):
+        if req[key] != 'any' and have not in req[key]:
+            why.append('%s %s is not one of %s' % (key, have or '(not given: plan OS/BUILD)', ', '.join(req[key])))
+    if req['gpu'] != 'any' and not facts['gpu'] & set(req['gpu']):
+        why.append('gpu %s is not one of %s' % (', '.join(sorted(facts['gpu'])) or '(unknown)', ', '.join(req['gpu'])))
+    if req['firmware'] != 'any' and facts['firmware'] not in req['firmware']:
+        why.append('firmware %s is not one of %s' % (facts['firmware'] or '(unknown)', ', '.join(req['firmware'])))
+    if req['cpu'] != 'any' and not facts['cpu']:
+        why.append('cpu (unknown: the target has no OCLP cpu profile) cannot meet %s' % ', '.join(req['cpu']))
+    for f in [] if req['cpu'] == 'any' or not facts['cpu'] else req['cpu']:
+        name, absent = f.lstrip('!'), f.startswith('!')
+        if (name in facts['cpu']) == absent:
+            why.append('cpu %s %s' % (name, 'is present' if absent else 'is missing'))
+    return why
+
+
+def requires_tree_problems(root=os.path.join(TOP, 'patches'), pending=REQUIRES_PENDING, order=None):
+    """The tree's rules for "requires": every recipe has it unless pending lists it; pending holds only recipes without
+    it; a build id in a recipe's order.txt comment is in its requires.os or requires.donor."""
+    bad, have = [], {}
+    for name in patch_names(root):
+        f = os.path.join(directory(name, root), 'patch.json')
+        if os.path.isfile(f):
+            have[name] = json.load(open(f)).get('requires')
+    waiting = names(pending) if os.path.isfile(pending) else []
+    for name, req in have.items():
+        if req is None and name not in waiting:
+            bad.append('%s: needs "requires" (docs/requires.md)' % name)
+        if req is not None and name in waiting:
+            bad.append('%s: has "requires": remove it from pipeline/requires-pending.txt' % name)
+    bad += ['requires-pending.txt: %s is not a recipe' % n for n in waiting if n not in have]
+    order = ORDER if order is None else order
+    for line in open(order) if os.path.isfile(order) else []:
+        name, _, comment = line.partition('#')
+        req = have.get(name.strip())
+        if not isinstance(req, dict):
+            continue
+        scope = set(req.get('os') or []) | set(req.get('donor') or []) if 'any' not in (req.get('os'), req.get('donor')) \
+            else None
+        for b in sorted(set(BUILD_ID.findall(comment))):
+            if scope is not None and b not in scope:
+                bad.append('order.txt: %s: the comment names %s, its requires does not' % (name.strip(), b))
+    return bad
+
+
+def requires_table(root=os.path.join(TOP, 'patches')):
+    """One line per recipe: name, pack, its "requires" (or PENDING) and how many proven_on entries."""
+    out = []
+    for name in patch_names(root):
+        f = os.path.join(directory(name, root), 'patch.json')
+        if not os.path.isfile(f):
+            continue
+        p = json.load(open(f))
+        req = p.get('requires')
+        text = 'PENDING' if req is None else '  '.join('%s=%s' % (k, req.get(k) if req.get(k) == 'any' else
+                                                                  ','.join(req.get(k) or [])) for k in REQUIRES)
+        out.append('%-36s %-18s %s%s' % (name, p.get('pack', '?'), text,
+                                         '  proven_on=%d' % len(p['proven_on']) if p.get('proven_on') else ''))
+    return '\n'.join(out)
 
 
 def revision(name, root=os.path.join(TOP, 'patches')):
@@ -172,6 +308,8 @@ def generate(profile, root=os.path.join(TOP, 'patches'), packs=None, order=ORDER
     prof = json.load(open(profile)) if isinstance(profile, (str, os.PathLike)) else profile
     packs = load_packs(root=root) if packs is None else packs
     target = os.path.join(TOP, 'pipeline', 'targets', prof['target'] + '.json')
+    if not os.path.isfile(target):
+        raise ValueError('profile names unknown target %s (no pipeline/targets/%s.json)' % (prof['target'], prof['target']))
     selected = set(detect_packs(target, packs)) | set(prof.get('packs', []))
     unknown = [p for p in prof.get('packs', []) if p not in packs]
     if unknown:
@@ -225,13 +363,26 @@ def detect_packs(target, packs=None):
     packs = load_packs() if packs is None else packs
     with open(target) as f:
         t = json.load(f)
-    profile = os.path.join(TOP, 'tools', 'oclp-hardware', 'profiles',
-                           os.path.splitext(os.path.basename(target))[0] + '.json')
-    patchsets = set()
-    if os.path.isfile(profile):
-        with open(profile) as f:
-            patchsets = set(json.load(f).get('patchset_order', []))
-    return select_packs(patchsets, t.get('board_id'), packs)
+    return select_packs(oclp_patchsets(target), t.get('board_id'), packs)
+
+
+def oclp_profile(target):
+    """tools/oclp-hardware/profiles/NAME.json of TARGET (pipeline/targets/NAME.json)."""
+    return os.path.join(TOP, 'tools', 'oclp-hardware', 'profiles', os.path.splitext(os.path.basename(str(target)))[0] + '.json')
+
+
+def oclp_patchsets(target):
+    """The OCLP patch sets of TARGET's hardware profile. A target without its profile, or a profile without
+    "patchset_order", stops: without it every platform pack goes undetected and the image would get base only."""
+    profile = oclp_profile(target)
+    if not os.path.isfile(profile):
+        raise ValueError('target %s has no OCLP hardware profile (%s): make it with tools/oclp-hardware before building'
+                         % (os.path.basename(str(target)), os.path.relpath(profile, TOP)))
+    with open(profile) as f:
+        order = json.load(f).get('patchset_order')
+    if not isinstance(order, list):
+        raise ValueError('%s has no "patchset_order" list' % os.path.relpath(profile, TOP))
+    return set(order)
 
 
 def select_packs(patchsets, board_id, packs=None):
@@ -255,6 +406,8 @@ def plan(setfile, target, build, root=os.path.join(TOP, 'patches'), locks=None, 
     out) decide which optional patches run; with LOCKS None their rows are not looked at. RECORD, a dict, receives
     {"ran": {name: group}, "skipped": {name: {"group", "reason"}}} for the optional patches that apply."""
     model = json.load(open(target))['model']
+    facts = target_facts(target)
+    os_build, _, build = str(build).rpartition('/') if '/' in str(build) else (None, '', build)
     out, optional = [], {}
     if record is None:
         record = {}
@@ -265,7 +418,7 @@ def plan(setfile, target, build, root=os.path.join(TOP, 'patches'), locks=None, 
         if p.get('stage') not in STAGES:
             raise ValueError('%s: stage %r is not one of %s' % (name, p.get('stage'), ', '.join(STAGES)))
         try:
-            ok = applies(p.get('applies'), model, build)
+            ok = applies('any' if 'requires' in p else p.get('applies'), model, build)
         except ValueError as e:
             raise ValueError('%s: %s' % (name, e))
         if not ok:
@@ -278,6 +431,10 @@ def plan(setfile, target, build, root=os.path.join(TOP, 'patches'), locks=None, 
             if owner is not None and owner not in packs and not defs[owner].get('opt_in'):
                 print('patches: %s is in pack %s, not selected; skipped' % (name, owner), file=sys.stderr)
                 continue
+        if 'requires' in p:
+            why = unmet(p['requires'], facts, os_build, build)
+            if why:
+                raise ValueError('%s: requires not met on %s (%s/%s): %s' % (name, model, os_build, build, '; '.join(why)))
         group = p.get('optional')
         if group:
             reason = 'group %s skipped (--skip-optional)' % group if group in skip else None
@@ -360,7 +517,14 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
         if 'needs_any' in p and 'optional' not in p:
             bad.append('%s: needs_any without optional (a patch that can be skipped must be optional)' % name)
         unknown = set(p) - {'revision', 'stage', 'applies', 'inputs', 'status', 'validated', 'optional', 'needs_any',
-                            'files', 'validated_revision', 'validated_digest', 'pack', 'variant', 'replaces'}
+                            'files', 'validated_revision', 'validated_digest', 'pack', 'variant', 'replaces',
+                            'requires', 'proven_on'}
+        if 'requires' in p:
+            bad += ['%s: %s' % (name, x) for x in requires_problems(p['requires'])]
+            if 'applies' in p:
+                bad.append('%s: "requires" replaces "applies": its builds are requires.donor' % name)
+        if 'proven_on' in p:
+            bad += ['%s: %s' % (name, x) for x in proven_problems(p['proven_on'], p.get('revision'))]
         if ('validated_revision' in p) != ('validated_digest' in p):
             bad.append('%s: validated_revision and validated_digest go together' % name)
         elif 'validated_revision' in p:
@@ -397,7 +561,42 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
         bad += pack_problems(load_packs(), root)
         bad += dev_problems(load_packs(), root, sets_dir)
         bad += layout_problems(root)
+        bad += requires_tree_problems(root)
+        bad += release_profile_problems(root)
     return bad
+
+
+RELEASE_REFUSED_STATUSES = ('dev', 'diagnostic')   # never shipped: bench and logging-only recipes
+
+
+def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
+    """Why the set NAME may not be released (empty: it may): it must be a profile marked "release": true, and none of
+    its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES."""
+    f = os.path.join(profiles, name + '.json')
+    if not os.path.isfile(f):
+        return ['set %s: not a profile (pipeline/profiles/%s.json); only release profiles are released' % (name, name)]
+    if json.load(open(f)).get('release') is not True:
+        return ['profile %s: not marked "release": true' % name]
+    packs = packs if packs is not None else load_packs(root=root)
+    layer = {r: pk.get('layer') for pk in packs.values() for r in pk.get('recipes', [])}
+    bad = []
+    for r in generate(f, root, packs, order):
+        pj = os.path.join(directory(r, root), 'patch.json')
+        status = json.load(open(pj)).get('status') if os.path.isfile(pj) else None
+        if layer.get(r) == 'dev':
+            bad.append('profile %s: %s is in a dev-layer pack' % (name, r))
+        if status in RELEASE_REFUSED_STATUSES:
+            bad.append('profile %s: %s has status %s' % (name, r, status))
+    return bad
+
+
+def release_profile_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
+    """release_problems of every profile marked "release": true."""
+    out = []
+    for f in sorted(glob.glob(os.path.join(profiles, '*.json'))):
+        if json.load(open(f)).get('release') is True:
+            out += release_problems(os.path.basename(f)[:-5], root, packs, profiles, order)
+    return out
 
 
 LAYERS = ('os', 'platform', 'dev')
@@ -420,6 +619,12 @@ def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=OR
             bad.append('pack %s: needs "layer": %s' % (name, ' | '.join(LAYERS)))
         if d.get('layer') == 'platform' and (d.get('kind') not in KINDS or not d.get('platform')):
             bad.append('pack %s: a platform pack needs "kind" (%s) and "platform"' % (name, ', '.join(KINDS)))
+    for f in sorted(os.listdir(os.path.join(TOP, 'pipeline', 'targets'))):
+        if f.endswith('.json'):
+            try:
+                oclp_patchsets(os.path.join(TOP, 'pipeline', 'targets', f))
+            except (ValueError, OSError) as x:
+                bad.append(str(x))
     ordered = order_names(order)
     image = []
     for name in patch_names(root):
@@ -746,6 +951,8 @@ def catalog(root=os.path.join(TOP, 'patches')):
                 if e.get('asm'):
                     line += ' (`%s` → `%s`)' % (e['asm']['before'], e['asm']['after'])
                 md += [line + '.', '     ' + sentence(e['reason'])]
+                md += ['     - `%s`: %s' % (arg, why.rstrip('.').replace('|', '/') + '.')
+                       for arg, why in e.get('arg_reasons', {}).items()]
         md.append('')
     md += ['## Not declared yet', '', ', '.join(others) if others else 'None.', '']
     return '\n'.join(md)
@@ -791,6 +998,9 @@ if __name__ == '__main__':
         problems = check()
         print('\n'.join(problems) or 'patches: every patch follows the format')
         sys.exit(1 if problems else 0)
+    if sys.argv[1:2] == ['requires']:
+        print(requires_table())
+        sys.exit(0)
     if sys.argv[1:2] == ['revisions']:
         try:
             print(' '.join('%s r%d' % (n, revision(n)) for n in sys.argv[2:]))
@@ -818,7 +1028,7 @@ if __name__ == '__main__':
     try:
         record = {}
         selected = None if pack_arg is None else detect_packs(args[1]) if pack_arg == 'auto' else pack_arg.split(',')
-        for stage, name, inputs in plan(*args, locks=locks if locks is not None else default_locks(args[2]),
+        for stage, name, inputs in plan(*args, locks=locks if locks is not None else default_locks(args[2].rpartition('/')[2]),
                                         skip=skip, record=record, packs=selected):
             print(' '.join([stage, name] + inputs))
         if out:

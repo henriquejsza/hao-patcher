@@ -164,6 +164,12 @@ class Archive(unittest.TestCase):
         (stage / 'release.json').write_text('{}')
         (stage / '.DS_Store').write_text('')
         self.assertEqual(R['check_stage'](rel, stage), [])
+        for sig in ('release.json.minisig', 'SHA256SUMS.minisig'):           # D5: the owner's signatures
+            (stage / sig).write_text('untrusted comment: x\n')
+        self.assertEqual(R['check_stage'](rel, stage), [])
+        R['write_sums'](stage, stage / 'release.json')
+        listed = [l.split()[1] for l in (stage / 'SHA256SUMS').read_text().splitlines()]
+        self.assertEqual(listed, ['a.dylib', 'release.json'])
         (stage / 'extra.bin').write_text('x')
         self.assertEqual(R['check_stage'](rel, stage), ['extra.bin is staged but not an asset'])
         (stage / 'a.dylib').write_bytes(b'abd')
@@ -291,6 +297,13 @@ class Write(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         with self.assertRaises(ValueError):
             R['build_release'](ASSEMBLY, '27.2.1')
+
+    def test_only_release_profiles_are_cut(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = Path(d) / 'a.json'
+            a.write_text(json.dumps(dict(json.loads(ASSEMBLY.read_text()), patch_set='dev-bs-test')))
+            rel, problems = R['build_release'](a, '27.2.1-26B131.0')
+        self.assertIn('profile dev-bs-test: not marked "release": true', problems)
 
 
 class Versions(unittest.TestCase):

@@ -87,7 +87,7 @@ class Collect(Fixture):
         self.assertFalse(Path(str(a / 'auth.db') + '-wal').exists())
 
     def test_refuses_after_setup(self):
-        (self.data / 'Users/benchtest').mkdir()
+        (self.data / 'Users/HARVEST').mkdir()
         with self.assertRaisesRegex(rl.Refused, 'accounts'):
             self.collect()
 
@@ -123,8 +123,8 @@ class Check(Fixture):
         self.assertEqual(rl.check(self.a, BUILD, SCHEMA)['schema'], SCHEMA)
 
     def test_account_home(self):
-        self.put(MAIN, CLEAN + b'/Users/benchtest/Library/Fonts\x00')
-        with self.assertRaisesRegex(rl.Refused, "account home '/Users/benchtest'"):
+        self.put(MAIN, CLEAN + b'/Users/HARVEST/Library/Fonts\x00')
+        with self.assertRaisesRegex(rl.Refused, "account home '/Users/HARVEST'"):
             rl.check(self.a, BUILD)
 
     def test_builder_mount(self):

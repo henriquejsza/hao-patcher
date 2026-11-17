@@ -89,7 +89,7 @@ class RecoveryToolsTest(unittest.TestCase):
                                   stderr=subprocess.PIPE, text=True)
         try:
             listed = ''
-            for _ in range(50):
+            for _ in range(150):                    # up to 30 s: the suite may run beside others (pipeline/ci)
                 listed = subprocess.run(['pmset', '-g', 'assertions'], capture_output=True, text=True).stdout
                 if 'hao install: assembling the macOS image' in listed:
                     break

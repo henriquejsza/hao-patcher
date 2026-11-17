@@ -25,5 +25,6 @@ PreventUserIdleSystemSleep.
 NEEDS VALIDATION: r1 is host-tested only; not built into an image or booted yet.
 
 ## Revisions
+- r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or hardware dependence. Nothing it installs changes.
 - r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 - r1 2026-11-14 Two system LaunchDaemons: caffeinate -dimsu for good, and the power settings at every boot.

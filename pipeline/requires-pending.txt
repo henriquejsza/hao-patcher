@@ -1,0 +1,23 @@
+# Recipes that have no "requires" yet (docs/requires.md). patches.py check refuses a recipe without it unless it
+# is listed here, and one listed here that has it: give a recipe its requires and remove its line in the same
+# commit. The list only shrinks; when it is empty this file goes.
+
+# metal
+golden-gate-hello
+golden-gate-live-text-service
+golden-gate-live-text-shared
+golden-gate-metal-argbuf
+golden-gate-metal-framebuffer
+golden-gate-metal-libraries
+golden-gate-metal27
+golden-gate-shader-caches
+metal-compiler-compat
+metal-metalold
+metalold-selectors
+
+# patcher
+dev-diagnostics
+golden-gate-appstore-slices
+golden-gate-native-identities
+golden-gate-user-seed
+hao-opencore

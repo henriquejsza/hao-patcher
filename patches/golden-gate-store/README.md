@@ -22,6 +22,7 @@ slice for slice (only the x86_64 slice alignment differs: Apple's is kept).
 NEEDS VALIDATION on an image built with this recipe.
 
 ## Revisions
+- r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs changes.
 - r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r4 2026-11-16 Row `store_service` carries its build record (hash without build.json). Installed bytes unchanged.
 - r3 2026-11-16 Edit specs on the image's own files instead of copied files; the library is built from our source.

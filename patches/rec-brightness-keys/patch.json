@@ -1,8 +1,7 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "recovery-mbp92",
  "stage": "recovery",
- "applies": "any",
  "status": "product",
  "validated": false,
  "files": [
@@ -20,5 +19,6 @@
     "note": "src/local.brightkeys.plist: starts brightkeys in the Recovery GUI session"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

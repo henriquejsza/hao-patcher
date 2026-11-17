@@ -227,6 +227,24 @@ class Drive(unittest.TestCase):
             self.assertEqual(states(RC.check_drive(Path(d), KEYS, self.Stick([]))), [('drive', 'FAIL')])
 
 
+class RealDrive(unittest.TestCase):
+    """With stick.py's own manifest (write_manifest / check_manifest): a USB installer as create-installer leaves it."""
+    def test_a_written_drive_passes_and_a_changed_one_fails(self):
+        import stick as STICK
+        if not hasattr(STICK, 'write_manifest'):
+            self.skipTest('the drive manifest (installer) is not in this tree yet')
+        with tempfile.TemporaryDirectory() as d:
+            top = release_folder(d)
+            (top / 'stick.json').write_text('{}')
+            (top / 'kit').mkdir()
+            (top / 'kit' / 'kit.json').write_text('{"kit": 1}')
+            STICK.write_manifest(top)
+            checks = RC.check_drive(top, KEYS, STICK)
+            self.assertNotIn('FAIL', [s for _, s in states(checks)], checks)
+            (top / 'kit' / 'kit.json').write_text('{"kit": 2}')
+            self.assertIn(('drive', 'FAIL'), states(RC.check_drive(top, KEYS, STICK)))
+
+
 class Command(unittest.TestCase):
     def run_cmd(self, target, opener=None, offline=True):
         hao = runpy.run_path(str(TOOL / 'hao'), run_name='hao_module')

@@ -103,7 +103,7 @@ class Fixture:
         # fonts
         with tempfile.TemporaryDirectory() as t:
             setup = registry(Path(t) / 's', '/var/setup/Library/Fonts')
-            user = registry(Path(t) / 'u', '/Users/benchtest/Library/Fonts')
+            user = registry(Path(t) / 'u', '/Users/HARVEST/Library/Fonts')
         for c, uid, data in ((SETUP_C, 248, setup), (USER_C, 501, user)):
             add(c + '/com.apple.FontRegistry', uid=uid, gid=uid, mode=0o700)
             add(c + '/com.apple.FontRegistry/fontregistry.user', data, uid, uid)
@@ -183,7 +183,7 @@ class MakeTest(unittest.TestCase):
         with tarfile.open(a / 'setup.tar') as t:
             self.assertIn(SETUP_C + '/com.apple.FontRegistry/fontregistry.user', t.getnames())
         user = a / 'user/fontregistry.user'
-        self.assertEqual(user.read_bytes().count(b'/Users/benchtest'), 0)
+        self.assertEqual(user.read_bytes().count(b'/Users/HARVEST'), 0)
         record = (a / 'build.json').read_text()
         self.assertNotIn('/Users/', record)                       # the record ships too: no harvest account in it
         self.assertEqual(json.loads(record)['replaced_user_dirs'], ['~/Library/Fonts'])

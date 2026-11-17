@@ -1,14 +1,9 @@
 {
- "revision": 7,
+ "revision": 8,
  "pack": "base",
  "variant": "cache-fold",
  "replaces": "hao-runtime",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "inputs": [
   "hao_runtime_fold"
  ],
@@ -155,5 +150,6 @@
     "owner": "root:wheel"
    }
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": ["ssse3", "sse4.1", "sse4.2", "popcnt"], "gpu": "any", "firmware": "any"}
 }

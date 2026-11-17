@@ -16,7 +16,7 @@ Split out of golden-gate-user-seed r2/r3 (26A428 registry), so the font seed can
 A registry's version (26B131: 104/88) and its font rows follow the build's fonts; fontd compares each font's
 stored bookmark with a fresh one, so a registry from another build is at best rescanned.
 26B131 artifact `font-registry-26B131-20261111-81a2b271420f`: 3,921 fonts in both registries; the user seed names no
-`/Users/benchtest` path.
+`/Users/<account>` path.
 
 ## Declared files
 `patch.json` `files` lists the two files apply.sh installs on the Data volume, both whole files from row
@@ -37,6 +37,7 @@ the earlier Tahoe image project): that fontd adopts a seeded registry without a 
 r2 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r1's, so the result above stands.
 
 ## Revisions
+- r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): registries harvested from 26B131. `proven_on` records the laptop boot of 2026-11-11. Nothing it installs changes.
 - r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e09b952363a1): the two installed files are the same bytes; only its build.json changes (the reset user-font folder written as ~/Library/Fonts, not the harvest account's home). validated_digest carried forward for that reason.
 - r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged; validated_digest carried forward for that reason.

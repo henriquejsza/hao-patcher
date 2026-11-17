@@ -13,23 +13,23 @@
 #
 # Each spike: verify its inputs (inputs.lock sha256) and stage them on the host; gate (refuses unless the laptop
 # runs the Recovery RECOVERY_BUILD as root); a RAM disk at /Volumes/HAOSPIKE-SPIKE; copy the inputs there
-# (laptop-ssh --put; the laptop re-checks every sha256); run; copy RESULTS back; clean (also on failure or ^C);
+# (the SSH helper's --put; the laptop re-checks every sha256); run; copy RESULTS back; clean (also on failure or ^C);
 # verdict PASS / PARTIAL / FAIL (lib/spikes.py; README.md says what each means).
 #
-# Environment: LAPTOP_SSH (default $HOME/hao-tools/tools/laptop-ssh, with its LAPTOP=root@ADDR and LAPTOP_KEY; on the
+# Environment: LAPTOP_SSH (required: the laptop SSH helper, with its LAPTOP=root@ADDR and LAPTOP_KEY; on the
 # laptop's own address set LAPTOP=root@ADDR), RECOVERY_BUILD (default 25G241), RESULTS (default
 # REPO/store/runs/recovery-spikes-YYYYMMDD), FILL_MB (cryptex filler, default 256), KC_SCOPE (kmutil: auto|full|boot,
-# default auto), HOST_PYTHON (default python3.14), LOCK (default $HOME/mac-image/store/tmp/laptop.lock).
+# default auto), HOST_PYTHON (default python3.14), LOCK (the laptop lock file; default REPO/store/tmp/laptop.lock).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-ssh_tool=${LAPTOP_SSH:-$HOME/hao-tools/tools/laptop-ssh}
+ssh_tool=${LAPTOP_SSH:-}
 py=${HOST_PYTHON:-python3.14}
 build=${RECOVERY_BUILD:-25G241}
 results=${RESULTS:-$repo/store/runs/recovery-spikes-$(date +%Y%m%d)}
 fill=${FILL_MB:-256}
 scope=${KC_SCOPE:-auto}
-lock=${LOCK:-$HOME/mac-image/store/tmp/laptop.lock}
+lock=${LOCK:-$repo/store/tmp/laptop.lock}
 W=/private/var/tmp/hao-spikes            # on the laptop: the remote scripts and state files
 lib() { "$py" -I "$here/lib/spikes.py" "$@"; }
 die() { echo "recovery-spikes: $*" >&2; exit 1; }
@@ -37,11 +37,11 @@ raw=()
 on() { local t=$1; shift; "$ssh_tool" ${raw[@]+"${raw[@]}"} -t "$t" -- "$@"; }
 put() { "$ssh_tool" ${raw[@]+"${raw[@]}"} --put "$1" "$2"; }
 
-connect() {   # once per run: perl for laptop-ssh's remote alarm? (-r without it), the gate, the scripts
+connect() {   # once per run: perl for the SSH helper's remote alarm? (-r without it), the gate, the scripts
     local perl
     perl=$("$ssh_tool" -r -t 30 -- 'command -v perl >/dev/null 2>&1 && echo yes || echo no') ||
         die "no SSH to the laptop (LAPTOP=${LAPTOP:-default of $ssh_tool})"
-    [ "$perl" = yes ] || { raw=(-r); echo "note: no perl in the Recovery; laptop-ssh -r (local timeouts only)"; }
+    [ "$perl" = yes ] || { raw=(-r); echo "note: no perl in the Recovery; SSH helper -r (local timeouts only)"; }
     on 60 "mkdir -p $W && chmod 700 $W"
     for f in "$here"/remote/*.sh; do put "$f" "$W/$(basename "$f")"; done
     on 60 "sh $W/common.sh gate $build" || die "gate refused: the laptop is not in the NetBoot Recovery $build"
@@ -76,6 +76,7 @@ spike() {   # spike NAME: one spike end to end; prints its verdict; returns 1 on
 
 step=${1:-}
 [ -n "$step" ] || { sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 2; }
+[ -n "$ssh_tool" ] || die "set LAPTOP_SSH to the laptop SSH helper"
 [ -e "$lock" ] || echo "recovery-spikes: note: $lock does not exist; laptop runs belong to the lock holder" >&2
 case $step in
 survey|python|cryptex|group|kmutil)

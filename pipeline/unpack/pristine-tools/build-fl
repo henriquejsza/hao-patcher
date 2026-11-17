@@ -12,6 +12,7 @@ import datetime
 import hashlib
 import json
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 
@@ -41,9 +42,9 @@ def build(output):
     # compiled in the repository with a relative source path and output name: no absolute path reaches the binary
     run(*compile_[:-2], output/'fl', compile_[-1], cwd=REPO)
     run(*sign[:-1], output/'fl', cwd=REPO)
-    git = lambda *a: run('git', '-C', REPO, *a).stdout.strip()
-    record = dict(unit='pipeline/unpack/pristine-tools', operation='fl', commit=git('rev-parse', 'HEAD'),
-                  dirty=bool(git('status', '--porcelain', '--', str(rel))),
+    source = runpy.run_path(str(REPO/'pipeline'/'source_commit.py'))   # a checkout or a release archive
+    record = dict(unit='pipeline/unpack/pristine-tools', operation='fl', commit=source['commit'](REPO),
+                  dirty=source['dirty'](REPO, rel),
                   date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   sources={str(rel/name): sha(HERE/name) for name in SOURCES},
                   toolchain=dict(cc=run('cc', '--version').stdout.splitlines()[0],

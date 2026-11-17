@@ -36,7 +36,7 @@ row changes. Not declared: folders and their owners, and the per-account copy go
 ## Verify
 Declaration: `python3.14 -I -B -m unittest discover -s patches/golden-gate-icon-caches/tests` (with ICON_CACHES_ARTIFACT=the artifact folder it also compares the artifact manifest).
 Host: `patches/golden-gate-user-seed/tests` (the seed chain). On the laptop: iconservicesagent CPU at Setup + 9 min
-against bf10de4 (1:24 Setup, 2:13 benchtest at 08:22); `log show --predicate 'subsystem == "com.apple.iconservices"'`
+against bf10de4 (1:24 Setup, 2:13 test account at 08:22); `log show --predicate 'subsystem == "com.apple.iconservices"'`
 with private data shows records served, not generated.
 
 ## Validation
@@ -45,6 +45,7 @@ Earlier: built and chain-tested on the host only; no image with it has booted.
 r2 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r1's, so the result above stands.
 
 ## Revisions
+- r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): caches harvested from 26B131. `proven_on` records the laptop boot of 2026-11-11. Nothing it installs changes.
 - r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged; validated_digest carried forward for that reason.
 - r5 2026-11-12 Declare where each installed file is inside its row ("source"; tar members as ARCHIVE!MEMBER) for pipeline/materialize.py; the hook is unchanged.

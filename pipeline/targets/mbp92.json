@@ -2,6 +2,13 @@
  "model": "MacBookPro9,2",
  "board_id": "Mac-6F01561E16C75D06",
  "gpu": "Intel HD Graphics 4000 (Ivy Bridge)",
+ "facts": {
+  "gpu": [
+   "intel-ivb"
+  ],
+  "firmware": "none",
+  "note": "what recipes' \"requires\" is checked against (docs/requires.md), with the OCLP hardware profile's CPU flags"
+ },
  "esp": {
   "path": "store/cache/esp/01-pristine-ESP.tar",
   "sha256": "eb0c24ba486d9057ab329eb2f4ea06edd706c5c2b0ce10a1e5cf1826cdd4d156",

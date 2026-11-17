@@ -219,8 +219,31 @@ class Plist(unittest.TestCase):
     def ps(self, *edits):
         return {'format': 1, 'path': 'EFI/OC/config.plist', 'origin': {'kind': 'hao'}, 'edits': list(edits)}
 
-    def op(self, eid, key, value):
-        return {'id': eid, 'kind': 'op', 'op': 'plist.set', 'args': {'key': key, 'value': value}, 'reason': 'x'}
+    def op(self, eid, key, value, **kw):
+        e = {'id': eid, 'kind': 'op', 'op': 'plist.set', 'args': {'key': key, 'value': value}, 'reason': 'x'}
+        if key[-1] == 'boot-args' and isinstance(value, str):
+            e['arg_reasons'] = {a: 'why ' + a for a in value.split()}
+        e.update(kw)
+        return e
+
+    def test_boot_args_need_a_reason_each(self):
+        key = ['NVRAM', 'boot-args']
+        self.assertEqual(S.validate(self.ps(self.op('a', key, '-v keepsyms=1'))), [])
+        cases = [
+            (self.op('a', key, '-v keepsyms=1', arg_reasons=None), 'arg_reasons is required'),
+            (self.op('a', key, '-v keepsyms=1', arg_reasons={'-v': 'y'}), 'no reason for keepsyms=1'),
+            (self.op('a', key, '-v', arg_reasons={'-v': 'y', 'debug=0x100': 'y'}), 'names debug=0x100, not in'),
+            (self.op('a', key, '-v', arg_reasons={'-v': ' '}), 'empty reason for -v'),
+            (self.op('a', key, '-v -v'), 'repeats an argument'),
+            (self.op('a', ['NVRAM', 'csr'], 'x', arg_reasons={'x': 'y'}), 'only goes with a plist.set of boot-args'),
+        ]
+        for e, want in cases:
+            if e.get('arg_reasons', 0) is None:
+                del e['arg_reasons']
+            got = S.validate(self.ps(e))
+            self.assertTrue(any(want in p for p in got), '%s not in %s' % (want, got))
+        described = '\n'.join(S.describe(self.ps(self.op('a', key, '-v keepsyms=1'))))
+        self.assertIn('keepsyms=1  why keepsyms=1', described)
 
     def test_set_keeps_format(self):
         root = {'NVRAM': {'boot-args': '-v'}, 'Kernel': {'Patch': [{'Enabled': False}]}}

@@ -22,6 +22,8 @@ MacBook Pro.
 
 ## Install
 
+**Reduced security.** hao is a developer preview with reduced security: it is not as secure as macOS on a supported Mac. System Integrity Protection is partly off, Apple Mobile File Integrity (code-signature enforcement) is relaxed, and the sealed system volume and Secure Boot are off. Pointer authentication (PAC) is not enforced for the ARM code hao translates. Some Apple programs and programs with special permissions can still have code inserted into them, and a program's Apple signature does not show that it was not changed while running. Install it only on a Mac that holds nothing you need to protect.
+
 1. Get hao and the release's file list:
 
    ```sh
@@ -37,6 +39,8 @@ MacBook Pro.
 
    Choose the USB drive and confirm. This erases the drive. hao then downloads what the release lists, makes the parts
    that must be made on this Mac, and writes the USB installer.
+
+   Keep the USB installer with you between making it and installing: anyone who can change it can change what it installs. hao install checks it against its manifest first, which catches damage and casual edits.
 3. On the MacBook Pro, hold Option at startup and choose **EFI Boot**. Expect a silent pause of several minutes
    before the Apple logo. In the Recovery, open Utilities > Terminal and run `/Volumes/HAO/install`.
 4. After the first start-up, run once:

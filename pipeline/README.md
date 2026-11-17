@@ -48,10 +48,24 @@ The fixtures check input rows, cache keys, input staging, patch order, source
 selection, guest workspace isolation and failure reporting without formatting
 disks or starting a VM. A successful image build and boot are separate checks.
 
+## CI (`pipeline/ci`)
+
+```sh
+python3.14 -I pipeline/ci [COMMIT] [--log FILE]   # every check a push must pass; exit 1 if any fails
+python3.14 -I pipeline/ci --here --only suite:tools/hao   # this working tree, one check
+```
+
+It checks the commit out in a temporary worktree (no `store/`, nothing uncommitted) with proxies closed, then runs
+`patches.py check`, every profile's set against its file, the edit specs and signing lint, the hygiene check of the
+tree and the commit message, and every test suite (`pipeline/tests`, `tools/*/tests`, `patches/*/tests`,
+`patches/*/build/tests`, `cache/*/tests`, `cache/metallib/lib`). One line per check, then the failing ones' output.
+No push, merge or tag without a green run on that commit (PROTOCOL S8); a test that needs Apple files skips when
+they are absent. A new check is a function added to `CHECKS`.
+
 ## Live swaps (`swaps.py`, `live-swaps.tsv`)
 
-hao-tools' `laptop-swap put` records every live swap on this Mac (ledger and bytes under
-`~/mac-image/store/laptop-swaps/`, or `HAO_SWAP_LEDGER`); the laptop's own log is lost at each push. `pipeline/build` and
-`hao build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
+The laptop swap tool records every file it puts on the laptop, on this Mac (a ledger with the bytes beside it,
+named by `HAO_SWAP_LEDGER` or the first line of `~/.config/hao/swap-ledger`); the laptop's own log is lost at each
+push. `pipeline/build` and `hao build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
 `live-swaps.tsv` (`SHA256<TAB>PATH<TAB>row NAME | recipe NAME | dropped: WHY`), or, under `/usr/lib/hao/`, the same bytes
 in the hao_runtime row's payload. `swaps.py status` lists them.

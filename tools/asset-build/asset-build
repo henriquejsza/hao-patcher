@@ -2,11 +2,12 @@
 """Build one release asset of hao-patcher from this checkout and compare it with its input row.
 
   asset-build list
-  asset-build ROW OUT [--hao-runtime CHECKOUT]
+  asset-build ROW OUT [--hao-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE]
 
 Writes the asset to OUT (a new folder; a file asset is OUT/NAME), then prints `SHA256 ROW` with the sha256 the row
 defines (pipeline/lock.py, so a `# hash:` line applies) and exits 1 when it is not the row's. Needs Xcode
-(xcrun clang, codesign). codeid_carrier also needs a clean hao-runtime checkout at the commit below.
+(xcrun clang, codesign). codeid_carrier also needs a clean hao-runtime checkout at the commit below; oclp_source
+clones upstream OCLP from GitHub unless --oclp-upstream names a clone.
 """
 import argparse
 import glob
@@ -79,6 +80,15 @@ def codeid(tmp, out, args):
     return out
 
 
+def tool(*argv, name):
+    """A pipeline/unpack producer that writes NEW_DIR/NAME and its build.json."""
+    def build(tmp, out, args):
+        extra = ['--upstream', args.oclp_upstream] if args.oclp_upstream and argv[-1] == 'oclp-source-rebuild' else []
+        run(*PY, *argv, Path(tmp)/'a', *extra)
+        return Path(tmp)/'a'/name
+    return build
+
+
 ASSETS = {
     'display_state_shim': dss,
     'io80211_compat': compiled('patches/golden-gate-userspace/src/io80211/make'),
@@ -91,6 +101,9 @@ ASSETS = {
     'codeid_carrier': codeid,
     'store_service': store,
     'appstore_slice_guard': slice_guard,
+    'fl': tool('pipeline/unpack/pristine-tools/build-fl', name='fl'),
+    'ripatch': tool('pipeline/unpack/build-tools', 'ripatch', name='ripatch'),
+    'oclp_source': tool('pipeline/unpack/build-tools', 'oclp-source-rebuild', name='oclp-source.tar'),
 }
 
 
@@ -106,6 +119,7 @@ def main(argv=None):
     p.add_argument('row')
     p.add_argument('out', type=Path, nargs='?')
     p.add_argument('--hao-runtime', type=Path)
+    p.add_argument('--oclp-upstream', help='oclp_source: an OCLP clone or URL instead of GitHub')
     args = p.parse_args(argv)
     if args.row == 'list':
         print('\n'.join(ASSETS))

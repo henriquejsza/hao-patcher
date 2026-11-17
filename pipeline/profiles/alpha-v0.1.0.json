@@ -3,5 +3,6 @@
  "target": "mbp92",
  "recipes": [
   "golden-gate-store"
- ]
+ ],
+ "release": true
 }

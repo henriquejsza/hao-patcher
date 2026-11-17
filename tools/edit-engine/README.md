@@ -85,6 +85,8 @@ JSON log). A damaged object, or a changed spec, input, matcher or engine version
 
 Every edit has `id` (lower-case letters, digits, `-`), `kind`, `reason`, and optionally `evidence` and `asm`
 (`before`/`after` text).
+A `plist.set` of `boot-args` also has `arg_reasons`: each argument of the value, exactly as written, mapped to why
+it is there. An argument without a reason, or a reason for an argument that is not there, is refused.
 
 **literal**: OpenCore-style find and replace. `find` and `replace` are hex bytes of the same length. `mask` selects
 which bits of `find` must match, and `replace_mask` selects which bits `replace` writes. `count` (default 1) is how

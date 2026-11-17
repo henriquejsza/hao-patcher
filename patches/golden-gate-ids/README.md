@@ -18,5 +18,6 @@ Proof: these bytes on a test machine, owner 2026-11-15: "It fully works as far a
 NEEDS VALIDATION on an image built with this recipe.
 
 ## Revisions
+- r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs changes.
 - r2 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r1 2026-11-15 New.

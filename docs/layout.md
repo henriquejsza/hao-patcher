@@ -14,7 +14,8 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
 ## Declarations
 
 - `patches/NAME/patch.json` has `"pack": PACK`, exactly one. A recipe's machine scope is its pack's detection;
-  `applies` names only the macOS builds it is written for (`"builds"`) or `"any"`.
+  `requires` ([requires.md](requires.md)) states the builds, GPU, CPU features and firmware it is valid for, and
+  `patches.py plan` stops on an unmet one (it replaces `applies`).
 - `packs/PACK.json` has `"layer"` (`os`, `platform`, `dev`); a platform pack also `"kind"` and `"platform"`
   (`apple-intel`). A pack lists no recipes: `pipeline/patches.py` collects them from the recipes' `pack`.
 - A variant recipe has `"variant": NAME` and may have `"replaces": RECIPE` of the same pack (e.g. `hao-runtime-fold`
@@ -26,6 +27,9 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
 - `pipeline/order.txt` lists every image recipe once, in build order, each with the reason for its position.
 - `pipeline/profiles/NAME.json` says what an image is: `target` (a `pipeline/targets/*.json`), opt-in `packs` and
   single opt-in `recipes` by name, and `variants`.
+- A profile marked `"release": true` is one that ships to people. `release-cut` cuts only those, and `patches.py
+  check` (so `pipeline/ci`) refuses one that holds a dev-layer pack's recipe or a recipe with status `dev` or
+  `diagnostic` (`release_problems`).
 - The set = `order.txt` filtered to the packs the target detects, the profile's named packs and recipes, and its
   variants (each replacing the recipe it names). `pipeline/patches.py set PROFILE` prints it. golden-run,
   `hao build-image`, release-cut and `patches.py plan` take a set name and read its profile when there is one; the

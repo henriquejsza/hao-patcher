@@ -118,7 +118,11 @@ class RuntimeTests(unittest.TestCase):
         folder, _ = self.build('host', HOST_DETECTOR)
         probe = clang(self.root/'ocr_probe', '-fobjc-arc', FIXTURES/'ocr_probe.m', '-framework', 'Foundation',
                       '-framework', 'CoreGraphics', '-framework', 'CoreText', '-framework', 'Vision')
-        environment = dict(os.environ, HAO_LIVE_TEXT_DIAGNOSTICS='1',
+        # A private home: e5rt keeps compiled models in ~/Library/Caches/ocr_probe, and an earlier run's entries point
+        # at that run's (deleted) build folder, which fails the compile.
+        home = self.root/'home'
+        (home/'Library/Caches').mkdir(parents=True)
+        environment = dict(os.environ, HAO_LIVE_TEXT_DIAGNOSTICS='1', CFFIXED_USER_HOME=str(home), HOME=str(home),
                            DYLD_INSERT_LIBRARIES=str(folder/runtime.UMBRELLA))
         result = subprocess.run([str(probe), *LINES], env=environment, capture_output=True, text=True, timeout=900)
         self.assertEqual(result.returncode, 0, result.stderr)

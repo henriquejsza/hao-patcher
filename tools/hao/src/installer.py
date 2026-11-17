@@ -381,7 +381,7 @@ def create_installer(a, c, host, acquire=None):
     if getattr(a, 'kit', None) and not getattr(a, 'assembly', None):
         a.assembly = kit_assembly(a.kit)
     ask_mac(a, c, host, release)
-    a.sources = [str(p) for p in (TOP, cache) if p.exists()]
+    a.sources = input_paths(a, cache, release_path)
     if image:
         info = dict(DeviceIdentifier='image', MediaName=str(image), TotalSize=a.image_size)
     else:
@@ -396,8 +396,10 @@ def create_installer(a, c, host, acquire=None):
         c.event('disk', disk=disk, policy='external', size=info.get('TotalSize') or info.get('Size'))
     if not a.dry_run and not image:
         c.print('')
+        expect = dict(identity=DISKS.identity(host, disk), policy='external', minimum=minimum, sources=a.sources)
         if not c.confirm('Everything on %s will be erased.' % DISKS.label(info), disk, a.confirm):
             raise Stopped('not confirmed', untouched='nothing was downloaded or written')
+        a.disk_expect = expect
     make_here = bool(release and release.get('made_on_mac') and not getattr(a, 'kit', None))
     if make_here and not a.dry_run:
         check_space(c, release, cache, info.get('TotalSize') or info.get('Size'))
@@ -410,7 +412,8 @@ def create_installer(a, c, host, acquire=None):
             c.item('USB installer image %s attached as /dev/%s' % (image, disk), 'files')
         try:
             parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
-                                  on_step=lambda text: c.item(text, 'steps', ok=True))
+                                  on_step=lambda text: c.item(text, 'steps', ok=True),
+                                  expect=getattr(a, 'disk_expect', None))
         except (STICK.StickError, OSError, LP.PatchError) as x:
             raise Stopped('erasing the USB drive failed', cause=str(x).splitlines()[0], options=[REPORT],
                           untouched='nothing was downloaded')
@@ -429,6 +432,12 @@ def create_installer(a, c, host, acquire=None):
     for pack, names in groups.items():
         c.item('%s %d recipes' % (c.paint('bold', '%-22s' % pack), len(names)), 'files')
     if make_here and not a.dry_run:
+        if parts is not None:
+            try:
+                STICK.check_mounts(host, disk, parts)    # the images go straight onto HAO: it must still be the drive
+            except STICK.StickError as x:
+                raise Stopped('the USB drive changed while hao was working', cause=str(x), options=[REPORT],
+                              untouched='nothing more was written')
         make_rows(a, c, release_path, cache, a.drive_build)
     if a.dry_run:
         c.step(STEPS[2], plan=True)
@@ -443,7 +452,8 @@ def create_installer(a, c, host, acquire=None):
     record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
                   target=asm['target'], assembly=path.stem, golden_build=asm['golden_build'],
                   donor_build=asm['donor_build'], basesystem=Path(basesystem).name,
-                  hao_commit=BUILD.release_of()[1])      # the install record names it (a dev drive has no git)
+                  hao_commit=BUILD.release_of()[1],      # the install record names it (a dev drive has no git)
+                  unproven=list(getattr(a, 'unproven_reasons', None) or []))   # its install launcher passes --unproven
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)
@@ -492,6 +502,22 @@ def finish_kit(a, c, kit):
     c.item('removed the staged kit from this Mac (the USB installer has it)', 'steps', ok=True)
     return ['%s on this Mac: the staged kit is on the USB installer now (--keep-kit keeps it)'
             % ('%s freed' % human_size(freed) if freed >= 1 << 20 else 'Space freed')]
+
+
+def input_paths(a, cache, release_path):
+    """Every place create-installer reads from or works in, as existing paths (a path not made yet: its nearest
+    existing folder; a link: where it points too): the drive that holds any of them is never erased."""
+    out = []
+    for p in [TOP, cache, release_path] + [getattr(a, k, None) for k in ('kit', 'basesystem', 'opencore', 'work')]:
+        if not p:
+            continue
+        p = Path(p).expanduser()
+        for q in (p, p.resolve()):
+            while not q.exists() and q != q.parent:
+                q = q.parent
+            if str(q) not in out:
+                out.append(str(q))
+    return out
 
 
 def lock_path(*argv):
