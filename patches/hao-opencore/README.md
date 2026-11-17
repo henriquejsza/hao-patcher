@@ -115,7 +115,7 @@ instead of waiting for a debugger.
 
 Every end-user set includes this recipe, so every image ships with AMFI relaxed (`amfi_get_out_of_my_way=1`). That
 is the owner's decision (2026-11-17, D1: "Ship, disclose"), stated in the install flow and the release notes. Its status
-is still `experiment`.
+is `product`.
 
 ## Aux KC gate
 
@@ -269,6 +269,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r74 2026-11-17 Status product (was experiment): every end-user set ships it, AMFI relaxed by the owner's decision D1. Declaration only; `validated` stays false until a boot proves the re-cut.
 - r73 2026-11-17 The generic image's elements have their reasons (VirtualSMC and the non-Apple-firmware quirks, all "generic image only"), and VirtualSMC its provenance (Acidanthera 1.3.8). `config_reasons.py` refuses a generic-only element in any config that isn't the generic one (SMBIOS iMac20,1, created). Nothing a 9,2 image gets changes.
 - r72 2026-11-17 Hardened and entitled programs keep AMFI's dyld environment policy: one `Kernel.Patch` bound to the BootKC's AMFI (`src/amfi_dyld.py`) and `amfi_force_policy=8`, so dyld no longer honours `DYLD_INSERT_LIBRARIES` in them (owner D1, 2026-11-17).
 - r71 2026-11-17 `hao_crash=1` leaves the end-user boot-args and is removed if present (owner 2026-11-17: dev builds only); dev-diagnostics r7 adds it to dev images.

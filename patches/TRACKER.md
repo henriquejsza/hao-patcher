@@ -41,7 +41,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| hao-opencore | r73 | post | experiment |  | x | x |  |  | **needs** | r73 2026-11-17 The generic image's elements have their reasons (VirtualSMC and the non-Apple-firmware quirks,  |
+| hao-opencore | r74 | post | product |  | x | x |  |  | **needs** | r74 2026-11-17 Status product (was experiment): every end-user set ships it, AMFI relaxed by the owner's decis |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |

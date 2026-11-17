@@ -1,5 +1,5 @@
 {
-  "revision": 73,
+  "revision": 74,
   "pack": "base",
   "stage": "post",
   "applies": {
@@ -14,7 +14,7 @@
     "kernel_repair_binding",
     "intel_commpage_abi"
   ],
-  "status": "experiment",
+  "status": "product",
   "validated": false,
   "files": [
     {
