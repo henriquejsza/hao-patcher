@@ -100,6 +100,46 @@ class ApplyRevert(Base):
         self.assertEqual({r['id']: r['state'] for r in LP.records(self.state)},
                          {'hao-20261112-180000': 'reverted', 'hao-20261112-180000-2': 'applied'})
 
+    def test_never_writes_through_links(self):
+        victim = self.d / 'victim'; victim.write_bytes(b'keep')
+        # a planted link at the old, predictable temporary name is not followed
+        os.symlink(victim, self.metal.with_name('.hao-patch-Metal'))
+        LP.apply([self.metal_pack()], self.root, self.state, now=T0)
+        self.assertEqual(victim.read_bytes(), b'keep')
+        self.assertEqual(self.metal.read_bytes(), b'patched metal')
+        # a folder on the way to a file that is a link to somewhere else is refused
+        outside = self.d / 'outside'; outside.mkdir()
+        (self.root / 'usr/lib').rename(self.d / 'lib-moved')
+        os.symlink(outside, self.root / 'usr/lib')
+        with self.assertRaises(LP.PatchError):
+            LP.apply([LP.load_overlay(self.overlay('x', 'live-capable', {'usr/lib/libnew.dylib': b'n'}))],
+                     self.root, self.state, now=T0)
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_revert_cleans_up_only_its_own_copies(self):
+        rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
+        keep = self.metal.with_name('.hao-patch-Metalnotes.txt'); keep.write_text('not ours')
+        alike = self.metal.with_name('.hao-patch-Metal.0123456789ab'); alike.write_text('not ours either')
+        tmp = next(f['tmp'] for f in rec['files'] if f['path'].endswith('/Metal'))
+        self.assertTrue(next(f['tmp_created'] for f in rec['files'] if f['path'].endswith('/Metal')))
+        ours = self.metal.with_name(tmp); ours.write_bytes(b'cut short')     # the copy this patch recorded
+        LP.revert(self.root, self.state, patch_id=rec['id'])
+        self.assertTrue(keep.exists())
+        self.assertTrue(alike.exists())
+        self.assertFalse(ours.exists())
+
+    def test_attributes_only_never_go_through_a_link(self):
+        outside = self.d / 'outside'; (outside).mkdir()
+        (outside / 'libsame.dylib').write_bytes(b'same')
+        (self.root / 'usr/lib').rename(self.d / 'lib-moved')
+        os.symlink(outside, self.root / 'usr/lib')
+        o = self.overlay('attrs', 'live-capable', {'usr/lib/libsame.dylib': b'same'})
+        m = json.loads((o / 'manifest.json').read_text()); m['files']['usr/lib/libsame.dylib']['mode'] = '0700'
+        (o / 'manifest.json').write_text(json.dumps(m))
+        with self.assertRaises(LP.PatchError):
+            LP.apply([LP.load_overlay(o)], self.root, self.state, now=T0)
+        self.assertNotEqual(oct(os.stat(outside / 'libsame.dylib').st_mode & 0o777), '0o700')
+
     def test_revert_refuses_files_changed_since(self):
         rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
         self.metal.write_bytes(b'someone else')
@@ -122,11 +162,11 @@ class ApplyRevert(Base):
     def test_a_failure_part_way_puts_back_what_was_written(self):
         real, n = LP._install, []
 
-        def install(*args):
+        def install(*args, **kw):
             n.append(1)
             if len(n) == 2:
                 raise OSError(28, 'No space left on device')
-            return real(*args)
+            return real(*args, **kw)
         LP._install = install
         try:
             with self.assertRaisesRegex(OSError, 'No space left'):

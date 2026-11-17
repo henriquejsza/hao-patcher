@@ -39,14 +39,14 @@ LAPTOP_PCI = [pci(0x8086, 0x0166, 0x030000, 'display'), pci(0x14e4, 0x4331, 0x02
               pci(0x8086, 0x1e20, 0x040300, 'pci8086,1e20'), pci(0x8086, 0x1e31, 0x0c0330, 'pci8086,1e31')]
 GiB = 1 << 30
 DISKS_INFO = {
-    'disk0': dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Physical', BusProtocol='SATA', TotalSize=500 * 10**9,
+    'disk0': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk0', Internal=True, VirtualOrPhysical='Physical', BusProtocol='SATA', TotalSize=500 * 10**9,
                   MediaName='APPLE SSD SM512E'),
     'disk1': dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Virtual', TotalSize=499 * 10**9),
-    'disk4': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
+    'disk4': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk4', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
                   TotalSize=32 * 10**9, MediaName='SanDisk Ultra'),
-    'disk5': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
+    'disk5': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk5', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
                   TotalSize=1000 * 10**9, MediaName='Samsung T7'),
-    'disk6': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
+    'disk6': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk6', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
                   TotalSize=16 * 10**9, MediaName='Small Stick'),
     'disk4s1': dict(WholeDisk=False, Internal=False),
 }
@@ -478,6 +478,28 @@ class BuilderTest(unittest.TestCase):
             c, _ = console('quiet')
             self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
 
+    def test_disk_identity_is_checked_again_before_the_assembler(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        before = DISKS.identity(host, 'disk0')
+        self.assertIsNone(DISKS.recheck(host, 'disk0', before, 'internal', 1))
+        swapped = dict(before, media='Other SSD')
+        self.assertIn('not the disk that was confirmed (media changed)',
+                      DISKS.recheck(host, 'disk0', swapped, 'internal', 1))
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            ran, run = self.fake_run()
+            real = DISKS.identity
+            seen = []
+            DISKS.identity = lambda h, disk: seen.append(disk) or (before if len(seen) == 1 else swapped)
+            try:
+                c, _ = console('quiet')
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run)
+            finally:
+                DISKS.identity = real
+            self.assertIn('was not erased', x.exception.what)
+            self.assertEqual(ran, [])                    # the assembler never ran
+
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
@@ -541,6 +563,24 @@ class BuilderTest(unittest.TestCase):
         listing = plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': []}]})
         self.assertFalse(BUILD.set_startup_disk(c, host, 'disk0'))    # no EFI partition: a warning, not a stop
 
+    def test_no_restart_when_the_start_up_disk_was_not_set(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            ran, run = self.fake_run()
+            real = BUILD.set_startup_disk
+            BUILD.set_startup_disk = lambda c, h, disk: False
+            try:
+                c, out = console('quiet')
+                a = ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), no_restart=False)
+                import unittest.mock as M
+                with M.patch.object(sys.stdin, 'isatty', lambda: True):
+                    self.assertEqual(BUILD.install(a, c, host, run=run), 0)
+            finally:
+                BUILD.set_startup_disk = real
+            self.assertNotIn('restart.countdown', [e['ev'] for e in c.events])
+            self.assertIn('restart to use it', out.getvalue())
+
     def test_restart_counts_down_and_a_key_cancels(self):
         class Host:
             calls = []
@@ -575,6 +615,72 @@ class BuilderTest(unittest.TestCase):
                 self.assertEqual(BUILD.release_of(), ('v0.0.1', 'abc', 'def'))
             finally:
                 os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+
+    def test_unknown_or_unproven_mac_stops_unless_unproven(self):
+        proven = DETECT.profile(DETECT.facts(FakeMac()))
+        self.assertEqual(BUILD.unproven(proven), [])
+        # a GPU no rule knows (a GT 650M in place of the HD 4000), and an unproven model
+        odd = DETECT.profile(DETECT.facts(FakeMac(model='MacBookPro9,1', devices=[pci(0x10de, 0x0fd5, 0x030000, 'display')]
+                                                                          + LAPTOP_PCI[1:])))
+        self.assertTrue(odd['unknown'][0]['device'].startswith('10de:'), odd['unknown'])
+        reasons = BUILD.unproven(odd)
+        self.assertTrue(any(r.startswith('unknown GPU 10de:') for r in reasons), reasons)
+        self.assertTrue(any('MacBookPro9,1' in r for r in reasons), reasons)
+        for command in BUILD.GATED:
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.proof_gate(ns(), c, odd, command)
+            self.assertEqual(x.exception.code, 5)
+            self.assertIn('--unproven', ' '.join(x.exception.options))
+        c, _ = console('quiet')
+        a = ns(unproven=True)
+        BUILD.proof_gate(a, c, odd, 'install')               # allowed, and kept for the install record
+        self.assertEqual(a.unproven_reasons, reasons)
+        self.assertIn('unproven', [e['ev'] for e in c.events])
+        a = ns()
+        BUILD.proof_gate(a, c, odd, 'build-image')           # not an install: plan's own check (builder) applies
+        self.assertEqual(a.unproven_reasons, [])
+
+    def test_unproven_install_is_in_the_record_and_the_launcher(self):
+        c, _ = console('quiet')
+        a = ns(kit=None)
+        a.unproven_reasons = ['MacBookPro9,1 is not a proven model']
+        rec = BUILD.install_record(a, c, {'model': 'MacBookPro9,1', 'packs': []}, Path('x.json'), {}, {}, 'disk0')
+        self.assertEqual(rec['unproven'], ['MacBookPro9,1 is not a proven model'])
+        sys.path.insert(0, str(TOOL / 'src'))
+        import stick as STICK
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            top = Path(d) / 'top'; (top / 'tools/hao').mkdir(parents=True); (top / 'tools/hao/hao').write_text('')
+            mount = Path(d) / 'HAO'; mount.mkdir()
+            STICK.write_kit(mount, kit, top, record={'assembly': 'a1', 'unproven': ['x']})
+            self.assertIn('--assembly a1 --unproven "$@"', (mount / 'install').read_text())
+            mount2 = Path(d) / 'HAO2'; mount2.mkdir()
+            STICK.write_kit(mount2, kit, top, record={'assembly': 'a1', 'unproven': []})
+            self.assertNotIn('--unproven', (mount2 / 'install').read_text())
+
+    def test_report_is_written_new_never_through_a_link(self):
+        import report as REP
+        with tempfile.TemporaryDirectory() as d:
+            victim = Path(d) / 'victim'; victim.write_text('keep')
+            out = Path(d) / 'hao-report.txt'; os.symlink(victim, out)
+            with self.assertRaises(FileExistsError):
+                REP.write(out, 'report text', env={})
+            self.assertEqual(victim.read_text(), 'keep')
+            fresh = Path(d) / 'new.txt'
+            REP.write(fresh, 'report text', env={})
+            self.assertEqual((fresh.read_text(), oct(fresh.stat().st_mode & 0o777)), ('report text', '0o644'))
+            logs = Path(d) / 'logs'; logs.mkdir()
+            os.symlink(victim, logs / 'install-20261117-000000.json')
+            self.assertIsNone(REP.last_log([logs]))
+        up = REP.scrub('HTTPS://alice:secret@example.invalid/f?token=secret2', {})
+        self.assertNotIn('secret', up)
+        with tempfile.TemporaryDirectory() as d:
+            os.symlink('/etc/hosts', Path(d) / 'x.json')
+            self.assertTrue(REP._json(Path(d) / 'x.json').startswith('unreadable'))
+        text = REP.scrub('fetch https://user:pw@example.invalid/a.dmg?X-Amz-Signature=abc&t=1 ok', {})
+        self.assertNotIn('pw', text); self.assertNotIn('abc', text)
+        self.assertIn('https://[credentials]@example.invalid/a.dmg?[query] ok', text)
 
     def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
         hao = __import__('runpy').run_path(str(TOOL / 'hao'), run_name='hao_module')

@@ -476,11 +476,11 @@ class Rollback(Live):
     def test_failure_in_the_middle_of_writing(self):
         real, n = LP._install, []
 
-        def install(*args):
+        def install(*args, **kw):
             n.append(1)
             if len(n) == 3:
                 raise OSError(28, 'No space left on device')
-            return real(*args)
+            return real(*args, **kw)
         LP._install = install
         try:
             with self.assertRaisesRegex(OSError, 'No space left'):
