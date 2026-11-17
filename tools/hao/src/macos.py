@@ -241,7 +241,7 @@ def write_problems(host, facts, mount_point):
         if _at(m['point'], mount_point):
             out.append('the System volume is still mounted at %s (an earlier run): umount %s' % (m['point'], mount_point))
         else:
-            out.append('the System volume is mounted at %s by something else (softwareupdate, OCLP, laptop-swap?): '
+            out.append('the System volume is mounted at %s by something else (softwareupdate, OCLP or another patcher?): '
                        'not writing under it' % m['point'])
     for dev, point, _ in facts.get('mount_table', []):
         if _at(point, mount_point) and facts.get('system') and dev != '/dev/' + facts['system']['device']:
