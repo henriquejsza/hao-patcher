@@ -41,19 +41,23 @@ class BootLoggingTests(unittest.TestCase):
         self.assertEqual(added['csr-active-config'], original['NVRAM']['Add'][APPLE]['csr-active-config'])
         self.assertEqual(result['NVRAM']['Add']['other-guid'], original['NVRAM']['Add']['other-guid'])
         self.assertEqual(result['NVRAM']['Delete']['other-guid'], ['existing'])
-        self.assertIn('hao_crash=1', added['boot-args'].split())
+        self.assertNotIn('hao_crash=1', added['boot-args'].split())     # dev images only (dev-diagnostics)
         self.assertNotIn('-v', added['boot-args'].split())
         self.assertEqual(result['Misc']['Debug']['Target'], 0)     # no OpenCore log in an end-user image
 
     def test_no_measurement_switches_whatever_the_environment(self):
-        # hao-runtime's measurement switches are dev-diagnostics' (pack dev); hao-opencore writes the same boot-args
-        # in every build, IMAGE_DEV_BUILD or not.
-        release = ('-lilubetaall -pmap_pcid_disable amfi_get_out_of_my_way=1 hao_crash=1 '
-                   'auxKCAtBoot=false').split()
+        # hao_crash and hao-runtime's measurement switches are dev-diagnostics' (pack dev); hao-opencore writes the
+        # same boot-args in every build, IMAGE_DEV_BUILD or not, and removes a hao_crash=1 it finds.
+        release = '-lilubetaall -pmap_pcid_disable amfi_get_out_of_my_way=1 auxKCAtBoot=false'.split()
         for dev in (None, '0', '1'):
             with self.subTest(dev=dev):
                 args = self.apply(self.fixture(), dev)['NVRAM']['Add'][APPLE]['boot-args'].split()
                 self.assertEqual(['keepsyms=1'] + release, args)
+
+    def test_an_existing_hao_crash_is_removed(self):
+        value = self.fixture()
+        value['NVRAM']['Add'][APPLE]['boot-args'] += ' hao_crash=1'
+        self.assertNotIn('hao_crash=1', self.apply(value)['NVRAM']['Add'][APPLE]['boot-args'].split())
 
     def test_missing_or_consumed_overrides_still_deleted_idempotently(self):
         value = self.fixture()

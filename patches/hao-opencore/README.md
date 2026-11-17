@@ -94,7 +94,6 @@ refuses a boot-args value with an argument that has none. `keepsyms=1`, `ipc_con
 | `-lilubetaall` | Lets Lilu-based OCLP kexts load on an unknown kernel version. |
 | `-pmap_pcid_disable` | Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it; the QEMU boots that worked did not) while the first hardware boots stalled. The next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. The kernel logs `PMAP: PCID feature disabled` (without it: `PMAP: PCID enabled`). It stays until a laptop boot without it shows the same result. |
 | `amfi_get_out_of_my_way=1` | `hao-runtime` signs each program's x86_64 slice ad hoc with its own entitlements, including Apple-private ones (launchd: Preboot, graftdmg, trust caches). With AMFIPass alone, AMFI rejects `/sbin/launchd` and the kernel panics. |
-| `hao_crash=1` | hao's crash lines on the console. |
 | `auxKCAtBoot=false` | kernelmanagerd skips building an auxiliary kernel collection at boot and loads the System collection at once. 27's kmutil cannot build an x86_64 collection ("unsupported arch: x86_64 / Unsupported collection kind"), so the build of the only candidate, 27's codeless `AppleMobileDevice.kext` (from 27's Data template), failed at every boot and held the System collection, and with it the Capri framebuffer and WindowServer, back 18.5 s (23 s on the first boot). The codeless kext's personality still loads. Details: [Aux KC gate](#aux-kc-gate). |
 
 `ic_csr_internal=1` is no longer written, and removed if present: 27's x86_64 dyld scans the disk for shared-cache
@@ -102,6 +101,9 @@ overrides (OCLP's on-disk Metal and MetalOld) only when it counts as an internal
 report `CSR_ALLOW_APPLE_INTERNAL` to every process, so os_variant made the whole system an Apple-internal build
 (mobileassetd asked Apple's internal asset server: no Spotlight, Siri or language assets). Now golden-gate-dyld-internal makes dyld
 answer internalInstall() itself, and `apply.sh` refuses an image whose dyld lacks that edit.
+
+`hao_crash=1` (hao-runtime's crash lines on the console) is not written either, and removed if present: dev images
+only (owner 2026-11-17: "Dev builds only"); dev-diagnostics adds it.
 
 `hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` (hao's measurement switches) are never written here: only
 `dev-diagnostics` adds them, in dev sets.
@@ -223,6 +225,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r71 2026-11-17 `hao_crash=1` leaves the end-user boot-args and is removed if present (owner 2026-11-17: dev builds only); dev-diagnostics r7 adds it to dev images.
 - r70 2026-11-17 Every enabled element of the finished config.plist has a recorded reason (`src/config-reasons.json`), and every enabled third-party kext is byte-identical to its pinned upstream OCLP payload (`src/kext-provenance.json`); `apply.sh` stops the build otherwise (PROTOCOL S18). Nothing it installs changes.
 - r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no longer carries the `ic_csr_internal` probe, and the Sandbox adapter rewrites a shared modifier list once. config.plist is byte-identical to r42's; only IntelCommpage's executable changes. Row `kernel_repair_binding` -> kernel-binding-26B131-r44, the same inputs' profile, which pins that executable.
 - r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refuse a boot-args value without one); `-pmap_pcid_disable` is recorded as not known to be needed (a 2026-11-02 isolation test that did not change the stall). Declaration only: nothing it installs changes.

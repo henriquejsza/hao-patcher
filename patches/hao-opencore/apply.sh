@@ -67,13 +67,12 @@ for key in ('bootercfg', 'bootercfg-once'):
 # Without it a panic reboots into the NetBoot default and the panic text stays in NVRAM (aapl,panic-info).
 # -v and startup_debug=1 (verbose text on screen, extra kernel startup logging) are off: the early-boot
 # evidence is the unified log (and, in bench images, OpenCore's file log from dev-diagnostics).
-args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'ic_csr_internal=1')]
+args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'hao_crash=1', 'ic_csr_internal=1')]
 # amfi_get_out_of_my_way=1: hao gives each arm64-only program an ad-hoc signed x86_64 slice carrying the
 # program's own (Apple-private) entitlements; AMFIPass alone kills such a PID 1 (experimental sets only).
-# hao_crash: hao's crash lines (cheap, every build). The measurement switches (hao_nx_stats, hao_bridge_stats,
-# hao_diag_time) are dev-diagnostics' (pack dev): bench images only.
+# hao_crash=1 (crash lines on the console) and the measurement switches (hao_nx_stats, hao_bridge_stats,
+# hao_diag_time) are dev-diagnostics' (pack dev): dev images only (owner 2026-11-17, hao_crash: "Dev builds only").
 for arg in ('-lilubetaall', '-pmap_pcid_disable', 'amfi_get_out_of_my_way=1',
-            'hao_crash=1',
             # kernelmanagerd skips the boot-time Aux KC build. 27's kmutil cannot build an x86_64 collection, so the
             # build (of the codeless AppleMobileDevice) failed at every boot and held the System KC back ~18 s.
             'auxKCAtBoot=false'):
