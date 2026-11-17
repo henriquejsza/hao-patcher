@@ -71,6 +71,7 @@ placed trees (owner sessions 2026-11-06), not re-checked on 26B131.
 r5 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r4's, so the result above stands.
 
 ## Revisions
+- r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r12 2026-11-17 seed.zsh writes into an account's folders only as that account (`asuser`: `sudo -u #uid`), never as root; PerUserSeed is 755 so the account can read it. `tests/test_as_account.py` runs that path and refuses root-side writes.
 - r11 2026-11-17 Comments, README and tests name no private project or account; nothing it installs changes.
 - r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

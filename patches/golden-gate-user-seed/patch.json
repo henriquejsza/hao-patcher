@@ -1,10 +1,10 @@
 {
- "revision": 12,
+ "revision": 13,
  "pack": "base",
  "stage": "post",
  "applies": {"builds": ["25G342"]},
  "inputs": [],
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "optional": "caches",
  "needs_any": "caches",

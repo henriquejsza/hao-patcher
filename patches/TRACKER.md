@@ -29,13 +29,13 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-framebuffer | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
 | golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (app |
-| golden-gate-native-identities | r8 | oclp-hook | experiment |  | x | x |  |  | **needs** | r8 2026-11-17 Only programs listed in `src/programs.txt` get an Apple identity. Each needs its own signature t |
+| golden-gate-native-identities | r9 | oclp-hook | product |  | x | x |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-root-launchservices | r4 | post | experiment | boot-seeds |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): seed harvested from 26B131. Nothing it instal |
 | golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-shared-cache | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 cache family. Nothing it i |
 | golden-gate-shared-cache-catalog | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it |
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
-| golden-gate-user-seed | r12 | post | experiment | caches | x |  |  |  | **needs** | r12 2026-11-17 seed.zsh writes into an account's folders only as that account (`asuser`: `sudo -u #uid`), neve |
+| golden-gate-user-seed | r13 | post | product | caches | x |  |  |  | **needs** | r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | golden-gate-user-template | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it  |
 | golden-gate-userspace | r85 | oclp-hook | experiment |  | x | x |  |  | **needs** | r85 2026-11-17 Declares its scope (`requires`, docs/requires.md): userspace rows for both builds. Nothing it i |
 | golden-gate-wifi-compat | r2 | oclp-hook | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): compat rows for both builds. Nothing it insta |

@@ -1,5 +1,5 @@
 {
-  "revision": 8,
+  "revision": 9,
   "pack": "base",
   "stage": "oclp-hook",
   "applies": {
@@ -11,7 +11,7 @@
   "inputs": [
     "golden_gate_userspace"
   ],
-  "status": "experiment",
+  "status": "product",
   "validated": false,
   "files": [
     {
