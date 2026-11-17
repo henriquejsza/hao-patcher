@@ -41,7 +41,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 | golden-gate-user-template | r7 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
 | golden-gate-userspace | r81 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace); corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261111-002baf5f2e03 (hao-patcher 0ff4a9ae); hao_runtime 80a10da1 payload |
 | golden-gate-windowserver-filter | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
-| hao-command | r2 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
+| hao-command | r3 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
 | hao-opencore | r65 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 80a10da1 payload; kernel_repair_efi da6f167f kernel-repairs-26B131-r42-53815151; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r84 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 80a10da1 payload |
 | hao-runtime-fold | r5 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 948219e4 payload |
@@ -234,7 +234,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 - **golden-gate-windowserver-filter** r7
   - `usr/lib/dss_shim.dylib`: edited (1 edit) from hao (row display_state_shim)
   - `usr/lib/windowserver_filter.dylib`: from hao (row windowserver_filter_shim)
-- **hao-command** r2
+- **hao-command** r3
   - `usr/local/bin/hao`: from hao
   - `usr/local/lib/hao/python`/ (folder): from every file under it from hao (row python_x86_64)
   - `usr/local/lib/hao/hao`/ (folder): from every file under it from hao

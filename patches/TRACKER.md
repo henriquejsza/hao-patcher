@@ -38,7 +38,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-user-template | r7 | post | experiment | caches | x |  |  |  | **needs** | r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its |
 | golden-gate-userspace | r81 | oclp-hook | experiment |  | x | x |  |  | **needs** | r81 2026-11-16 Merges r80 (this branch) with main's r79: both row changes below, no other change. |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
-| hao-command | r2 | post | experiment |  |  |  |  |  | **needs** | r2 2026-11-16 make.sh writes tools/hao/VERSION (the staged commit) for hao's version on a dev image |
+| hao-command | r3 | post | experiment |  |  |  |  |  | **needs** | r3 2026-11-16 make.sh stages from a release archive too (no .git): files on disk, VERSION from pipeline/SOURCE |
 | hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
 | hao-runtime | r84 | oclp-hook | experiment |  | x | x |  |  | **needs** | r84 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 5ae3d5e payload (80a10da1, manifest 41dc029b): 155b7b |
 | hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
