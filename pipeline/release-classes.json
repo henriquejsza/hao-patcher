@@ -417,6 +417,7 @@
    "stream": "ipsw",
    "name": "UniversalMac_27.2.1_26B131_Restore.ipsw",
    "url": "https://updates.cdn-apple.com/2026FallFCS/c202a724-db7e-4d56-917b-110aa0226507/UniversalMac_27.2.1_26B131_Restore.ipsw",
+   "sha256": "233e85a09887579d47d0b195e7db72be7f204261059c6946f719acf6b300814f",
    "reason": "Apple's macOS 27.2.1 (26B131) restore IPSW (Apple's IPSW catalog; size checked against the server)"
   },
   "installer": {
@@ -424,12 +425,14 @@
    "stream": "installer",
    "name": "InstallAssistant-25G342.pkg",
    "url": "https://swcdn.apple.com/content/downloads/02/21/142-54128-A_OWMUBNYT6S/xlorkwl2msc8dgn34ayr8dk2jm8xka68z3/InstallAssistant.pkg",
+   "sha256": "3d9551b7a18c1fa2f86e7002a132ec3db34d7915fa842cb1e890480b51be4ef3",
    "reason": "Apple's macOS 26.7.3 (25G342) InstallAssistant.pkg, catalog product 142-54128 (Apple's software update catalog; size checked)"
   },
   "kdk": {
    "class": "download",
    "name": "Kernel_Debug_Kit_26.7.3_build_25G342.dmg",
    "url": "https://github.com/dortania/KdkSupportPkg/releases/download/25G342/Kernel_Debug_Kit_26.7.3_build_25G342.dmg",
+   "sha256": "219f27c7e039b6ab3426496e0d5852d55a31d00b3d3984d855cba04377c5dba0",
    "reason": "Apple's Kernel Debug Kit 25G342 as mirrored by KdkSupportPkg (size checked)"
   },
   "ipsw_tool": {
