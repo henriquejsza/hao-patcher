@@ -299,6 +299,19 @@ class Materialize(unittest.TestCase):
         self.assertFalse(report[METAL]['base']['edited'])     # what it replaces: OCLP's wrapper as installed
         self.assertFalse((out / 'metal-3802').exists())
 
+    def test_seed_files_carry_content_and_reason_into_the_manifest(self):
+        why = 'Metal appends to its shader cache on first GPU use'
+        self.recipe('caches', [
+            {'path': 'private/var/c/store.index', 'origin': {'kind': 'hao', 'row': 'caches'},
+             'source': 'data.tar!private/var/c/store.index', 'content': 'seed', 'reason': why},
+            {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}}])
+        report, out = self.run_all()
+        files = json.loads((out / 'base/manifest.json').read_text())['files']
+        self.assertEqual((files['private/var/c/store.index']['content'], files['private/var/c/store.index']['reason']),
+                         ('seed', why))
+        self.assertEqual(files['private/var/c/store.index']['sha256'], hashlib.sha256(b'cache bytes').hexdigest())
+        self.assertNotIn('content', files['usr/lib/one.dylib']); self.assertNotIn('reason', files['usr/lib/one.dylib'])
+
     def test_last_writer_decides_the_pack(self):
         self.recipe('a', [{'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}}])
         report, out = self.run_all(packs={'a': 'metal-3802'})

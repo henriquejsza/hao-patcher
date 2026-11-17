@@ -456,3 +456,22 @@ class ManifestTests(unittest.TestCase):
             self.assertEqual(V.verify(merged, found)['problems'], [])
             (merged/'usr/lib/a.dylib').write_bytes(b'changed')
             self.assertEqual([p['problem'] for p in V.verify(merged, V.manifests([], merged))['problems']], ['content'])
+
+    def test_a_seed_file_carries_content_and_reason(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            system, data = root/'system', root/'data'
+            system.mkdir(); (data/'Library/c').mkdir(parents=True)
+            (data/'Library/c/functions.data').write_bytes(b'seed'); (data/'Library/c/plain').write_bytes(b'p')
+            declared = root/'declared.json'
+            declared.write_text(json.dumps({'r1': {'pack': 'base', 'files': ['Library/c/functions.data', 'Library/c/plain'],
+                                                   'seed': {'Library/c/functions.data': 'Metal appends to it'}}}))
+
+            class A: pass
+            a = A(); a.config = {'declared': str(declared)}; a.mounts = {'system': system, 'data': data}; a.manifests = {}
+            golden.Assembler.write_manifests(a)
+            files = json.loads((data/golden.MANIFESTS/'r1.json').read_text())['files']
+            self.assertEqual((files['Library/c/functions.data']['content'], files['Library/c/functions.data']['reason']),
+                             ('seed', 'Metal appends to it'))
+            self.assertEqual(len(files['Library/c/functions.data']['sha256']), 64)
+            self.assertNotIn('content', files['Library/c/plain'])

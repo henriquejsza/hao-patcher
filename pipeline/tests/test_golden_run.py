@@ -139,6 +139,32 @@ class GoldenRun(unittest.TestCase):
                 self.assertIn('Redistribution and use',bundle.read('LICENSES/OpenCorePkg-LICENSE.txt').decode())
                 self.assertIn('Dortania',bundle.read('LICENSES/OpenCore-Legacy-Patcher-LICENSE.txt').decode())
 
+    def test_a_recipe_with_seed_files_round_trips_to_its_install_manifest(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('golden_image_seed',TOP/'pipeline/stages/golden-image.py')
+        golden=importlib.util.module_from_spec(spec);spec.loader.exec_module(golden)
+        P=runpy.run_path(str(TOP/'pipeline/patches.py'))
+        why='Metal appends to this shader cache on first GPU use'
+        seed='Library/Application Support/PerUserSeed/metal/x/com.apple.metal/0_0/functions.data'
+        with tempfile.TemporaryDirectory() as d:
+            d=Path(d);r=d/'patches'/'caches';r.mkdir(parents=True)
+            (r/'patch.json').write_text(json.dumps({'revision':1,'stage':'post','pack':'base','files':[
+                {'path':seed,'origin':{'kind':'hao'},'content':'seed','reason':why},
+                {'path':'Library/plain','origin':{'kind':'hao'}}]}))
+            self.assertEqual(P['file_problems'](r,json.loads((r/'patch.json').read_text())),[])
+            share=d/'share';share.mkdir();(share/'patches.txt').write_text('post caches\n')
+            with mock.patch.dict(RUN['declared_files'].__globals__,TOP=d):
+                declared=RUN['declared_files'](share)
+            self.assertEqual(declared['caches']['seed'],{seed:why})
+            data=d/'data';(data/seed).parent.mkdir(parents=True);(data/seed).write_bytes(b'cache')
+            (data/'Library/plain').write_bytes(b'p');(d/'declared.json').write_text(json.dumps(declared))
+            class A:pass
+            a=A();a.config={'declared':str(d/'declared.json')};a.mounts={'system':d/'system','data':data};a.manifests={}
+            golden.Assembler.write_manifests(a)
+            files=json.loads((data/golden.MANIFESTS/'caches.json').read_text())['files']
+            self.assertEqual({k:(v.get('content'),v.get('reason')) for k,v in files.items()},
+                             {seed:('seed',why),'Library/plain':(None,None)})
+
     def test_configuration_runs_every_recipe_in_set_order(self):
         rows=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),
               ('oclp-hook','later-fix'),('oclp-hook','selectors'),('post','post-one'),('post','post-two')]

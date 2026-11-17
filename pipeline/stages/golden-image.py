@@ -635,7 +635,8 @@ class Assembler:
 
     def write_manifests(self):
         """One manifest per recipe (verify.py's format 1) of the files it declares, as they are installed now that the
-        System is sealed: Data/private/var/db/hao/manifests/RECIPE.json, root:wheel 0644. `hao verify` reads them."""
+        System is sealed: Data/private/var/db/hao/manifests/RECIPE.json, root:wheel 0644. `hao verify` reads them. A
+        declared seed file (bytes macOS changes after install) also carries "content": "seed" and its "reason"."""
         path = self.config.get('declared')
         if not path or not Path(path).is_file():
             return
@@ -648,6 +649,8 @@ class Assembler:
             for rel in entry.get('files', []):
                 found = manifest_entry([self.mounts['system'], self.mounts['data']], rel)
                 if found:
+                    if rel in entry.get('seed', {}):
+                        found.update(content='seed', reason=entry['seed'][rel])
                     files[rel] = found
             target = folder/(name+'.json')
             target.write_text(json.dumps(dict(format=1, recipe=name, pack=entry.get('pack'), files=files, dirs={}),

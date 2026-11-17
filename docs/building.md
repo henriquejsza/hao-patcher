@@ -76,6 +76,11 @@ account's first login are slower.
   with one line naming the recipe and the row. A row that is there but fails its SHA256 stops
   the build.
 - `golden-gate-user-seed` (`"needs_any": "caches"`) is skipped when no cache recipe runs.
+- macOS changes some of these files after install (a Metal shader cache grows on first GPU use). Their `files`
+  entries say so with `"content": "seed"` and a `"reason"`; both go into the recipe's install manifest
+  (`private/var/db/hao/manifests/RECIPE.json`, and the overlay `manifest.json`), and `hao verify` then checks that
+  such a file is there with its mode, owner and flags, not its bytes. `patches.py check` refuses any other
+  `content` value and a seed without a reason.
 - To leave them out even when the files exist: `golden-run --skip-optional caches`, or
   `"skip_optional": ["caches"]` in the assembly.
 - `store/runs/<job>/optional.json` (and `optional` in `build.json`) lists which ran and which
