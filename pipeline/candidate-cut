@@ -21,6 +21,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -68,6 +69,11 @@ def main(argv=None):
     subprocess.run(['git', 'worktree', 'add', '-q', '--detach', str(tree), sha], cwd=TOP, check=True)
     (tree / 'store').symlink_to(store)
     rel = out / 'release' / 'release.json'
+    # python.org's Python carries no CA bundle until its Install Certificates step runs; macOS's own is used instead,
+    # so hao doctor's URL checks and the downloads verify against the system roots
+    env = dict(os.environ)
+    if not env.get('SSL_CERT_FILE') and Path('/etc/ssl/cert.pem').is_file():
+        env['SSL_CERT_FILE'] = '/etc/ssl/cert.pem'
     if a.sign_key:
         # the candidate key's public line goes into this cut's hao (tools/hao/data/candidate-keys.pub, never tracked)
         # so the USB installer's hao accepts the candidate signature; final builds never carry it
@@ -80,7 +86,7 @@ def main(argv=None):
         t0 = time.time()
         with open(log, 'w') as f:
             rc = subprocess.run([str(c) for c in cmd], cwd=tree, stdout=f, stderr=subprocess.STDOUT,
-                                stdin=subprocess.DEVNULL).returncode
+                                stdin=subprocess.DEVNULL, env=env).returncode
         record['steps'].append(dict(name=name, rc=rc, seconds=round(time.time() - t0), log=log.name))
         print('%-4s %-16s %4d s  %s' % ('ok' if rc == 0 else 'FAIL', name, time.time() - t0, log), flush=True)
         if rc:
