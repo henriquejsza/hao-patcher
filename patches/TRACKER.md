@@ -43,7 +43,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | hao-opencore | r67 | post | experiment |  | x | x |  |  | **needs** | r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the  |
 | hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
-| hao-runtime-fold | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| hao-runtime-fold | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83 |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
 | metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; its pack decides the machines  |
 | metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
