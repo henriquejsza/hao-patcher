@@ -162,11 +162,15 @@ def opencore_files(tar_path, esp, log=False):
                 with t.extractfile(m) as src, open(out, 'wb') as f:
                     shutil.copyfileobj(src, f)
     oc, bootstrap = esp / 'EFI' / 'OC', esp / 'System' / 'Library' / 'CoreServices' / 'boot.efi'
-    for need in (oc / 'OpenCore.efi', oc / 'config.plist', bootstrap):
+    removable = esp / 'EFI' / 'BOOT' / 'BOOTX64.EFI'
+    for need in (oc / 'OpenCore.efi', oc / 'config.plist'):
         if not need.is_file():
             raise StickError('%s has no %s' % (tar_path, need.relative_to(esp)))
-    (esp / 'EFI' / 'BOOT').mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(bootstrap, esp / 'EFI' / 'BOOT' / 'BOOTX64.EFI')
+    if bootstrap.is_file():                 # a Mac's layout (OCLP): the Bootstrap also on the removable-media path
+        removable.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(bootstrap, removable)
+    elif not _found(esp / 'EFI' / 'BOOT', 'BOOTX64.EFI'):   # the generic layout (VMs, PCs) has only EFI/BOOT/BOOTx64.efi
+        raise StickError('%s has no Bootstrap (System/Library/CoreServices/boot.efi or EFI/BOOT/BOOTx64.efi)' % tar_path)
     p = oc / 'config.plist'
     c = opencore_config(plistlib.loads(p.read_bytes()))
     c['Misc']['Boot'].update(ShowPicker=True, Timeout=PICKER_TIMEOUT)
@@ -495,6 +499,14 @@ def verify_kit(kit, copy, skip=('.DS_Store', '__pycache__'), skip_paths=KIT_LEFT
     return checked
 
 
+def _found(folder, name):
+    """FOLDER's entry named NAME in any case (an ESP is FAT: BOOTx64.efi and BOOTX64.EFI are one file), or None."""
+    try:
+        return next((p for p in Path(folder).iterdir() if p.name.upper() == name.upper()), None)
+    except OSError:
+        return None
+
+
 def write_boot(esp, mount, basesystem, opencore_tar, log=False):
     """OpenCore onto the EFI partition ESP, the Recovery onto HAOBOOT (MOUNT; not copied again when the same
     BaseSystem.dmg is already there). Returns what stick.json records."""
@@ -519,7 +531,7 @@ def write_boot(esp, mount, basesystem, opencore_tar, log=False):
     return dict(basesystem_sha256=want, basesystem_bytes=Path(basesystem).stat().st_size,
                 opencore_sha256=sha256(opencore_tar), boot_args=nv['boot-args'],
                 config_sha256=sha256(esp / 'EFI' / 'OC' / 'config.plist'),
-                bootstrap_sha256=sha256(esp / 'EFI' / 'BOOT' / 'BOOTX64.EFI'),
+                bootstrap_sha256=sha256(_found(esp / 'EFI' / 'BOOT', 'BOOTX64.EFI')),
                 opencore_log=c['Misc']['Debug']['Target'], opencore_picker_timeout=PICKER_TIMEOUT)
 
 

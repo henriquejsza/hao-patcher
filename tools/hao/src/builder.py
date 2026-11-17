@@ -898,8 +898,10 @@ def set_startup_disk(c, host, disk):
         mount = plistlib.loads(host.run(['diskutil', 'info', '-plist', esp], check=False).stdout or b'').get('MountPoint')
     except ValueError:
         mount = None
-    r = host.run(['bless', '--mount', mount, '--file', '%s/%s' % (mount, BOOTSTRAP), '--setBoot'], check=False) \
-        if mount else None
+    target = '%s/%s' % (mount, BOOTSTRAP)
+    if mount and not os.path.exists(target) and os.path.exists('%s/EFI/BOOT/BOOTX64.EFI' % mount):
+        target = '%s/EFI/BOOT/BOOTX64.EFI' % mount      # the generic layout (VMs, PCs): no Apple-style Bootstrap
+    r = host.run(['bless', '--mount', mount, '--file', target, '--setBoot'], check=False) if mount else None
     c.event('startup-disk', disk=disk, esp=esp, mount=mount, ok=bool(r and r.returncode == 0))
     if not (r and r.returncode == 0):
         c.warning('the start-up disk was not set (bless on /dev/%s failed): choose it in the Option picker' % esp)

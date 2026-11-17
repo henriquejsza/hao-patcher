@@ -388,6 +388,22 @@ class StickTest(unittest.TestCase):
         self.assertIn('ditto "$PY" "$M"', text)
         self.assertLess(text.index('PY=$M'), text.index('exec "$PY/bin/python3.12"'))
 
+    def test_generic_esp_layout_without_coreservices(self):
+        generic = self.d / 'generic-esp.tar'
+        with tarfile.open(generic, 'w') as t:
+            for name, data in (('EFI/OC/OpenCore.efi', b'MZ oc'), ('EFI/OC/config.plist', plistlib.dumps(oclp_config())),
+                               ('EFI/BOOT/BOOTx64.efi', b'generic bootstrap')):
+                info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
+        rec = STICK.write(FakeHost(self.mnt), 'disk4', self.bs, generic, self.kit, self.top)
+        self.assertFalse((self.mnt / 'EFI/System').exists())
+        self.assertEqual(rec['bootstrap_sha256'], STICK.sha256(STICK._found(self.mnt / 'EFI/EFI/BOOT', 'BOOTX64.EFI')))
+        bad = self.d / 'no-bootstrap.tar'
+        with tarfile.open(bad, 'w') as t:
+            for name, data in (('EFI/OC/OpenCore.efi', b'MZ'), ('EFI/OC/config.plist', plistlib.dumps(oclp_config()))):
+                info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
+        with self.assertRaisesRegex(STICK.StickError, 'no Bootstrap'):
+            STICK.opencore_files(bad, self.d / 'esp2')
+
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)
         STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)
