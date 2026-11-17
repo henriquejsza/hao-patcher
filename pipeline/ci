@@ -12,11 +12,13 @@ Checks (each prints one line, ok or FAIL, and the run exits 1 if any failed):
   layout      pipeline/patches.py check (recipes, packs, order.txt, profiles, README and tracker rules)
   sets        every pipeline/profiles/NAME.json generates pipeline/sets/NAME.txt line for line
   edit-specs  tools/edit-engine check on every patches/*/edits/*.json, and the signing lint on those recipes
+  matrix      pipeline/patches.py matrix --check (a "release": true profile plans cleanly on its own target
+              and its assemblies' build pairs)
   hygiene     tools/hao-contract check (contract.json: home folders and private names in tracked files) and
               the commit message of COMMIT
   suite:DIR   every unittest suite: pipeline/tests, tools/*/tests, patches/*/tests, patches/*/build/tests,
               cache/*/tests, cache/metallib/lib
-A later check registers itself by adding a function to CHECKS (requires, matrix, boundary, validated gating).
+A later check registers itself by adding a function to CHECKS (requires, boundary, validated gating).
 --log FILE writes the run as JSON (commit, each check's result and output tail): what the push gate records.
 """
 import argparse
@@ -56,6 +58,11 @@ def run(tree, *cmd):
 
 def check_layout(tree, ctx):
     rc, out = run(tree, PY, '-I', 'pipeline/patches.py', 'check')
+    return rc == 0, out
+
+
+def check_matrix(tree, ctx):
+    rc, out = run(tree, PY, '-I', 'pipeline/patches.py', 'matrix', '--check')
     return rc == 0, out
 
 
@@ -123,7 +130,7 @@ def run_suite(tree, d):
 
 
 CHECKS = [('layout', check_layout), ('sets', check_sets), ('edit-specs', check_edit_specs),
-          ('hygiene', check_hygiene)]
+          ('matrix', check_matrix), ('hygiene', check_hygiene)]
 
 
 def export(commit, where):

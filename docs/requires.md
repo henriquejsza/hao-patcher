@@ -47,6 +47,19 @@ not a default.
   build-image` pass both builds. Given only `DONOR`, a recipe whose `os` is not `"any"` stops.
 - `pipeline/patches.py requires` lists every recipe's `requires`, or `PENDING`.
 
+## Matrix
+
+`pipeline/patches.py matrix [--json]` plans, without building, every profile (`pipeline/profiles/*.json`) on every
+target (`pipeline/targets/*.json`) with every (os, donor) pair an assembly names (`golden_build`, `donor_build`). One
+line per cell: the recipes that run, those `requires` refuses (each with its unmet keys, indented below), and the
+running ones without proof there: no `proven_on` entry for the target's model and the os build (and its donor, when the
+entry names one), or only one for an older revision (`stale`). The build host's architecture is its own proof
+column; `proven_on` does not record it yet, so it reads `unrecorded`. `[own]` marks a profile on its own target and
+the pair of an assembly that builds it.
+
+`--check` (run by `pipeline/ci`) exits 1 when a profile marked `"release": true` refuses a recipe in an `[own]` cell,
+or no assembly builds it: a release profile must plan cleanly.
+
 ## Filling it in (patcher and metal, for their own recipes)
 
 1. Write `requires` from what the recipe actually depends on: the builds its rows and edits were made for (`os`,
