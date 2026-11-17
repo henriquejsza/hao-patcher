@@ -748,6 +748,7 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('STOPPED', r.stderr)
         self.assertIn('--model', r.stderr)
 
+    @unittest.skipUnless((TOOL.parents[1] / '.git').exists(), 'uses --unsigned, which only a checkout allows')
     def test_fetch_verify(self):
         with tempfile.TemporaryDirectory() as d:
             data = b'pinned'
@@ -765,6 +766,7 @@ class CommandLineTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn('reused', r.stdout)
 
+    @unittest.skipUnless((TOOL.parents[1] / '.git').exists(), 'uses --unsigned, which only a checkout allows')
     def test_fetch_release_assets_from_a_staged_folder(self):
         with tempfile.TemporaryDirectory() as d:
             stage, cache = Path(d) / 'stage', d + '/cache'
