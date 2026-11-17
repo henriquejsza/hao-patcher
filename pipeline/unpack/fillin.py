@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """fillin.py TSV NOOWNERS_MOUNT : for dirs marked unreadable (xattr ERR) in TSV, walk the same path on a noowners mount and append entries (uid/gid -1)."""
 import os, sys, importlib.util
 spec = importlib.util.spec_from_file_location('walk', os.path.join(os.path.dirname(__file__), 'walk.py')); w = importlib.util.module_from_spec(spec); spec.loader.exec_module(w)

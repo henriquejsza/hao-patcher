@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Build the builder-VM firmlink tool (row fl) from fl.c and ent.plist into a new folder, with its build record.
 
   build-fl OUTPUT

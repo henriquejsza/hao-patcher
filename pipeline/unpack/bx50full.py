@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """bx50full.py PATCH OUT: decode a full-replacement BXDIFF50 patch (0 entries, 0-byte control: the body is one pbzx
 stream that is the whole output). Checks the output size and the SHA-1 stored at header offset 0x28.
 Exit 0 = MATCH, 1 = size or SHA-1 mismatch, 2 = not a full-replacement BXDIFF50. Refuses to overwrite OUT."""

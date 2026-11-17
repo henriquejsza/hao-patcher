@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """materialize: make each declared file once, into pack overlays that hao patch and the installer apply.
 
   materialize.py SET TARGET BUILD --out DIR [--store DIR] [--system ROOT] [--packs auto|A,B] [--only PATH]... [--json]
@@ -18,6 +18,10 @@ tar member (source "ARCHIVE!MEMBER") otherwise keeps the member's mode and numer
 empty ones included, since `tar -x` creates them all (the report entry of the recipe's first file from that tar lists
 them as "dirs", so an install plan knows which recipe creates them); anything else is root:wheel, 0755 for a Mach-O
 and 0644 otherwise, with no flags.
+
+An edit spec with "when_target" (tools/edit-engine) is applied only when the target's "platform_data" (pipeline/targets/
+TARGET.json) has that key; on another target that writer is left out, and a path no writer is left for is "skipped"
+(reported with the reason; the overlay plan then keeps its recipe on the hook, which sees the same target).
 
 A path is "deferred" when it can only be made on the target (kc.link, kc.bind, cryptex.build, hao.embed-stub,
 hao.stamp, files the hook generates) and "unresolved" when its source isn't found; both are reported with the reason, never
@@ -57,6 +61,10 @@ OVERLAYS = 'overlays'      # an "after" entry: every overlay file of the build i
 
 class Unresolved(Exception):
     pass
+
+
+class Skipped(Exception):
+    """Every writer of the path is an edit spec for other targets (when_target)."""
 
 
 class Deferred(Exception):
@@ -231,14 +239,30 @@ def external_after(spec):
     return out
 
 
-def compose(entry, root, sources, store, repo, facts=None):
+def compose(entry, root, sources, store, repo, facts=None, platform_data=None):
     """{path: bytes} for one ledger entry (a tree origin yields many paths). Edited files are signed once, after
     the last edit, as the last signing spec says. FACTS (a dict) gets 'base': {'path', 'sha256'} of the file on the
-    target the first edit starts from (Golden Gate's, a donor's or OCLP's), when the composition read one."""
+    target the first edit starts from (Golden Gate's, a donor's or OCLP's), when the composition read one, and
+    'skipped': the writers left out for this target. PLATFORM_DATA is the target's platform_data (None: unknown,
+    and then a spec with when_target is unresolved)."""
     facts = {} if facts is None else facts
     data, original, signing = None, None, None
-    after = [a for w in entry['writers'] for a in (w.get('after') or [])]
+    specs = {}
     for w in entry['writers']:
+        if w['action'] == 'edits':
+            spec = specs[id(w)] = SPEC.load(Path(root) / w['recipe'] / w['spec'])
+            try:
+                why = SPEC.target_skip(spec, platform_data)
+            except ValueError as x:
+                raise Unresolved(str(x))
+            if why:
+                facts.setdefault('skipped', []).append({'recipe': w['recipe'], 'spec': w['spec'], 'reason': why})
+    left = [w for w in entry['writers']
+            if not any(s['recipe'] == w['recipe'] and s['spec'] == w.get('spec') for s in facts.get('skipped', []))]
+    if not left:
+        raise Skipped('; '.join('%s %s: %s' % (s['recipe'], s['spec'], s['reason']) for s in facts['skipped']))
+    after = [a for w in left for a in (w.get('after') or [])]
+    for w in left:
         if w['action'] == 'origin':
             o = w['origin']
             if not o.get('row'):
@@ -249,7 +273,7 @@ def compose(entry, root, sources, store, repo, facts=None):
             original, signing = None, None     # a whole file replaces what earlier writers made, signature included
             facts.pop('base', None)
             continue
-        spec = SPEC.load(Path(root) / w['recipe'] / w['spec'])
+        spec = specs[id(w)]
         external = [e['op'] for e in spec['edits'] if e['kind'] == 'op' and e['op'] in SPEC.EXTERNAL_OPS]
         if external:
             raise Deferred('%s is made on the target (%s)' % (entry['path'], ', '.join(sorted(set(external)))),
@@ -319,14 +343,17 @@ def deferred_order(deferred):
     return out
 
 
-def materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, *, repo=TOP, on_event=None, only=None):
+def materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, *, repo=TOP, on_event=None, only=None,
+                platform_data=None):
+    """PLATFORM_DATA: the target's platform_data (pipeline/targets/*.json), for edit specs with when_target."""
     try:
-        return _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo, on_event, only)
+        return _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo, on_event, only,
+                            platform_data)
     finally:
         sources.close()
 
 
-def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo, on_event, only):
+def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo, on_event, only, platform_data):
     emit = on_event or (lambda e: None)
     out = Path(out)
     store = STORE.Store(store_dir)
@@ -339,7 +366,11 @@ def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo,
         pack = pack_of(last)
         facts = {}
         try:
-            files = compose(entry, root, sources, store, repo, facts)
+            files = compose(entry, root, sources, store, repo, facts, platform_data)
+        except Skipped as x:
+            report.append({'path': path, 'outcome': 'skipped', 'reason': str(x), 'pack': pack, 'recipe': last})
+            emit({'ev': 'skipped', 'path': path, 'reason': str(x)})
+            continue
         except Deferred as x:
             report.append({'path': path, 'outcome': 'deferred', 'reason': str(x), 'pack': pack, 'recipe': last,
                            'after': x.after})
@@ -380,6 +411,8 @@ def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo,
             r.update(replaces(entry, sources))
         if own:
             r['declared_separately'] = own
+        if facts.get('skipped'):
+            r['skipped_writers'] = facts['skipped']        # edit specs for other targets (when_target)
         if archive and dirs and (last,) + archive not in carried:
             carried.add((last,) + archive)
             r['dirs'] = sorted(dirs)                  # the recipe's `tar -x` creates these, files under them or not
@@ -421,7 +454,8 @@ def run(setfile, target, build, out, store=None, system=None, packs='auto', only
     pack_of = lambda recipe: member.get(recipe) if member.get(recipe) in selected else None
     phase_of = lambda pack: defs[pack]['phase']
     report = materialize(ledger, TOP / 'patches', Sources.from_repo(rows, system), out,
-                         store or str(Path(out) / 'store'), pack_of, phase_of, only=set(only) if only else None)
+                         store or str(Path(out) / 'store'), pack_of, phase_of, only=set(only) if only else None,
+                         platform_data=SPEC.load_platform_data(target=target))
     return report, ledger
 
 

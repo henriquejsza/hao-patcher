@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """Decode one or more pbzx files to stdout (or -o out). Parallel per-file via multiprocessing; output in order."""
 import sys, lzma, struct, os
 from concurrent.futures import ProcessPoolExecutor

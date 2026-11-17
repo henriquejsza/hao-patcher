@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """diskguard: refuse a job that would leave the host disk under its floor, before the job writes anything.
 
   diskguard.py check --need GB [--who NAME] [--what TEXT] [--path P]     exit 0 ok, 3 refused

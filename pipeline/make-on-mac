@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """make-on-mac: make every made-on-Mac input row of a release from its downloads, in order, on this Mac.
 
   make-on-mac RELEASE.json [--only ROW ...] [--work DIR] [--userspace-on DIR] [--keep] [--dry-run]

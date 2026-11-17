@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """bootcost: the first-boot-only work of each boot in a unified log, as times after the boot's mach time zero.
 
     bootcost LOG [--json OUT]

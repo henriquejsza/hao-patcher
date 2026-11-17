@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """rootls: root's LaunchServices store and authd's auth.db from a builder-run first boot of an image, as an artifact.
 
     rootls collect DATA_ROOT --build BUILD --schema N [--source TEXT] [--out DIR]

@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """patches.py: which patches of a set apply to a build, and at which stage.
 
   patches.py plan SET TARGET [OS/]BUILD [--locks DIR:DIR...] [--skip-optional GROUP]... [--record FILE] [--packs auto|A,B]
@@ -15,7 +15,17 @@
   patches.py tracker [OUT]           the patch tracker (patches/TRACKER.md): every patch, revision, sets, validation
 
   patches.py requires                every recipe's "requires" and "proven_on", or that it has none yet
+  patches.py matrix [--json] [--check]
+                                     plan only, every profile x target x (os, donor) pair of the assemblies: per cell
+                                     the recipes that run, those "requires" refuses (and why), the running ones without
+                                     proof there (proven_on), stale proof; --check exits 1 when a "release": true
+                                     profile refuses a recipe on its own target and its assemblies' pairs
   patches.py check                   every patch against the patch format below; one line per problem, exit 1 if any
+  patches.py release-gate [PROFILE ...]
+                                     whether each release profile (default: every one) may ship: release_problems with
+                                     the gate, no recipe "validated": false or status experiment unless
+                                     pipeline/release-waivers.json holds an owner waiver for that profile, recipe and
+                                     revision; exit 1 on any problem (release-cut always applies it)
   patches.py digest NAME             sha256 of everything that decides what NAME installs (for validated_digest)
   patches.py explain [NAME | PATH]   what each declared file comes from and every edit to it, with reasons (one patch,
                                      or every file whose path is or ends with /PATH); no argument: every patch
@@ -285,6 +295,9 @@ def load_packs(packs_dir=PACKS, root=os.path.join(TOP, 'patches')):
 
 ORDER = os.path.join(TOP, 'pipeline', 'order.txt')
 PROFILES = os.path.join(TOP, 'pipeline', 'profiles')
+TARGETS = os.path.join(TOP, 'pipeline', 'targets')
+OCLP_PROFILES = os.path.join(TOP, 'tools', 'oclp-hardware', 'profiles')
+ASSEMBLIES = os.path.join(TOP, 'pipeline', 'assemblies')
 
 
 def set_path(name, top=TOP):
@@ -299,7 +312,7 @@ def order_names(path=ORDER):
     return names(path) if os.path.isfile(path) else []
 
 
-def generate(profile, root=os.path.join(TOP, 'patches'), packs=None, order=ORDER):
+def generate(profile, root=os.path.join(TOP, 'patches'), packs=None, order=ORDER, targets=None):
     """An image's recipe list from a profile (pipeline/profiles/NAME.json): order.txt filtered to the packs the target
     detects (opt-in packs never), the packs and single opt-in recipes the profile names, and the recipes of the
     profile's variants, each replacing the recipe it names ("replaces"). A set is not build-specific: plan() leaves out,
@@ -307,9 +320,9 @@ def generate(profile, root=os.path.join(TOP, 'patches'), packs=None, order=ORDER
     "variants": [...]}"""
     prof = json.load(open(profile)) if isinstance(profile, (str, os.PathLike)) else profile
     packs = load_packs(root=root) if packs is None else packs
-    target = os.path.join(TOP, 'pipeline', 'targets', prof['target'] + '.json')
+    target = os.path.join(targets or TARGETS, prof['target'] + '.json')
     if not os.path.isfile(target):
-        raise ValueError('profile names unknown target %s (no pipeline/targets/%s.json)' % (prof['target'], prof['target']))
+        raise ValueError('profile names unknown target %s (no %s)' % (prof['target'], os.path.relpath(target, TOP)))
     selected = set(detect_packs(target, packs)) | set(prof.get('packs', []))
     unknown = [p for p in prof.get('packs', []) if p not in packs]
     if unknown:
@@ -368,7 +381,7 @@ def detect_packs(target, packs=None):
 
 def oclp_profile(target):
     """tools/oclp-hardware/profiles/NAME.json of TARGET (pipeline/targets/NAME.json)."""
-    return os.path.join(TOP, 'tools', 'oclp-hardware', 'profiles', os.path.splitext(os.path.basename(str(target)))[0] + '.json')
+    return os.path.join(OCLP_PROFILES, os.path.splitext(os.path.basename(str(target)))[0] + '.json')
 
 
 def oclp_patchsets(target):
@@ -459,6 +472,106 @@ def plan(setfile, target, build, root=os.path.join(TOP, 'patches'), locks=None, 
         if g not in {g for g, _ in optional.values()} | {v['group'] for v in record['skipped'].values()}:
             print('patches: no patch of optional group %s in %s' % (g, os.path.basename(str(setfile))), file=sys.stderr)
     return out
+
+
+def read_json(path):
+    with open(path) as f:
+        return json.load(f)
+
+
+def build_pairs(assemblies=ASSEMBLIES):
+    """{(golden_build, donor_build): [the patch_set of each assembly with both keys]}."""
+    pairs = {}
+    for n in sorted(os.listdir(assemblies)) if os.path.isdir(assemblies) else []:
+        if n.endswith('.json'):
+            a = read_json(os.path.join(assemblies, n))
+            if a.get('golden_build') and a.get('donor_build'):
+                pairs.setdefault((a['golden_build'], a['donor_build']), []).append(a.get('patch_set'))
+    return pairs
+
+
+def proof(p, model, os_build, donor):
+    """("proven", N) when a proven_on entry for MODEL and OS_BUILD (and DONOR, when the entry names one) proves this
+    revision; ("stale", N) when the newest such entry proves an older revision N; ("unproven", None) otherwise."""
+    revs = [e.get('revision') for e in p.get('proven_on') or [] if isinstance(e, dict) and e.get('model') == model
+            and e.get('os') == os_build and e.get('donor', donor) == donor and isinstance(e.get('revision'), int)]
+    if not revs:
+        return 'unproven', None
+    return ('proven' if max(revs) >= (p.get('revision') or 0) else 'stale'), max(revs)
+
+
+def matrix(profiles=PROFILES, targets=TARGETS, assemblies=ASSEMBLIES, root=os.path.join(TOP, 'patches'), packs=None,
+           order=ORDER):
+    """Plan-only cells for every profile x target x (os, donor) build pair of the assemblies: which recipes run, which
+    "requires" refuses (with unmet()'s reasons), which running recipes have no proof there (proven_on for the target's
+    model and the os build) or only an older revision's. Nothing stops the table: every recipe is evaluated."""
+    packs = load_packs(root=root) if packs is None else packs
+    pairs = build_pairs(assemblies)
+    tnames = sorted(n[:-5] for n in os.listdir(targets) if n.endswith('.json')) if os.path.isdir(targets) else []
+    cells = []
+    for f in sorted(os.listdir(profiles)) if os.path.isdir(profiles) else []:
+        if not f.endswith('.json'):
+            continue
+        prof, pname = read_json(os.path.join(profiles, f)), f[:-5]
+        for tname in tnames:
+            tpath = os.path.join(targets, tname + '.json')
+            facts = target_facts(tpath)
+            try:
+                recipes, error = generate(dict(prof, target=tname), root, packs, order, targets), None
+            except (ValueError, KeyError, OSError) as e:
+                recipes, error = [], str(e)
+            for (os_build, donor), sets in sorted(pairs.items()):
+                cell = dict(profile=pname, release=prof.get('release') is True, target=tname, model=facts['model'],
+                            os=os_build, donor=donor, own=tname == prof.get('target') and pname in sets, error=error,
+                            run=[], refused={}, skipped={}, unproven=[], stale={}, host='unrecorded')
+                for name in recipes:
+                    try:
+                        p = read_json(os.path.join(directory(name, root), 'patch.json'))
+                        why = unmet(p['requires'], facts, os_build, donor) if 'requires' in p else []
+                        if 'requires' not in p and not applies(p.get('applies'), facts['model'], donor):
+                            cell['skipped'][name] = 'applies excludes %s %s' % (facts['model'], donor)
+                            continue
+                    except (ValueError, KeyError, TypeError, OSError) as e:
+                        why = [str(e)]
+                    if why:
+                        cell['refused'][name] = why
+                        continue
+                    cell['run'].append(name)
+                    state, rev = proof(p, facts['model'], os_build, donor)
+                    if state != 'proven':
+                        cell['unproven'].append(name)
+                    if state == 'stale':
+                        cell['stale'][name] = 'proven r%d, now r%s' % (rev, p.get('revision'))
+                cells.append(cell)
+        if prof.get('release') is True and not any(pname in s for s in pairs.values()):
+            cells.append(dict(profile=pname, release=True, target=prof.get('target'), own=True, os=None, donor=None,
+                              error='no assembly builds this release profile', run=[], refused={}, skipped={},
+                              unproven=[], stale={}, host='unrecorded', model=None))
+    return cells
+
+
+def matrix_problems(cells):
+    """A release profile must plan cleanly on its own target and its assemblies' build pairs."""
+    bad = []
+    for c in cells:
+        if c['release'] and c['own'] and (c['error'] or c['refused']):
+            where = '%s on %s %s/%s' % (c['profile'], c['target'], c['os'], c['donor'])
+            bad += ['release %s: %s' % (where, c['error'])] if c['error'] else []
+            bad += ['release %s: %s refused: %s' % (where, n, '; '.join(w)) for n, w in c['refused'].items()]
+    return bad
+
+
+def matrix_text(cells):
+    out = []
+    for c in cells:
+        out.append('%-28s %-8s %s/%s  %3d run  %3d refused  %3d unproven  host %s%s%s%s' % (
+            c['profile'] + (' (release)' if c['release'] else ''), c['target'], c['os'], c['donor'], len(c['run']),
+            len(c['refused']), len(c['unproven']), c['host'], '  [own]' if c['own'] else '',
+            '  (%d not applicable)' % len(c['skipped']) if c['skipped'] else '',
+            '  ERROR %s' % c['error'] if c['error'] else ''))
+        out += ['    refused %s: %s' % (n, '; '.join(w)) for n, w in c['refused'].items()]
+        out += ['    stale %s: %s' % (n, w) for n, w in c['stale'].items()]
+    return '\n'.join(out)
 
 
 TRACKED_SETS = ('golden-gate-26B131', 'golden-gate', 'recovery', 'stock')
@@ -563,44 +676,134 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
         bad += layout_problems(root)
         bad += requires_tree_problems(root)
         bad += release_profile_problems(root)
+        bad += waiver_problems(root)
     return bad
 
 
 RELEASE_REFUSED_STATUSES = ('dev', 'diagnostic')   # never shipped: bench and logging-only recipes
+RELEASE_GATED_STATUSES = ('experiment',)           # shipped only with an owner waiver, like validated: false
+WAIVERS = os.path.join(TOP, 'pipeline', 'release-waivers.json')
+WAIVER_REASON = re.compile(r'\bowner (\d{4}-\d{2}-\d{2})\b')
 
 
-def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
+def load_waivers(path=WAIVERS):
+    """pipeline/release-waivers.json's waivers (none when the file is not there)."""
+    return json.load(open(path)).get('waivers', []) if os.path.isfile(path) else []
+
+
+def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER,
+                     gate=True, waivers=None):
     """Why the set NAME may not be released (empty: it may): it must be a profile marked "release": true, and none of
-    its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES."""
+    its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES. With gate (release-cut,
+    patches.py release-gate), none may be "validated": false or have a status in RELEASE_GATED_STATUSES either, unless
+    a waiver (pipeline/release-waivers.json) names this profile, that recipe and its current revision."""
     f = os.path.join(profiles, name + '.json')
     if not os.path.isfile(f):
         return ['set %s: not a profile (pipeline/profiles/%s.json); only release profiles are released' % (name, name)]
     if json.load(open(f)).get('release') is not True:
         return ['profile %s: not marked "release": true' % name]
     packs = packs if packs is not None else load_packs(root=root)
+    waivers = load_waivers() if waivers is None else waivers
     layer = {r: pk.get('layer') for pk in packs.values() for r in pk.get('recipes', [])}
     bad = []
     for r in generate(f, root, packs, order):
         pj = os.path.join(directory(r, root), 'patch.json')
-        status = json.load(open(pj)).get('status') if os.path.isfile(pj) else None
+        p = json.load(open(pj)) if os.path.isfile(pj) else {}
+        status = p.get('status')
         if layer.get(r) == 'dev':
             bad.append('profile %s: %s is in a dev-layer pack' % (name, r))
         if status in RELEASE_REFUSED_STATUSES:
             bad.append('profile %s: %s has status %s' % (name, r, status))
+        if not gate:
+            continue
+        why = (['validated false'] if p.get('validated') is not True else []) + \
+              (['status %s' % status] if status in RELEASE_GATED_STATUSES else [])
+        if why and not any(w.get('profile') == name and w.get('recipe') == r and w.get('revision') == p.get('revision')
+                           for w in waivers):
+            bad.append('profile %s: %s r%s is %s (no owner waiver in pipeline/release-waivers.json)'
+                       % (name, r, p.get('revision'), ' and '.join(why)))
     return bad
 
 
-def release_profile_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
-    """release_problems of every profile marked "release": true."""
+def waiver_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER, waivers=None):
+    """pipeline/release-waivers.json: each waiver names a release profile, a recipe of it and that recipe's current
+    revision (a new revision needs a new waiver; a stale one must go), and the owner's decision with its date."""
+    try:
+        waivers = load_waivers() if waivers is None else waivers
+    except ValueError as e:
+        return ['pipeline/release-waivers.json: %s' % e]
+    bad, seen = [], set()
+    for i, w in enumerate(waivers):
+        if not isinstance(w, dict):
+            bad.append('waiver %d: not an object' % i)
+            continue
+        label = 'waiver %d (%s/%s)' % (i, w.get('profile'), w.get('recipe'))
+        missing = [k for k in ('profile', 'recipe', 'revision', 'reason', 'decided') if k not in w]
+        if missing:
+            bad.append('%s: has no %s' % (label, ', '.join(missing)))
+            continue
+        if (w['profile'], w['recipe']) in seen:
+            bad.append('%s: named twice' % label)
+        seen.add((w['profile'], w['recipe']))
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(w['decided'])):
+            bad.append('%s: decided %r is not YYYY-MM-DD' % (label, w['decided']))
+        m = WAIVER_REASON.search(str(w['reason']))
+        if not m or m.group(1) != w['decided']:
+            bad.append('%s: reason must be the owner\'s decision with its date ("owner %s: ...")' % (label, w['decided']))
+        f = os.path.join(profiles, str(w['profile']) + '.json')
+        if not os.path.isfile(f) or json.load(open(f)).get('release') is not True:
+            bad.append('%s: %s is not a release profile' % (label, w['profile']))
+            continue
+        pj = os.path.join(directory(str(w['recipe']), root), 'patch.json')
+        if not os.path.isfile(pj):
+            bad.append('%s: no recipe %s' % (label, w['recipe']))
+            continue
+        if w['recipe'] not in generate(f, root, packs if packs is not None else load_packs(root=root), order):
+            bad.append('%s: %s is not in profile %s' % (label, w['recipe'], w['profile']))
+            continue
+        p = json.load(open(pj))
+        if w['revision'] != p.get('revision'):
+            bad.append('%s: waives r%s but the recipe is r%s (stale: remove it, or the owner waives r%s)'
+                       % (label, w['revision'], p.get('revision'), p.get('revision')))
+        elif p.get('validated') is True and p.get('status') not in RELEASE_GATED_STATUSES:
+            bad.append('%s: r%s is validated and not an experiment; the waiver is not needed' % (label, w['revision']))
+    return bad
+
+
+def release_profile_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER,
+                             gate=False, names=None, waivers=None):
+    """release_problems of every profile marked "release": true (or of NAMES); patches.py check runs it without the
+    validated/experiment gate, patches.py release-gate with it."""
     out = []
-    for f in sorted(glob.glob(os.path.join(profiles, '*.json'))):
-        if json.load(open(f)).get('release') is True:
-            out += release_problems(os.path.basename(f)[:-5], root, packs, profiles, order)
+    if names is None:
+        names = [os.path.basename(f)[:-5] for f in sorted(glob.glob(os.path.join(profiles, '*.json')))
+                 if json.load(open(f)).get('release') is True]
+    for n in names:
+        out += release_problems(n, root, packs, profiles, order, gate=gate, waivers=waivers)
     return out
 
 
 LAYERS = ('os', 'platform', 'dev')
 KINDS = ('model', 'cpu', 'gpu', 'wifi', 'audio', 'input', 'recovery')
+
+
+PLATFORM_DATA_KEY = re.compile(r'[a-z][a-z0-9_]*\Z')   # the keys an edit spec's when_target names (tools/edit-engine)
+
+
+def target_problems(t):
+    """Problems with a target (pipeline/targets/*.json, as a dict): a "model", and "platform_data", when present, an
+    object of KEY: any JSON value (data that is the platform's, not the OS layer's; docs/layout.md), each KEY lower
+    case. Hooks get it as HAO_TARGET_DATA; an edit spec's "when_target" names one of its keys."""
+    bad = []
+    if not (isinstance(t.get('model'), str) and t['model']):
+        bad.append('needs "model"')
+    data = t.get('platform_data', {})
+    if not isinstance(data, dict):
+        bad.append('platform_data must be an object {KEY: VALUE}')
+    else:
+        bad += ['platform_data: key %r must be lower-case letters, digits and _' % k
+                for k in data if not PLATFORM_DATA_KEY.match(k)]
+    return bad
 
 
 def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=ORDER, profiles=PROFILES):
@@ -623,6 +826,7 @@ def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=OR
         if f.endswith('.json'):
             try:
                 oclp_patchsets(os.path.join(TOP, 'pipeline', 'targets', f))
+                bad += ['%s: %s' % (f, p) for p in target_problems(json.load(open(os.path.join(TOP, 'pipeline', 'targets', f))))]
             except (ValueError, OSError) as x:
                 bad.append(str(x))
     ordered = order_names(order)
@@ -940,9 +1144,11 @@ def catalog(root=os.path.join(TOP, 'patches')):
                                                                 attributes(entry, None, S)))
                 continue
             sign = spec.get('sign')
-            md += ['- `%s`: from %s; %d edit%s, applied by the %s%s.%s' % (
+            md += ['- `%s`: from %s; %d edit%s, applied by the %s%s%s.%s' % (
                 path, S['origin_text'](spec['origin']), len(spec['edits']), '' if len(spec['edits']) == 1 else 's',
-                spec.get('applied_by', 'installer'), ', then signed: ' + S['sign_text'](sign) if sign else '',
+                spec.get('applied_by', 'installer'),
+                ' on targets whose platform_data has `%s`' % spec['when_target'] if spec.get('when_target') else '',
+                ', then signed: ' + S['sign_text'](sign) if sign else '',
                 attributes(entry, spec, S))]
             for n, e in enumerate(spec['edits'], 1):
                 line = '  %d. `%s`: %s' % (n, e['id'], S['edit_summary'](e).replace('|', '/'))
@@ -997,6 +1203,17 @@ if __name__ == '__main__':
     if sys.argv[1:2] == ['check']:
         problems = check()
         print('\n'.join(problems) or 'patches: every patch follows the format')
+        sys.exit(1 if problems else 0)
+    if sys.argv[1:2] == ['matrix'] and set(sys.argv[2:]) <= {'--json', '--check'}:
+        cells = matrix()
+        print(json.dumps(cells, indent=1) if '--json' in sys.argv else matrix_text(cells))
+        problems = matrix_problems(cells) if '--check' in sys.argv else []
+        if problems:
+            print('\n'.join(problems), file=sys.stderr)
+        sys.exit(1 if problems else 0)
+    if sys.argv[1:2] == ['release-gate']:
+        problems = release_profile_problems(gate=True, names=sys.argv[2:] or None) + waiver_problems()
+        print('\n'.join(problems) or 'release-gate: every release profile may ship')
         sys.exit(1 if problems else 0)
     if sys.argv[1:2] == ['requires']:
         print(requires_table())

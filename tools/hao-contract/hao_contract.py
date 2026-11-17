@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """hao-contract: the interfaces between the hao repositories, checked. Its home is hao-patcher
 (tools/hao-contract); other repositories vendor a pinned copy.
 

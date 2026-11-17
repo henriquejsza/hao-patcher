@@ -1,10 +1,15 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """lock.py: read inputs locks and target files (plain data) for the pipeline's shell stages.
 
   lock.py path LOCK NAME          the row's path; a row with a sha256 is checked against the file or folder
   lock.py hash PATH               a row's sha256 for PATH: a file's sha256, or a folder's content_sha256
   lock.py seal LOCK NAME          give the '- PATH' row NAME in folder LOCK the sha256 of what PATH holds now
                                   (LOCK may be a target .json: NAME is then a key holding {"path", "sha256"})
+  lock.py verify-store [--state FILE] [--full]
+                                  every pinned row of pipeline/inputs whose path is in the store, rehashed when its
+                                  fingerprint (size, mtime, inode; a folder's newest mtime and entry count) moved since
+                                  the last good check (--full: all of them); names each changed row with its newest
+                                  files' times and exits 1. State: store/.verify-store.json
   lock.py target TARGET KEY       a value from targets/<model>.json (dotted KEY; objects print as JSON)
   lock.py kdk-name DMG            Kernel_Debug_Kit_26.7.2_build_25G330.dmg -> KDK_26.7.2_25G330.kdk
   lock.py psp OCLP_SOURCE         the PatcherSupportPkg version an OCLP source tree expects
@@ -372,7 +377,82 @@ def psp(src):
     return re.search(r'patcher_support_pkg_version:\s*str\s*=\s*"([^"]+)"', text).group(1)
 
 
+def fingerprint(p):
+    """What changes when anything writes P (a file, or every entry under a folder): sizes, mtimes, inodes, count."""
+    st = os.lstat(p)
+    if not os.path.isdir(p):
+        return [st.st_size, st.st_mtime_ns, st.st_ino]
+    n, newest = 0, st.st_mtime_ns
+    for d, dirs, files in os.walk(p):
+        for e in dirs + files:
+            n += 1
+            newest = max(newest, os.lstat(os.path.join(d, e)).st_mtime_ns)
+    return [n, newest]
+
+
+def newest_files(p, k=5):
+    """The K newest entries under P (or P itself): (iso time, relative path), newest first."""
+    import datetime
+    entries = [(os.lstat(p).st_mtime, '.')]
+    if os.path.isdir(p):
+        for d, dirs, files in os.walk(p):
+            entries += [(os.lstat(os.path.join(d, e)).st_mtime, os.path.relpath(os.path.join(d, e), p)) for e in dirs + files]
+    return [(datetime.datetime.fromtimestamp(m).astimezone().isoformat(timespec='seconds'), r)
+            for m, r in sorted(entries, reverse=True)[:k]]
+
+
+def store_locks(inputs=os.path.join(TOP, 'pipeline', 'inputs')):
+    """Every lock folder under INPUTS (BUILD, common, golden/BUILD)."""
+    out = []
+    for d, dirs, files in os.walk(inputs):
+        dirs.sort()
+        if any(not f.startswith('.') for f in files):
+            out.append(d)
+    return out
+
+
+def verify_store(*argv):
+    """Rehash the pinned store rows whose fingerprint moved; report changed ones. Returns the report text, exits 1
+    when a row changed."""
+    argv = list(argv)
+    state_path = argv[argv.index('--state') + 1] if '--state' in argv else os.path.join(TOP, 'store', '.verify-store.json')
+    full = '--full' in argv
+    try:
+        state = json.load(open(state_path))
+    except (OSError, ValueError):
+        state = {}
+    store = os.path.realpath(os.path.join(TOP, 'store'))
+    bad, checked, skipped, seen = [], 0, 0, set()
+    for lock in store_locks():
+        for name, (want, p) in rows(lock).items():
+            rp = os.path.realpath(p)
+            if want == '-' or not rp.startswith(store + os.sep) or not os.path.exists(p) or (rp, want) in seen:
+                continue
+            seen.add((rp, want))
+            key = '%s %s' % (want, os.path.relpath(rp, store))
+            fp = fingerprint(p)
+            if not full and state.get(key) == fp:
+                skipped += 1
+                continue
+            checked += 1
+            got = row_hash(lock, name, p)
+            if got == want:
+                state[key] = fp
+            else:
+                state.pop(key, None)
+                bad.append('%s/%s: %s is not %s; newest: %s' % (os.path.relpath(lock, TOP), name, os.path.relpath(p, TOP),
+                           want, ', '.join('%s %s' % e for e in newest_files(p))))
+    tmp = state_path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(state, f, indent=1, sort_keys=True)
+    os.replace(tmp, state_path)
+    report = 'verify-store: %d rehashed, %d unchanged, %d changed' % (checked, skipped, len(bad))
+    if bad:
+        sys.exit('\n'.join(bad + [report]))
+    return report
+
+
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
     print({'path': path, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
-           'oclp-keys': oclp_keys}[cmd](*args))
+           'oclp-keys': oclp_keys, 'verify-store': verify_store}[cmd](*args))

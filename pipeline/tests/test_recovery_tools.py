@@ -88,13 +88,14 @@ class RecoveryToolsTest(unittest.TestCase):
         helper = subprocess.Popen([sys.executable, '-I', str(TOOL), 'awake', str(sleeper.pid)],
                                   stderr=subprocess.PIPE, text=True)
         try:
-            listed = ''
+            listed, mine = '', []
             for _ in range(150):                    # up to 30 s: the suite may run beside others (pipeline/ci)
                 listed = subprocess.run(['pmset', '-g', 'assertions'], capture_output=True, text=True).stdout
-                if 'hao install: assembling the macOS image' in listed:
+                # this helper's own lines: other runs' helpers (and other programs) may hold assertions too
+                mine = [l for l in listed.splitlines() if 'pid %d(' % helper.pid in l]
+                if any('PreventUserIdleSystemSleep' in l for l in mine):
                     break
                 time.sleep(0.2)
-            mine = [l for l in listed.splitlines() if 'pid %d(' % helper.pid in l]
             self.assertTrue(any('PreventUserIdleSystemSleep' in l for l in mine), listed)
             self.assertIsNone(helper.poll())
         finally:

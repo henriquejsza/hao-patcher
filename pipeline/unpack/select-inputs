@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """select-inputs PKG OUT --recipe RECIPE --ref-map MAP: extract only what the donor pathway reads.
 
 Reads the InstallAssistant.pkg in place (inplace.py) and writes, under the new OUT:

@@ -24,6 +24,7 @@ python3.14 -I tools/edit-engine/edit-engine apply --log json SPEC IN OUT      # 
 python3.14 -I tools/edit-engine/edit-engine apply --sign --record R.json SPEC IN OUT
 python3.14 -I tools/edit-engine/edit-engine apply --sign --entitlements-from FILE SPEC IN OUT   # sign.entitlements_from
 python3.14 -I tools/edit-engine/edit-engine apply --store STORE SPEC IN OUT   # keep, and reuse when hashes match
+python3.14 -I tools/edit-engine/edit-engine apply --target pipeline/targets/T.json SPEC IN OUT   # for when_target
 python3.14 -I tools/edit-engine/edit-engine inspect STORE PATH                # original and patched side by side
 python3.14 -I tools/edit-engine/edit-engine check SPEC ...
 python3.14 -I tools/edit-engine/edit-engine explain SPEC ...
@@ -34,6 +35,20 @@ and the message names the edit. `--sign` re-signs OUT ad hoc as the spec's `sign
 file's entitlements needs that file as `--entitlements-from`.
 `--record` writes the input and output SHA-256, each edit's sites (offset, bytes before and after) and whether the
 output matches the spec's recorded one.
+
+## Targets (when_target)
+
+A spec with `when_target` needs the target to be known; without one it is refused (exit 2), never guessed. Every
+applier gets it:
+
+- `edit-engine apply`: `--target TARGET.json`, or `--target-data FILE` (the `platform_data` alone), by default the
+  file in `HAO_TARGET_DATA`, which every hook gets. On another target OUT is a copy of IN, the output says
+  `skipped`, `--log json` prints one `file.skipped` event and `--record` records the reason; exit 0.
+- `stub-edit`: `--target-data FILE`, by default `HAO_TARGET_DATA`; skipped means nothing is written.
+- `pipeline/materialize.py`: the target it is given (golden-run's assembly target). A skipped spec is left out of its
+  path's writers (`skipped_writers` in the report); a path with no writer left is `skipped`, and the overlay plan
+  keeps its recipe on the hook, which sees the same target.
+- `hao patch` and the installer apply materialised overlays, made for one target, and read no specs.
 
 ## Artifact store
 
@@ -79,6 +94,7 @@ JSON log). A damaged object, or a changed spec, input, matcher or engine version
 | `arch` | `x86_64`: the file is a Mach-O (thin, or universal with one x86_64 slice) and must still parse after the edits |
 | `origin` | who made the bytes this spec edits: `kind` `apple` (Golden Gate), `tahoe`, `oclp` or `hao`, with optional `name`, `row` (input row) and `note` |
 | `applied_by` | `installer` (default), `opencore` or `kext:IntelCommpage` |
+| `when_target` | optional: a key of the target's `platform_data` ([docs/layout.md](../../docs/layout.md#target-platform-data)). The spec applies only on a target that has it and is skipped on any other (reported as skipped, not an error). Without it the spec applies on every target |
 | `edits` | applied in order; each sees the result of the ones before |
 | `sign` | `null`, or `{"mode": "adhoc"}` with `"identifier": NAME` or `"preserve": [identifier, entitlements, requirements, flags, runtime]` (keep those from the input file, as `codesign -i <its identifier> --preserve-metadata=…`), and optionally `"entitlements_from"`: the entitlements of another signed file, `{"kind": apple\|tahoe\|oclp\|ventura, "path": P}` (that layer's file at P) or `{"kind": "hao", "row": ROW, "source": P}`, read with `codesign -d --entitlements - --xml` and signed with `--entitlements`, as a hook that gives a program another program's identity does (not with `preserve` entitlements): signed once, after the last edit |
 | `expect` | input SHA-256 → output SHA-256 recorded for that input. A different output is reported, not refused |
@@ -176,8 +192,8 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-hello/tests   # HEL
 
 The tests build synthetic x86_64 Mach-O files (thin and universal), so they need no Apple binaries. They cover
 symbol, section and offset anchors, masks, counts, already-applied files, overlaps, matchers, dylib insertion and its
-refusals, plist edits, refused external ops, the `expect` note, the result-parses check, and each command-line detail
-level, plus the store: reuse, the side-by-side view, re-applying after damage or any change to the key's parts,
+refusals, plist edits, refused external ops, the `expect` note, the result-parses check, each command-line detail
+level, `when_target` (validated, applied with the key, skipped without it, refused with no target), plus the store: reuse, the side-by-side view, re-applying after damage or any change to the key's parts,
 and `inspect`. `golden-gate-hello`'s test proves its spec writes the same bytes as its `edit-metal.py`.
 
 ## Status

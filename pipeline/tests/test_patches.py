@@ -440,5 +440,32 @@ class Format(unittest.TestCase):
         self.assertEqual(patches.check(), [])
 
 
+class TargetPlatformData(unittest.TestCase):
+    """A target may carry platform_data (docs/layout.md); an edit spec's when_target names one of its keys."""
+
+    def test_target_problems(self):
+        self.assertEqual(patches.target_problems({'model': 'M'}), [])
+        self.assertEqual(patches.target_problems({'model': 'M', 'platform_data': {'model_gates': {'renamed': 'N'},
+                                                                                'other_key': [1, 'x']}}), [])
+        self.assertIn('platform_data must be an object {KEY: VALUE}',
+                      patches.target_problems({'model': 'M', 'platform_data': ['model_gates']}))
+        self.assertTrue(any('Model-Gates' in p for p in
+                            patches.target_problems({'model': 'M', 'platform_data': {'Model-Gates': 1}})))
+        self.assertIn('needs "model"', patches.target_problems({'platform_data': {}}))
+
+    def test_shipped_targets_follow_it(self):
+        for t in (TOP / 'pipeline/targets').glob('*.json'):
+            self.assertEqual(patches.target_problems(json.loads(t.read_text())), [], t.name)
+
+    def test_every_shipped_spec_applies_on_mbp92_as_before(self):
+        # MacBookPro9,2's image must not change: every spec in the repository applies on it, none is skipped
+        S = patches.edit_spec()
+        data = S['load_platform_data'](target=str(TOP / 'pipeline/targets/mbp92.json'))
+        specs = sorted((TOP / 'patches').glob('*/edits/*.json'))
+        self.assertTrue(specs)
+        for f in specs:
+            self.assertIsNone(S['target_skip'](S['load'](str(f)), data), f.relative_to(TOP))
+
+
 if __name__ == '__main__':
     unittest.main()

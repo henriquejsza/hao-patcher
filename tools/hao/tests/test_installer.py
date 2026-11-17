@@ -181,6 +181,55 @@ def writes(host):
                                                            'newfs_apfs', 'dd')) and c[:3] != ['diskutil', 'apfs', 'list']]
 
 
+def passing_doctor(purpose, where, release, cache, offline=False):
+    """hao doctor's survey with every check ok: the tests below do not ask this Mac (Xcode, the network)."""
+    return [dict(name='python', state='ok', detail='Python 3.14', fix=None)]
+
+
+def setUpModule():
+    global REAL_DOCTOR
+    REAL_DOCTOR, INST.DOCTOR_CHECKS = INST.DOCTOR_CHECKS, passing_doctor
+
+
+def tearDownModule():
+    INST.DOCTOR_CHECKS = REAL_DOCTOR
+
+
+class DoctorFirstTest(unittest.TestCase):
+    """create-installer runs hao doctor --for create-installer before any question; a failed check stops it (5)."""
+
+    def test_a_failed_check_stops_before_any_question(self):
+        calls = []
+
+        def failing(purpose, where, release, cache, offline=False):
+            calls.append((purpose, offline))
+            return [dict(name='python', state='ok', detail='Python 3.14', fix=None),
+                    dict(name='xcode', state='fail', detail='no Xcode', fix='install Xcode 27.2')]
+        INST.DOCTOR_CHECKS = failing
+        try:
+            host = FakeMac(uid=0)
+            with Release() as r:
+                c, out, asked = console(['', '1', 'disk4'])
+                with self.assertRaises(CON.Stopped) as x:
+                    INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c, host)
+                self.assertFalse(r.cache.exists())
+        finally:
+            INST.DOCTOR_CHECKS = passing_doctor
+        self.assertEqual(x.exception.code, 5)
+        self.assertEqual(x.exception.what, '1 check failed: xcode')
+        self.assertIn('install Xcode 27.2', x.exception.options)
+        self.assertEqual(asked, [])
+        self.assertEqual(calls, [('create-installer', False)])
+        self.assertEqual([e['name'] for e in c.events if e['ev'] == 'doctor.check'], ['python', 'xcode'])
+        self.assertEqual(writes(host), [])
+
+    def test_passing_checks_go_on_to_the_questions(self):
+        c, out, asked = console(['', '1'])
+        self.assertEqual(INST.create_installer(ns(), c, FakeMac()), 0)
+        self.assertEqual(asked, ['Choice [1]: ', 'Choice: '])
+        self.assertEqual(c.events[0]['ev'], 'doctor.check')
+
+
 class InstallQuestionTest(unittest.TestCase):
     """hao install in the stick's Recovery with no disk named: it asks which internal disk."""
 
@@ -550,13 +599,15 @@ class CommandLineTest(unittest.TestCase):
 
     def test_create_installer_without_a_keyboard_stops_and_keeps_its_log(self):
         with tempfile.TemporaryDirectory() as d:
+            if self.hao('doctor', '--offline', env={'HAO_LOGS': d}).returncode:
+                self.skipTest('this Mac fails hao doctor, so create-installer stops first (DoctorFirstTest)')
             r = self.hao('create-installer', '--dry-run', env={'HAO_LOGS': d})
             self.assertEqual(r.returncode, 1, r.stderr)
             self.assertIn('Which Mac is the installer for?', r.stdout)
             self.assertIn('STOPPED', r.stderr)
             self.assertIn('./hao report', r.stderr)
             (log,) = Path(d).glob('create-installer-*.json')
-            evs = json.loads(log.read_text())['events']
+            evs = [e for e in json.loads(log.read_text())['events'] if e['ev'] != 'doctor.check']
             self.assertEqual(evs[0]['ev'], 'question')
             self.assertEqual(evs[-1]['ev'], 'run.end')
 

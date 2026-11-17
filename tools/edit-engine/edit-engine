@@ -8,12 +8,15 @@
         --entitlements-from FILE, the signed file it names. --record writes the full record as JSON.
         --store DIR keeps the original, the result and the record in an artifact store and reuses a stored
         result when the spec, the input and the engine are unchanged and the stored output still hashes right.
+        A spec with when_target applies only to a target whose platform_data has that key: give the target with
+        --target TARGET.json (pipeline/targets) or --target-data FILE (its platform_data, as hooks get it in
+        HAO_TARGET_DATA, which is the default). On another target OUT is a copy of IN and the spec is reported skipped.
   edit-engine inspect STORE PATH    the original and patched files side by side: where they are, their sha256,
                                     the changed byte ranges and the explanation
   edit-engine check SPEC ...        validate specs; one line per problem, exit 1 if any
   edit-engine explain SPEC ...      what each spec changes and why
 
-Exit status: 0 applied, 1 refused (the message names the edit), 2 usage.
+Exit status: 0 applied (or skipped for this target), 1 refused (the message names the edit), 2 usage.
 """
 import argparse
 import json
@@ -71,10 +74,43 @@ def printer(level):
     return emit
 
 
+def platform_data(a):
+    """The target's platform_data from --target or --target-data (default: HAO_TARGET_DATA), or None."""
+    if a.target and a.target_data:
+        raise ValueError('give --target or --target-data, not both')
+    data = a.target_data or (None if a.target else os.environ.get('HAO_TARGET_DATA'))
+    return S.load_platform_data(data, a.target)
+
+
+def write_out(a, out):
+    tmp = a.output + '.edit-engine'
+    with open(tmp, 'wb') as f:
+        f.write(out)
+    os.chmod(tmp, os.stat(a.input).st_mode & 0o7777)
+    os.replace(tmp, a.output)
+
+
 def cmd_apply(a):
     spec = S.load(a.spec)
     level = 'json' if a.log == 'json' else 'quiet' if a.quiet else 'edits' if a.show_edits else 'steps'
     data = Path(a.input).read_bytes()
+    try:
+        skip = S.target_skip(spec, platform_data(a)) if 'when_target' in spec else None
+    except (OSError, ValueError) as x:
+        print('edit-engine: %s' % x, file=sys.stderr)
+        return 2
+    if skip:
+        if level == 'json':
+            print(json.dumps({'ev': 'file.skipped', 'path': spec['path'], 'when_target': spec['when_target'],
+                              'reason': skip}), flush=True)
+        elif level != 'quiet':
+            print('%s\n  skipped  %s (when_target %s)' % (spec['path'], skip, spec['when_target']))
+        write_out(a, data)
+        if a.record:
+            Path(a.record).write_text(json.dumps({'path': spec['path'], 'skipped': skip,
+                                                  'when_target': spec['when_target'],
+                                                  'input_sha256': engine.sha256(data)}, indent=1) + '\n')
+        return 0
     try:
         if a.store:
             out, record = engine.apply_stored(spec, data, ST.Store(a.store), repo=str(REPO), on_event=printer(level))
@@ -102,11 +138,7 @@ def cmd_apply(a):
         record['signed_sha256'] = engine.sha256(out)
         if level in ('steps', 'edits'):
             print('  sign     %s  ok' % ' '.join(args[4:]) if len(args) > 4 else '  sign     ad hoc  ok')
-    tmp = a.output + '.edit-engine'
-    with open(tmp, 'wb') as f:
-        f.write(out)
-    os.chmod(tmp, os.stat(a.input).st_mode & 0o7777)
-    os.replace(tmp, a.output)
+    write_out(a, out)
     if a.record:
         Path(a.record).write_text(json.dumps(record, indent=1) + '\n')
     return 0
@@ -169,6 +201,8 @@ def main():
     q.add_argument('spec'); q.add_argument('input'); q.add_argument('output')
     q.add_argument('--record'); q.add_argument('--sign', action='store_true'); q.add_argument('--store')
     q.add_argument('--entitlements-from', metavar='FILE')
+    q.add_argument('--target', metavar='TARGET.json', help='the target (pipeline/targets/*.json) for when_target')
+    q.add_argument('--target-data', metavar='FILE', help='the target\'s platform_data (default $HAO_TARGET_DATA)')
     g = q.add_mutually_exclusive_group()
     g.add_argument('--quiet', action='store_true'); g.add_argument('--show-edits', action='store_true')
     g.add_argument('--log', choices=['json'])

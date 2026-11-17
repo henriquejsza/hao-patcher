@@ -22,6 +22,21 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
   replaces `hao-runtime` in variant `cache-fold`).
 - `patches/` stays flat: the layer is declared, not encoded in the path.
 
+## Target platform data
+
+Data that belongs to one machine, not to the OS layer (a model name to rename in a list, a board-specific value),
+goes in the target, `pipeline/targets/NAME.json`, as `"platform_data": {KEY: VALUE, ...}`: each KEY lower-case
+letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neutral and reads it:
+
+- Every hook and post (`src/hook.sh`, `src/kc-hook.sh`, `apply.sh`; in the builder VM and wherever a kit is assembled,
+  `hao build-disk` and `hao install`) gets `HAO_TARGET_MODEL` (the target's `model`) and `HAO_TARGET_DATA` (a JSON
+  file holding its `platform_data`, `{}` when it has none). golden-run writes the file into the kit
+  (`target-data.json`).
+- An edit spec with `"when_target": KEY` applies only on a target whose `platform_data` has KEY and is skipped
+  elsewhere ([tools/edit-engine](../tools/edit-engine/README.md)).
+
+`patches.py check` refuses a `platform_data` that is not an object or has a key of another form.
+
 ## Sets are generated
 
 - `pipeline/order.txt` lists every image recipe once, in build order, each with the reason for its position.
@@ -29,7 +44,12 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
   single opt-in `recipes` by name, and `variants`.
 - A profile marked `"release": true` is one that ships to people. `release-cut` cuts only those, and `patches.py
   check` (so `pipeline/ci`) refuses one that holds a dev-layer pack's recipe or a recipe with status `dev` or
-  `diagnostic` (`release_problems`).
+  `diagnostic` (`release_problems`). `release-cut` and `patches.py release-gate [PROFILE...]` also refuse a recipe
+  that is `"validated": false` or has status `experiment`, unless the owner waived it: `pipeline/release-waivers.json`
+  = `{"waivers": [{"profile", "recipe", "revision", "reason", "decided"}]}`, the reason saying `owner DATE: ...`
+  with `decided` that date. A waiver covers only that recipe at that revision in that profile; a new revision needs a
+  new waiver, and `check` refuses one that names an unknown or non-release profile, a recipe not in it, a revision
+  other than the current one, or a recipe that no longer needs it.
 - The set = `order.txt` filtered to the packs the target detects, the profile's named packs and recipes, and its
   variants (each replacing the recipe it names). `pipeline/patches.py set PROFILE` prints it. golden-run,
   `hao build-image`, release-cut and `patches.py plan` take a set name and read its profile when there is one; the
@@ -40,14 +60,15 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
 
 `pipeline/patches.py check` refuses a recipe without a pack, a pack without a layer (a platform pack without its kind
 and platform), a pack that lists recipes, an image recipe missing from `order.txt` or listed twice, a variant that
-replaces a recipe of another pack, and a profile that does not generate. `patches/TRACKER.md` and `docs/PATCHES.md`
+replaces a recipe of another pack, a profile that does not generate, and a target whose `platform_data` is malformed. `patches/TRACKER.md` and `docs/PATCHES.md`
 are regenerated from the declarations.
 
 ## What a new Mac or GPU adds
 
 - **Another Intel Mac with a supported GPU**: `pipeline/targets/NAME.json`, its OCLP hardware profile
   (`tools/oclp-hardware/profiles/NAME.json`) and a model pack (`packs/NAME.json`, kind `model`: board id, its OpenCore
-  config recipe, early kexts). The OS layer comes unchanged; GPU, Wi-Fi and audio packs come from detection.
+  config recipe, early kexts). The OS layer comes unchanged; GPU, Wi-Fi and audio packs come from detection. What
+  an OS recipe needs to know about the model goes in the target's `platform_data`.
 - **Another GPU**: a platform pack of kind `gpu` with its `detect` and its recipes, each with `"pack"` and a line in
   `order.txt`.
 - **Another macOS build**: rows under `pipeline/inputs/golden/BUILD`, `applies.builds` widened on the recipes that

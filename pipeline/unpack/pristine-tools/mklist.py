@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """mklist.py UNPACK_OUT OUTDIR : build the hybrid metadata lists for hmeta from Apple's own archives.
   sys.tsv  = every fixup.manifest entry (Apple's final System manifest: UID/GID/MOD/FLG/XAT), mtime (exact s+ns)
              from payload.yaa or firmlinks_payload (the 17 firmlink dirs); hard-link entries (HLC/HLO, no

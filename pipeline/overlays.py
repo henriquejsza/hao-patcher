@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """overlays: an image build that installs the materialised pack overlays in place of the recipes' hooks (opt-in).
 
   overlays.py plan SET TARGET BUILD --overlays DIR [--patches PATCHES.txt] [--system ROOT] [--hook NAME]... [--json]

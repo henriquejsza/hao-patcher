@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """walk.py ROOT OUT.tsv : one line per entry:
 path type mode uid gid flags(hex) size nlink sha256|linktarget xattrnames(;)  (path relative to ROOT, '' for root -> '.')"""
 import os, sys, stat, hashlib, ctypes

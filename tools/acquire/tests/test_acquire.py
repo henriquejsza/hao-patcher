@@ -112,6 +112,70 @@ class Acquire(unittest.TestCase):
         with self.assertRaisesRegex(A['AcquireError'], 'listed twice'):
             A['load'](m)
 
+    def test_a_digest_that_is_not_hex_is_refused_before_anything_is_written(self):
+        target = Path(tempfile.mkdtemp()) / 'x'
+        path = str(target).ljust(64, 'x')[:64]
+        cache = self.cache / 'c'
+        m = self.cache / 'm.json'
+        for bad in (dict(sha256='/' + path[1:]), dict(sha256='../' + 'a' * 61), dict(sha256='A' * 64),
+                    dict(sha256='a' * 63 + '\n'), dict(name='../x'), dict(url='ftp://127.0.0.1/x'),
+                    dict(mirrors=['data:,x'])):
+            m.write_text(json.dumps({'downloads': [self.row(**bad)]}))
+            with self.assertRaises(A['AcquireError']):
+                A['load'](m)
+            with self.assertRaises(A['AcquireError']):
+                A['fetch']([self.row(**bad)], cache)
+            self.assertFalse(cache.exists(), bad)
+        self.assertEqual(list(target.parent.iterdir()), [])
+        self.assertEqual(Handler.hits, [])
+
+    def test_a_partial_that_is_a_link_is_refused_and_its_target_untouched(self):
+        victim = Path(tempfile.mkdtemp()) / 'victim'
+        victim.write_bytes(b'victim')
+        partial = self.cache / 'partial' / self.row()['sha256']
+        partial.parent.mkdir()
+        partial.symlink_to(victim)
+        with self.assertRaisesRegex(A['AcquireError'], 'no source gave the pinned file'):
+            A['fetch']([self.row()], self.cache)
+        self.assertEqual(victim.read_bytes(), b'victim')
+        self.assertTrue(partial.is_symlink())
+        partial.unlink()
+        partial.hardlink_to(victim)                     # a second name for another file: refused too
+        with self.assertRaisesRegex(A['AcquireError'], 'not a regular file owned'):
+            A['fetch']([self.row()], self.cache)
+        self.assertEqual(victim.read_bytes(), b'victim')
+        self.assertEqual(Handler.hits, [])
+
+    def test_a_cached_file_that_is_a_link_is_not_reused(self):
+        elsewhere = Path(tempfile.mkdtemp()) / 'f'
+        elsewhere.write_bytes(self.data)
+        final = A['final_path'](self.cache, self.row())
+        final.parent.mkdir()
+        final.symlink_to(elsewhere)
+        self.assertFalse(A['intact'](self.cache, self.row()))
+        with self.assertRaisesRegex(A['AcquireError'], 'a link or not a file'):
+            A['fetch']([self.row()], self.cache)
+
+    def test_a_cache_writable_by_others_is_refused(self):
+        for where in ('', 'partial', 'sha256'):
+            cache = Path(tempfile.mkdtemp())
+            (cache / where).mkdir(exist_ok=True)
+            (cache / where).chmod(0o775)
+            with self.assertRaisesRegex(A['AcquireError'], 'not writable by group or others'):
+                A['fetch']([self.row()], cache)
+        link = Path(tempfile.mkdtemp())
+        (link / 'partial').symlink_to(tempfile.mkdtemp())
+        with self.assertRaisesRegex(A['AcquireError'], 'not a link'):
+            A['fetch']([self.row()], link)
+        self.assertEqual(Handler.hits, [])
+
+    def test_wrong_bytes_leave_no_partial(self):
+        for row in (self.row(size=1000), self.row(url=self.base + '/wrong.bin'), self.row(url=self.base + '/no.bin')):
+            with self.assertRaises(A['AcquireError']):
+                A['fetch']([row], self.cache)
+            self.assertEqual(list((self.cache / 'partial').iterdir()), [])
+            self.assertEqual(list((self.cache / 'sha256').iterdir()), [])
+
     def release(self, folder, **asset_over):
         """A release.json in FOLDER: one download from the server, one asset (an archive staged in FOLDER)."""
         tar = b'ours' * 1000

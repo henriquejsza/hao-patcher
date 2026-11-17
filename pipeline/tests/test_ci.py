@@ -1,4 +1,6 @@
 """pipeline/ci: the checks pass on the committed tree and fail on a planted bad recipe, set or edit spec."""
+import contextlib
+import io
 import json
 from pathlib import Path
 import runpy
@@ -77,6 +79,39 @@ class Planted(unittest.TestCase):
         e = CI['env']()
         self.assertEqual(e['https_proxy'], CI['CLOSED'])
         self.assertIn('127.0.0.1', e['no_proxy'])
+
+    def failing_doctor(self):
+        """tools/hao/hao replaced by one whose doctor reports a failed check and exits 5, as on an unready Mac."""
+        event = json.dumps(dict(ev='doctor.check', name='python', state='fail', detail='hao runs on Python 3.9',
+                                fix='run it with python3.14'))
+        self.planted('tools/hao/hao', lambda t: 'import sys\nprint(%r)\nsys.exit(5)\n' % event)
+
+    def test_doctor_runs_in_the_tree(self):
+        ok, out = CI['check_doctor'](self.tree)
+        self.assertTrue(ok, out)
+        self.assertIn('python', out)
+        self.failing_doctor()
+        ok, out = CI['check_doctor'](self.tree)
+        self.assertFalse(ok)
+        self.assertIn('exit 5', out)
+        self.assertIn('FAIL python    hao runs on Python 3.9  (run it with python3.14)', out)
+
+    def test_a_failing_doctor_stops_the_run(self):
+        self.failing_doctor()
+        g = CI['main'].__globals__
+        saved = g['export'], g['unexport']
+        g['export'], g['unexport'] = (lambda sha, where: self.tree), (lambda where: None)
+        self.addCleanup(g.update, export=saved[0], unexport=saved[1])
+        with tempfile.TemporaryDirectory() as d:
+            log = Path(d) / 'ci.json'
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(CI['main'](['HEAD', '--log', str(log)]), 1)
+            self.assertIn('no other check ran', out.getvalue())
+            j = json.loads(log.read_text())
+        self.assertFalse(j['passed'])
+        self.assertEqual(j['failed'], ['doctor'])
+        self.assertEqual(list(j['checks']), ['doctor'])          # nothing else ran
+        self.assertIn('hao runs on Python 3.9', j['checks']['doctor']['tail'])
 
 
 if __name__ == '__main__':

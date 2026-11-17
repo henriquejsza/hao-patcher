@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """inplace.py: read a macOS InstallAssistant.pkg in place, from disk or by URL, and extract only selected items.
 
 The flat package stores SharedSupport.dmg uncompressed, and that image's volume uses raw

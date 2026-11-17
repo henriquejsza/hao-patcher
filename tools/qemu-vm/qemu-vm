@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Disposable QEMU boot of a built image on the tested Ivy Bridge topology (Darwin 27 bring-up).
 
 usage: qemu-vm start --image TARGET_IMG --esp ESP_DISK|ESP_DIR [--boot-arg ARG ...] [--csr HEX] [--name NAME] [--ssh-port PORT]

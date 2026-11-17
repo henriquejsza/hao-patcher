@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """Minimal Apple Archive (YAA1) reader: yields (fields, blobs). Used to dump XAT blobs aa list doesn't show.
 usage: yaa.py ARCHIVE [xat]  -> prints PAT and decoded xattrs for entries that carry XAT"""
 import struct, sys

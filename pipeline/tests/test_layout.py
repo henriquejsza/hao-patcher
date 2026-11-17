@@ -42,7 +42,8 @@ class Fixture(unittest.TestCase):
                                   ('gpu-a', 'gpu', {}), ('dev-a', 'dev', {})):
             d = self.root / 'patches' / name
             d.mkdir()
-            (d / 'patch.json').write_text(json.dumps(dict({'revision': 1, 'pack': pack, 'stage': 'oclp-hook'}, **extra)))
+            (d / 'patch.json').write_text(json.dumps(dict({'revision': 1, 'pack': pack, 'stage': 'oclp-hook',
+                                                          'status': 'product', 'validated': True}, **extra)))
         for name, d in (('base', {'layer': 'os', 'detect': {'any_intel': True}}),
                         ('gpu', {'layer': 'platform', 'kind': 'gpu', 'platform': 'p', 'detect': {'board_ids': ['X']}}),
                         ('dev', {'layer': 'dev', 'detect': {'any_intel': True}, 'opt_in': True})):
@@ -87,7 +88,7 @@ class Fixture(unittest.TestCase):
         profiles = self.root / 'profiles'
         profiles.mkdir()
         rel = lambda name: P['release_problems'](name, str(self.root / 'patches'), self.packs, str(profiles),
-                                                   str(self.root / 'order.txt'))
+                                                   str(self.root / 'order.txt'), waivers=[])
         (profiles / 'plain.json').write_text(json.dumps({'target': 'mbp92', 'release': True}))
         self.assertEqual(rel('plain'), [])
         (profiles / 'unmarked.json').write_text(json.dumps({'target': 'mbp92'}))
@@ -99,11 +100,71 @@ class Fixture(unittest.TestCase):
         f.write_text(json.dumps(dict(json.loads(f.read_text()), status='diagnostic')))
         self.assertEqual(rel('plain'), ['profile plain: os-a has status diagnostic'])
 
+    def gate_fixture(self):
+        profiles = self.root / 'profiles'
+        profiles.mkdir()
+        (profiles / 'plain.json').write_text(json.dumps({'target': 'mbp92', 'release': True}))
+        (profiles / 'devonly.json').write_text(json.dumps({'target': 'mbp92'}))
+        kw = dict(root=str(self.root / 'patches'), packs=self.packs, profiles=str(profiles),
+                  order=str(self.root / 'order.txt'))
+        rel = lambda waivers=(), gate=True: P['release_problems']('plain', gate=gate, waivers=list(waivers), **kw)
+        wp = lambda waivers: P['waiver_problems'](waivers=waivers, **kw)
+        return rel, wp
+
+    def set_recipe(self, name, **fields):
+        f = self.root / 'patches' / name / 'patch.json'
+        f.write_text(json.dumps(dict(json.loads(f.read_text()), **fields)))
+
+    WAIVER = {'profile': 'plain', 'recipe': 'os-a', 'revision': 1, 'decided': '2026-11-17',
+              'reason': 'owner 2026-11-17: ships in the alpha unproven'}
+
+    def test_release_gate_refuses_unvalidated_recipes(self):
+        rel, _ = self.gate_fixture()
+        self.assertEqual(rel(), [])
+        self.set_recipe('os-a', validated=False)
+        self.assertEqual(rel(), ['profile plain: os-a r1 is validated false (no owner waiver in '
+                                 'pipeline/release-waivers.json)'])
+        self.assertEqual(rel(gate=False), [])         # patches.py check leaves this to release-gate
+
+    def test_release_gate_refuses_experiment_recipes(self):
+        rel, _ = self.gate_fixture()
+        self.set_recipe('os-b', status='experiment')
+        self.assertEqual(rel(), ['profile plain: os-b r1 is status experiment (no owner waiver in '
+                                 'pipeline/release-waivers.json)'])
+
+    def test_a_matching_waiver_lets_the_recipe_ship(self):
+        rel, wp = self.gate_fixture()
+        self.set_recipe('os-a', validated=False, status='experiment')
+        self.assertEqual(rel([self.WAIVER]), [])
+        self.assertEqual(wp([self.WAIVER]), [])
+        self.assertTrue(rel([dict(self.WAIVER, profile='other')]))      # a waiver covers only its profile
+
+    def test_a_waiver_for_an_older_revision_is_stale(self):
+        rel, wp = self.gate_fixture()
+        self.set_recipe('os-a', validated=False, revision=2)
+        self.assertTrue(rel([self.WAIVER]))                              # r1's waiver does not cover r2
+        self.assertEqual(wp([self.WAIVER]), ['waiver 0 (plain/os-a): waives r1 but the recipe is r2 (stale: '
+                                             'remove it, or the owner waives r2)'])
+
+    def test_waivers_must_name_real_things_and_the_owner(self):
+        _, wp = self.gate_fixture()
+        self.set_recipe('os-a', validated=False)
+        self.assertIn('is not a release profile', wp([dict(self.WAIVER, profile='devonly')])[0])
+        self.assertIn('is not a release profile', wp([dict(self.WAIVER, profile='nope')])[0])
+        self.assertIn('no recipe nope', wp([dict(self.WAIVER, recipe='nope')])[0])
+        self.assertIn('is not in profile plain', wp([dict(self.WAIVER, recipe='gpu-a')])[0])
+        self.assertIn("owner's decision", wp([dict(self.WAIVER, reason='it is fine')])[0])
+        self.assertIn('has no reason', wp([{k: v for k, v in self.WAIVER.items() if k != 'reason'}])[0])
+        self.assertIn('not needed', wp([dict(self.WAIVER, recipe='os-b')])[0])
+
     def test_real_release_profiles_are_clean_and_marked(self):
         self.assertEqual(P['release_profile_problems'](), [])
         for name in ('alpha-v0.1.0', 'alpha-v0.1.0-fold', 'golden-gate-26B131'):
-            self.assertEqual(P['release_problems'](name), [], name)
+            self.assertEqual(P['release_problems'](name, gate=False), [], name)
         self.assertTrue(P['release_problems']('dev-bs-test'))
+
+    def test_real_waivers_are_well_formed(self):
+        self.assertEqual(P['waiver_problems'](), [])
 
 
 if __name__ == '__main__':

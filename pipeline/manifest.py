@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """manifest: what is installable, what each built image has, and what is on the test laptops (docs/MANIFEST.md).
 
   patches.py manifest [OUT]                    write docs/MANIFEST.md (default) from the tracked records below

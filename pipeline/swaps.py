@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """swaps: no fix proven by a live swap on the laptop may be lost at the next image push.
 
   swaps.py status [--ledger FILE]      every swapped laptop path, newest swap first, with its resolution

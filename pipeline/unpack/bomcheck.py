@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """bomcheck.py: assembled System tree (payload archive + links.txt + firmlinks) vs Apple's post.bom (the final System
 volume of the same build). Checks the path set, type, mode, uid/gid (from the archive metadata), and for files size
 and POSIX cksum CRC (from the extracted tree).
