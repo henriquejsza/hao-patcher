@@ -36,7 +36,8 @@ takes the first source root that has, at the same path, the program's original:
   - the original's cdhash;
   - the edited program's content digest (its x86_64 bytes up to the code signature, so independent of who signs);
   - its entitlements (XML and DER must agree);
-  - its signing policy (every CodeDirectory field but the hashes, the requirements and the unused signature space).
+  - its signing policy (every CodeDirectory field and special-slot hash, the requirements and the unused signature
+    space); slots -2, -5 and -7 must hash the requirements and entitlements, the others but -1 must be empty.
 
   A re-signed program that matches an original but is not listed stops `install`, so the build fails. So does a
   listed program that differs in any of these, or that its recipe re-signed but that does not get its row. `tests/test_programs.py` checks the list against the edit specs'

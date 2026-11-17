@@ -133,7 +133,9 @@ def slice_signature(piece):
         command, length = struct.unpack_from('<II', piece.get(at, at + 8))
         if length < 8 or at + length > 32 + commands:
             return None
-        if command == 0x1d:                             # LC_CODE_SIGNATURE
+        if command == 0x1d:                             # LC_CODE_SIGNATURE (one: a second makes it unreadable)
+            if blob is not None:
+                return None
             dataoff, datasize = struct.unpack_from('<II', piece.get(at + 8, at + 16))
             if datasize > MAX_SIGNATURE or dataoff + datasize > piece.size:
                 return None
@@ -362,7 +364,8 @@ def signature_profile(data):
     other: one SHA-256 CodeDirectory (so nothing chooses between directories), requirements, empty CMS, XML and
     DER entitlements that agree by type. Returns dict(cdhash, policy, entitlements): policy is a sha256 of the
     CodeDirectory's every field but its hashes (version, flags, slot counts, code limit, hash and page size,
-    platform, execution segment, runtime, identifier), of the requirements blob and of the bytes between the SuperBlob and the end of the
+    platform, execution segment, runtime, identifier, every special-slot hash: -2, -5 and -7 must hash the
+    requirements and entitlements blobs, the others but -1 must be empty), of the requirements blob and of the bytes between the SuperBlob and the end of the
     signature space (zeros, or what codesign left there from the input's signature: pinned, never free);
     entitlements a sha256 of the typed entitlements."""
     cmds = _commands(data)
@@ -403,7 +406,14 @@ def signature_profile(data):
             or hash_offset != len(cd) - 32 * n_code or hash_offset < 32 * n_special or not 88 <= ident_offset < hash_offset:
         raise ValueError('CodeDirectory is not a plain SHA-256 ad hoc one covering the whole slice')
     ident = cd[ident_offset:cd.index(b'\0', ident_offset, hash_offset)]
-    fixed = cd[8:hash_offset - 32 * n_special]                  # every field and the identifier, no hashes
+    special = {i: cd[hash_offset - 32 * i:hash_offset - 32 * (i - 1)] for i in range(1, n_special + 1)}
+    for slot, kind in ((2, 2), (5, 5), (7, 7)):                 # requirements, XML and DER entitlements: bound here
+        if special[slot] != hashlib.sha256(blobs[kind]).digest():
+            raise ValueError(f'special slot -{slot} does not hash its blob')
+    for slot in range(3, n_special + 1):                        # resources, app-specific, DMG and beyond: absent
+        if slot not in (5, 7) and special[slot] != bytes(32):
+            raise ValueError(f'special slot -{slot} is not empty')
+    fixed = cd[8:hash_offset]                    # every field, the identifier and every special slot (-1 Info.plist)
     xml, der = blobs[5], blobs[7]
     if xml[:4] != b'\xfa\xde\x71\x71' or der[:4] != b'\xfa\xde\x71\x72':
         raise ValueError('bad entitlements blobs')
@@ -572,6 +582,39 @@ def verify(path):
     return result.returncode == 0, result.stderr.strip()
 
 
+def _real_folders(system, folder, owner):
+    """Make FOLDER under SYSTEM (0755, OWNER) where missing; every existing part below SYSTEM must be a directory,
+    never a link, so nothing written below it lands elsewhere."""
+    system, part = Path(system), Path(system)
+    for name in Path(folder).relative_to(system).parts:
+        part = part/name
+        try:
+            info = part.lstat()
+        except FileNotFoundError:
+            part.mkdir(mode=0o755)
+            os.chown(part, *owner, follow_symlinks=False)
+            continue
+        if not stat.S_ISDIR(info.st_mode):
+            raise SystemExit(f'native-identities: {part} is not a directory (a link or a file); nothing written')
+
+
+def _write_new(path, data, owner):
+    """Write DATA as PATH (0644, OWNER), never through a link or into a file with other names."""
+    if path.is_symlink():
+        raise SystemExit(f'native-identities: {path} is a link; nothing written')
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode) or os.fstat(fd).st_nlink != 1:
+            raise SystemExit(f'native-identities: {path} is not a plain file of its own; nothing written')
+        view = memoryview(data)
+        while view:
+            view = view[os.write(fd, view):]
+        os.fchown(fd, *owner)
+        os.fchmod(fd, 0o644)
+    finally:
+        os.close(fd)
+
+
 def install(system, sources, owner=(0, 0), programs=None):
     """Copy each row's original under usr/lib/hao/originals, check it, write the list and a record."""
     system = Path(system)
@@ -579,24 +622,12 @@ def install(system, sources, owner=(0, 0), programs=None):
     if refused:
         raise SystemExit('native-identities: refused (no Apple identity without a programs.txt line):\n' +
                          '\n'.join(f'  {p}: {why}' for p, why in sorted(refused.items())))
-    hao = system/'usr/lib/hao'
-    if not hao.is_dir():
-        hao.mkdir(mode=0o755, parents=True)
-        os.chown(hao, *owner)
+    _real_folders(system, system/'usr/lib/hao', owner)
     kept = []
     for row in rows:
         copy = system/ORIGINALS/row['path']
-        made = []
-        folder = copy.parent
-        while not folder.exists():
-            made.append(folder)
-            folder = folder.parent
-        for folder in reversed(made):
-            folder.mkdir(mode=0o755)
-            os.chown(folder, *owner)
-        shutil.copyfile(row['source'], copy)
-        os.chown(copy, *owner)
-        os.chmod(copy, 0o644)
+        _real_folders(system, copy.parent, owner)
+        _write_new(copy, Path(row['source']).read_bytes(), owner)
         ok, why = verify(copy)
         if not ok:
             copy.unlink()
@@ -606,9 +637,7 @@ def install(system, sources, owner=(0, 0), programs=None):
             '# (golden-gate-native-identities; hao-runtime include/hao/idlist.h). Generated; do not edit.']
     text += [f'{r["observed"]}  {r["reference"]}  x86_64  {ORIGINALS}/{r["path"]}' for r in kept]
     target = system/LIST
-    target.write_text('\n'.join(text) + '\n')
-    os.chown(target, *owner)
-    os.chmod(target, 0o644)
+    _write_new(target, ('\n'.join(text) + '\n').encode(), owner)
     record = dict(list=LIST, rows=kept, skipped=skipped, sources=[str(s) for s in sources],
                   list_sha256=hashlib.sha256(target.read_bytes()).hexdigest())
     return record

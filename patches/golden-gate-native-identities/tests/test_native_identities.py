@@ -135,6 +135,20 @@ class NativeIdentitiesTests(unittest.TestCase):
         ni.install(self.system, [self.source], owner=owner, programs=self.kept)
         self.assertEqual((self.system/ni.LIST).read_bytes(), before)
 
+    def test_install_never_writes_through_a_link(self):
+        elsewhere = Path(self.tmp.name)/'elsewhere'
+        elsewhere.mkdir()
+        (self.system/'usr/lib/hao/originals').symlink_to(elsewhere)
+        with self.assertRaises(SystemExit) as stop:
+            ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs=self.kept)
+        self.assertIn('not a directory', str(stop.exception))
+        self.assertEqual(list(elsewhere.iterdir()), [])
+        (self.system/'usr/lib/hao/originals').unlink()
+        (self.system/ni.LIST).symlink_to(elsewhere/'list')
+        with self.assertRaises(SystemExit):
+            ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs=self.kept)
+        self.assertFalse((elsewhere/'list').exists())
+
     def test_unlisted_program_is_refused(self):
         rows, _, refused = ni.scan(self.system, [self.source], {})
         self.assertEqual(rows, [])
@@ -198,6 +212,12 @@ class NativeIdentitiesTests(unittest.TestCase):
         struct.pack_into('>I', moved, dataoff + 12, 2)                              # the CodeDirectory's slot -> 2
         with self.assertRaises(ValueError):
             ni.signature_profile(bytes(moved))
+        cd_at = dataoff + struct.unpack_from('>I', data, dataoff + 16)[0]           # the CodeDirectory (first blob)
+        hash_offset = struct.unpack_from('>I', data, cd_at + 16)[0]
+        unbound = bytearray(data)
+        unbound[cd_at + hash_offset - 32 * 5:cd_at + hash_offset - 32 * 4] = bytes(32)   # slot -5 (XML) emptied
+        with self.assertRaisesRegex(ValueError, 'slot -5'):
+            ni.signature_profile(bytes(unbound))
         longer = bytes(data) + b'\0' * 16                                           # bytes past the signature
         with self.assertRaises(ValueError):
             ni.signature_profile(longer)
