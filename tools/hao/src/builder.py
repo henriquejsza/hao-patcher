@@ -181,7 +181,7 @@ def target_data(name):
         return {}
 
 
-def is_generic(target):
+def is_generic_target(target):
     """Whether TARGET is the generic one (software graphics, "generic": true): the image for Macs without their own."""
     return bool(target_data(target).get('generic'))
 
@@ -195,8 +195,8 @@ def generic_profiles(release=None):
     """The image profiles whose target is generic: those RELEASE carries ("profiles"), or with no release this
     checkout's. A release without "profiles" carries none."""
     if release is not None:
-        return [n for n, p in sorted((release.get('profiles') or {}).items()) if is_generic(p.get('target'))]
-    return [n for n, p in image_profiles().items() if is_generic(p.get('target'))]
+        return [n for n, p in sorted((release.get('profiles') or {}).items()) if is_generic_target(p.get('target'))]
+    return [n for n, p in image_profiles().items() if is_generic_target(p.get('target'))]
 
 
 def image_profile(a):
@@ -334,7 +334,7 @@ def proof_gate(a, c, profile, command):
     the install record (a.unproven_reasons)."""
     reasons = unproven(profile) if command in GATED else []
     image = getattr(a, 'image_profile', None)
-    if command in GATED and image and is_generic(profile.get('target')):
+    if command in GATED and image and is_generic_target(profile.get('target')):
         # the generic image, chosen by name (--profile generic or its question): software graphics on a Mac hao has
         # not proven. The choice is the consent; the install record and the stick's launcher keep it as unproven.
         reasons = ['the generic image %s (software graphics) on %s, a Mac hao has not proven'
@@ -373,7 +373,7 @@ def resolve(a, c, command):
     profile = mac(a)
     image = image_profile(a)
     target = image_profiles()[image].get('target') if image else None
-    if image and is_generic(target):
+    if image and is_generic_target(target):
         # the generic image is the same on every Mac: its target's packs (the OS layer), not what this Mac detects
         patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
         profile = dict(profile, target=target,
