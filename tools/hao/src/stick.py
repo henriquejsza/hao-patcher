@@ -196,7 +196,8 @@ def hao_files(top):
     notes, reaches a stick), in a release archive every file but the store and caches."""
     top = Path(top)
     if (top / '.git').exists():
-        r = subprocess.run(['git', '-C', str(top), 'ls-files', '-z'], stdout=subprocess.PIPE, check=True)
+        r = subprocess.run(['git', '-c', 'safe.directory=%s' % top, '-C', str(top), 'ls-files', '-z'],  # a user's
+                           stdout=subprocess.PIPE, check=True)                         # checkout, under sudo
         out = [f for f in r.stdout.decode().split('\0') if f and ((top / f).exists() or (top / f).is_symlink())]
         # a candidate build's key (never tracked: release-cut --candidate writes it) goes with hao, so the drive's
         # hao install accepts the candidate-signed release.json it carries

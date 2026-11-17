@@ -118,7 +118,8 @@ def version():
     if not (TOP / '.git').exists() and stamp.is_file():
         out['commit'] = stamp.read_text().strip()
     if (TOP / '.git').exists():
-        r = subprocess.run(['/usr/bin/git', '-C', str(TOP), 'describe', '--always', '--dirty', '--abbrev=12'],
+        r = subprocess.run(['/usr/bin/git', '-c', 'safe.directory=%s' % TOP, '-C', str(TOP), 'describe', '--always',
+                            '--dirty', '--abbrev=12'],
                            capture_output=True, text=True)
         if r.returncode == 0:
             out['commit'] = r.stdout.strip()

@@ -786,7 +786,8 @@ def release_of():
     except (OSError, ValueError):
         pass
     try:
-        commit = subprocess.run(['git', '-C', str(TOP), 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
+        commit = subprocess.run(['git', '-c', 'safe.directory=%s' % TOP, '-C', str(TOP), 'rev-parse', 'HEAD'],
+                                capture_output=True, text=True).stdout.strip()   # a user's checkout, under sudo
     except OSError:
         commit = ''
     return ('dev %s' % commit[:8]) if commit else None, commit or None, None
