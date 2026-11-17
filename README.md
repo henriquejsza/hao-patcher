@@ -59,7 +59,8 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 - Installing an image overwrites the whole target disk.
 - The image weakens macOS security on purpose: AMFI is off, SIP is lowered and authenticated root is off
   (`csr-active-config` 0x803), Secure Boot is disabled, System programs are re-signed ad hoc, and OpenCore loads
-  third-party kexts.
+  third-party kexts. [docs/security.md](docs/security.md) lists each change; report a vulnerability privately
+  ([SECURITY.md](SECURITY.md)).
 - hao-runtime changes System files in place and has no uninstaller; see its
   [Read first](https://github.com/lythka/hao-runtime#read-first). Its binary translation is experimental and can
   crash programs or damage their data.
