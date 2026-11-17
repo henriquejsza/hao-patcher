@@ -1,3 +1,5 @@
 # Metal framebuffer adapter made by patches/golden-gate-metal-framebuffer/build/metal-framebuffer (at 789a8c7d); the
 # same command gives these bytes with Xcode 27.2. Against f8ff3547 only the internal argument and variable names differ.
-66889be11fe5177f345167ec26cddb84315e90b8492b4dbfdecdc60833e7f435 store/artifacts/metal-framebuffer-26B131-20261116-2845387bf09a
+# fe579412: lowering always uses the stack's own libLLVM (no METAL_FRAMEBUFFER_LLVM override); the same command at fe579412 gives
+# the same libmetal-framebuffer.dylib (artifact built at be8c1574, the same source before it was rebased).
+c6a55f14741cb9af070497f022f8f13a8d216c659be7aeda6fb45a48ec8efd2d store/artifacts/metal-framebuffer-26B131-20261117-be8c1574

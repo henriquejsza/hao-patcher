@@ -48,6 +48,7 @@ abort (3 of 3 selections); r4's wrapper reads WebGPU and WebGL back right with n
 pipelines freed) is shown on the host only: 100 of 100 freed in a lifecycle control, 11 tool tests pass.
 
 ## Revisions
+- r9 2026-11-17 Row `metal_argbuf` is a full make at fe579412: the iCBE wrapper reads no path from the environment (its dump and replace switches exist only in a `make --diagnostics` build). libargbuf and iCBE-real are unchanged. Same command, same bytes.
 - r8 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`.
 - r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 
