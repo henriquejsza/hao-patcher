@@ -659,6 +659,24 @@ class BuilderTest(unittest.TestCase):
             STICK.write_kit(mount2, kit, top, record={'assembly': 'a1', 'unproven': []})
             self.assertNotIn('--unproven', (mount2 / 'install').read_text())
 
+    def test_report_is_written_new_never_through_a_link(self):
+        import report as REP
+        with tempfile.TemporaryDirectory() as d:
+            victim = Path(d) / 'victim'; victim.write_text('keep')
+            out = Path(d) / 'hao-report.txt'; os.symlink(victim, out)
+            with self.assertRaises(FileExistsError):
+                REP.write(out, 'report text', env={})
+            self.assertEqual(victim.read_text(), 'keep')
+            fresh = Path(d) / 'new.txt'
+            REP.write(fresh, 'report text', env={})
+            self.assertEqual((fresh.read_text(), oct(fresh.stat().st_mode & 0o777)), ('report text', '0o644'))
+            logs = Path(d) / 'logs'; logs.mkdir()
+            os.symlink(victim, logs / 'install-20261117-000000.json')
+            self.assertIsNone(REP.last_log([logs]))
+        text = REP.scrub('fetch https://user:pw@example.invalid/a.dmg?X-Amz-Signature=abc&t=1 ok', {})
+        self.assertNotIn('pw', text); self.assertNotIn('abc', text)
+        self.assertIn('https://[credentials]@example.invalid/a.dmg?[query] ok', text)
+
     def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
         hao = __import__('runpy').run_path(str(TOOL / 'hao'), run_name='hao_module')
         def last(command, text):

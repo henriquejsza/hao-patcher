@@ -34,6 +34,9 @@ LABELLED = [
 ]
 EMAIL = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
 MAC_ADDRESS = re.compile(r'\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b')
+# a URL's user:password@ and its ?query (signed download links carry tokens there)
+URL_USERINFO = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@"\']+@')
+URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?"\']+)\?[^\s"\']*')
 
 
 def log_dir(env=None, euid=None):
@@ -98,7 +101,8 @@ def save_log(command, argv, events, folder=None, ver=None, now=None):
 
 
 def last_log(folders):
-    found = [p for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')]
+    found = [p for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')
+             if p.is_file() and not p.is_symlink()]          # a link could point a root run at any file
     return max(found, key=lambda p: p.stat().st_mtime) if found else None
 
 
@@ -143,6 +147,8 @@ def scrub(text, private):
     text = HOME.sub(lambda m: m.group(1) + USER, text)
     for pattern, label in LABELLED:
         text = pattern.sub(lambda m: m.group(1) + label, text)
+    text = URL_USERINFO.sub(lambda m: m.group(1) + '[credentials]@', text)
+    text = URL_QUERY.sub(lambda m: m.group(1) + '?[query]', text)
     text = EMAIL.sub('[email]', text)
     text = MAC_ADDRESS.sub('[hardware address]', text)
     for secret in sorted(private, key=len, reverse=True):
@@ -152,6 +158,8 @@ def scrub(text, private):
 
 def _json(path):
     try:
+        if Path(path).is_symlink():
+            return 'not read: %s is a link' % path
         return json.dumps(json.loads(Path(path).read_text()), indent=1, default=str)
     except (OSError, ValueError) as x:
         return 'unreadable: %s' % x
@@ -222,21 +230,31 @@ def write(path, text, env=None):
     """Write the report; under sudo, give it to the user who ran sudo so they can attach and delete it."""
     env = os.environ if env is None else env
     path = Path(path)
-    path.write_text(text)
-    path.chmod(0o644)
-    if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit() and env.get('SUDO_GID', '').isdigit():
-        try:
-            os.chown(path, int(env['SUDO_UID']), int(env['SUDO_GID']))
-        except OSError:
-            pass
+    # a new file, never through a link or over an existing file (the name is predictable): O_EXCL | O_NOFOLLOW, and the
+    # mode and owner set on the open file, not on the name
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    with os.fdopen(fd, 'w') as f:
+        f.write(text)
+        os.fchmod(f.fileno(), 0o644)
+        if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit() and env.get('SUDO_GID', '').isdigit():
+            try:
+                os.fchown(f.fileno(), int(env['SUDO_UID']), int(env['SUDO_GID']))
+            except OSError:
+                pass
     return path
 
 
 def report(a, c, host, env=None, folders=None, state=STATE, ver=None):
     path = Path(a.output).expanduser() if getattr(a, 'output', None) else default_output()
     text = collect(host, env, folders, state, ver)
-    write(path, text, env)
+    try:
+        write(path, text, env)
+    except FileExistsError:
+        from console import Stopped
+        raise Stopped('%s exists' % path, why='hao report writes a new file and never replaces one',
+                      options=['name another file with --output, or leave --output out'], untouched='nothing was written')
     c.event('report', path=str(path), bytes=len(text))
     c.done('report written to %s' % path.resolve(), path=str(path))
-    c.print('Attach it to a GitHub issue: it holds no serial number, user names or Wi-Fi names.', 'quiet')
+    c.print('Read it before you attach it to a GitHub issue: hao removed the serial number, user and computer names, '
+            'Wi-Fi names, addresses and link tokens it knows of.', 'quiet')
     return 0
