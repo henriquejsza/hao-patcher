@@ -21,11 +21,24 @@ def _out(host, *argv):
     return REP._out(host, *argv)
 
 
+BUDGET_FILES, BUDGET_BYTES = 300, 64 << 20
+
+
 def last_stop(folders):
-    """(command, when, what) of the newest command log that ended stopped, or None."""
+    """(command, when, what) of the newest command log that ended stopped, or None; ('?', '', why) when it cannot be
+    told: a log folder refused (not as expected, or flooded), or the newest BUDGET_FILES logs / BUDGET_BYTES read
+    without finding a finished command."""
     import safety as SAFE
-    for _, path in REP.candidates(folders):          # all of them: newer logs without an end cannot hide a stop
+    # a folder this user may read but that is not as hao keeps it (or flooded) is said; root's folder unread by a user is
+    # normal and not
+    refused = [str(f) for f in folders if os.path.isdir(f) and os.access(str(f), os.R_OK | os.X_OK)
+               and REP.log_folder(f) is None]
+    read = size = 0
+    for _, path in REP.candidates(folders):          # newest first; newer logs without an end cannot hide a stop
+        if read >= BUDGET_FILES or size >= BUDGET_BYTES:
+            return '?', '', 'not found in the newest %d logs' % read
         text = REP.read_log(path)                                    # through its pinned folder
+        read, size = read + 1, size + len(text or '')
         try:
             data = json.loads(text) if text is not None else None
         except (ValueError, RecursionError):
@@ -37,7 +50,9 @@ def last_stop(folders):
             when = datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
             return SAFE.text(data.get('command')), when, SAFE.text(ends[-1].get('what'))
         if ends:
-            return None                    # the newest finished command did not stop
+            break                          # the newest finished command did not stop
+    if refused:
+        return '?', '', 'log folder %s not read (not as hao keeps it, or too many entries)' % SAFE.text(refused[0])
     return None
 
 
@@ -80,7 +95,7 @@ def gather(host, env=None, state=REP.STATE, folders=None, aot_dirs=AOT_DIRS):
         d['aot'] = ('%d caches' % len(caches)) if caches else 'not on this Mac'
     d['update'] = 'not checked'
     stop = last_stop(REP.log_dirs(env) if folders is None else folders)
-    d['last_stop'] = ('%s on %s: %s' % stop) if stop else 'none'
+    d['last_stop'] = ('unknown: %s' % stop[2] if stop[0] == '?' else '%s on %s: %s' % stop) if stop else 'none'
     d['logs'] = str(REP.log_dir(env))
     return d
 
