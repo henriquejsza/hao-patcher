@@ -1,0 +1,128 @@
+#!/usr/bin/env python3.14
+"""candidate-cut: one command from a commit to a candidate release and its MacBookPro9,2 USB installer image.
+
+  pipeline/candidate-cut COMMIT [--out DIR] [--cache DIR] [--sign-key KEY] [--version vX.Y.Z] [--release NAME]
+                         [--assembly NAME]
+
+For the hardware benches' acceptance runs. COMMIT is checked out detached in a new worktree (the cut sees only the
+committed tree); there:
+  1. release-cut --candidate --stage OUT/release (release.json "candidate": true; unvalidated recipes listed)
+  2. with --sign-key, `ssh-keygen -Y sign -n hao-release` writes release.json.sig and SHA256SUMS.sig next to them, and
+     KEY.pub goes into the cut's tools/hao/data/candidate-keys.pub (so the USB installer's hao trusts it);
+     without it the image is made with --unsigned (a developer path: say so to whoever boots it)
+  3. hao fetch release.json --assets-from OUT/release (downloads by sha256 into CACHE, kept between cuts)
+  4. hao create-installer --model MacBookPro9,2 --release release.json --image OUT/stick.img
+     (the user's path, on this Mac; an image file instead of a drive, so no root)
+  5. OUT/stick.img.sha256 and OUT/candidate.json: commit, release.json sha256, image path, size and sha256, signed or
+     not, each step's seconds and log. Exit 0 only when every step passed.
+OUT defaults to store/artifacts/candidate-COMMIT8; CACHE to store/cache/candidate-fetch.
+"""
+import argparse
+import datetime
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+TOP = Path(__file__).resolve().parents[1]
+PY = sys.executable
+
+
+def sha256(p):
+    h = hashlib.sha256()
+    with open(p, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 22), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('commit')
+    ap.add_argument('--out', type=Path)
+    ap.add_argument('--cache', type=Path)
+    ap.add_argument('--sign-key')
+    ap.add_argument('--version', default='v0.0.1')
+    ap.add_argument('--release', default='27.2.1-26B131.0')
+    ap.add_argument('--assembly', default='mbp92-26B131-alpha-v0.1.0')
+    a = ap.parse_args(argv)
+    sha = subprocess.run(['git', 'rev-parse', '--verify', a.commit + '^{commit}'], cwd=TOP, capture_output=True,
+                         text=True, check=True).stdout.strip()
+    if not (TOP / 'store').is_symlink() and not (TOP / 'store').is_dir():
+        sys.exit('candidate-cut: %s has no store (link store to the local store first)' % TOP)
+    store = (TOP / 'store').resolve()
+    out = (a.out or store / 'artifacts' / ('candidate-' + sha[:8])).resolve()
+    cache = (a.cache or store / 'cache' / 'candidate-fetch').resolve()
+    if out.exists():
+        sys.exit('candidate-cut: %s exists; remove it or give --out' % out)
+    out.mkdir(parents=True)
+    cache.mkdir(parents=True, exist_ok=True)
+    record = dict(commit=sha, out=str(out), signed=bool(a.sign_key), steps=[],
+                  started=datetime.datetime.now().astimezone().isoformat(timespec='seconds'))
+    work = Path(tempfile.mkdtemp(prefix='candidate-cut-'))
+    tree = work / 'tree'
+    subprocess.run(['git', 'worktree', 'add', '-q', '--detach', str(tree), sha], cwd=TOP, check=True)
+    (tree / 'store').symlink_to(store)
+    rel = out / 'release' / 'release.json'
+    if a.sign_key:
+        # the candidate key's public line goes into this cut's hao (tools/hao/data/candidate-keys.pub, never tracked)
+        # so the USB installer's hao accepts the candidate signature; final builds never carry it
+        pub = Path(a.sign_key + '.pub').read_text().strip()
+        (tree / 'tools/hao/data/candidate-keys.pub').write_text(pub + '\n')
+        record['candidate_key'] = pub.split()[-1] if ' ' in pub else pub
+
+    def step(name, cmd):
+        log = out / ('%d-%s.log' % (len(record['steps']) + 1, name))
+        t0 = time.time()
+        with open(log, 'w') as f:
+            rc = subprocess.run([str(c) for c in cmd], cwd=tree, stdout=f, stderr=subprocess.STDOUT,
+                                stdin=subprocess.DEVNULL).returncode
+        record['steps'].append(dict(name=name, rc=rc, seconds=round(time.time() - t0), log=log.name))
+        print('%-4s %-16s %4d s  %s' % ('ok' if rc == 0 else 'FAIL', name, time.time() - t0, log), flush=True)
+        if rc:
+            raise SystemExit(1)
+
+    try:
+        # a commit from before release-cut had --candidate cuts as it did then (recorded)
+        candidate = ['--candidate'] if '--candidate' in (tree / 'pipeline/release-cut').read_text() else []
+        record['candidate_flag'] = bool(candidate)
+        step('release-cut', [PY, '-I', 'pipeline/release-cut', '--write', rel,
+                             'pipeline/assemblies/%s.json' % a.assembly, '--release', a.release, '--channel', 'dev',
+                             '--version', a.version, '--not-prerelease', '--stage', rel.parent] + candidate)
+        unsigned = []
+        if a.sign_key:
+            step('sign', ['ssh-keygen', '-Y', 'sign', '-f', a.sign_key, '-n', 'hao-release',
+                          rel, rel.parent / 'SHA256SUMS'])
+        else:
+            unsigned = ['--unsigned']
+        step('fetch', [PY, '-I', 'tools/hao/hao', 'fetch', rel, '--cache', cache, '--assets-from', rel.parent]
+             + unsigned)
+        step('create-installer', [PY, '-I', 'tools/hao/hao', 'create-installer', '--model', 'MacBookPro9,2',
+                                  '--release', rel, '--cache', cache, '--image', out / 'stick.img']
+             + unsigned)
+        image = out / 'stick.img'
+        digest = sha256(image)
+        (out / 'stick.img.sha256').write_text('%s  stick.img\n' % digest)
+        record.update(release_json_sha256=sha256(rel), image=str(image), image_size=image.stat().st_size,
+                      image_sha256=digest, passed=True)
+        print('candidate-cut: %s %s  image %s  sha256 %s' % (sha[:8], 'signed' if a.sign_key else 'UNSIGNED', image,
+                                                             digest))
+        return 0
+    except SystemExit:
+        record['passed'] = False
+        print('candidate-cut: %s FAILED at %s (see %s)' % (sha[:8], record['steps'][-1]['name'],
+                                                         out / record['steps'][-1]['log']), file=sys.stderr)
+        return 1
+    finally:
+        record['finished'] = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+        (out / 'candidate.json').write_text(json.dumps(record, indent=1) + '\n')
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=TOP, capture_output=True)
+        shutil.rmtree(work, ignore_errors=True)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
