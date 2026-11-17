@@ -57,6 +57,7 @@ others: `main=universal`, `missing_x86_64=0`; Xcode `main=arm64`, thinned for th
 logged nothing.
 
 ## Revisions
+- r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
 - r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): a Data tool and LaunchDaemon that read Mach-O headers: no build or hardware dependence. Nothing it installs changes.
 - r4 2026-11-17 Status diagnostic: it only reports, so release profiles leave it out.
 - r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes.

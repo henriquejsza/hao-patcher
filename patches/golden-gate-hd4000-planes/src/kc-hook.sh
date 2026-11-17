@@ -15,7 +15,7 @@ LIB=/usr/lib/libhd4000-planes.dylib
 W=$(mktemp -d /private/var/tmp/hd4000-planes.XXXXXX)
 "${OCLP_PYTHON:?}" -I "$H/add_weak_dylib.py" "$DRIVER" "$W/driver" "$LIB"
 codesign -f -s - -i AppleIntelHD4000GraphicsMTLDriver "$W/driver"
-put() { rm -f "$3"; install -o root -g wheel -m $1 "$2" "$3"; chflags restricted "$3"; }   # put MODE SRC DEST, as Apple's
+put() { rm -f "$3"; install -o root -g wheel -m "$1" "$2" "$3"; chflags restricted "$3"; }   # put MODE SRC DEST, as Apple's
 install -d -m 755 "$S/usr/lib"
 put 755 "$IN/libhd4000-planes.dylib" "$S$LIB"
 chflags noschg,nouchg,norestricted "$DRIVER"

@@ -78,7 +78,7 @@ Revision r3, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
 ## golden-gate-appstore-slices
 
-Revision r5, status diagnostic. [Recipe](../patches/golden-gate-appstore-slices/README.md)
+Revision r6, status diagnostic. [Recipe](../patches/golden-gate-appstore-slices/README.md)
 
 - `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
 - `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
@@ -120,7 +120,7 @@ Revision r10, status product. [Recipe](../patches/golden-gate-font-registry/READ
 
 ## golden-gate-hd4000-planes
 
-Revision r6, status product. [Recipe](../patches/golden-gate-hd4000-planes/README.md)
+Revision r7, status product. [Recipe](../patches/golden-gate-hd4000-planes/README.md)
 
 - `usr/lib/libhd4000-planes.dylib`: whole file from hao (row hd4000_planes). X86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
@@ -616,7 +616,7 @@ Revision r9, status product. [Recipe](../patches/metalold-selectors/README.md)
 
 ## rec-audio
 
-Revision r4, status product. [Recipe](../patches/rec-audio/README.md)
+Revision r5, status product. [Recipe](../patches/rec-audio/README.md)
 
 - `System/Library/Extensions/AppleHDA.kext`: whole file from OCLP · AppleHDA 26.0 Beta 1. Bundle copied whole from the root-patched System by apply.sh (ditto); OCLP's AppleHDA, with its HAL plug-in inside.
 - `System/Library/Extensions/IOAudioFamily.kext`: whole file from Tahoe donor · Tahoe IOAudioFamily.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); the HDA chain's audio family.
@@ -627,7 +627,7 @@ Revision r4, status product. [Recipe](../patches/rec-audio/README.md)
 
 ## rec-bluetooth-input
 
-Revision r4, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
+Revision r5, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
 
 - `System/Library/Extensions/AppleHIDKeyboard.kext`: whole file from Tahoe donor · Tahoe AppleHIDKeyboard.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); external keyboards.
 - `System/Library/Extensions/AppleHIDMouse.kext`: whole file from Tahoe donor · Tahoe AppleHIDMouse.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); external mice.
@@ -641,14 +641,14 @@ Revision r4, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
 
 ## rec-brightness-keys
 
-Revision r4, status product. [Recipe](../patches/rec-brightness-keys/README.md)
+Revision r5, status product. [Recipe](../patches/rec-brightness-keys/README.md)
 
 - `usr/local/ssdtools/brightkeys`: whole file from hao. Built from src/brightkeys.m by make.sh (x86_64, ad hoc signed with src/brightkeys.entitlements); acts on the brightness, keyboard-light and volume keys and draws the bezel.
 - `System/Library/LaunchAgents/local.brightkeys.plist`: whole file from hao. Src/local.brightkeys.plist: starts brightkeys in the Recovery GUI session.
 
 ## rec-display-ethernet
 
-Revision r4, status product. [Recipe](../patches/rec-display-ethernet/README.md)
+Revision r5, status product. [Recipe](../patches/rec-display-ethernet/README.md)
 
 - `System/Library/Extensions/AppleIntelFramebufferCapri.kext`: whole file from OCLP · AppleIntelFramebufferCapri 11.7.10-23.4. Bundle copied whole from the root-patched System by apply.sh (ditto); OCLP's Ivy Bridge framebuffer.
 - `System/Library/Extensions/AppleIntelHD4000Graphics.kext`: whole file from OCLP · AppleIntelHD4000Graphics 11.7.10-23.4. Bundle copied whole from the root-patched System by apply.sh (ditto); OCLP's HD 4000 graphics kext.
@@ -665,7 +665,7 @@ Revision r7, status product. [Recipe](../patches/rec-install-volume/README.md)
 
 ## rec-language-list
 
-Revision r4, status product. [Recipe](../patches/rec-language-list/README.md)
+Revision r5, status product. [Recipe](../patches/rec-language-list/README.md)
 
 - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: whole file from hao. Lcwrap, built from src/lcwrap.c by make.sh (x86_64, ad hoc signed); takes the path of the binary it starts.
 - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser.real`: whole file from Tahoe donor · Language Chooser. The Recovery's own binary, moved here unchanged by apply.sh (mv).
@@ -673,21 +673,21 @@ Revision r4, status product. [Recipe](../patches/rec-language-list/README.md)
 
 ## rec-power
 
-Revision r4, status product. [Recipe](../patches/rec-power/README.md)
+Revision r5, status product. [Recipe](../patches/rec-power/README.md)
 
 - `usr/local/ssdtools/power.sh`: whole file from hao. New file, copied from src/power.sh: sets the sleep policy at every boot.
 - `System/Library/LaunchDaemons/local.power.plist`: whole file from hao. New file, copied from src/local.power.plist: runs power.sh at load.
 
 ## rec-progress-phase
 
-Revision r4, status product. [Recipe](../patches/rec-progress-phase/README.md)
+Revision r5, status product. [Recipe](../patches/rec-progress-phase/README.md)
 
 - `usr/local/ssdtools/iasphase.sh`: whole file from hao. New file, copied from src/iasphase.sh: moves the install phase from Boot 1 to Language Chooser.
 - `System/Library/LaunchDaemons/local.iasphase.plist`: whole file from hao. New file, copied from src/local.iasphase.plist: runs iasphase.sh once at boot.
 
 ## rec-reinstall
 
-Revision r6, status product. [Recipe](../patches/rec-reinstall/README.md)
+Revision r7, status product. [Recipe](../patches/rec-reinstall/README.md)
 
 - `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: whole file from hao. Replaces Tahoe's whole InstallAssistant (the button's Path read from Utilities.plist; 25G332 shown), owner and mode kept; built by make.sh from src/Reinstall.m (x86_64, ad hoc signed).
 - `usr/local/ssdtools/ssdinstall`: whole file from hao. New file built by make.sh from tools/ssdpush/ssdinstall.c (x86_64, ad hoc signed).
@@ -696,7 +696,7 @@ Revision r6, status product. [Recipe](../patches/rec-reinstall/README.md)
 
 ## rec-startup-guard
 
-Revision r4, status product. [Recipe](../patches/rec-startup-guard/README.md)
+Revision r5, status product. [Recipe](../patches/rec-startup-guard/README.md)
 
 - `usr/local/ssdtools/bootguard`: whole file from hao. New file built by make.sh from src/bootguard.c (x86_64, ad hoc signed).
 - `usr/local/ssdtools/bootguard.sh`: whole file from hao. New file, copied from src/bootguard.sh: finds the internal OpenCore and runs bootguard.
@@ -711,7 +711,7 @@ Revision r4, status product. [Recipe](../patches/rec-wifi/README.md)
 
 ## rec-wifi-autojoin
 
-Revision r4, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
+Revision r5, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 - `usr/local/ssdtools/wifijoin.dylib`: whole file from hao. New file built by make.sh from src/wifijoin.m (x86_64, ad hoc signed).
 - `usr/local/ssdtools/wifijoin.sh`: whole file from hao. New file, copied from src/wifijoin.sh: restarts airportd with the dylib inserted.
