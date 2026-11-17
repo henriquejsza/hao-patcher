@@ -30,7 +30,7 @@ class Declaration(unittest.TestCase):
 
     def test_installed_files_are_declared(self):
         script = (PATCH / 'apply.sh').read_text()
-        for dest in re.findall(r'\$BS/(\S+)$', script, re.M):
+        for dest in re.findall(r'\$BS/([^\s"]+)"?$', script, re.M):
             if dest.startswith('usr/local/ssdtools/') or dest.startswith('System/Library/Launch'):
                 self.assertIn(dest, PATHS)
 

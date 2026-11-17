@@ -4,8 +4,8 @@
 # next to rec-startup-guard's internal-esp and bootguard, which startup-internal uses.
 U="$BS/System/Installation/CDIS/Recovery Springboard.app/Contents/Resources/Utilities.plist"
 i=0; X=""
-while plutil -extract Buttons.$i xml1 -o /dev/null "$U" 2>/dev/null; do
-    [ "$(plutil -extract Buttons.$i.IsInstallAssistant raw -o - "$U" 2>/dev/null)" = true ] && X=$(plutil -extract Buttons.$i.Path raw -o - "$U")
+while plutil -extract "Buttons.$i" xml1 -o /dev/null "$U" 2>/dev/null; do
+    [ "$(plutil -extract "Buttons.$i.IsInstallAssistant" raw -o - "$U" 2>/dev/null)" = true ] && X=$(plutil -extract "Buttons.$i.Path" raw -o - "$U")
     i=$((i + 1))
 done
 [ -n "$X" ] && [ -f "$BS$X" ] || { echo "rec-reinstall: no installer button (IsInstallAssistant) in $U"; exit 1; }
