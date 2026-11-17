@@ -18,9 +18,15 @@ if [ -d "$B/hao" ] && [ ! -L "$B/hao" ]; then
     echo "hao-command: $B/hao is a folder: refusing to replace it" >&2; exit 1
 fi
 [ ! -L "$B/hao" ] || rm -f "$B/hao"        # a link (to a file or a folder) is removed, never followed
-# $B is root's alone (root:wheel 755 above, ACLs removed here), so no one else can swap a name in it; the new launcher
-# is made by mktemp (exclusive), filled, and renamed over the name
-chmod -N "$B" 2>/dev/null || true
+# every folder from usr down to bin is root's alone (owner checked, ACLs removed), so no one else can swap a name on
+# the way; the new launcher is made by mktemp (exclusive), filled, and renamed over the name
+if [ "$(id -u)" = 0 ]; then
+    for d in "$DATA/usr" "$DATA/usr/local" "$DATA/usr/local/lib" "$L" "$B"; do
+        [ "$(stat -f %u "$d")" = 0 ] || { echo "hao-command: $d is not root's: refusing to install there" >&2; exit 1; }
+        chmod -N "$d" || { echo "hao-command: the ACLs of $d cannot be removed" >&2; exit 1; }
+        chmod go-w "$d"
+    done
+fi
 N=$(mktemp "$B/.hao.new.XXXXXX")
 printf '#!/bin/sh\nexec /usr/local/lib/hao/python/bin/python3.12 -I /usr/local/lib/hao/hao/tools/hao/hao "$@"\n' > "$N"
 chown root:wheel "$N"

@@ -60,6 +60,23 @@ def check_python(where, p, version=None, which=shutil.which):
     return out
 
 
+def check_interpreter(exe=None):
+    """`sudo ./hao` runs this Python as root: anything that can change it (a folder of your account, as Homebrew's)
+    runs as root at the next sudo. Warns when the interpreter or its folder is writable by anyone but root."""
+    import stat
+    exe = Path(os.path.realpath(exe or sys.executable))
+    for p in (exe, exe.parent):
+        try:
+            st = os.stat(str(p))
+        except OSError:
+            continue
+        if st.st_uid != 0 or st.st_mode & 0o022:
+            return [check('python', 'warn', '%s is writable by %s: what runs `sudo ./hao` should be root\'s' % (
+                p, 'your account' if st.st_uid == os.getuid() else 'others'),
+                'use python.org\'s Python %s (installed root-owned in /Library/Frameworks)' % pins()['python']['build'])]
+    return [check('python', 'ok', 'the interpreter is root\'s (%s)' % exe)]
+
+
 def check_shebangs(p, top=TOP, run=subprocess.run):
     """Python scripts in the checkout whose shebang names another interpreter than the pinned build one."""
     want = 'python%s' % p['python']['build']
@@ -131,7 +148,8 @@ def check_signature(release, purpose, keys_path=None):
                 return [check('signature', 'fail', str(x), 'the owner\'s public key goes in tools/hao/data/release-keys.pub')]
         return [check('signature', 'warn', 'no release.json beside hao: no signature to check')]
     try:
-        _, kid, hashed = SIGN.verified_release(release, SIGN.load_keys(keys_path))
+        SIGN.verified(release, SIGN.load_keys(keys_path))
+        _, kid, hashed = SIGN._VERIFIED[os.path.abspath(str(release))]
     except SIGN.SignatureError as x:
         return [check('signature', 'fail', 'release.json: %s' % x, 'download the release again from its GitHub page')]
     return [check('signature', 'ok', 'release.json signed (key %s, %s)' % (kid, hashed))]
@@ -202,6 +220,8 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
     out = check_python(where, p, version)
     if where != 'build':
         return out
+    if purpose == 'create-installer' and version is None:
+        out += check_interpreter()
     if purpose in ('ci', 'release'):
         out += check_shebangs(p, run=run)
     out += check_xcode(purpose, p, run) + check_macos(p, mac)
@@ -251,8 +271,7 @@ def doctor(a, c, release_path=None):
     signature = check_signature(path if os.path.lexists(path) else None, a.purpose)
     if signature and signature[0]['state'] == 'ok':
         import signing as SIGN
-        copy, _, _ = SIGN.verified_release(path)                 # only the verified bytes are read
-        release = json.loads(copy.read_bytes())
+        release = json.loads(SIGN.verified(path).read_bytes())  # the copy check_signature verified, not the path
     failed = show(c, checks(a.purpose, FD.where(), release, getattr(a, 'cache', None), a.offline,
                             signature=signature), a.purpose)
     if failed:

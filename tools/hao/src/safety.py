@@ -215,12 +215,14 @@ class Folder:
             os.close(self.fd)
             self.fd = None
 
-    def entries(self, pattern=None):
-        """[(name, stat)] of the plain files (not links) of the folder's owners; every entry is looked at, so none can
-        be hidden behind others."""
+    def entries(self, pattern=None, limit=100000):
+        """[(name, stat)] of the plain files (not links) of the folder's owners; up to LIMIT entries are looked at
+        (hao keeps 30 logs: a folder with more was filled by something else, and is refused rather than half read)."""
         out = []
         with os.scandir(self.fd) as it:
-            for e in it:
+            for n, e in enumerate(it):
+                if n >= limit:
+                    raise OSError('%s has more than %d entries' % (self.path, limit))
                 if pattern and not re.fullmatch(pattern, e.name):
                     continue
                 try:

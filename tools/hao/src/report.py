@@ -364,18 +364,19 @@ def report(a, c, host, env=None, folders=None, state=STATE, ver=None):
     path = Path(a.output).expanduser() if getattr(a, 'output', None) else default_output()
     text = collect(host, env, folders, state, ver)
     given = bool(getattr(a, 'output', None))
-    try:
-        path = write(path, text, env, numbered=not given)
-    except FileExistsError:
-        if not given:
-            raise
-        from console import Stopped
-        raise Stopped('%s exists' % path, why='hao report writes a new file and never replaces one',
-                      options=['name another file with --output, or leave --output out'], untouched='nothing was written')
-    except OSError:
-        if given:
-            raise
-        path = write(Path('/private/tmp') / path.name, text, env, numbered=True)   # the current folder is not the user's
+    if given:
+        try:
+            path = write(path, text, env)
+        except FileExistsError:
+            from console import Stopped
+            raise Stopped('%s exists' % path, why='hao report writes a new file and never replaces one',
+                          options=['name another file with --output, or leave --output out'],
+                          untouched='nothing was written')
+    else:
+        try:
+            path = write(path, text, env, numbered=True)
+        except OSError:                  # not writable here, or every default name taken: a new name in /private/tmp
+            path = write(Path('/private/tmp') / path.name, text, env, numbered=True)
     c.event('report', path=str(path), bytes=len(text))
     c.done('report written to %s' % path.resolve(), path=str(path))
     c.print('Read it before you attach it to a GitHub issue: hao removed serials, user and Wi-Fi names, addresses '

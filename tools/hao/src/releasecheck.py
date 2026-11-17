@@ -150,7 +150,10 @@ def tag_commit(owner, repo, tag, opener):
     obj = ref.get('object') or {}
     for _ in range(3):
         if obj.get('type') == 'commit':
-            return obj.get('sha')
+            sha = obj.get('sha')
+            if not isinstance(sha, str) or not re.fullmatch('[0-9a-f]{40}', sha):
+                raise ValueError('GitHub answered no commit id')
+            return sha
         if obj.get('type') != 'tag':
             return None
         obj = json.loads(opener(base + 'tags/' + obj.get('sha', ''))).get('object') or {}
