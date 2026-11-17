@@ -15,7 +15,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 |---|---|---|---|---|---|---|
 | darwin27-kernel | r14 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
 | darwin27-sandbox-disk-space | r5 | experiment | oclp-hook | yes | golden-gate | - |
-| dev-access | r7 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
+| dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
 | dev-diagnostics | r9 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
 | golden-gate-appstore-slices | r5 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
@@ -79,7 +79,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from hao · Preboot copy of the member list
 - **darwin27-sandbox-disk-space** r5
   - `System/Library/Sandbox/Profiles/system.sb`: edited (1 edit) from Apple
-- **dev-access** r7
+- **dev-access** r8
   - `private/var/root/.testssh/ssh_host_ed25519_key`: from hao (row test_host_key)
   - `private/var/root/.testssh/authorized_keys`: from hao (row test_authorized_key)
   - `private/var/root/.testssh/sshd_config`: from hao
@@ -480,7 +480,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 ## 4. Drift
 
 - darwin27-kernel r14 is newer than every image built with it (newest r10).
-- dev-access r7 is newer than every image built with it (newest r5).
+- dev-access r8 is newer than every image built with it (newest r5).
 - dev-diagnostics r9 is newer than every image built with it (newest r4).
 - dev-keepawake r3 is newer than every image built with it (newest r1).
 - golden-gate-appstore-slices r5 is newer than every image built with it (newest r2).

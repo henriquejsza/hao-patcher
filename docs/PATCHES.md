@@ -36,7 +36,7 @@ Revision r5, status experiment. [Recipe](../patches/darwin27-sandbox-disk-space/
 
 ## dev-access
 
-Revision r7, status dev. [Recipe](../patches/dev-access/README.md)
+Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 
 - `private/var/root/.testssh/ssh_host_ed25519_key`: whole file from hao (row test_host_key). Data volume; the test host's private key, root:wheel 0600; dev images only.
 - `private/var/root/.testssh/authorized_keys`: whole file from hao (row test_authorized_key). Data volume; the bench host's public key, root:wheel 0600.

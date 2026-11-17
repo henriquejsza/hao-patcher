@@ -50,6 +50,7 @@ In use (FACT, from the build manifests in store/runs): r3 is in 12 image builds,
 including the benched dev images (store/runs/bench-mbp92-25G332-dev-*) and the owner's beta. No open item.
 
 ## Revisions
+- r8 2026-11-17 Every path in apply.sh is quoted: the user's install runs posts from the installer volume ("/Volumes/HAO 1"), and an unquoted path split at the space ("Read-only file system: '1'"). A test runs apply.sh from a folder whose name has a space.
 - r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware dependence. Nothing it installs changes.
 - r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 Newest first: revision, date, change (commit). `revision` in patch.json is the newest; bump it

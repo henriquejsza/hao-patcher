@@ -10,7 +10,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 |---|---|---|---|---|---|---|---|---|---|---|
 | darwin27-kernel | r14 | oclp-hook | product |  | x | x |  |  | **needs** | r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only. |
 | darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
-| dev-access | r7 | post | dev |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware |
+| dev-access | r8 | post | dev |  |  |  |  |  | **needs** | r8 2026-11-17 Every path in apply.sh is quoted: the user's install runs posts from the installer volume ("/Vol |
 | dev-diagnostics | r9 | post | dev |  |  |  |  |  | **needs** | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): boot-args, OpenCore log settings and SIP flag |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | golden-gate-appstore-slices | r5 | post | diagnostic |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): a Data tool and LaunchDaemon that read Mach-O |
