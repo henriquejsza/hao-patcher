@@ -54,6 +54,24 @@ def sshsig_files(secret, data, namespace='hao-release', hash_name='sha512'):
     return 'ssh-ed25519 %s test\n' % base64.b64encode(key_blob).decode(), armor
 
 
+def sk_sshsig_files(secret, data, application=b'ssh:', flags=0x01, counter=7, namespace='hao-release',
+                    key_application=None):
+    """(public key line, armored SSHSIG) as a FIDO security key (sk-ssh-ed25519@openssh.com) signs through ssh-keygen:
+    the authenticator signs sha256(application) || flags || counter || sha256(SSHSIG data) (OpenSSH PROTOCOL.u2f)."""
+    kind = b'sk-ssh-ed25519@openssh.com'
+    pub = SIGN.secret_to_public(secret)
+    key_blob = ssh_string(kind) + ssh_string(pub) + ssh_string(key_application or application)
+    signed = SIGN.signed_data(namespace, 'sha512', data)
+    sig = SIGN.sign(secret, hashlib.sha256(application).digest() + bytes([flags]) + counter.to_bytes(4, 'big')
+                    + hashlib.sha256(signed).digest())
+    blob = (b'SSHSIG' + (1).to_bytes(4, 'big') + ssh_string(key_blob) + ssh_string(namespace.encode()) + ssh_string(b'')
+            + ssh_string(b'sha512') + ssh_string(ssh_string(kind) + ssh_string(sig) + bytes([flags])
+                                                 + counter.to_bytes(4, 'big')))
+    b64 = base64.b64encode(blob).decode()
+    armor = '\n'.join([SIGN.BEGIN] + [b64[k:k + 70] for k in range(0, len(b64), 70)] + [SIGN.END]) + '\n'
+    return 'sk-ssh-ed25519@openssh.com %s test\n' % base64.b64encode(key_blob).decode(), armor
+
+
 class Ed25519(unittest.TestCase):
     def test_rfc8032_vectors(self):
         for sk, pk, m, sg in VECTORS:
@@ -163,6 +181,64 @@ class SSHSig(unittest.TestCase):
             (Path(d) / 'release.json.sig').symlink_to(FIX / 'release.json.sig')
             with self.assertRaises(SIGN.SignatureError):     # not through a symlink
                 SIGN.verified_release(Path(d) / 'release.json', self.keys)
+
+
+class SecurityKey(unittest.TestCase):
+    """sk-ssh-ed25519@openssh.com: a YubiKey's ed25519-sk key."""
+    data = b'{"release": "test"}\n'
+
+    def test_a_touched_signature_verifies(self):
+        pub, sig = sk_sshsig_files(b'\10' * 32, self.data)
+        kid, hashed = SIGN.verify(self.data, sig, SIGN.parse_keys(pub))
+        self.assertTrue(kid.startswith('SHA256:'))
+
+    @unittest.skipUnless(shutil.which('ssh-keygen'), 'no ssh-keygen here')
+    def test_ssh_keygen_agrees(self):
+        with tempfile.TemporaryDirectory() as d:
+            # touched (0x01) and touched + verified (0x05) are accepted by both; without a touch ssh-keygen 10.5 still
+            # accepts, hao does not (stricter on purpose: test_refusals)
+            for flags, want in ((0x01, 0), (0x05, 0)):
+                pub, sig = sk_sshsig_files(b'\10' * 32, self.data, flags=flags)
+                (Path(d) / 'allowed').write_text('hao ' + pub)
+                (Path(d) / 'sig').write_text(sig)
+                r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'hao',
+                                    '-n', 'hao-release', '-s', str(Path(d) / 'sig')], input=self.data,
+                                   capture_output=True)
+                self.assertEqual(r.returncode, want, (flags, r.stderr))
+                ok = True
+                try:
+                    SIGN.verify(self.data, sig, SIGN.parse_keys(pub))
+                except SIGN.SignatureError:
+                    ok = False
+                self.assertEqual(ok, want == 0, flags)
+
+    def test_refusals(self):
+        secret = b'\10' * 32
+        pub, _ = sk_sshsig_files(secret, self.data)
+        keys = SIGN.parse_keys(pub)
+        cases = {
+            'no touch': sk_sshsig_files(secret, self.data, flags=0x00)[1],
+            'other application': sk_sshsig_files(secret, self.data, application=b'ssh:other')[1],
+            'application changed after signing': sk_sshsig_files(secret, self.data, application=b'ssh:',
+                                                                 key_application=b'ssh:x')[1],
+            'changed file': sk_sshsig_files(secret, self.data + b' ')[1],
+        }
+        _, good = sk_sshsig_files(secret, self.data, counter=7)
+        blob = bytearray(base64.b64decode(''.join(good.strip().splitlines()[1:-1])))
+        blob[-1] ^= 1                                           # the counter, changed after signing
+        cases['changed counter'] = '%s\n%s\n%s\n' % (SIGN.BEGIN, base64.b64encode(bytes(blob)).decode(), SIGN.END)
+        for why, sig in cases.items():
+            with self.assertRaises(SIGN.SignatureError, msg=why):
+                SIGN.verify(self.data, sig, keys)
+
+    def test_kinds_do_not_mix(self):
+        secret = b'\11' * 32
+        plain_pub, _ = sshsig_files(secret, self.data)
+        _, sk_sig = sk_sshsig_files(secret, self.data)
+        with self.assertRaises(SIGN.SignatureError):            # same Ed25519 key, but trusted only as a plain key
+            SIGN.verify(self.data, sk_sig, SIGN.parse_keys(plain_pub))
+        with self.assertRaises(SIGN.SignatureError):            # a key line whose type word lies
+            SIGN.parse_keys(plain_pub.replace('ssh-ed25519', 'sk-ssh-ed25519@openssh.com', 1))
 
 
 class Commands(unittest.TestCase):

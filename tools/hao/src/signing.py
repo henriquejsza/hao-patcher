@@ -5,15 +5,17 @@ The owner signs each release offline, with a key file or a hardware wallet throu
 ledger-agent), in the folder release-cut staged:
     ssh-keygen -Y sign -f OWNER.pub -n hao-release release.json SHA256SUMS
 which writes release.json.sig and SHA256SUMS.sig. hao verifies release.json.sig against tools/hao/data/release-keys.pub
-(OpenSSH public key lines, `ssh-ed25519 AAAA... comment`) before it reads anything in release.json, then works only from
+(OpenSSH public key lines, `ssh-ed25519 AAAA... comment` or `sk-ssh-ed25519@openssh.com AAAA... comment`) before it reads anything in release.json, then works only from
 the verified bytes (a private copy), so the file cannot change between the check and its use.
 
-  load_keys(path)          {public key (32 bytes): fingerprint} from ssh-ed25519 lines (more than one for a key change)
+  load_keys(path)          {key blob: fingerprint} from ssh-ed25519 / sk-ssh-ed25519 lines (more for a key change)
   verify(data, sig, keys)  (fingerprint, hash) when SIG (an armored SSHSIG) signs DATA in NAMESPACE with one of KEYS
   verified_release(path)   the release's bytes checked, copied to a new private folder: (copy, fingerprint, hash)
 
 The format is OpenSSH's PROTOCOL.sshsig, parsed strictly: version 1, namespace hao-release, empty reserved field,
-sha512 or sha256, ssh-ed25519 key and signature, nothing left over. Ed25519 verification is RFC 8032 section 6's
+sha512 or sha256, nothing left over. Two key kinds: ssh-ed25519 (a key file, or a wallet's SSH agent) and
+sk-ssh-ed25519@openssh.com (a FIDO security key such as a YubiKey, PROTOCOL.u2f: the authenticator signs
+sha256(application) || flags || counter || sha256(SSHSIG data); the user-presence flag is required). Ed25519 verification is RFC 8032 section 6's
 reference code (Simplified BSD, IETF Trust; see NOTICE.md) with the same checks: a point that does not decode, or
 S >= L, fails. Verification uses no secret, so it need not run in constant time. `sign`/`secret_to_public` are there for
 the tests' own keys only.
@@ -188,41 +190,64 @@ class _Reader:
             raise SignatureError('%s has bytes after its end' % self.what)
 
 
-def _ed25519_blob(blob, what, size):
+ED25519 = b'ssh-ed25519'
+SK_ED25519 = b'sk-ssh-ed25519@openssh.com'
+KINDS = (ED25519, SK_ED25519)
+USER_PRESENT = 0x01
+
+
+def parse_key(blob, what='a release key'):
+    """(kind, public key, application) of an ssh-ed25519 or sk-ssh-ed25519@openssh.com key blob."""
     r = _Reader(blob, what)
     kind = r.string()
-    if kind != b'ssh-ed25519':
-        raise SignatureError('%s is %s, not ssh-ed25519' % (what, kind.decode('ascii', 'replace')[:40]))
-    value = r.string()
+    if kind not in KINDS:
+        raise SignatureError('%s is %s, not ssh-ed25519 or sk-ssh-ed25519' % (what, kind.decode('ascii', 'replace')[:40]))
+    public = r.string()
+    application = r.string() if kind == SK_ED25519 else None
     r.end()
-    if len(value) != size:
-        raise SignatureError('%s has %d bytes, not %d' % (what, len(value), size))
-    return value
+    if len(public) != 32:
+        raise SignatureError('%s has %d bytes, not 32' % (what, len(public)))
+    return kind, public, application
 
 
-def fingerprint(public):
-    """SHA256:... as ssh-keygen -l shows it."""
-    blob = _string(b'ssh-ed25519') + _string(public)
+def parse_signature(blob, kind):
+    """(signature, flags, counter) of an SSH signature blob of KIND (flags and counter only for a security key)."""
+    r = _Reader(blob, 'the signature')
+    if r.string() != kind:
+        raise SignatureError('the signature is not of the signing key\'s kind')
+    sig = r.string()
+    flags = counter = None
+    if kind == SK_ED25519:
+        flags, counter = r.take(1)[0], int.from_bytes(r.take(4), 'big')
+    r.end()
+    if len(sig) != 64:
+        raise SignatureError('the signature has %d bytes, not 64' % len(sig))
+    return sig, flags, counter
+
+
+def fingerprint(blob):
+    """SHA256:... of a key blob, as ssh-keygen -l shows it."""
     return 'SHA256:' + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
 
 
 def parse_keys(text):
-    """{public key: fingerprint} from OpenSSH public key lines; blank and # lines are skipped, any other line must be
-    an ssh-ed25519 key."""
+    """{key blob: fingerprint} from OpenSSH public key lines; blank and # lines are skipped, any other line must be an
+    ssh-ed25519 or sk-ssh-ed25519@openssh.com key whose type word matches its blob."""
     keys = {}
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith('#'):
             continue
         parts = line.split()
-        if len(parts) < 2 or parts[0] != 'ssh-ed25519':
-            raise SignatureError('a release key is not an ssh-ed25519 public key line')
+        if len(parts) < 2 or parts[0].encode() not in KINDS:
+            raise SignatureError('a release key is not an ssh-ed25519 or sk-ssh-ed25519 public key line')
         try:
             blob = base64.b64decode(parts[1], validate=True)
         except ValueError:
             raise SignatureError('a release key is not base64')
-        pub = _ed25519_blob(blob, 'a release key', 32)
-        keys[pub] = fingerprint(pub)
+        if parse_key(blob)[0] != parts[0].encode():
+            raise SignatureError('a release key line names another type than its key')
+        keys[blob] = fingerprint(blob)
     return keys
 
 
@@ -261,9 +286,10 @@ def verify(data, sig_text, keys, namespace=NAMESPACE):
         raise SignatureError('the signature is not an SSH signature')
     if int.from_bytes(r.take(4), 'big') != 1:
         raise SignatureError('the signature is not SSH signature version 1')
-    public = _ed25519_blob(r.string(), 'the signing key', 32)
+    key_blob = r.string()
+    kind, public, application = parse_key(key_blob, 'the signing key')
     ns, reserved, hash_name = r.string(), r.string(), r.string()
-    sig = _ed25519_blob(r.string(), 'the signature', 64)
+    sig, flags, counter = parse_signature(r.string(), kind)
     r.end()
     if ns != namespace.encode():
         raise SignatureError('the signature is for "%s", not "%s"' % (ns.decode('ascii', 'replace')[:40], namespace))
@@ -272,11 +298,17 @@ def verify(data, sig_text, keys, namespace=NAMESPACE):
     hash_name = hash_name.decode('ascii', 'replace')
     if hash_name not in HASHES:
         raise SignatureError('the signature uses hash %s, not sha512 or sha256' % hash_name[:20])
-    if public not in keys:
-        raise SignatureError('signed with key %s, which this hao does not trust' % fingerprint(public))
-    if not ed25519_verify(public, signed_data(namespace, hash_name, data), sig):
+    if key_blob not in keys:
+        raise SignatureError('signed with key %s, which this hao does not trust' % fingerprint(key_blob))
+    message = signed_data(namespace, hash_name, data)
+    if kind == SK_ED25519:
+        if not flags & USER_PRESENT:
+            raise SignatureError('the security key signed without a touch (user presence not set)')
+        message = (hashlib.sha256(application).digest() + bytes([flags]) + counter.to_bytes(4, 'big')
+                   + hashlib.sha256(message).digest())
+    if not ed25519_verify(public, message, sig):
         raise SignatureError('the signature does not match the file (changed after signing, or not signed by hao)')
-    return keys[public], hash_name
+    return keys[key_blob], hash_name
 
 
 def _read(path, limit, what):
