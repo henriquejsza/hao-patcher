@@ -183,7 +183,7 @@ sudo hao patch --list --live
    `diskutil apfs list -plist` (roles) and `listSnapshots` (the System volume is the one of the group that holds
    the booted snapshot), never from the device name.
 2. It refuses unless it runs as root on x86_64, SIP allows both, nothing else (softwareupdate, OCLP,
-   laptop-swap) has the System volume mounted, and no live patch or revert happened since this boot.
+   another patcher) has the System volume mounted, and no live patch or revert happened since this boot.
 3. It plans against the running system, mounts the System volume read-write (`mount -o nobrowse -t apfs`) at
    `/private/var/run/hao-live-system`, checks the plan again against it, and takes a named snapshot
    (`apfs_systemsnapshot -s hao-pre-ID`).

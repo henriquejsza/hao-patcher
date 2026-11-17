@@ -26,9 +26,9 @@
 {"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  metal-3802             recipe 2"}
 {"ev": "task.start", "t": 0.0, "text": "  other fixes            recipe 3", "total": null, "unit": null}
 {"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  other fixes            recipe 3"}
-{"bytes": 0, "edits": 56, "ev": "pack.applied", "files": 0, "pack": "base", "recipes": ["golden-gate-userspace"], "t": 0.0}
-{"bytes": 0, "edits": 3, "ev": "pack.applied", "files": 0, "pack": "metal-3802", "recipes": ["golden-gate-hello"], "t": 0.0}
-{"bytes": 0, "edits": 8, "ev": "pack.applied", "files": 0, "pack": "(no pack)", "recipes": ["golden-gate-store"], "t": 0.0}
+{"bytes": 0, "ev": "pack.applied", "files": 0, "pack": "base", "recipes": ["golden-gate-userspace"], "t": 0.0}
+{"bytes": 0, "ev": "pack.applied", "files": 0, "pack": "metal-3802", "recipes": ["golden-gate-hello"], "t": 0.0}
+{"bytes": 0, "ev": "pack.applied", "files": 0, "pack": "(no pack)", "recipes": ["golden-gate-store"], "t": 0.0}
 {"ev": "step.start", "index": 6, "of": 7, "step": "Seal", "t": 0.0}
 {"ev": "task.start", "t": 0.0, "text": "  update Preboot, bless, take the system snapshot", "total": null, "unit": null}
 {"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  update Preboot, bless, take the system snapshot"}
