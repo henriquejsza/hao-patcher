@@ -121,6 +121,7 @@ class ApplyRevert(Base):
         keep = self.metal.with_name('.hao-patch-Metalnotes.txt'); keep.write_text('not ours')
         alike = self.metal.with_name('.hao-patch-Metal.0123456789ab'); alike.write_text('not ours either')
         tmp = next(f['tmp'] for f in rec['files'] if f['path'].endswith('/Metal'))
+        self.assertTrue(next(f['tmp_created'] for f in rec['files'] if f['path'].endswith('/Metal')))
         ours = self.metal.with_name(tmp); ours.write_bytes(b'cut short')     # the copy this patch recorded
         LP.revert(self.root, self.state, patch_id=rec['id'])
         self.assertTrue(keep.exists())
@@ -161,11 +162,11 @@ class ApplyRevert(Base):
     def test_a_failure_part_way_puts_back_what_was_written(self):
         real, n = LP._install, []
 
-        def install(*args):
+        def install(*args, **kw):
             n.append(1)
             if len(n) == 2:
                 raise OSError(28, 'No space left on device')
-            return real(*args)
+            return real(*args, **kw)
         LP._install = install
         try:
             with self.assertRaisesRegex(OSError, 'No space left'):

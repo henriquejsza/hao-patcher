@@ -443,8 +443,10 @@ def _copy_new(source, target, prefix, name=None):
     return target.parent / name
 
 
-def _install(source, target, want, attributes, name=None):
+def _install(source, target, want, attributes, name=None, created=None):
     tmp = _copy_new(source, target, '.hao-patch-', name)
+    if created:
+        created()                       # recorded only once this run made it: a rollback never removes another's file
     if target.exists():
         attributes.clear_flags(target)
     os.replace(tmp, target)
@@ -590,7 +592,8 @@ def _write(p, record, folder, resolve, attributes, emit):
         record['files'].append(entry)               # recorded before the write, so a rollback undoes it too
         _save(folder, record)
         _folders(resolve, row['path'], p['dirs'], attributes, record['folders'])
-        skipped = _install(row['source'], target, row['want'], attributes, tmp)
+        skipped = _install(row['source'], target, row['want'], attributes, tmp,
+                           created=lambda: (entry.update(tmp_created=True), _save(folder, record)))
         after = sha256_file(target)
         if after != row['sha256']:
             raise PatchError('%s: wrote %s, expected %s' % (row['path'], after, row['sha256']))
@@ -645,7 +648,7 @@ def _undo(record, folder, resolve, attributes, emit):
     for f in reversed(record['files']):
         target = resolve(f['path'])
         _no_links_above(resolve, f['path'])
-        if f.get('tmp') and '/' not in f['tmp']:            # a copy cut short: the one this patch recorded
+        if f.get('tmp_created') and f.get('tmp') and '/' not in f['tmp']:   # a copy cut short: one this patch made
             cut = target.parent / f['tmp']
             if cut.is_file() and not cut.is_symlink():
                 cut.unlink()
