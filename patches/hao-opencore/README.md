@@ -94,6 +94,7 @@ refuses a boot-args value with an argument that has none. `keepsyms=1`, `ipc_con
 | `-lilubetaall` | Lets Lilu-based OCLP kexts load on an unknown kernel version. |
 | `-pmap_pcid_disable` | Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it; the QEMU boots that worked did not) while the first hardware boots stalled. The next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. The kernel logs `PMAP: PCID feature disabled` (without it: `PMAP: PCID enabled`). It stays until a laptop boot without it shows the same result. |
 | `amfi_get_out_of_my_way=1` | `hao-runtime` signs each program's x86_64 slice ad hoc with its own entitlements, including Apple-private ones (launchd: Preboot, graftdmg, trust caches). With AMFIPass alone, AMFI rejects `/sbin/launchd` and the kernel panics. |
+| `amfi_force_policy=8` | AMFI's dyld policy counts an entitled (`CS_RESTRICT`) program as restricted again, as with SIP on, so dyld denies it the `DYLD_*` path variables unless it also requires library validation. Bit 0x8 (`forceDefaultDyldEnvVarsPolicy`) is read only by the dyld environment policy. See [AMFI dyld policy](#amfi-dyld-policy). |
 | `auxKCAtBoot=false` | kernelmanagerd skips building an auxiliary kernel collection at boot and loads the System collection at once. 27's kmutil cannot build an x86_64 collection ("unsupported arch: x86_64 / Unsupported collection kind"), so the build of the only candidate, 27's codeless `AppleMobileDevice.kext` (from 27's Data template), failed at every boot and held the System collection, and with it the Capri framebuffer and WindowServer, back 18.5 s (23 s on the first boot). The codeless kext's personality still loads. Details: [Aux KC gate](#aux-kc-gate). |
 
 `ic_csr_internal=1` is no longer written, and removed if present: 27's x86_64 dyld scans the disk for shared-cache
@@ -112,7 +113,9 @@ only (owner 2026-11-17: "Dev builds only"); dev-diagnostics adds it.
 the unified log (and the ESP log in dev sets), and without `debug=0x100` a panic reboots and leaves `aapl,panic-info` in NVRAM
 instead of waiting for a debugger.
 
-This patch has status `experiment` because of `amfi_get_out_of_my_way=1`; it is never part of a shipped set.
+Every end-user set includes this recipe, so every image ships with AMFI relaxed (`amfi_get_out_of_my_way=1`). That
+is the owner's decision (2026-11-17, D1: "Ship, disclose"), stated in the install flow and the release notes. Its status
+is still `experiment`.
 
 ## Aux KC gate
 
@@ -134,6 +137,35 @@ code. Expected, not yet shown on a boot: codeless personalities (AppleMobileDevi
 Not chosen: removing `AppleMobileDevice.kext` (kernelmanagerd sends the build request to the helper without looking at
 the candidates, so the helper start and collection loads would likely remain, and iPhone USB devices would lose
 `SupportsIPhoneOS`); a prebuilt Aux KC (kmutil refuses a collection of only codeless kexts).
+
+## AMFI dyld policy
+
+With SIP's unrestricted-filesystem bit allowed (`csr-active-config` 0x803), AMFI clears its platform hardening at
+start, and with it the "hardened" fact of its dyld policy (`csproc_hardened_runtime() && hardeningEnabled()` in
+`macos_dyld_policy_collect_state`). dyld then honoured `DYLD_INSERT_LIBRARIES` and the other `DYLD_*` variables in
+hardened platform programs: measured on 26B131 in hao's hardened stub of `/usr/bin/sw_vers`, for a user and for root.
+Nothing the image ships needs that.
+
+Two settings close it, each limited to AMFI's dyld environment policy:
+
+- Hardened programs: `src/amfi_dyld.py` adds one `Kernel.Patch` (`Identifier` AMFI, `MinKernel` = `MaxKernel` = the BootKC's Darwin version,
+so the patch never reaches the Tahoe Recovery's kernel). It replaces only that `hardeningEnabled()` call with `mov al,1`. A program
+whose own signature has the hardened runtime counts as hardened again in the dyld policy, and dyld is denied the
+`DYLD_*` path variables (`DYLD_INSERT_LIBRARIES`, library and framework paths) unless it is entitled (`allow-dyld-environment-variables`, `get-task-allow`), as on a Mac with SIP on.
+The hardening flags AMFI would force onto platform binaries (library validation, `CS_KILL`) stay off: turning hardening on
+as a whole (`amfi_force_policy=2`) would force library validation into the Apple programs OCLP's Metal loads into.
+The script refuses the build unless the site occurs exactly once in the collection, lies in AMFI and calls a
+function of `hardeningEnabled()`'s shape (it reads a flag and returns 1 if set). The build checks its input and the
+config it writes, not the running kernel: OpenCore skips a patch whose bytes it does not find, so only a boot shows
+the patch applied (Verify).
+- Entitled programs: `amfi_force_policy=8` makes AMFI count a `CS_RESTRICT` program as restricted again (with
+  SIP's filesystem bit allowed it otherwise does not). A restricted program that also requires library validation keeps
+  the path variables, as on a Mac with SIP on. The boot-arg is not version-scoped: a Recovery booted through this
+  OpenCore gets it too (the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's).
+
+What stays open (AMFI relaxed, owner D1): a restricted program that requires library validation keeps the path
+variables while `amfi_get_out_of_my_way` relaxes library validation, and a program that is neither hardened nor
+restricted still accepts an inserted library and keeps its Apple signature. Narrowing AMFI itself is v0.1.0 research.
 
 ## Inputs
 
@@ -172,6 +204,14 @@ the ESP's OpenCore log shows each repair and both kexts applied once. On the run
 `kmutil showloaded | grep -iE 'hao|commpage|Capri|HD4000|BCM5701'`, `sysctl kern.hao` after the first arm64-only
 exec, and the boot log line "HaoExec: arm64-only executables now run through /usr/libexec/hao".
 
+AMFI dyld policy: the build log has `amfi-dyld.json` (AMFI UUID, Darwin version, site), and a dev image's OpenCore
+log shows the patch applied once. On the running system, with a test library whose constructor prints a line:
+`DYLD_INSERT_LIBRARIES=LIB /usr/bin/sw_vers` prints none, as user and as root, and neither does an entitled
+program without the hardened runtime (`codesign -dv` flags `restrict`, no `runtime`). `sysctl security.mac.amfi.force_policy`
+is 8. The same library in an ad hoc signed
+copy of a program without the hardened runtime still prints it (control). OCLP's Metal still loads (`vmmap` of
+WindowServer shows `MetalOld.dylib`).
+
 Aux KC gate (`auxKCAtBoot=false`): `sysctl kern.bootargs` has it; on every boot kernelmanagerd logs "AuxKC building is
 disabled during boot due to boot-arg" right after "performing auxiliary activation", with no "Attempting to clean up
 and build from approvals", no "couldn't construct deferred auxiliary collection" and no helper "beginning auxiliary
@@ -198,6 +238,9 @@ must still die with VM guard flavor 13 (status 137), which shows the fix leaves 
 has a 15-second alarm. Finally load a website in Safari and scroll, navigate and reload.
 
 ## Validation
+NEEDS VALIDATION (r72): the AMFI dyld policy patch. Host tests bind it on three recorded 26B131 Boot KCs. It needs
+an image build and a laptop boot passing the AMFI checks under Verify.
+NEEDS VALIDATION (r71): `hao_crash=1` is not in an end-user image's `kern.bootargs`, and is in a dev image's.
 NEEDS VALIDATION (r70): an image build in which `apply.sh` prints "config-reasons: every element of config.plist has a
 reason". Host: `tests/test_config_reasons.py` passes against a real alpha build's finished EFI (`HAO_OPENCORE_IMAGE_ESP`):
 reasons and kext provenance.
@@ -225,6 +268,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r72 2026-11-17 Hardened and entitled programs keep AMFI's dyld environment policy: one `Kernel.Patch` bound to the BootKC's AMFI (`src/amfi_dyld.py`) and `amfi_force_policy=8`, so dyld no longer honours `DYLD_INSERT_LIBRARIES` in them (owner D1, 2026-11-17).
 - r71 2026-11-17 `hao_crash=1` leaves the end-user boot-args and is removed if present (owner 2026-11-17: dev builds only); dev-diagnostics r7 adds it to dev images.
 - r70 2026-11-17 Every enabled element of the finished config.plist has a recorded reason (`src/config-reasons.json`), and every enabled third-party kext is byte-identical to its pinned upstream OCLP payload (`src/kext-provenance.json`); `apply.sh` stops the build otherwise (PROTOCOL S18). Nothing it installs changes.
 - r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no longer carries the `ic_csr_internal` probe, and the Sandbox adapter rewrites a shared modifier list once. config.plist is byte-identical to r42's; only IntelCommpage's executable changes. Row `kernel_repair_binding` -> kernel-binding-26B131-r44, the same inputs' profile, which pins that executable.

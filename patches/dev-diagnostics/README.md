@@ -36,6 +36,7 @@ golden-gate-live-text-service's and this recipe's, applied to the base config of
 `tests/test_edits.py` with `HAO_OPENCORE_INPUT` and `HAO_OPENCORE_IMAGE_CONFIG`): bench images keep the same config.
 
 ## Revisions
+- r8 2026-11-17 Its declared boot-args carry hao-opencore r72's `amfi_force_policy=8`; nothing this recipe adds changes.
 - r7 2026-11-17 Adds `hao_crash=1`, which hao-opencore r71 no longer writes (owner 2026-11-17: dev builds only); dev images keep the same boot-args.
 - r6 2026-11-17 `diagnostic-boot-args` names a reason for each boot argument (`arg_reasons`), as edit specs now require. Declaration only: nothing it installs changes.
 - r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.

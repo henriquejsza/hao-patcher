@@ -48,7 +48,7 @@ class BootLoggingTests(unittest.TestCase):
     def test_no_measurement_switches_whatever_the_environment(self):
         # hao_crash and hao-runtime's measurement switches are dev-diagnostics' (pack dev); hao-opencore writes the
         # same boot-args in every build, IMAGE_DEV_BUILD or not, and removes a hao_crash=1 it finds.
-        release = '-lilubetaall -pmap_pcid_disable amfi_get_out_of_my_way=1 auxKCAtBoot=false'.split()
+        release = '-lilubetaall -pmap_pcid_disable amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false'.split()
         for dev in (None, '0', '1'):
             with self.subTest(dev=dev):
                 args = self.apply(self.fixture(), dev)['NVRAM']['Add'][APPLE]['boot-args'].split()

@@ -43,6 +43,13 @@ ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EF
 "$PY" -I "$P/src/repairs.py" \
     "$ESP/EFI/OC/config.plist" "$REPAIR_WORK/bound" \
     "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc"
+# Hardened programs keep AMFI's dyld environment policy: with SIP's filesystem bit allowed AMFI treats no program as
+# hardened, so dyld honoured DYLD_INSERT_LIBRARIES in hardened platform programs. One Kernel.Patch, bound to this
+# BootKC's AMFI and kernel version, makes the hardened runtime count again inside the dyld policy only (src/amfi_dyld.py
+# says what it checks; it refuses unless the site is exactly once in AMFI and calls hardeningEnabled()).
+"$PY" -I "$P/src/amfi_dyld.py" --binder "$P/build" \
+    --boot-kc "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" \
+    --config "$ESP/EFI/OC/config.plist" --record "${PATCH_OUTPUT_DIR:-$P}/amfi-dyld.json"
 # The image's dyld counts as an internal install by itself (golden-gate-dyld-internal: internalInstall() answers true),
 # so it loads OCLP's on-disk Metal roots without the ic_csr_internal boot-arg, which made every process see an
 # Apple-internal build (mobileassetd then asked Apple's internal asset server: no Spotlight, Siri or language assets).
@@ -72,7 +79,10 @@ args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v',
 # program's own (Apple-private) entitlements; AMFIPass alone kills such a PID 1 (experimental sets only).
 # hao_crash=1 (crash lines on the console) and the measurement switches (hao_nx_stats, hao_bridge_stats,
 # hao_diag_time) are dev-diagnostics' (pack dev): dev images only (owner 2026-11-17, hao_crash: "Dev builds only").
-for arg in ('-lilubetaall', '-pmap_pcid_disable', 'amfi_get_out_of_my_way=1',
+# amfi_force_policy=8: AMFI's dyld policy counts an entitled (CS_RESTRICT) program as restricted again, as with SIP on
+# (force_policy bit 0x8 is read only there; one that requires library validation keeps the path variables, as with SIP
+# on). Hardened programs are src/amfi_dyld.py's Kernel.Patch.
+for arg in ('-lilubetaall', '-pmap_pcid_disable', 'amfi_get_out_of_my_way=1', 'amfi_force_policy=8',
             # kernelmanagerd skips the boot-time Aux KC build. 27's kmutil cannot build an x86_64 collection, so the
             # build (of the codeless AppleMobileDevice) failed at every boot and held the System KC back ~18 s.
             'auxKCAtBoot=false'):
