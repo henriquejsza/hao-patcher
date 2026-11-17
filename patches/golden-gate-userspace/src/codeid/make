@@ -5,8 +5,10 @@
 
 Builds hao-runtime's build/libhao_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
 its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libhao_codeid.a, build.json}. build.json holds
-only what the sources and objects decide (no date, no host path), so a rebuild from the same commits is byte-identical
-(tools/asset-build codeid_carrier). With --cache (a folder holding an image's dyld_shared_cache_x86_64*, e.g. the
+only what the sources and objects decide (no date, no host path), so a rebuild from the same commits is byte-identical.
+Its "commit" is the last hao-patcher commit that changed this producer (src/codeid/, src/codeid_carrier.py), which
+must be clean: release-cut's provenance check reads it, and a later commit that leaves the producer alone names the same
+one, so a rebuild still matches (tools/asset-build codeid_carrier). With --cache (a folder holding an image's dyld_shared_cache_x86_64*, e.g. the
 build's RosettaOS System/Library/dyld) it also plans the cache edit, read-only, and prints the summary, so an artifact
 that does not fit the cache is never made.
 """
@@ -42,6 +44,10 @@ def main():
     parser.add_argument('--cache', type=Path)
     args = parser.parse_args()
     runtime = args.hao_runtime.resolve()
+    producer = [str(HERE), str(HERE.parent/'codeid_carrier.py')]
+    if git(HERE, 'status', '--porcelain', '--', *producer).strip():
+        raise SystemExit(f'uncommitted changes in the producer ({", ".join(producer)})')
+    own = git(HERE, 'log', '-1', '--format=%H', '--', *producer).strip()
     if git(runtime, 'status', '--porcelain', '--', *RUNTIME_SOURCES).strip():
         raise SystemExit(f'{runtime}: uncommitted changes in {", ".join(RUNTIME_SOURCES)}')
     commit = git(runtime, 'rev-parse', 'HEAD').strip()
@@ -59,7 +65,7 @@ def main():
                              sources={name: sha256(runtime/name) for name in RUNTIME_SOURCES}),
             carrier_c=sha256(HERE/'carrier.c'), carrier_o=sha256(tmp/'carrier.o'),
             linker=sha256(HERE.parent/'codeid_carrier.py'),
-            members=[obj.name for obj in objects])
+            members=[obj.name for obj in objects], commit=own, dirty=False)
         if args.cache:
             _, summary = carrier.plan_cache_family(args.cache, objects=objects)
             print('planned:', json.dumps(summary), flush=True)
