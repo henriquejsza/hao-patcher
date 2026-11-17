@@ -69,8 +69,9 @@ def check_interpreter(root_py=None):
     aside: hao runs it with -S) are root's alone. The same rule as the launcher, so doctor fails where sudo would."""
     import stat
     root_py = Path(root_py or ROOT_PY)
-    fix = 'install Python 3.14 from python.org, or: sudo chown -R root:wheel %s && sudo chmod -R go-w %s' % (
-        root_py, root_py)
+    fw = root_py.parent.parent
+    fix = ('install Python 3.14 from python.org, then (its installer leaves it writable by the admin group): '
+           'sudo chown -R root:wheel %s && sudo chmod -R go-w %s' % (fw, fw))
     exe = root_py / 'bin' / 'python3.14'
     if not exe.is_file() or exe.is_symlink():
         return [check('python', 'fail', 'sudo ./hao needs python.org\'s Python 3.14 (%s is missing)' % exe, fix)]
@@ -84,13 +85,23 @@ def check_interpreter(root_py=None):
             return [check('python', 'fail', '%s is not root\'s alone: sudo ./hao will refuse it' % d, fix)]
         d = d.parent
     skip = root_py / 'lib' / 'python3.14' / 'site-packages'
-    for top, dirs, files in os.walk(str(root_py)):
+    errors = []
+    for top, dirs, files in os.walk(str(root_py), onerror=errors.append):
         dirs[:] = [x for x in dirs if Path(top, x) != skip]
         for name in dirs + files:
-            st = os.lstat(os.path.join(top, name))
+            path = os.path.join(top, name)
+            st = os.lstat(path)
             if bad(st):
                 return [check('python', 'fail', '%s can be changed by others than root: sudo ./hao will refuse it'
-                              % os.path.join(top, name), fix)]
+                              % path, fix)]
+            if stat.S_ISLNK(st.st_mode):
+                target = os.readlink(path)
+                if target.startswith('/') or '..' in target:
+                    return [check('python', 'fail', '%s leads out of %s: sudo ./hao will refuse it' % (path, root_py),
+                                  fix)]
+    if errors:
+        return [check('python', 'fail', '%s cannot be read whole (%s): sudo ./hao will refuse it' % (root_py, errors[0]),
+                      fix)]
     return [check('python', 'ok', 'sudo ./hao runs %s (root\'s alone)' % exe)]
 
 

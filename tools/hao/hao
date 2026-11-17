@@ -3,8 +3,10 @@
 # Started by sh. As a user: the first python3.14 (else python3) on PATH runs hao, isolated (-I). As root (sudo): only
 # python.org's Python 3.14, and only when it, every folder above it and everything it loads are root's alone; checked
 # here, before any Python starts (a Python the user's account can change would run as root). -S keeps site-packages out.
-ROOT_PY=/Library/Frameworks/Python.framework/Versions/3.14
-if [ "$(id -u)" = 0 ]; then
+F=/Library/Frameworks/Python.framework
+ROOT_PY=$F/Versions/3.14
+if [ "$(/usr/bin/id -u)" = 0 ]; then
+    PATH=/usr/bin:/bin:/usr/sbin:/sbin            # as root: the system's tools only
     bad=
     if [ ! -f "$ROOT_PY/bin/python3.14" ] || [ -L "$ROOT_PY/bin/python3.14" ]; then
         bad="python.org's Python 3.14 is not installed ($ROOT_PY/bin/python3.14)"
@@ -12,20 +14,24 @@ if [ "$(id -u)" = 0 ]; then
         d=$ROOT_PY
         while [ "$d" != / ]; do
             if [ -L "$d" ]; then bad="$d is a link"; break; fi
-            m=$(stat -f '%u %Lp' "$d") || { bad="$d cannot be read"; break; }
+            m=$(/usr/bin/stat -f '%u %Lp' "$d") || { bad="$d cannot be read"; break; }
             if [ "${m%% *}" != 0 ] || [ $(( 0${m##* } & 022 )) != 0 ]; then bad="$d is not root's alone"; break; fi
-            d=$(dirname "$d")
+            d=$(/usr/bin/dirname "$d")
         done
         if [ -z "$bad" ]; then
             sp="$ROOT_PY/lib/python3.14/site-packages"
-            w=$(find "$ROOT_PY" -path "$sp" -prune -o '(' ! -user root -o -perm -g+w -o -perm -o+w ')' -print | head -1)
-            [ -z "$w" ] || bad="$w can be changed by others than root"
+            # anything not root's, writable by others, or a link leading out of the tree (absolute, or with ..)
+            w=$(/usr/bin/find "$ROOT_PY" -path "$sp" -prune -o '(' ! -user root -o -perm -g+w -o -perm -o+w ')' -print -o -type l '(' -lname '/*' -o -lname '*..*' ')' -print) || w="$ROOT_PY (it cannot be read whole)"
+            w=${w%%
+*}
+            [ -z "$w" ] || bad="$w can be changed by others than root, or leads out of $ROOT_PY"
         fi
     fi
     if [ -n "$bad" ]; then
         echo "hao: under sudo hao runs only python.org's Python 3.14, root's alone: $bad." >&2
         echo "  Install it from python.org, or make it root's alone:" >&2
-        echo "  sudo chown -R root:wheel $ROOT_PY && sudo chmod -R go-w $ROOT_PY" >&2
+        echo "  sudo chown -R root:wheel $F && sudo chmod -R go-w $F" >&2
+        echo "  (python.org's installer leaves it writable by the admin group; do this right after installing it)" >&2
         exit 5
     fi
     exec "$ROOT_PY/bin/python3.14" -I -S "$0" "$@"

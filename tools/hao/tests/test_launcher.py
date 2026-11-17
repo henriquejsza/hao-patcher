@@ -22,8 +22,8 @@ class Launcher(unittest.TestCase):
         with tempfile.TemporaryDirectory() as b:
             (Path(b) / 'id').write_text('#!/bin/sh\necho 0\n')
             (Path(b) / 'id').chmod(0o755)
-            script = sh_part().replace('ROOT_PY=/Library/Frameworks/Python.framework/Versions/3.14',
-                                       'ROOT_PY=%s' % root_py)
+            script = sh_part().replace('ROOT_PY=$F/Versions/3.14', 'ROOT_PY=%s' % root_py) \
+                .replace('/usr/bin/id -u', '%s/id -u' % b)          # an id answering 0, as under sudo
             (Path(b) / 'hao').write_text(script)
             return subprocess.run(['/bin/sh', str(Path(b) / 'hao'), 'help'], capture_output=True, text=True,
                                   env=dict(os.environ, PATH='%s:/usr/bin:/bin:/usr/sbin:/sbin' % b))
