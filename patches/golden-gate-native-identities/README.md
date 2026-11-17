@@ -28,10 +28,15 @@ takes the first source root that has, at the same path, the program's original:
   not for a different program installed at that path (OCLP's own programs, for example);
 - listed in [src/programs.txt](src/programs.txt), the reviewed list of programs that may have an Apple identity, each with
   the recipe that edits it. Its library load commands differ from the original's by exactly the libraries listed there:
-  none removed and no other added. The original's cdhash, the edited program's content digest (its x86_64 bytes up to
-  the code signature, so independent of who signs) and its entitlements must each equal a value pinned there. A
-  re-signed program that matches an original but is not listed, or that differs in any of these, stops `install`, so
-  the build fails. `tests/test_programs.py` checks the list against the edit specs'
+  none removed and no other added. Its own ad hoc signature must verify against its bytes (`codesign --verify
+  --strict`) and end the slice as codesign lays it out. These four values must match one pinned line together:
+  - the original's cdhash;
+  - the edited program's content digest (its x86_64 bytes up to the code signature, so independent of who signs);
+  - its entitlements (XML and DER must agree);
+  - its CodeDirectory signing policy (flags, execution-segment flags, runtime).
+
+  A re-signed program that matches an original but is not listed stops `install`, so the build fails. So does a
+  listed program that differs in any of these, or that its recipe re-signed but that does not get its row. `tests/test_programs.py` checks the list against the edit specs'
   `macho.add-dylib` edits;
 - copied to `/usr/lib/hao/originals/<path>` (root:wheel, 0644, directories 0755), the copy passes
   `codesign --verify --arch x86_64 -R='anchor apple'`.
@@ -101,7 +106,7 @@ Earlier: Host tests pass and a host simulation of the 26B131 WindowServer and `c
 their rows. No image has been built with this recipe.
 
 ## Revisions
-- r8 2026-11-17 Only programs listed in `src/programs.txt` get an Apple identity, and only with the original's pinned cdhash, the edited program's pinned content digest (its bytes up to the signature) and pinned entitlements, and exactly the listed inserted libraries. Any other match or difference fails the build instead of being enrolled.
+- r8 2026-11-17 Only programs listed in `src/programs.txt` get an Apple identity. Each needs its own signature to verify, exactly the listed inserted libraries, and one pinned line matching the original's cdhash, its content digest (its bytes up to the signature), its entitlements (XML and DER) and its signing policy. Any other match, any difference, and a listed program left without its row fail the build.
 - r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `filesystem.dmg` read-only, so the assembly reads the row where it is staged instead of copying its 22 GB into the work folder a second time (golden-gate-userspace already declares it). The hook and what it installs are unchanged.
 - r5 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.

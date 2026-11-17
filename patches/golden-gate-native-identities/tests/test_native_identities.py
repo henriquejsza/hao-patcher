@@ -26,10 +26,13 @@ def true_cdhash():
 def entry(path, **changes):
     """The fixture's programs.txt entry for PATH (a re-signed /usr/bin/true): its own digests, TRUE's cdhash."""
     data = ni.x86_64(path)[1]
-    value = dict(recipe='test', libs=frozenset(), refs=frozenset({true_cdhash()}),
-                 digests=frozenset({ni.content_digest(data)}), ents=frozenset({ni.entitlements_digest(data)}))
-    value.update(changes)
-    return value
+    one = dict(refs=true_cdhash(), digests=ni.content_digest(data), ents=ni.entitlements_digest(data),
+               policies=ni.signature_policy(data))
+    libs = changes.pop('libs', frozenset())
+    one.update(changes)
+    build = (one['refs'], one['digests'], one['ents'], one['policies'])
+    return dict(recipe='test', libs=libs, builds=frozenset({build}),
+                **{k: frozenset({v}) for k, v in one.items()})
 
 
 def cdhash(path):
@@ -141,9 +144,10 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertIn('/usr/lib/libextra.dylib', refused['usr/bin/kept'])
 
     def test_original_must_have_a_pinned_cdhash(self):
-        for change, words in ((dict(refs=frozenset({'1' * 40})), 'has cdhash'),
-                              (dict(digests=frozenset({'2' * 64})), 'content digest'),
-                              (dict(ents=frozenset({'3' * 64})), 'entitlements digest')):
+        for change, words in ((dict(refs='1' * 40), 'has cdhash'),
+                              (dict(digests='2' * 64), 'is not a line programs.txt pins'),
+                              (dict(ents='3' * 64), 'is not a line programs.txt pins'),
+                              (dict(policies='00010002:0000000000000001:00000000'), 'is not a line programs.txt pins')):
             rows, _, refused = ni.scan(self.system, [self.source], {'usr/bin/kept': entry(self.system/'usr/bin/kept', **change)})
             self.assertEqual(rows, [], change)
             self.assertIn(words, refused['usr/bin/kept'])
@@ -155,6 +159,18 @@ class NativeIdentitiesTests(unittest.TestCase):
         at = 32 + struct.unpack_from('<I', data, 20)[0] + 64        # a byte after the load commands
         changed[at] ^= 0xff
         self.assertNotEqual(ni.content_digest(bytes(changed)), ni.content_digest(data))
+
+    def test_listed_program_that_is_not_enrolled_is_refused(self):
+        listed = dict(self.kept)
+        listed['usr/bin/orphan'] = entry(self.system/'usr/bin/orphan')     # re-signed, no original anywhere
+        _, _, refused = ni.scan(self.system, [self.source], listed)
+        self.assertIn('listed but not enrolled', refused['usr/bin/orphan'])
+
+    def test_der_and_xml_entitlements_must_agree(self):
+        der = bytes([0x70, 0x0c, 0x02, 0x01, 0x01, 0xb0, 0x07, 0x30, 0x05, 0x0c, 0x01, 0x6b, 0x01, 0x01, 0xff])
+        self.assertEqual(ni._der(bytes([0x30]) + der[1:])[0], [1, {'k': True}])
+        with self.assertRaises(ValueError):
+            ni._der(bytes([0x30, 0x05, 0x0c, 0x09]))
 
     def test_dylibs(self):
         sig, data = ni.x86_64(TRUE)
@@ -170,11 +186,13 @@ class NativeIdentitiesTests(unittest.TestCase):
             self.assertTrue(all(lib.startswith('/') for lib in libs))
         bad = Path(self.tmp.name)/'bad.txt'
         spaced = Path(self.tmp.name)/'spaced.txt'
-        spaced.write_text('System/A B.app/Contents/MacOS/A B  some-recipe  +/usr/lib/x.dylib  =%s  ~%s  %%%s\n'
-                          % ('a' * 40, 'b' * 64, 'c' * 64))
-        self.assertEqual(ni.load_programs(spaced)['System/A B.app/Contents/MacOS/A B'],
-                         dict(recipe='some-recipe', libs=frozenset({'/usr/lib/x.dylib'}), refs=frozenset({'a' * 40}),
-                              digests=frozenset({'b' * 64}), ents=frozenset({'c' * 64})))
+        line = 'System/A B.app/Contents/MacOS/A B  some-recipe  +/usr/lib/x.dylib  =%s  ~%s  %%%s  !%s\n'
+        spaced.write_text(line % ('a' * 40, 'b' * 64, 'c' * 64, '00000002:0000000000000001:00000000') +
+                          line % ('d' * 40, 'e' * 64, 'f' * 64, '00000002:0000000000000001:00000000'))
+        got = ni.load_programs(spaced)['System/A B.app/Contents/MacOS/A B']
+        self.assertEqual((got['recipe'], got['libs'], len(got['builds'])), ('some-recipe', frozenset({'/usr/lib/x.dylib'}), 2))
+        self.assertIn(('a' * 40, 'b' * 64, 'c' * 64, '00000002:0000000000000001:00000000'), got['builds'])
+        self.assertNotIn(('a' * 40, 'e' * 64, 'c' * 64, '00000002:0000000000000001:00000000'), got['builds'])
         spaced.write_text('usr/bin/x  r  +/usr/lib/x.dylib\n')   # no pinned original
         with self.assertRaises(ValueError):
             ni.load_programs(spaced)
@@ -240,9 +258,8 @@ class HeaderOnlyRead(unittest.TestCase):
             with self.subTest(path=path.name):
                 try:
                     want = whole_file(path)
-                except Exception as error:          # the whole-file read raised: the header-only read raises too
-                    with self.assertRaises(type(error)):
-                        ni.x86_64_signature(path)
+                except Exception:                   # malformed: the header-only read says "not readable" (None)
+                    self.assertIsNone(ni.x86_64_signature(path))
                     continue
                 self.assertEqual(ni.x86_64_signature(path), want)
                 if want:

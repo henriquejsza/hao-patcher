@@ -181,10 +181,12 @@ def x86_64_signature(path):
                 found = [(struct.unpack_from('<i', head, 4)[0], 0, length)]
             else:
                 found = slices(head)                    # a fat header (at most 32 entries) fits in 4 KiB
-            for cpu, offset, size in found:
-                if cpu == CPU_X86_64:
-                    return slice_signature(Slice(stream, length, offset, size)), offset, size
-    except OSError:
+            matches = [(offset, size) for cpu, offset, size in found if cpu == CPU_X86_64]
+            if len(matches) > 1:
+                return None, -1, 0                       # two x86_64 slices: ambiguous, never enrolled
+            for offset, size in matches:
+                return slice_signature(Slice(stream, length, offset, size)), offset, size
+    except (OSError, ValueError, struct.error, IndexError, UnicodeDecodeError):
         return None
     return None
 
@@ -198,24 +200,32 @@ def slice_bytes(path, found):
 
 
 def load_programs(path=PROGRAMS):
-    """programs.txt -> {relative path: dict(recipe, libs, refs, digests, ents)}: the inserted library paths (+PATH),
-    the original's cdhashes (=CDHASH), the edited program's content_digest values (~SHA256) and entitlements_digest
-    values (%SHA256), one of each per input build."""
+    """programs.txt -> {relative path: dict(recipe, libs, refs, digests, ents, policies, builds)}: the inserted library
+    paths (+PATH) and, for each input build, one line's tuple (ref, digest, ents, policy) in builds; refs, digests,
+    ents and policies are the sets of their values. A program has one line per input build; every line of a program
+    names the same recipe and libraries."""
     out = {}
     for line in Path(path).read_text().splitlines():
         words = re.split(r'\s{2,}|\t', line.split('#', 1)[0].strip()) if line.split('#', 1)[0].strip() else []
         if not words:
             continue
-        entry = dict(recipe=words[1] if len(words) > 1 else '', libs=set(), refs=set(), digests=set(), ents=set())
+        libs, one = set(), dict(refs=[], digests=[], ents=[], policies=[])
         for w in words[2:]:
-            kind = {'+': 'libs', '=': 'refs', '~': 'digests', '%': 'ents'}.get(w[:1])
-            shape = r'/\S.*' if kind == 'libs' else r'[0-9a-f]{40}' if kind == 'refs' else r'[0-9a-f]{64}'
+            kind = {'+': 'libs', '=': 'refs', '~': 'digests', '%': 'ents', '!': 'policies'}.get(w[:1])
+            shape = {'libs': r'/\S.*', 'refs': r'[0-9a-f]{40}', 'policies': r'[0-9a-f]{8}:[0-9a-f]{16}:[0-9a-f]{8}'}.get(
+                kind, r'[0-9a-f]{64}')
             if not kind or not re.fullmatch(shape, w[1:]):
                 raise ValueError(f'{path}: bad field {w!r}: {line}')
-            entry[kind].add(w[1:])
-        if len(words) < 3 or words[0] in out or not all(entry[k] for k in ('refs', 'digests', 'ents')):
-            raise ValueError(f'{path}: bad line (needs =CDHASH, ~DIGEST and %ENTITLEMENTS): {line}')
-        out[words[0]] = {k: frozenset(v) if isinstance(v, set) else v for k, v in entry.items()}
+            (libs.add if kind == 'libs' else one[kind].append)(w[1:])
+        if len(words) < 3 or any(len(v) != 1 for v in one.values()):
+            raise ValueError(f'{path}: bad line (needs one each of =CDHASH ~DIGEST %ENTITLEMENTS !POLICY): {line}')
+        entry = out.setdefault(words[0], dict(recipe=words[1], libs=frozenset(libs), builds=frozenset()))
+        if entry['recipe'] != words[1] or entry['libs'] != libs:
+            raise ValueError(f'{path}: lines for {words[0]} differ in recipe or libraries')
+        entry['builds'] = entry['builds'] | {(one['refs'][0], one['digests'][0], one['ents'][0], one['policies'][0])}
+    for entry in out.values():
+        for n, kind in enumerate(('refs', 'digests', 'ents', 'policies')):
+            entry[kind] = frozenset(b[n] for b in entry['builds'])
     return out
 
 
@@ -268,20 +278,124 @@ def content_digest(data):
     return hashlib.sha256(bytes(data[:dataoff])).hexdigest()
 
 
-def entitlements_digest(data):
-    """sha256 of a slice's entitlements (the XML entitlements blob, parsed, as sorted JSON); {} when it has none."""
+def _der(data, at=0):
+    """(value, next offset) of the DER entitlements encoding: dictionaries ([16] SET of SEQUENCE {UTF8String,
+    value}), arrays (SEQUENCE), UTF8String, BOOLEAN and INTEGER."""
+    tag, at = data[at], at + 1
+    length, at = data[at], at + 1
+    if length & 0x80:
+        n = length & 0x7f
+        if not 1 <= n <= 4:
+            raise ValueError('bad DER length')
+        length, at = int.from_bytes(data[at:at + n], 'big'), at + n
+    end = at + length
+    if end > len(data):
+        raise ValueError('DER runs past its blob')
+    body = data[at:end]
+    if tag == 0x0c:
+        return body.decode(), end
+    if tag == 0x01:
+        return body != b'\0', end
+    if tag == 0x02:
+        return int.from_bytes(body, 'big', signed=True), end
+    if tag in (0x30, 0xb0):
+        items, p = [], at
+        while p < end:
+            item, p = _der(data, p)
+            items.append(item)
+        if tag == 0x30:
+            return items, end
+        if not all(isinstance(i, list) and len(i) == 2 and isinstance(i[0], str) for i in items):
+            raise ValueError('bad DER dictionary')
+        return {k: v for k, v in items}, end
+    raise ValueError(f'unsupported DER tag {tag:#x}')
+
+
+def signature_blobs(data):
+    """{slot: blob bytes} of a slice's code signature superblob, every index and length checked."""
     found = {}
     for command, at, length in _commands(data):
         if command == 0x1d:
+            if length != 16:
+                raise ValueError('bad LC_CODE_SIGNATURE')
             dataoff, datasize = struct.unpack_from('<II', data, at + 8)
             blob = data[dataoff:dataoff + datasize]
-            if blob[:4] == b'\xfa\xde\x0c\xc0':
-                for k in range(struct.unpack_from('>I', blob, 8)[0]):
-                    kind, off = struct.unpack_from('>II', blob, 12 + 8 * k)
-                    magic, size = struct.unpack_from('>II', blob, off)
-                    if magic == 0xfade7171:
-                        found = plistlib.loads(bytes(blob[off + 8:off + size]))
+            if len(blob) < 12 or dataoff + datasize > len(data) or blob[:4] != b'\xfa\xde\x0c\xc0':
+                raise ValueError('bad code signature')
+            total, count = struct.unpack_from('>II', blob, 4)
+            if total > len(blob) or count > 64 or 12 + 8 * count > total:
+                raise ValueError('bad code signature index')
+            for k in range(count):
+                kind, off = struct.unpack_from('>II', blob, 12 + 8 * k)
+                if off + 8 > total:
+                    raise ValueError('bad code signature blob offset')
+                size = struct.unpack_from('>I', blob, off + 4)[0]
+                if size < 8 or off + size > total or kind in found:
+                    raise ValueError('bad or repeated code signature blob')
+                found[kind] = bytes(blob[off:off + size])
+    return found
+
+
+def entitlements_digest(data):
+    """sha256 of a slice's entitlements (the XML entitlements blob, parsed, as sorted JSON); {} when it has none."""
+    blobs, found = signature_blobs(data), {}
+    xml, der = blobs.get(5), blobs.get(7)
+    if xml is not None:
+        if xml[:4] != b'\xfa\xde\x71\x71':
+            raise ValueError('slot 5 is not an entitlements blob')
+        found = plistlib.loads(xml[8:])
+    if der is not None:
+        if der[:4] != b'\xfa\xde\x71\x72' or der[8] != 0x70:
+            raise ValueError('slot 7 is not a DER entitlements blob')
+        body, _ = _der(bytes([0x30]) + der[9:])                     # [APPLICATION 16] { INTEGER 1, [16] dict }
+        if len(body) != 2 or body[0] != 1 or not isinstance(body[1], dict):
+            raise ValueError('bad DER entitlements')
+        if xml is not None and json.loads(json.dumps(body[1], sort_keys=True)) != json.loads(
+                json.dumps(found, sort_keys=True, default=repr)):
+            raise ValueError('DER and XML entitlements differ')
+        found = found if xml is not None else body[1]
     return hashlib.sha256(json.dumps(found, sort_keys=True, default=repr).encode()).hexdigest()
+
+
+def signature_policy(data):
+    """'FLAGS:EXECSEGFLAGS:RUNTIME' (hex) of the slice's best CodeDirectory: what the kernel enforces beyond the
+    bytes and entitlements (hardened runtime, library validation, main-binary execution segment, runtime version)."""
+    best = None
+    for kind, blob in signature_blobs(data).items():
+        if (kind == 0 or 0x1000 <= kind < 0x1005) and blob[:4] == b'\xfa\xde\x0c\x02' and len(blob) >= 44:
+            hash_type = blob[37]
+            if hash_type in RANK and (best is None or RANK[hash_type] > RANK[best[37]]):
+                best = blob
+    if best is None:
+        raise ValueError('no CodeDirectory')
+    version, flags = struct.unpack_from('>II', best, 8)
+    exec_flags = struct.unpack_from('>Q', best, 80)[0] if version >= 0x20400 and len(best) >= 88 else 0
+    runtime = struct.unpack_from('>I', best, 88)[0] if version >= 0x20500 and len(best) >= 92 else 0
+    return f'{flags:08x}:{exec_flags:016x}:{runtime:08x}'
+
+
+def layout_problems(data):
+    """Why a signed slice's layout is not the one codesign makes: exactly one code signature, at the end of the
+    slice (only zero padding after it), inside __LINKEDIT, which ends where the signature does."""
+    sig = [(at, length) for command, at, length in _commands(data) if command == 0x1d]
+    linkedit = [at for command, at, length in _commands(data)
+                if command == 0x19 and data[at + 8:at + 24].rstrip(b'\0') == b'__LINKEDIT']
+    if len(sig) != 1 or len(linkedit) != 1:
+        return 'not exactly one code signature and one __LINKEDIT'
+    dataoff, datasize = struct.unpack_from('<II', data, sig[0][0] + 8)
+    fileoff, filesize = struct.unpack_from('<QQ', data, linkedit[0] + 40)
+    if dataoff + datasize > len(data) or data[dataoff + datasize:].strip(b'\0'):
+        return 'bytes after the code signature'
+    if not fileoff <= dataoff or fileoff + filesize != dataoff + datasize:
+        return '__LINKEDIT does not end with the code signature'
+    return None
+
+
+def verify_observed(path):
+    """codesign checks the x86_64 slice's signature against its bytes (page hashes, special slots, DER)."""
+    result = subprocess.run(['codesign', '--verify', '--strict', '--arch', 'x86_64', str(path)],
+                            capture_output=True, text=True)
+    return result.returncode == 0, result.stderr.strip()
 
 
 def same_program(observed, reference, limit):
@@ -375,17 +489,24 @@ def scan(system, sources, programs=None):
                     refused[rel] = (f'its original {original} has cdhash {ref["cdhash"]}, not one programs.txt pins '
                                     f'({", ".join(sorted(want["refs"]))})')
                     break
+                ok, why = verify_observed(system/rel)
+                if not ok:
+                    refused[rel] = f'its own signature does not verify against its bytes: {why}'
+                    break
                 try:
-                    digest, ents = content_digest(observed), entitlements_digest(observed)
+                    layout = layout_problems(observed)
+                    seen = (ref['cdhash'], content_digest(observed), entitlements_digest(observed),
+                            signature_policy(observed))
                     have, had = collections.Counter(dylibs(observed)), collections.Counter(dylibs(reference))
-                except ValueError as e:
+                except (ValueError, struct.error, IndexError, UnicodeDecodeError, plistlib.InvalidFileException) as e:
                     refused[rel] = f'cannot read its load commands or signature: {e}'
                     break
-                if digest not in want['digests']:
-                    refused[rel] = f'its content digest {digest} is not one programs.txt pins ({want["recipe"]})'
+                if layout:
+                    refused[rel] = f'its layout is not codesign\'s: {layout}'
                     break
-                if ents not in want['ents']:
-                    refused[rel] = f'its entitlements digest {ents} is not one programs.txt pins ({want["recipe"]})'
+                if seen not in want['builds']:
+                    refused[rel] = (f'(original, content digest, entitlements, signature policy) = {seen} is not a '
+                                    f'line programs.txt pins ({want["recipe"]})')
                     break
                 added, removed = have - had, had - have
                 if removed or added != collections.Counter((0xc, lib) for lib in want['libs']):
@@ -398,6 +519,14 @@ def scan(system, sources, programs=None):
                 break
         else:
             skipped[rel] = '; '.join(reasons) or 'no original at this path in any source'
+    # a listed program that its recipe re-signed must get its row: any other outcome fails, never a silent omission
+    enrolled = {r['path'] for r in rows}
+    for rel in programs:
+        if rel in enrolled or rel in refused or not (system/rel).is_file():
+            continue
+        found = x86_64_signature(system/rel)
+        if found is None or found[0] is None or found[0]['adhoc']:
+            refused[rel] = 'listed but not enrolled: ' + skipped.get(rel, 'its x86_64 slice or signature is unreadable')
     return rows, skipped, refused
 
 

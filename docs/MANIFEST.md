@@ -161,6 +161,8 @@ Undeclared: opencore-mbp92.
   - `usr/lib/hao/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor
   - `usr/lib/hao/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: from Apple
   - `usr/lib/hao/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: from Apple
+  - `usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from Apple
+  - `usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from Apple
 - **golden-gate-root-launchservices** r4
   - `private/var/db/auth.db`: from hao (row root_launchservices_golden_gate)
   - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: from hao (row root_launchservices_golden_gate)

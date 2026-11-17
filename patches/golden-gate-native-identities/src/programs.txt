@@ -2,14 +2,16 @@
 # that edits and re-signs it and the libraries that recipe's edit spec inserts (+PATH). A program re-signed ad hoc that
 # is not here, but would match its Apple original, stops the build: a new one needs a line here, in review.
 # Its load commands may differ from the original's only by these libraries (none removed, no other added), and its
-# original's x86_64 cdhash must be one of the =CDHASH values. The edited program's x86_64 slice must have one of the
-# ~SHA256 content digests (native_identities.content_digest: its bytes up to the signature) and one of the %SHA256
-# entitlements digests. Each is computed from the pinned inputs and the recipe's edit spec, never from a built image;
-# one of each per input build, a new build adds its values.
+# original's x86_64 cdhash is =CDHASH. The edited program's x86_64 slice has the ~SHA256 content digest
+# (native_identities.content_digest: its bytes up to the signature) and the %SHA256
+# entitlements digests (XML and DER must agree), and !FLAGS:EXECSEGFLAGS:RUNTIME is its CodeDirectory's signing policy.
+# Its own signature must verify against its bytes (codesign --verify --strict) and end the slice as codesign lays it
+# out. Each value is computed from the pinned inputs and the recipe's edit spec, never from a built image. One line
+# per program and input build: the four values must match one line together; a new build adds a line.
 # Fields are separated by two or more spaces (a path may hold single spaces). tests/test_programs.py checks this file
 # against the edit specs in patches/.
-System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer  golden-gate-userspace  +/usr/lib/dss_shim.dylib  =588b28a2533772956e321f62eba6c0851b6ab725  ~b4dcb9852f664fd9dfbc30b7a4f0a4e4bc7a0b1dc79f835adf4eac8b03f726a1  %5a71b6582f5c84d329a443054132cb3f78d478d7803549af574b685c27ca4aa9
-System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd  golden-gate-corespotlight-compat  +/usr/lib/corespotlight_compat.dylib  =f7f77d385e52256b817456b33b3b62f04ee8412d  ~96faa6666b323688d437dcd1cec279007a095010ed0998868fba58695862f12a  %597a854ac77c0c35607c4c79a3611b01ce18fb2e51aca60ea905994fe29bfbb3
-System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd  golden-gate-corespotlight-compat  +/usr/lib/corespotlight_compat.dylib  =9a14bf3fec79e600a24f03f4c10f74a3a273b6c0  ~320a209209a6d8138c4a9eee7dc9ff8f9b70ed07099538005f1bf029b64222c8  %f94aa22d71e8f293e2ae7fd3ec3981131c861389d8204fccd76b76407d809e43
-System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent  golden-gate-store  +/usr/lib/hao/libhao-appstore-policy.dylib  =555081c8b249a112ce27a94849c13623c0880a16  ~7e32fdd6783ac46f17e19c0062e0a1867f9f25e03977953047bf8f01001a4021  %55eaf47b9da135af85711207c096b23daf7376a8865d3af40292dc8ff133d933
-System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored  golden-gate-store  +/usr/lib/hao/libhao-appstore-policy.dylib  =146d8eaa5086d6a4169e9b91b72af07ad1d155fd  ~d614d0aa04fee32de8ed8c5b3308d5b456f1128bcbfadf999a52dd296d166055  %c57f49aeed4f4be9c50f127e560d488e4e6dc64cc6efb2160c931e71e765a6bf
+System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer  golden-gate-userspace  +/usr/lib/dss_shim.dylib  =588b28a2533772956e321f62eba6c0851b6ab725  ~b4dcb9852f664fd9dfbc30b7a4f0a4e4bc7a0b1dc79f835adf4eac8b03f726a1  %5a71b6582f5c84d329a443054132cb3f78d478d7803549af574b685c27ca4aa9  !00000002:0000000000000001:00000000
+System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd  golden-gate-corespotlight-compat  +/usr/lib/corespotlight_compat.dylib  =f7f77d385e52256b817456b33b3b62f04ee8412d  ~96faa6666b323688d437dcd1cec279007a095010ed0998868fba58695862f12a  %597a854ac77c0c35607c4c79a3611b01ce18fb2e51aca60ea905994fe29bfbb3  !00000002:0000000000000001:00000000
+System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd  golden-gate-corespotlight-compat  +/usr/lib/corespotlight_compat.dylib  =9a14bf3fec79e600a24f03f4c10f74a3a273b6c0  ~320a209209a6d8138c4a9eee7dc9ff8f9b70ed07099538005f1bf029b64222c8  %f94aa22d71e8f293e2ae7fd3ec3981131c861389d8204fccd76b76407d809e43  !00000002:0000000000000001:00000000
+System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent  golden-gate-store  +/usr/lib/hao/libhao-appstore-policy.dylib  =555081c8b249a112ce27a94849c13623c0880a16  ~7e32fdd6783ac46f17e19c0062e0a1867f9f25e03977953047bf8f01001a4021  %55eaf47b9da135af85711207c096b23daf7376a8865d3af40292dc8ff133d933  !00000002:0000000000000001:00000000
+System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored  golden-gate-store  +/usr/lib/hao/libhao-appstore-policy.dylib  =146d8eaa5086d6a4169e9b91b72af07ad1d155fd  ~d614d0aa04fee32de8ed8c5b3308d5b456f1128bcbfadf999a52dd296d166055  %c57f49aeed4f4be9c50f127e560d488e4e6dc64cc6efb2160c931e71e765a6bf  !00000002:0000000000000001:00000000

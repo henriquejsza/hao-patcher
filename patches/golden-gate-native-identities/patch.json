@@ -63,6 +63,26 @@
       "after": [
         "overlays"
       ]
+    },
+    {
+      "path": "usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent",
+      "origin": {
+        "kind": "apple",
+        "note": "copy of Golden Gate's own Apple-signed appstoreagent (with golden-gate-store); path computed at build time by native_identities.py scan; root:wheel 0644"
+      },
+      "after": [
+        "overlays"
+      ]
+    },
+    {
+      "path": "usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored",
+      "origin": {
+        "kind": "apple",
+        "note": "copy of Golden Gate's own Apple-signed appstored (with golden-gate-store); path computed at build time by native_identities.py scan; root:wheel 0644"
+      },
+      "after": [
+        "overlays"
+      ]
     }
   ]
 }
