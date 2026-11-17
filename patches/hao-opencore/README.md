@@ -195,7 +195,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
-- r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no longer carries the `ic_csr_internal` probe, and the Sandbox adapter rewrites a shared modifier list once. config.plist is byte-identical to r42's; only IntelCommpage's executable changes.
+- r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no longer carries the `ic_csr_internal` probe, and the Sandbox adapter rewrites a shared modifier list once. config.plist is byte-identical to r42's; only IntelCommpage's executable changes. Row `kernel_repair_binding` -> kernel-binding-26B131-r44, the same inputs' profile, which pins that executable.
 - r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refuse a boot-args value without one); `-pmap_pcid_disable` is recorded as not known to be needed (a 2026-11-02 isolation test that did not change the stall). Declaration only: nothing it installs changes.
 - r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the new recipe opencore-mbp92 (pack mbp92), which runs just before this one; it adds no kext on any recorded build, so the config is the same.
 - r66 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

@@ -46,7 +46,7 @@ Undeclared: opencore-mbp92.
 | golden-gate-wifi-compat | r1 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-metal27, golden-gate-26B131, golden-gate | io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace) |
 | golden-gate-windowserver-filter | r8 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | hao-command | r5 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
-| hao-opencore | r69 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 89aa3ccc payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 461f3fc8 kernel-binding-26B131-r42-53815151; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| hao-opencore | r69 | experiment | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 89aa3ccc payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r87 | experiment | oclp-hook | yes | alpha-v0.1.0, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | hao_runtime 89aa3ccc payload |
 | hao-runtime-fold | r7 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 059bebad payload |
 | metal-compiler-compat | r9 | experiment | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
@@ -405,7 +405,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | intel_commpage_abi | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 |
 | io80211_compat | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 |
 | kdk | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 |
-| kernel_repair_binding | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 | 461f3fc8 |
+| kernel_repair_binding | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* |
 | kernel_repair_efi | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* |
 | libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 | 9c273f39 |
 | live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9 | 69126df9 |
@@ -507,6 +507,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - metalold-selectors r8 is newer than every image built with it (newest r7).
 - row hao_runtime 89aa3ccc is in no image yet (images have 0d579f6d, 4f9784a2, d4f8aab6, e29b10e5).
 - row hao_runtime_fold 059bebad is in no image yet (images have 3e4feeb7).
+- row kernel_repair_binding 8f87fb25 is in no image yet (images have 461f3fc8).
 - row kernel_repair_efi acc92dff is in no image yet (images have da6f167f).
 - row rebuilt_cache 2f5ee391 is in no image yet (images have a8a847b6).
 - row tahoe_boot_donors 02a2dd2a is in no image yet (images have 12e52f5a, 2bef5543).
