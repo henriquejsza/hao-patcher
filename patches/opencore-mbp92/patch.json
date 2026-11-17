@@ -1,0 +1,13 @@
+{
+ "revision": 1,
+ "pack": "mbp92",
+ "stage": "post",
+ "applies": {
+  "builds": [
+   "25G332",
+   "25G342"
+  ]
+ },
+ "status": "experiment",
+ "validated": false
+}

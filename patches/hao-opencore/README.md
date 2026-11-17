@@ -1,8 +1,9 @@
 # hao-opencore
 
 Configures the image's OpenCore so the MacBookPro9,2 boots the Darwin 27.0 x86_64 kernel: the kernel repairs and
-IntelCommpage that let this kernel start on Ivy Bridge hardware, `HaoExec` for arm64-only programs, early Tahoe
-display and Ethernet drivers, and the boot arguments below. It writes the end-user configuration: no OpenCore log
+IntelCommpage that let this kernel start on Ivy Bridge hardware, `HaoExec` for arm64-only programs, and the boot
+arguments below. The MacBookPro9,2's early Tahoe display and Ethernet drivers are
+[opencore-mbp92](../opencore-mbp92/README.md)'s (pack mbp92), which runs just before this recipe. It writes the end-user configuration: no OpenCore log
 and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `dev`).
 
 ## How it works
@@ -44,11 +45,6 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
   `/usr/libexec/hao`. OS executables never reach it, because [`hao-runtime`](../hao-runtime/README.md) gives them
   an x86_64 slice. The `kern.hao.*` sysctls appear at the first such exec. hao's source is
   [hao-runtime](https://github.com/lythka/hao-runtime); this repository consumes only its built payload.
-- `src/early_kexts.py` injects the Tahoe display and wired-network drivers listed in `src/early-kexts.txt` (Capri
-  framebuffer, HD 4000, BCM5701 Ethernet, the same set as [`rec-display-ethernet`](../rec-display-ethernet/README.md))
-  and their dependencies, in OSBundleLibraries order, only when neither the Boot nor the System collection has them.
-  Drivers already in the System collection stay there: injecting a second copy makes the kernel discard the
-  collection's copy while other drivers still call into it.
 - `patch.json` `files` declares the config keys the script in `apply.sh` sets to fixed values (`Misc.Debug.Target`,
   `Misc.Debug.DisplayLevel`, `boot-args`, the Delete list) as `plist.set` edits in [edits/config.json](edits/config.json),
   after the kernel repairs and the IntelCommpage Kernel.Add entry as the external op `kc.bind` (made on the target,
@@ -56,7 +52,7 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
   ([edits/haoexec-identity.json](edits/haoexec-identity.json)): the external op `hao.stamp` (the row's
   `stamp_identity.py` against the linked BootKC), so the materialiser defers it to the target, after the BootKC; the
   stamp is not re-signed (OpenCore does not check the kext's signature). Not declared yet: the HaoExec `Kernel.Add` entry (no append
-  in `plist.set`), and early Tahoe kexts (none on any recorded build). The `boot-args` value is the one without the dev-only statistics arguments. `tests/test_edits.py`
+  in `plist.set`). The `boot-args` value is the one without the dev-only statistics arguments. `tests/test_edits.py`
   proves the values against `apply.sh`.
 - The next OpenCore boot deletes the Apple boot-GUID `bootercfg` and `bootercfg-once` variables (firmware
   logging overrides independent of kernel boot-args); see the
@@ -189,6 +185,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the new recipe opencore-mbp92 (pack mbp92), which runs just before this one; it adds no kext on any recorded build, so the config is the same.
 - r66 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime c66997a (hao-runtime-26B131-20261114-c66997a2a0bb; libhao b8f0480f, the bytes proven on the test laptop): native SwiftUI.View modifiers lend guest-made self with native nils (diag#0038). Dev images only until c66997a is pushed. No recipe change.
 - r64 2026-11-14 Input row `hao_runtime` (26B131) now names the payload built from a clean hao-runtime 79bc70e tree (hao-runtime-26B131-20261114-79bc70ead081): guest dlopen resolves @rpath, @loader_path and @executable_path from the calling image (Xcode starts instead of aborting at launch). No recipe change.

@@ -37,15 +37,17 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-store | r5 | oclp-hook | product |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
 | golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | golden-gate-user-template | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-userspace | r83 | oclp-hook | experiment |  | x | x |  |  | **needs** | r83 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| golden-gate-userspace | r84 | oclp-hook | experiment |  | x | x |  |  | **needs** | r84 2026-11-16 The IO80211 and WiFiPeerToPeer compat installs, their two inputs, files and edit specs move to  |
+| golden-gate-wifi-compat | r1 | oclp-hook | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: golden-gate-userspace's IO80211 and WiFiPeerToPeer steps, files and edit specs, unchanged,  |
 | golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| hao-opencore | r66 | post | experiment |  | x | x |  |  | **needs** | r66 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| hao-opencore | r67 | post | experiment |  | x | x |  |  | **needs** | r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the  |
 | hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | hao-runtime-fold | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
 | metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; its pack decides the machines  |
 | metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| opencore-mbp92 | r1 | post | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: hao-opencore's early Tahoe kext step (src/early_kexts.py, src/early-kexts.txt and its test) |
 | rec-audio | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
 | rec-bluetooth-input | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
 | rec-brightness-keys | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |

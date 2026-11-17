@@ -4,7 +4,7 @@
  "origin": {
   "kind": "oclp",
   "name": "OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it",
-  "note": "in the image's EFI partition, not in the System volume. Not declared here (no edit kind for it yet): the HaoExec.kext entry appended to Kernel.Add (plist.set cannot append), the early Tahoe kext entries (none on any recorded build), and removal of bootercfg and bootercfg-once from NVRAM.Add (OCLP's config has neither). The boot-args value is the end-user one; dev-diagnostics (pack dev) adds the measurement switches in bench images"
+  "note": "in the image's EFI partition, not in the System volume. Not declared here (no edit kind for it yet): the HaoExec.kext entry appended to Kernel.Add (plist.set cannot append), and removal of bootercfg and bootercfg-once from NVRAM.Add (OCLP's config has neither). The boot-args value is the end-user one; dev-diagnostics (pack dev) adds the measurement switches in dev images"
  },
  "applied_by": "installer",
  "edits": [

@@ -43,8 +43,6 @@ ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EF
 "$PY" -I "$P/src/repairs.py" \
     "$ESP/EFI/OC/config.plist" "$REPAIR_WORK/bound" \
     "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc"
-"$PY" -I "$P/src/early_kexts.py" \
-    "$SYS" "$ESP" "$P/src/early-kexts.txt"
 # The image's dyld counts as an internal install by itself (golden-gate-dyld-internal: internalInstall() answers true),
 # so it loads OCLP's on-disk Metal roots without the ic_csr_internal boot-arg, which made every process see an
 # Apple-internal build (mobileassetd then asked Apple's internal asset server: no Spotlight, Siri or language assets).

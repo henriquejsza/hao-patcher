@@ -4,3 +4,4 @@
 # binding are derived from it. Same base layers and ordering rules as golden-gate.txt.
 darwin27-kernel                   # Boot/System kernel collections around the 27 x86_64 kernel and the Intel kexts: the collection the repairs are bound to
 golden-gate-userspace             # required second entry of every golden set; the collection above does not depend on it
+golden-gate-wifi-compat

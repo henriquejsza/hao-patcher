@@ -4,8 +4,7 @@ The base layers (pipeline/stages/golden-image.py) already copied Golden Gate's S
 donors and OCLP's hardware overlay; nothing here replaces or keeps System trees. This installs the combined OS cryptex
 (Golden Gate SystemOS + RosettaOS x86_64 cache + Tahoe's x86_64 DriverKit cache, with the cache repairs and the code
 identity carrier) and the App cryptex, each with the hao stubs of its arm64-only programs (src/cryptex_stubs.py),
-the OCLP compat libraries, the CoreWiFi compat library in front of Tahoe's CoreWiFi, the display-state shim and its
-re-signed clients, and disables jobs that cannot run on this Mac. src/cryptex.py builds the two images; with
+the CoreWiFi compat library in front of Tahoe's CoreWiFi, the display-state shim and its re-signed clients, and disables jobs that cannot run on this Mac. src/cryptex.py builds the two images; with
 --cryptex-cache, src/cryptex_cache.py copies an earlier build of the same inputs, code and builder tools instead."""
 import argparse
 from contextlib import contextmanager, ExitStack
@@ -156,20 +155,8 @@ def install_file(source, target):
     os.chmod(target, 0o755)
 
 
-# airportd SIGBUS without this: OCLP's Modern Wireless wrapper (PatcherSupportPkg 13.7.2-25 IO80211, kept as
-# an OCLP path) exports 7 functions 27.0's callers use as 8-byte data (a pointer to a CFString of the name), so a call
-# from WiFiPolicy (-[WiFiUsageLinkSession eventDictionary:] -> apple80211_authtype_uppertoStr) runs the wrapper's
-# __DATA, and it lacks Apple80211Get20MhzChannelIndexBitmap, which WiFiAnalytics binds. The compat library (row
-# io80211_compat, made and checked against the build's clients by src/io80211/make) defines the 8 as the build's
-# x86_64 IO80211 does and re-exports the wrapper, renamed IO80211OCLP.dylib, so every other name resolves as before
-# and the wrapper's initializers still run (it re-exports IO80211Old.dylib itself).
-IO80211 = 'System/Library/PrivateFrameworks/IO80211.framework/Versions/A/'
-# coreaudiod, AirPlayXPCHelper, ControlCenter and sharingd abort in libobjc without this: OCLP's Modern Wireless
-# WiFiPeerToPeer wrapper (13.7.2-25) lacks 36 Wi-Fi Aware classes 27.x's x86_64 cache binds, so dyld sets them to
-# 0xbad4007 and loading APTransport's category on WiFiAwareDatapathInfo is fatal. The compat library (row
-# wifip2p_compat, made and checked by src/wifip2p/make) defines them and re-exports the wrapper, renamed
-# WiFiPeerToPeerOCLP.dylib, in the same way.
-WIFIP2P = 'System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/'
+# IO80211 and WiFiPeerToPeer (OCLP's Modern Wireless wrappers) get their compat libraries from golden-gate-wifi-compat,
+# which runs right after this recipe.
 # airportd crashes on auto-join without this: the image's airportd is Tahoe's (27.x has no Intel one) and hosts
 # CoreWiFi's XPC server, but 27.x's CoreWiFi changed three callout reply blocks (objc_retain(0x2)) and renumbered 213
 # of its 302 request types. The native Tahoe donors put Tahoe 25G342's own CoreWiFi (cut from its shared cache by
@@ -177,14 +164,6 @@ WIFIP2P = 'System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/
 # src/corewifi/make) re-exports it, renamed CoreWiFiTahoe.dylib, and adds the 2 symbols and 16 methods 27.x clients
 # need beyond it, so airportd and every client share Tahoe's CoreWiFi.
 COREWIFI = 'System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/'
-
-
-def install_io80211(system, compat, workspace):
-    install_wrapper_compat(system, compat, workspace, IO80211, 'IO80211')
-
-
-def install_wifip2p(system, compat, workspace):
-    install_wrapper_compat(system, compat, workspace, WIFIP2P, 'WiFiPeerToPeer')
 
 
 def install_corewifi(system, compat, workspace):
@@ -254,7 +233,7 @@ def install_cryptex(payload, preboot, group, golden_os, rosetta, workspace, driv
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('system', 'payload', 'shim', 'io80211', 'wifip2p', 'corewifi'):
+    for name in ('system', 'payload', 'shim', 'corewifi'):
         parser.add_argument(name, type=Path)
     parser.add_argument('--driverkit-artifact', type=Path, required=True,
                         help='tahoe_driverkit_donors artifact (x86_64 DriverKit cache for the cryptex)')
@@ -268,7 +247,7 @@ def arguments(argv=None):
 
 def main():
     args = arguments()
-    system, payload, shim, io80211, wifip2p = args.system, args.payload, args.shim, args.io80211, args.wifip2p
+    system, payload, shim = args.system, args.payload, args.shim
     display_installer = load_display_installer()
     group, preboot_device = os.environ['GRP'], os.environ['PBU']
     metadata = json.loads((payload/'userspace.json').read_text())
@@ -283,8 +262,6 @@ def main():
         preboot = stack.enter_context(volume_mount(preboot_device, workspace/'preboot'))
         disabled = disable_jobs(system)
         display_installer.install_library(system, shim, install_file)
-        install_io80211(system, io80211, workspace)
-        install_wifip2p(system, wifip2p, workspace)
         corewifi = install_corewifi(system, args.corewifi, workspace)
         display_installer.resign_clients(system, source, workspace, RESIGN_WITH_27_ENTITLEMENTS,
                                         resign_with_entitlements)

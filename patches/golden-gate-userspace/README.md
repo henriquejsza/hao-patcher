@@ -14,8 +14,9 @@ System tree.
   [build/](build/README.md).
 - `display_state_shim`, `display_install_helper`: display adapters and their installer
   ([tools/display-fixes](../../tools/display-fixes)).
-- `io80211_compat`: the IO80211 compatibility library, built and checked for one build by `src/io80211/make`.
-- `wifip2p_compat`: the WiFiPeerToPeer compatibility library, built and checked for one build by `src/wifip2p/make`.
+- Not inputs here since r84: `io80211_compat` and `wifip2p_compat`, which
+  [golden-gate-wifi-compat](../golden-gate-wifi-compat/README.md) installs. Their source stays here (`src/io80211`,
+  `src/wifip2p`, below).
 - `corewifi_compat`: the CoreWiFi compatibility library, built and checked for one build (and its Tahoe CoreWiFi
   donor) by `src/corewifi/make`. Rows exist for 26B131 only.
 - `codeid_carrier`: the code identity carrier's objects (`carrier.o` and hao-runtime's `libhao_codeid.a`), made by
@@ -41,15 +42,15 @@ collections; the runner calls it like every other recipe. It:
 - links Rosetta's cache directory to the combined cache (`src/cryptex-cache-alias.sh`), because native dyld still
   looks there;
 - gives Tahoe programs that serve 27.0 clients (WindowServer) the 27.0 program's Info.plist and entitlements;
-- installs the IO80211 compatibility library over OCLP's Modern Wireless wrapper, whose data exports 27.0's callers
-  would otherwise call as code;
-- installs the WiFiPeerToPeer compatibility library over OCLP's WiFiPeerToPeer wrapper, which lacks the Wi-Fi Aware
-  classes 27.x's AirPlay stack extends;
 - installs the CoreWiFi compatibility library in front of Tahoe's CoreWiFi, which the native Tahoe donors put at
   CoreWiFi's path, so Tahoe's airportd and every 27.x client share the CoreWiFi airportd was built with;
 - disables jobs that cannot run on an Intel Mac (`hybridsearchd` exits on non-Apple silicon and would restart in a
   loop);
 - restores setuid/setgid modes after copying.
+
+The IO80211 and WiFiPeerToPeer compatibility libraries over OCLP's Modern Wireless wrappers are
+[golden-gate-wifi-compat](../golden-gate-wifi-compat/README.md)'s (pack wifi-broadcom-modern), which runs right after
+this recipe.
 
 Which framework sits beneath OCLP's replacements is decided by the base layers, not here. With the 26B131 donor
 artifact (`minimal-native-25G342-26B131-corewifi-r3`) Metal, OpenCL, AppleGVA, AppleGVACore, GPUCompiler, MTLCompiler, IO80211
@@ -64,7 +65,7 @@ OS cryptex where the running system grafts it: trackpad V3, EndpointSecurity sel
 initializer, audiomxd, the model gates, the Swift conformance references, the code identity carrier and the Swift prespecialization switch), followed by the 4 KiB
 re-signing; the two cryptex images are `cryptex.build` specs (`cryptex-os.json`, `cryptex-app.json`) and each of the 26
 stubs is a `hao.embed-stub` spec (`embed-*.json`). `hybridsearchd-job.json` and `launchd-job-cache.json` are
-`plist.set`; the three renamed wrappers (`io80211-oclp.json`, `wifip2p-oclp.json`, `corewifi-tahoe.json`) and
+`plist.set`; the renamed CoreWiFi (`corewifi-tahoe.json`) and
 `windowserver-27-identity.json` are declared with their signing; WindowServer's signature takes the 27.x program's
 entitlements (`sign.entitlements_from`, as `resign_with_entitlements` reads them). Files the hook leaves
 `restricted` say so in their `install` flags. The engine applies none of the external ops (cache re-signing, image
@@ -390,6 +391,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r84 2026-11-16 The IO80211 and WiFiPeerToPeer compat installs, their two inputs, files and edit specs move to the new recipe golden-gate-wifi-compat (pack wifi-broadcom-modern), which runs right after this one; the same steps and bytes. The display-state shim and CoreWiFi compat stay: both serve every Intel Mac.
 - r83 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r82 2026-11-16 src/corewifi/make takes cache-dylib from this repository's tools/cache-dylib (was a separate checkout next to it; dsc.py is the same bytes) and its build record's commit from pipeline/source_commit.py. corewifi_compat unchanged.
 - r81 2026-11-16 Merges r80 (this branch) with main's r79: both row changes below, no other change.

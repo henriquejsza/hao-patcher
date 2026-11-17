@@ -126,15 +126,16 @@ class OclpKeys(unittest.TestCase):
             sys.path.pop(0)
         points = lock.oclp_points(hooks, str(TOP / 'patches'))
         self.assertEqual([p[0] for p in points], [None, 'darwin27-kernel', 'golden-gate-userspace',
-                                                  'darwin27-sandbox-disk-space', 'hao-runtime',
+                                                  'golden-gate-wifi-compat', 'darwin27-sandbox-disk-space', 'hao-runtime',
                                                   'golden-gate-metal-libraries', 'golden-gate-hello',
                                                   'golden-gate-windowserver-filter', 'golden-gate-corespotlight-compat',
                                                   'metalold-selectors', 'golden-gate-metal-framebuffer',
                                                   'golden-gate-native-identities'])
-        self.assertEqual(points[4][1], ['darwin27-kernel', 'golden-gate-userspace', 'darwin27-sandbox-disk-space'])
+        self.assertEqual(points[5][1], ['darwin27-kernel', 'golden-gate-userspace', 'golden-gate-wifi-compat',
+                                        'darwin27-sandbox-disk-space'])
         # No recipe has a hook.sh any more, so the state before hao-runtime holds exactly the kc-hooks before it.
-        self.assertEqual([l.split()[1] for l in points[4][2]],
-                         ['darwin27-kernel', 'golden-gate-userspace', 'darwin27-sandbox-disk-space'])
+        self.assertEqual([l.split()[1] for l in points[5][2]],
+                         ['darwin27-kernel', 'golden-gate-userspace', 'golden-gate-wifi-compat', 'darwin27-sandbox-disk-space'])
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,7 +2,8 @@
 # this list filtered by its profile (pipeline/profiles/NAME.json): `pipeline/patches.py set PROFILE`. Recovery
 # recipes are not here (pipeline/recovery).
 darwin27-kernel                    # Boot/System kernel collections around the 27 x86_64 kernel and the Intel kexts. First: everything after edits on top of them
-golden-gate-userspace              # combined OS cryptex (x86_64 dyld cache, Tahoe DriverKit, cache repairs, code identity carrier in Security), IO80211/WiFiPeerToPeer/CoreWiFi compat, display shim. Second, same reason
+golden-gate-userspace              # combined OS cryptex (x86_64 dyld cache, Tahoe DriverKit, cache repairs, code identity carrier in Security), CoreWiFi compat, display shim. Second, same reason
+golden-gate-wifi-compat            # IO80211/WiFiPeerToPeer compat in front of OCLP's Modern Wireless wrappers; split out of golden-gate-userspace, right after it (its old place in that recipe's steps)
 hao-runtime-fold                   # fold-in only, in hao-runtime's place: the same installation with the payload built for the rebuilt family (row hao_runtime_fold, its cache UUID)
 darwin27-sandbox-disk-space        # 26A428's system.sb lacks the vfs.disk-space rule (27.2 has it): one Sandbox report per statfs without it
 hao-runtime                        # hao, plus an x86_64 launch slice in every arm64-only 27 program so it runs on Intel
@@ -26,7 +27,8 @@ golden-gate-shared-cache           # B image only: the OS cryptex x86_64 cache b
 golden-gate-shared-cache-catalog   # B+catalog image only: golden-gate-shared-cache's fold with the B+catalog family (row rebuilt_cache_catalog); after every recipe that changes a provider, before golden-gate-native-identities
 golden-gate-metal27                # dev only: 27.2.1's own Metal for every process (Metal27 + shim over OCLP's wrapper, the MTLCompiler 32023/32024 stand-in); after golden-gate-hello, whose wrapper edits it replaces
 golden-gate-native-identities      # Apple originals of the native programs the image re-signed ad hoc + /usr/lib/hao/native-identities, for golden-gate-userspace's code identity carrier. Last oclp-hook: after every recipe that re-signs
-hao-opencore                       # OpenCore: kernel repairs bound to this image's BootKC, IntelCommpage, HaoExec, early display/Ethernet kexts, boot-args
+opencore-mbp92                     # MacBookPro9,2 early Tahoe display/Ethernet kexts in OpenCore's Kernel.Add (none on recorded builds); split out of hao-opencore, right before it (the model's config first; with no kext to add the config is the same)
+hao-opencore                       # OpenCore: kernel repairs bound to this image's BootKC, IntelCommpage, HaoExec, boot-args
 golden-gate-live-text-service      # Live Text 3/3: drop RestrictEvents' revblock=media so mediaanalysisd (Photos' Live Text service) starts; after hao-opencore; needs the runtime
 golden-gate-user-seed              # seed.zsh daemon: copies PerUserSeed (is/, metal/, fonts/) into each new account before its apps start. Before the three seeds below, which fill PerUserSeed
 golden-gate-user-template          # first-login containers, chronod widget descriptors and Reminders stores in /Library/User Template (copied into each new account); before any account exists

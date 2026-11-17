@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-50 of 50 patches declare their files so far.
+51 of 52 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -319,11 +319,9 @@ Revision r8, status experiment. [Recipe](../patches/golden-gate-user-template/RE
 
 ## golden-gate-userspace
 
-Revision r83, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r84, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
-- `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: whole file from hao (row wifip2p_compat). The WiFiPeerToPeer compatibility library (src/wifip2p), installed under the framework's own name over OCLP's wrapper; it re-exports the wrapper, kept as WiFiPeerToPeerOCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from hao (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/LaunchAgents/com.apple.hybridsearchd.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `hybridsearchd-disabled`: plist.set Disabled = true.
@@ -331,12 +329,6 @@ Revision r83, status experiment. [Recipe](../patches/golden-gate-userspace/READM
 - `System/Library/xpc/launchd.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `hybridsearchd-disabled`: plist.set LaunchDaemons:/System/Library/LaunchAgents/com.apple.hybridsearchd.plist:Disabled = true.
      Hybridsearchd stops itself on any Mac without Apple silicon and launchd restarts it in a loop, so the job ships disabled (Disabled is Apple's own key for a job it does not start; Apple's feature-flag condition becomes the plain boolean); launchd's job cache carries the same entry.
-- `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211OCLP.dylib`: from OCLP · OCLP Modern Wireless IO80211 wrapper (13.7.2-25); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
-  1. `install-name-io80211oclp`: matcher (resolved sites only), resolved for 1 input.
-     The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier.
-- `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOCLP.dylib`: from OCLP · OCLP Modern Wireless WiFiPeerToPeer wrapper (13.7.2-25); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
-  1. `install-name-wifipeertopeeroclp`: matcher (resolved sites only), resolved for 1 input.
-     The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier.
 - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib`: from hao · Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `install-name-corewifitahoe`: matcher (resolved sites only), resolved for 1 input.
      The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier; airportd and every client then share Tahoe's CoreWiFi.
@@ -483,6 +475,19 @@ Revision r83, status experiment. [Recipe](../patches/golden-gate-userspace/READM
   1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 
+## golden-gate-wifi-compat
+
+Revision r1, status experiment. [Recipe](../patches/golden-gate-wifi-compat/README.md)
+
+- `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (golden-gate-userspace src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: whole file from hao (row wifip2p_compat). The WiFiPeerToPeer compatibility library (golden-gate-userspace src/wifip2p), installed under the framework's own name over OCLP's wrapper; it re-exports the wrapper, kept as WiFiPeerToPeerOCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211OCLP.dylib`: from OCLP · OCLP Modern Wireless IO80211 wrapper (13.7.2-25); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `install-name-io80211oclp`: matcher (resolved sites only), resolved for 1 input.
+     The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier.
+- `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOCLP.dylib`: from OCLP · OCLP Modern Wireless WiFiPeerToPeer wrapper (13.7.2-25); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `install-name-wifipeertopeeroclp`: matcher (resolved sites only), resolved for 1 input.
+     The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier.
+
 ## golden-gate-windowserver-filter
 
 Revision r8, status experiment. [Recipe](../patches/golden-gate-windowserver-filter/README.md)
@@ -502,7 +507,7 @@ Revision r5, status experiment. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r66, status experiment. [Recipe](../patches/hao-opencore/README.md)
+Revision r67, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -684,4 +689,4 @@ Revision r3, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-None.
+opencore-mbp92

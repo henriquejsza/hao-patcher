@@ -14,8 +14,8 @@ With real inputs (environment variable: what it points at):
   USERSPACE_ARM_CACHE        the same build's arm64e cache folder (swift_refs reads its reference types there)
   USERSPACE_CODEID_CARRIER   the row codeid_carrier folder (the carrier's objects)
   USERSPACE_SYSTEM_ROOT      a pristine 26B131 System volume: the two plists (disabled job) and the 27.x WindowServer
-  USERSPACE_OCLP_IO80211, USERSPACE_OCLP_WIFIP2P   OCLP 13.7.2-25 wrapper files; USERSPACE_DONOR_COREWIFI: Tahoe's
-                             CoreWiFi from the native donors. Spec output (then signed) equals install.py's rename
+  USERSPACE_DONOR_COREWIFI   Tahoe's CoreWiFi from the native donors. Spec output (then signed) equals install.py's
+                             rename (the IO80211 and WiFiPeerToPeer renames: golden-gate-wifi-compat's tests)
   USERSPACE_DONOR_WINDOWSERVER  Tahoe's WindowServer from the native donors: spec output, signed as the spec says
                              (entitlements_from: the 27.x program's, from USERSPACE_SYSTEM_ROOT), equals
                              install.resign_with_entitlements byte for byte
@@ -117,9 +117,7 @@ class Declaration(unittest.TestCase):
     def test_declared_paths_are_the_ones_install_py_uses(self):
         self.assertIn(display['DISPLAY_STATE_SHIM'], FILES)
         self.assertEqual(FILES[display['DISPLAY_STATE_SHIM']]['origin']['row'], 'display_state_shim')
-        for folder, leaf, row, renamed in ((install.IO80211, 'IO80211', 'io80211_compat', 'IO80211OCLP.dylib'),
-                                           (install.WIFIP2P, 'WiFiPeerToPeer', 'wifip2p_compat', 'WiFiPeerToPeerOCLP.dylib'),
-                                           (install.COREWIFI, 'CoreWiFi', 'corewifi_compat', 'CoreWiFiTahoe.dylib')):
+        for folder, leaf, row, renamed in ((install.COREWIFI, 'CoreWiFi', 'corewifi_compat', 'CoreWiFiTahoe.dylib'),):
             self.assertEqual(FILES[folder + leaf]['origin']['row'], row)
             self.assertIn(folder + renamed, BY_PATH)   # install_wrapper_compat: LEAF + SUFFIX + '.dylib'
         for label, job in install.DISABLED_JOBS.items():
@@ -153,8 +151,7 @@ class Declaration(unittest.TestCase):
         """disable_jobs runs chflags restricted on the job plist and launchd's cache; install_wrapper_compat gives
         the compat library and the renamed original the original's flags (restricted, from OCLP or Apple)."""
         restricted = list(install.DISABLED_JOBS.values()) + [install.LAUNCHD_CACHE]
-        for folder, leaf, suffix in ((install.IO80211, 'IO80211', 'OCLP'), (install.WIFIP2P, 'WiFiPeerToPeer', 'OCLP'),
-                                     (install.COREWIFI, 'CoreWiFi', 'Tahoe')):
+        for folder, leaf, suffix in ((install.COREWIFI, 'CoreWiFi', 'Tahoe'),):
             restricted += [folder + leaf, folder + leaf + suffix + '.dylib']
         for path in restricted:
             self.assertEqual(FILES[path].get('install', {}).get('flags'), ['restricted'], path)
@@ -185,10 +182,10 @@ class Declaration(unittest.TestCase):
                               plistlib.loads(out)['LaunchDaemons']['/' + job]['Disabled'], True)
 
     def test_rename_matcher_is_the_difference_set_install_name_makes(self):
-        """The resolved sites of the three renames are the changed byte runs of set_install_name on that file. On a
+        """The resolved sites of the CoreWiFi rename are the changed byte runs of set_install_name on that file. On a
         synthetic dylib the same construction, applied by the engine, gives set_install_name's bytes."""
-        folder = install.IO80211
-        old, new = ('/' + folder + 'IO80211').encode(), ('/' + folder + 'IO80211OCLP.dylib').encode()
+        folder = install.COREWIFI
+        old, new = ('/' + folder + 'CoreWiFi').encode(), ('/' + folder + 'CoreWiFiTahoe.dylib').encode()
         data = fixture.dylib(size=0x4000, text_at=0x1000, text_size=0x1000, ident=old)
         mine = bytearray(data)
         install.set_install_name(mine, old, new)
@@ -201,7 +198,7 @@ class Declaration(unittest.TestCase):
                     sites[-1]['after'] += bytes(mine[end:i + 1]).hex()
                 else:
                     sites.append({'at': i, 'before': data[i:i + 1].hex(), 'after': bytes(mine[i:i + 1]).hex()})
-        template = BY_PATH[folder + 'IO80211OCLP.dylib'][1]
+        template = BY_PATH[folder + 'CoreWiFiTahoe.dylib'][1]
         fake = copy.deepcopy(template)
         fake['edits'][0]['resolved'] = {sha(data): sites}
         fake['sign'] = None
@@ -357,13 +354,10 @@ class RealPlistsAndWindowServer(unittest.TestCase):
             self.assertEqual(len(out), len(original))
 
 
-@unittest.skipUnless(at_path(os.environ.get('USERSPACE_OCLP_IO80211')) and at_path(os.environ.get('USERSPACE_OCLP_WIFIP2P')) and at_path(os.environ.get('USERSPACE_DONOR_COREWIFI')),
-                     'set USERSPACE_OCLP_IO80211, USERSPACE_OCLP_WIFIP2P and USERSPACE_DONOR_COREWIFI')
+@unittest.skipUnless(at_path(os.environ.get('USERSPACE_DONOR_COREWIFI')), 'set USERSPACE_DONOR_COREWIFI')
 class RealRenames(unittest.TestCase):
     def test_renamed_wrappers_equal_install_wrapper_compat(self):
         for source, where, leaf, suffix in (
-                (at_path(os.environ.get('USERSPACE_OCLP_IO80211')), install.IO80211, 'IO80211', 'OCLP'),
-                (at_path(os.environ.get('USERSPACE_OCLP_WIFIP2P')), install.WIFIP2P, 'WiFiPeerToPeer', 'OCLP'),
                 (at_path(os.environ.get('USERSPACE_DONOR_COREWIFI')), install.COREWIFI, 'CoreWiFi', 'Tahoe')):
             spec = BY_PATH[where + leaf + suffix + '.dylib'][1]
             with tempfile.TemporaryDirectory() as tmp:
