@@ -150,8 +150,3 @@ with the overall progress, and the run ends with a summary. In a pipe or a log, 
 | 3 | not enough space, or the wrong drive |
 | 4 | a file did not match its sha256 |
 | 5 | refused: the wrong Mac or place, or it needs your password |
-
-## Planned
-
-- `hao update`: compare this Mac with the newest release, download only what changed, apply it and keep the previous
-  state to go back to; also from a USB installer or a release folder without a network.
