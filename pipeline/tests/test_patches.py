@@ -237,6 +237,24 @@ class Packs(unittest.TestCase):
                                      patches.plan(setfile, target, build, packs=patches.detect_packs(target)), s)
 
 
+class NoProfileStops(unittest.TestCase):
+    """A target without its OCLP hardware profile stops detection (and so set generation and plan --packs auto)."""
+
+    def test_missing_profile_stops(self):
+        with tempfile.TemporaryDirectory() as d:
+            t = Path(d) / 'nosuchmac.json'
+            t.write_text(json.dumps({'model': 'X', 'board_id': 'Mac-0'}))
+            with self.assertRaises(ValueError) as e:
+                patches.detect_packs(t)
+            self.assertIn('no OCLP hardware profile', str(e.exception))
+            with self.assertRaises(ValueError):
+                patches.generate({'target': 'nosuchmac'})
+
+    def test_every_target_has_its_profile(self):
+        for t in (TOP / 'pipeline/targets').glob('*.json'):
+            self.assertTrue(patches.oclp_patchsets(t), t.name)
+
+
 class DevPack(unittest.TestCase):
     """An end-user image carries nothing of a bench image's: dev recipes live in opt-in packs and dev sets only."""
 
