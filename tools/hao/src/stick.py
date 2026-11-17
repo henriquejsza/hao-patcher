@@ -288,7 +288,7 @@ def write_boot(esp, mount, basesystem, opencore_tar, log=False):
         p.unlink()
     got = sha256(dest)
     if want != got:
-        raise StickError('BaseSystem.dmg on the stick has sha256 %s, not %s' % (got, want))
+        raise StickError('BaseSystem.dmg on the USB installer has sha256 %s, not %s' % (got, want))
     nv = c['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
     return dict(basesystem_sha256=want, basesystem_bytes=Path(basesystem).stat().st_size,
                 opencore_sha256=sha256(opencore_tar), boot_args=nv['boot-args'],
