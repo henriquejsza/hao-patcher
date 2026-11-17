@@ -49,6 +49,8 @@ Earlier: earlier payloads booted Golden Gate through translated launchd to the d
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
+- r86 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime main 1547dcb payload (89aa3ccc, manifest dded6037): libhao c7a162e2 (Dock, gamed, Freeform save, Books, Float16, `--aot --check`, `--auto`) and the new System/Library/LaunchDaemons/hao.aot.plist (declared), which runs `hao --aot --auto` after boot. Not yet run on a laptop.
+- r85 2026-11-16 (v0.0.1 release line only) Row `hao_runtime` -> hao-runtime 7b17cd8 payload (6d90370a): the 5ae3d5e binaries, archive with tools/hao-runtime-on-mac.
 - r84 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 5ae3d5e payload (80a10da1, manifest 41dc029b): 155b7b1 plus the Music fix; only libhao.dylib changes (a4d0d2ad). Music opens on a dev image with this libhao.
 - r83 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 155b7b1 payload (0d19b199, manifest cb5fd3b9): `hao --aot` with no FILE caches the default set in the new usr/lib/hao/aot-list (declared); libhao 82dabec5. Not yet run on a laptop.
 - r82 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 0e75f64 payload (4f9784a2, manifest 6c448c23): the 1a290d7 binaries with reproducible records (no build times, root-relative paths); release asset archive bbc55887. Installed binaries unchanged.

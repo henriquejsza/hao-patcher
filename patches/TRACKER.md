@@ -39,7 +39,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-userspace | r82 | oclp-hook | experiment |  | x | x |  |  | **needs** | r82 2026-11-16 src/corewifi/make takes cache-dylib from this repository's tools/cache-dylib (was a separate ch |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
-| hao-runtime | r84 | oclp-hook | experiment |  | x | x |  |  | **needs** | r84 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 5ae3d5e payload (80a10da1, manifest 41dc029b): 155b7b |
+| hao-runtime | r86 | oclp-hook | experiment |  | x | x |  |  | **needs** | r86 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime main 1547dcb payload (89aa3ccc, manifest dded6037): l |
 | hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
 | metal-compiler-compat | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-16 Row `metal_compiler_compat` is the f479d6c7 build, reproducible from source with Xcode 27.2: com |
 | metal-metalold | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-15 edits/metalold.json's evidence line names the comparison instead of a private document; the edit |

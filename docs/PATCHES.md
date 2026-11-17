@@ -507,7 +507,7 @@ Revision r65, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r84, status experiment. [Recipe](../patches/hao-runtime/README.md)
+Revision r86, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -519,6 +519,7 @@ Revision r84, status experiment. [Recipe](../patches/hao-runtime/README.md)
 - `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime). Interface units (1895 in the 26B131 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
 - `usr/lib/hao/aot-list`: whole file from hao (row hao_runtime). The programs `hao --aot` with no FILE caches, one absolute path per line (payload root). Installed mode 0644, owner root:wheel.
 - `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
+- `System/Library/LaunchDaemons/hao.aot.plist`: whole file from hao (row hao_runtime). The automatic AOT job: `hao --aot --auto` at load, background priority, log /private/var/log/hao/aot-auto.log (payload root). Installed mode 0644, owner root:wheel.
 - `usr/lib/dyld`: whole file from hao (row hao_runtime). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
