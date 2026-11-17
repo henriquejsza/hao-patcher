@@ -297,6 +297,19 @@ class VerifyTest(unittest.TestCase):
         with self.assertRaises(LP.PatchError):
             VERIFY.manifests([], self.root)
 
+    def test_unbooted_install_reads_its_data_volume(self):
+        # the Recovery mounts the System volume at ROOT and its Data volume at "ROOT - Data": the manifests and the
+        # firmlinked files (here usr/lib/c.dylib stands for one) are there
+        data = self.root.parent / (self.root.name + ' - Data')
+        (data / 'usr/lib').mkdir(parents=True)
+        os.replace(self.root / 'usr/lib/c.dylib', data / 'usr/lib/c.dylib')
+        inst = data / VERIFY.INSTALLED
+        inst.mkdir(parents=True)
+        (inst / '06-metal.json').write_text((self.ovl / 'manifest.json').read_text())
+        r = VERIFY.verify(self.root, VERIFY.manifests([], self.root))
+        self.assertEqual((r['ok'], r['problems']), (3, []))
+        self.assertIsNone(VERIFY.data_root('/'))
+
 
 class BuilderTest(unittest.TestCase):
     def test_build_image_dry_run(self):
