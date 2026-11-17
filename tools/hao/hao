@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -I
 """hao: user commands of the hao builder (workflow plan step 9a and on).
 
   hao patch OVERLAY... --root ROOT [--state DIR] [--installer] [--dry-run] [--quiet | --show | --log json]
@@ -48,7 +48,8 @@
         HAO (run /Volumes/HAO/install in its Recovery). Not built yet: the kit made from the downloads, so
         without --kit it stages one from this checkout's store. --dry-run asks and shows the plan, nothing more.
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
-        its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
+        its hao detect profile, the last command's log and the install record; serials, user and Wi-Fi names,
+        e-mail and hardware addresses and URL credentials are removed (read it before sharing)
 
 hao alone (or hao help) lists the commands for where it runs; hao help --all adds the developer commands. A command
 run where it doesn't belong says where it runs (HAO_ANYWHERE=1 or --dry-run skips that check). Exit codes: 0 done,
@@ -64,6 +65,7 @@ named on failure (the USB installer's logs folder when run from the USB installe
 --deferred FILE, else from deferred.json beside the overlays (the materialiser's output folder), when there is one.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -74,6 +76,9 @@ import sys
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE / 'src'))
+import safety as SAFE    # noqa: E402
+SAFE.harden_env()        # as root: no developer variables, the system PATH, the sudo user's real home; before any
+#                          module below (or CACHE) computes a path from the environment
 import livepatch as LP   # noqa: E402
 import macos as MAC      # noqa: E402
 import console as CON    # noqa: E402
@@ -88,6 +93,9 @@ import frontdoor as FD   # noqa: E402
 import status as STATUS  # noqa: E402
 import run as RUN        # noqa: E402
 import aot as AOT        # noqa: E402
+import doctor as DOCTOR  # noqa: E402
+import signing as SIGN   # noqa: E402
+import releasecheck as RC  # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -379,6 +387,7 @@ def hook_backends(a, c, build=BUILD, inst=INST):
         t.add_column()
         n = 0
         for label, value in choices:
+            label = SAFE.text(label)             # disk and volume names come from the disks: shown as text
             if value is None:
                 t.add_row('', Text(label, style=c2.style('dim')))
             else:
@@ -602,7 +611,7 @@ def cmd_detect(a, c, host=None):
     DETECT.show(c, p)
     # the profile always goes to a file, named on screen, never printed (owner, 2026-11-13: "Reference the artifact")
     out = Path(a.out) if a.out else profile_output(p['model'])
-    REP.write(out, json.dumps(p, indent=1) + '\n')
+    out = REP.write(out, json.dumps(p, indent=1) + '\n', numbered=not a.out)   # the name written (a new file)
     c.done('Profile written to %s  (use it with --profile on the Mac that makes the USB installer)' % out, profile=str(out))
     return 0
 
@@ -621,6 +630,7 @@ def cmd_fetch(a, c):
                                                                                  else []))
         if r.returncode:
             return r.returncode
+    a.release = signed_release(a, c, a.release)
     try:
         rows = acquire['load'](a.release, a.assets_from)
     except acquire['AcquireError'] as x:
@@ -684,6 +694,69 @@ def cmd_verify(a, c):
     return 0
 
 
+def cmd_verify_release(a, c, opener=None):
+    """hao verify-release [vX.Y.Z | PATH]: PASS, FAIL or SKIP per check (src/releasecheck.py); exit 4 on any FAIL."""
+    if getattr(a, 'keys', None) and not (REPO / '.git').exists():
+        raise CON.Stopped('--keys is refused: this hao is a release, not a checkout',
+                          why='a release is verified against the owner\'s keys, which come with hao', code=5)
+    try:
+        keys = SIGN.load_keys(getattr(a, 'keys', None))
+    except SIGN.SignatureError as x:
+        raise CON.Stopped(str(x), why='a release is verified against the owner\'s keys, which come with hao', code=4)
+    target, stick = a.target, os.environ.get('HAO_STICK')
+    here = None
+    if target is None and stick:
+        kind, where = 'drive', Path(stick)
+    elif target is None and FD.where() == 'installer':
+        kind, where = 'drive', REPO.parent                # hao run from the USB installer (/Volumes/HAO/hao)
+    elif target is None:
+        kind, where, here = 'folder', HERE, RC.checkout_commit()
+    elif RC.TAG.match(target):
+        if a.offline:
+            raise CON.Stopped('verify-release %s downloads the release\'s signed files; --offline forbids it' % target,
+                              options=['hao verify-release FOLDER (a folder with the files you downloaded)'], code=5)
+        try:
+            where = RC.download(target, opener or RC.opener_default, beside=HERE, keys=keys)
+        except (OSError, ValueError) as x:
+            raise CON.Stopped('the signed files of %s could not be downloaded: %s' % (target, SAFE.text(str(x))),
+                              why='GitHub is not reachable from here', code=1,
+                              options=['hao verify-release FOLDER (a folder with the files you downloaded)'])
+        kind, here = 'folder', RC.checkout_commit()
+    else:
+        p = Path(target).expanduser()
+        p = p if p.is_dir() else p.parent
+        kind = 'drive' if os.path.lexists(p / 'stick.json') or os.path.lexists(p / 'manifest.json') else 'folder'
+        where = p
+    c.banner('hao verify-release  %s  (%s)' % (target or where, 'USB installer' if kind == 'drive' else 'release files'),
+             target=str(target or where), kind=kind)
+    if getattr(a, 'keys', None):
+        c.item('keys from %s (--keys, a checkout): not the owner\'s unless that file is theirs' % a.keys, ok=False,
+               ev='release.keys', keys=str(a.keys))
+    if kind == 'drive':
+        import stick as STICK
+        checks = RC.check_drive(where, keys, STICK)
+    else:
+        tag = target if target and RC.TAG.match(target) else None
+        checks = RC.check_folder(where, keys, cache=a.cache, tag=tag, opener=opener or RC.opener_default,
+                                 offline=a.offline, here=here)
+        if tag:
+            checks += RC.tag_extra(where, keys, tag)
+    for k in checks:
+        c.item('%-4s  %-9s  %s' % (k['state'], k['name'], SAFE.text(k['detail'])), 'quiet',
+               ok={'PASS': True, 'FAIL': False}.get(k['state']), ev='release.check', **{
+                   x: y for x, y in k.items() if x in ('name', 'state', 'file')})
+    n = RC.summary(checks)
+    if n['FAIL']:
+        raise CON.Stopped('%d of %d checks failed: this is not the release the owner signed, or it was changed'
+                          % (n['FAIL'], len(checks)), why='a signature, a file or the tag does not match',
+                          untouched='nothing was changed', options=[
+                              'download the release again from its GitHub release page',
+                              'report it: hao report'], code=4)
+    c.done('%d checks passed%s' % (n['PASS'], ', %d not made (SKIP: see why above)' % n['SKIP'] if n['SKIP'] else ''),
+           passed=n['PASS'], skipped=n['SKIP'])
+    return 0
+
+
 def builder_args(q, disk=True):
     if disk:
         q.add_argument('disk', nargs='?', help='the whole disk, /dev/diskN (asked when left out)')
@@ -715,6 +788,79 @@ def cmd_assets(a, c):
         raise CON.Stopped('%d inputs are missing or wrong' % len(problems))
     c.done('every input present with its pinned hash')
     return 0
+
+
+def signed_args(q):
+    q.add_argument('--unsigned', action='store_true',
+                   help='(developers, in a hao checkout only) use a release.json that has no signature')
+
+
+def signed_release(a, c, path, required=True):
+    """PATH (a release.json) checked against its PATH.sig (an SSH signature) and the release keys hao carries, before anything in
+    it is read; returns the private verified copy every later step uses. Exit 4 when the signature is missing or
+    does not match; --unsigned (a checkout only) skips the check and says so."""
+    path = Path(path)
+    if not path.exists() and not required:
+        return None
+    if getattr(a, 'unsigned', False):
+        if not (REPO / '.git').exists():
+            raise CON.Stopped('--unsigned is refused: this hao is a release, not a checkout',
+                              why='a release is used only when the owner\'s signature on it holds', code=5)
+        c.item('%s: signature not checked (--unsigned, a checkout)' % path, ok=False, ev='release.signature',
+               checked=False)
+        return path
+    try:
+        copy = SIGN.verified(path)                        # the same verified copy for every later reader
+        _, kid, hashed = SIGN._VERIFIED[os.path.abspath(str(path))]
+    except SIGN.SignatureError as x:
+        raise CON.Stopped('%s is not signed by hao: %s' % (path, x),
+                          why='hao reads a release only when the signature beside it (%s.sig) is the owner\'s'
+                              % path.name,
+                          untouched='nothing was downloaded or written',
+                          options=['download the release again from its GitHub release page'], code=4)
+    c.item('%s signed (key %s, %s)' % (path.name, kid, hashed), 'files', ok=True, ev='release.signature',
+           checked=True, key=kid, hash=hashed)
+    return copy
+
+
+def signed_create(a, c):
+    """create-installer: the release beside hao (or --release) verified first; a --kit build may have none."""
+    path = Path(a.release) if a.release else HERE / 'release.json'
+    if os.path.lexists(path):
+        a.release = str(signed_release(a, c, path))     # whenever a release will be read: unsigned stops (exit 4)
+    elif a.plan or (not a.dry_run and not a.image and not a.kit):
+        raise INST.no_release(path)                     # create-installer's own refusal for these runs; nothing read
+    else:
+        # a run that may go on without a release (--dry-run, --image, --kit): create-installer is given a name that
+        # cannot exist (a new empty private folder), so a release.json put beside hao after this check is never read
+        import tempfile
+        a.release = str(Path(tempfile.mkdtemp(prefix='hao-no-release-')) / 'release.json')
+    return a
+
+
+def stick_release(a, c):
+    """The install step: the USB installer's release.json checked against its signature and against the sha256 the
+    drive's stick.json recorded when it was written. A drive written from a checkout carries no release."""
+    stick = os.environ.get('HAO_STICK')
+    if not stick:
+        return
+    rel = Path(stick) / 'release.json'
+    try:
+        recorded = json.loads((Path(stick) / 'stick.json').read_text()).get('release_sha256')
+    except (OSError, ValueError, AttributeError):
+        recorded = None
+    if not rel.exists():
+        if recorded:
+            raise CON.Stopped('the USB installer\'s release.json is gone (stick.json records one)',
+                              why='the drive was changed after it was written', code=4,
+                              options=['write the USB installer again: sudo ./hao create-installer'])
+        c.item('this USB installer was written from a checkout: no release to check', 'files')
+        return
+    copy = signed_release(a, c, rel)
+    if recorded and copy != rel and hashlib.sha256(Path(copy).read_bytes()).hexdigest() != recorded:
+        raise CON.Stopped('the USB installer\'s release.json is not the one it was written with',
+                          why='the drive was changed after it was written', code=4,
+                          options=['write the USB installer again: sudo ./hao create-installer'])
 
 
 def kit_args(q):
@@ -765,7 +911,7 @@ def main():
     q.add_argument('--out', help='the profile file to write (default hao-profile-MODEL-DATE.json here)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_detect))
-    q = sub.add_parser('fetch'); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
+    q = sub.add_parser('fetch'); signed_args(q); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
     q.add_argument('--verify', action='store_true'); q.add_argument('--host-check', action='store_true')
     q.add_argument('--assets-from', help='fetch the release assets from this folder or URL prefix first')
     CON.add_level_flags(q); q.set_defaults(fn=guarded(cmd_fetch))
@@ -810,14 +956,18 @@ def main():
     q.add_argument('--keep-kit', action='store_true',
                    help='keep the kit staged on this Mac (default: removed once the USB installer is written and checked)')
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
-    q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(a, c, MAC.SystemHost(), acquire=PROG.download_view(
+    signed_args(q)
+    q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(signed_create(a, c), c, MAC.SystemHost(),
+                                                                 acquire=PROG.download_view(
         c, runpy.run_path(str(INST.ACQUIRE)), INST.origin_of)), log='create-installer'))
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
     q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
     q.add_argument('--no-restart', action='store_true',
                    help='stay in the Recovery when the install is done (default: restart after a 10 s countdown)')
-    q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
+    signed_args(q)
+    q.set_defaults(fn=guarded(lambda a, c: (stick_release(a, c), BUILD.install(a, c, MAC.SystemHost(), run=c.run))[1],
+                              log='install'))
     q = sub.add_parser('run', help='an ARM program through the hao runtime, with its diagnostic switches')
     q.add_argument('-v', dest='verbose', action='count', default=0, help='diagnostics (-vv for more)')
     q.add_argument('--interp', action='store_true', help='the interpreter only')
@@ -833,6 +983,24 @@ def main():
     g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/hao (sudo)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: AOT.aot(a, c), log='aot'))
+    q = sub.add_parser('verify-release', help='check a release yourself: the owner\'s signatures, every file, the '
+                       'public tag; or a USB installer against its signed release')
+    q.add_argument('target', nargs='?', help='vX.Y.Z (downloads its signed files), a folder of release files, or a '
+                   'USB installer (e.g. /Volumes/HAO); default: the release beside hao, or this USB installer')
+    q.add_argument('--cache', type=Path, default=CACHE, help='downloads to check as well (default %s)' % CACHE)
+    q.add_argument('--offline', action='store_true', help='no network: the public tag is not looked up (SKIP)')
+    q.add_argument('--keys', help='(developers, in a hao checkout only) public key lines to verify against instead '
+                   'of the owner\'s (data/release-keys.pub), e.g. a test key')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(cmd_verify_release, log='verify-release'))
+    q = sub.add_parser('doctor', help='is this Mac ready: Python, Xcode, macOS, disk, download URLs, mirrors')
+    q.add_argument('--for', dest='purpose', choices=DOCTOR.PURPOSES, default='create-installer',
+                   help='what to check for (default create-installer)')
+    q.add_argument('--release', help='the release.json to check against (default: beside hao)')
+    q.add_argument('--cache', type=Path, help='where downloads go (default ~/Library/Caches/hao)')
+    q.add_argument('--offline', action='store_true', help='skip the HEAD requests')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(lambda a, c: DOCTOR.doctor(a, c)))
     q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))

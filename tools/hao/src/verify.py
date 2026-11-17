@@ -22,7 +22,8 @@ def data_root(root):
     if str(root) == '/':
         return None
     data = root.parent / (root.name + ' - Data')
-    return data if data.is_dir() else None
+    # a real folder next to ROOT, not a link to somewhere else (pin() then fixes where it is)
+    return data if data.is_dir() and not data.is_symlink() else None
 
 
 def manifests(sources, root):
@@ -53,24 +54,95 @@ def manifests(sources, root):
     return out
 
 
+def inside(root, data, path):
+    """The file a manifest PATH names under ROOT (or, for a firmlinked path of an unbooted install, under its Data
+    volume DATA), or None when PATH is absolute, has empty, . or .. parts, or resolves outside that root."""
+    parts = str(path).split('/')
+    if not path or str(path).startswith('/') or any(x in ('', '.', '..') for x in parts):
+        return None
+    target = root / path
+    base = root
+    if data is not None and not os.path.lexists(target) and os.path.lexists(data / path):
+        target, base = data / path, data
+    real_base = os.path.realpath(str(base))
+    real_parent = os.path.realpath(str(target.parent))
+    if real_parent != real_base and not real_parent.startswith(real_base.rstrip('/') + '/'):
+        return None
+    return target
+
+
+def pin(base):
+    """Where the kernel says BASE is, fixed once at the start (SAFE.fd_path of its open folder)."""
+    import safety as SAFE
+    fd = os.open(str(base), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        return SAFE.fd_path(fd).rstrip('/') + '/'
+    finally:
+        os.close(fd)
+
+
+def hash_inside(target, base, pinned=None):
+    """sha256 of TARGET read through one descriptor (no link followed), or None when it is not a plain file, or
+    'outside' when the file that descriptor opened is not under BASE as PINNED at the start (a folder swapped after the
+    path was checked, or the root itself swapped later). Without F_GETPATH nothing is hashed ('outside')."""
+    import hashlib
+    import stat
+    import safety as SAFE
+    try:
+        fd = os.open(str(target), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        try:
+            where = SAFE.fd_path(fd)
+            real = pinned or pin(base)
+        except OSError:
+            return 'outside'
+        if not where.startswith(real):
+            return 'outside'
+        h = hashlib.sha256()
+        while True:
+            block = os.read(fd, 1 << 20)
+            if not block:
+                break
+            h.update(block)
+        return h.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def verify(root, found, attributes=None, on_file=None):
     """{'ok': n, 'problems': [{path, pack, problem, ...}], 'packs': {pack: files}}; ON_FILE(row) per file."""
     root = Path(root)
     data = data_root(root)
     attributes = attributes or LP.Attributes(root, privileged=True)
     out = {'ok': 0, 'problems': [], 'packs': {}}
+    pins = {root: pin(root)}
+    if data is not None:
+        pins[data] = pin(data)
     for where, m in found:
         pack = m.get('pack', Path(where).parent.name)
         out['packs'][pack] = len(m['files'])
         for path, meta in sorted(m['files'].items()):
-            target = root / path
-            if data is not None and not os.path.lexists(target) and os.path.lexists(data / path):
-                target = data / path            # a firmlinked path of an unbooted install: on its Data volume
             row = {'path': path, 'pack': pack}
-            if target.is_symlink() or not target.is_file():
+            target = inside(root, data, path)
+            if target is None:
+                # a manifest path that is absolute, has . or .. parts, or leads out of the root through a symlinked
+                # folder: refused, never read or hashed (a manifest must not point hao at other files)
+                row['problem'] = 'outside'
+                out['problems'].append(row)
+                if on_file:
+                    on_file(row)
+                continue
+            base = data if data is not None and target.is_relative_to(data) else root
+            have = hash_inside(target, base, pins[base])
+            if have == 'outside':
+                row['problem'] = 'outside'
+            elif have is None:
                 row['problem'] = 'missing'
             else:
-                have = LP.sha256_file(target)
                 if have != meta['sha256']:
                     row.update(problem='content', want=meta['sha256'], have=have)
                 else:

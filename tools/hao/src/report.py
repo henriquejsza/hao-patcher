@@ -17,6 +17,7 @@ import re
 import subprocess
 
 import detect as DETECT
+import safety as SAFE
 import livepatch as LP
 
 TOP = Path(__file__).resolve().parents[3]
@@ -33,17 +34,48 @@ LABELLED = [
                 re.I), '[wifi]'),
 ]
 EMAIL = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+URL_SECRET = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@:]+(?::[^/\s@]*)?@', re.I)
+URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?#"\']+)\?[^\s#"\']+', re.I)
+SECRET_NAMES = r'(?:password|passwd|passphrase|secret|token|api[_-]?key|access[_-]?key|auth(?:orization)?|cookie|session)'
+SECRET_FIELD = re.compile(r'("[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*"\s*:\s*)"(?:[^"\\]|\\.)*"' % SECRET_NAMES, re.I)
+BEARER = re.compile(r'(\b(?:Bearer|Basic|token)\s+)[^\s"\',;&]+', re.I)
+SECRET_WORD = re.compile(r'(\b[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*\s*[=:]\s*)(?!\[removed\])(?:(?:Bearer|Basic)\s+)?[^\s"\',;&]+'
+                         % SECRET_NAMES, re.I)
+URL_FRAGMENT = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s#"\']+)#[^\s"\']+', re.I)
+SECRET_KEY = re.compile(SECRET_NAMES, re.I)
+SECRET_FLAG = re.compile(r'^--?[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*$' % SECRET_NAMES, re.I)
+SECRET_ASSIGN = re.compile(r'^(--?[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*=)' % SECRET_NAMES, re.I)
+
+
+def redact(value):
+    """VALUE (decoded JSON) with what secrets look like removed before it is written or shown: any value under a key
+    named like one (password, token, api_key, ...), whatever its type, and the argument after a flag named like one
+    (--password X); `--password=X` and free text are left to scrub()'s patterns."""
+    if isinstance(value, dict):
+        return {k: '[removed]' if isinstance(k, str) and SECRET_KEY.search(k) else redact(v) for k, v in value.items()}
+    if isinstance(value, list):
+        out, hide = [], False
+        for v in value:
+            out.append('[removed]' if hide else redact(v))
+            hide = isinstance(v, str) and bool(SECRET_FLAG.match(v))
+        return out
+    if isinstance(value, str):
+        m = SECRET_ASSIGN.match(value)                       # --password=two words: all of it
+        return m.group(1) + '[removed]' if m else value
+    return value
+
+
 MAC_ADDRESS = re.compile(r'\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b')
-# a URL's user:password@ and its ?query (signed download links carry tokens there)
-URL_USERINFO = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@"\']+@', re.I)
-URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?"\']+)\?[^\s"\']*', re.I)
 
 
 def log_dir(env=None, euid=None):
-    """Where this run keeps its command log: HAO_LOGS, else /Library/Logs/hao as root, else ~/Library/Logs/hao."""
+    """Where this run keeps its command log: HAO_LOGS, else the USB installer's logs/ (HAO_STICK), else
+    /Library/Logs/hao as root, else ~/Library/Logs/hao. (Under sudo hao drops HAO_LOGS and HAO_STICK first.)"""
     env = os.environ if env is None else env
     if env.get('HAO_LOGS'):
         return Path(env['HAO_LOGS'])
+    if env.get('HAO_STICK'):
+        return Path(env['HAO_STICK']) / 'logs'
     if (os.geteuid() if euid is None else euid) == 0:
         return SYSTEM_LOGS
     return Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao'
@@ -54,9 +86,12 @@ def log_dirs(env=None):
     env = os.environ if env is None else env
     if env.get('HAO_LOGS'):
         return [Path(env['HAO_LOGS'])]
-    out = [SYSTEM_LOGS, Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao']
+    out = [Path(env['HAO_STICK']) / 'logs'] if env.get('HAO_STICK') else []
+    out += [SYSTEM_LOGS, Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao']
     if env.get('SUDO_USER'):
-        out.append(Path('/Users') / env['SUDO_USER'] / 'Library' / 'Logs' / 'hao')
+        home = SAFE._home_of(env)
+        if home:
+            out.append(Path(home) / 'Library' / 'Logs' / 'hao')
     return list(dict.fromkeys(out))
 
 
@@ -66,16 +101,24 @@ def version():
     out = {}
     rel = TOP / 'tools' / 'hao' / 'release.json'
     if rel.is_file():
+        import signing as SIGN
         try:
-            r = json.loads(rel.read_text())
+            copy, key, _ = SIGN.verified_release(rel)            # the bytes that were verified, read once
+            r, out['release_signature'] = json.loads(copy.read_bytes()), 'verified (%s)' % key
+        except SIGN.SignatureError as x:
+            out['release_signature'] = 'NOT verified: %s' % x
+            r = {'release': 'release.json beside hao is not verified: its claims are not shown'}
+        except (OSError, ValueError):
+            r = {}
+        if isinstance(r, dict) and r:
             out['release'], out['release_commit'] = r.get('release'), r.get('hao_patcher')
-        except ValueError:
+        else:
             out['release'] = 'release.json unreadable'
     stamp = TOP / 'tools' / 'hao' / 'VERSION'          # written by the hao-command recipe when it stages hao
     if not (TOP / '.git').exists() and stamp.is_file():
         out['commit'] = stamp.read_text().strip()
     if (TOP / '.git').exists():
-        r = subprocess.run(['git', '-C', str(TOP), 'describe', '--always', '--dirty', '--abbrev=12'],
+        r = subprocess.run(['/usr/bin/git', '-C', str(TOP), 'describe', '--always', '--dirty', '--abbrev=12'],
                            capture_output=True, text=True)
         if r.returncode == 0:
             out['commit'] = r.stdout.strip()
@@ -83,27 +126,88 @@ def version():
 
 
 def save_log(command, argv, events, folder=None, ver=None, now=None):
-    """Keep COMMAND's console events as FOLDER/COMMAND-DATE.json (readable by everyone, no secrets: hao report
-    still scrubs it); the oldest beyond KEEP go. Returns the path, or None when the folder cannot be written."""
+    """Keep COMMAND's console events as FOLDER/COMMAND-DATE.json, 0600 in a 0700 folder, created new (never through a
+    symlink or over a file); the oldest beyond KEEP go (plain files only). Returns the path, or None when it cannot be
+    written."""
     folder = Path(folder) if folder else log_dir()
     stamp = (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
+    data = json.dumps(redact({'command': command, 'argv': list(argv), 'hao': ver if ver is not None else version(),
+                              'events': events}), indent=1, default=str) + '\n'
     try:
-        folder.mkdir(parents=True, exist_ok=True)
-        path = folder / ('%s-%s.json' % (command, stamp))
-        path.write_text(json.dumps({'command': command, 'argv': list(argv), 'hao': ver if ver is not None
-                                    else version(), 'events': events}, indent=1, default=str) + '\n')
-        path.chmod(0o644)
-        for old in sorted(folder.glob('*-*.json'), key=lambda p: p.stat().st_mtime)[:-KEEP]:
-            old.unlink()
-        return path
+        with SAFE.own_folder(folder) as f:                  # pinned: a folder swapped after the check changes nothing
+            path = None
+            for n in range(10):
+                try:
+                    path = f.create('%s-%s%s.json' % (command, stamp, '-%d' % n if n else ''), data, 0o600)
+                    break
+                except FileExistsError:
+                    continue
+            if path is None:
+                return None
+            for name, _ in sorted(f.entries(LOG_NAME), key=lambda e: e[1].st_mtime)[:-KEEP]:
+                f.unlink(name)
+            return path
     except OSError:
         return None
 
 
-def last_log(folders):
-    found = [p for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')
-             if p.is_file() and not p.is_symlink()]          # a link could point a root run at any file
-    return max(found, key=lambda p: p.stat().st_mtime) if found else None
+def owners_of(folder, env=None):
+    """(owners, private) of FOLDER for root to read command logs from it: the system log folder and the install
+    record's folder are root's and must not be writable by others; the USB installer's logs are root's (or its
+    volume's unknown owner, when this hao runs from it); any other folder is the user's (the sudo user's under sudo)
+    and only that user's files in it are read, never root's: a user's folder that leads elsewhere gives root nothing."""
+    env = os.environ if env is None else env
+    folder = Path(folder)
+    if folder == SYSTEM_LOGS or folder == STATE:
+        return {0}, True
+    if env.get('HAO_STICK') and folder == Path(env['HAO_STICK']) / 'logs':
+        return {0} | SAFE.stick_owners(folder, env), True
+    if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit():
+        return {int(env['SUDO_UID'])}, False
+    return {os.geteuid()}, False
+
+
+def log_folder(folder, env=None):
+    """FOLDER pinned for reading (SAFE.Folder), or None when it is missing or not as owners_of says."""
+    owners, private = owners_of(folder, env)
+    try:
+        return SAFE.Folder(folder, owners, private=private)
+    except OSError:
+        return None
+
+
+LOG_NAME = r'[A-Za-z0-9._-]+-[0-9-]+\.json'
+
+
+def candidates(folders, env=None):
+    """[(mtime, path)] of command logs that root may read, newest first: plain files of the folder's owner in a
+    pinned folder (log_folder); up to 10,000 entries per folder are looked at, all of them sorted."""
+    found = []
+    for f in folders:
+        pinned = log_folder(f, env)
+        if pinned is None:
+            continue
+        with pinned:
+            try:
+                found += [(st.st_mtime, Path(f) / name) for name, st in pinned.entries(LOG_NAME)]
+            except OSError:
+                continue
+    return sorted(found, reverse=True)
+
+
+def read_log(path, env=None):
+    """PATH's text, read through its pinned folder (log_folder), or None."""
+    pinned = log_folder(Path(path).parent, env)
+    if pinned is None:
+        return None
+    with pinned:
+        return pinned.read(Path(path).name)
+
+
+def last_log(folders, env=None):
+    """The newest command log root may read (candidates())."""
+    found = candidates(folders, env)
+    return found[0][1] if found else None
 
 
 def _out(host, *argv):
@@ -147,8 +251,12 @@ def scrub(text, private):
     text = HOME.sub(lambda m: m.group(1) + USER, text)
     for pattern, label in LABELLED:
         text = pattern.sub(lambda m: m.group(1) + label, text)
-    text = URL_USERINFO.sub(lambda m: m.group(1) + '[credentials]@', text)
-    text = URL_QUERY.sub(lambda m: m.group(1) + '?[query]', text)
+    text = URL_SECRET.sub(lambda m: m.group(1) + '[credentials]@', text)    # https://user:pass@host
+    text = SECRET_FIELD.sub(lambda m: m.group(1) + '"[removed]"', text)       # "password": "..."
+    text = BEARER.sub(lambda m: m.group(1) + '[removed]', text)               # Bearer ...
+    text = SECRET_WORD.sub(lambda m: m.group(1) + '[removed]', text)          # token=..., password: ...
+    text = URL_FRAGMENT.sub(lambda m: m.group(1) + '#[fragment]', text)
+    text = URL_QUERY.sub(lambda m: m.group(1) + '?[query]', text)             # tokens in query strings
     text = EMAIL.sub('[email]', text)
     text = MAC_ADDRESS.sub('[hardware address]', text)
     for secret in sorted(private, key=len, reverse=True):
@@ -156,11 +264,14 @@ def scrub(text, private):
     return text
 
 
-def _json(path):
+def _json(path, env=None):
+    text = read_log(path, env)
+    if text is None:
+        return 'unreadable: %s is not a plain file in a plain folder of its owner, or is larger than 4 MB' % path
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)      # a link (even one put there just now) is not read
-        with os.fdopen(fd, 'rb') as f:
-            return json.dumps(json.loads(f.read()), indent=1, default=str)
+        return json.dumps(redact(json.loads(text)), indent=1, default=str, ensure_ascii=False)
+    except RecursionError:
+        return 'unreadable: nested too deeply'
     except (OSError, ValueError) as x:
         return 'unreadable: %s' % x
 
@@ -171,14 +282,16 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
     folders = log_dirs(env) if folders is None else folders
     when = now or datetime.datetime.now()
     parts = ['hao report  %s' % when.strftime('%Y-%m-%d %H:%M:%S'),
-             'Attach this file to a GitHub issue. Removed before writing: serial number, hardware UUID, computer '
-             'name, user names, Wi-Fi names, e-mail and hardware addresses.']
+             'For a GitHub issue. Removed before writing: serial number, hardware UUID, computer name, user names, '
+             'Wi-Fi names, e-mail and hardware addresses, credentials and query strings in URLs. Read it before you '
+             'share it: messages from programs can hold other details.']
 
     def section(title, body):
         parts.extend(['', '== ' + title, body.rstrip() or '(none)'])
 
     v = ver if ver is not None else version()
-    section('hao', '\n'.join('%-15s %s' % (k, v[k]) for k in ('release', 'release_commit', 'commit') if v.get(k))
+    section('hao', '\n'.join('%-15s %s' % (k, v[k]) for k in ('release', 'release_signature', 'release_commit', 'commit')
+                            if v.get(k))
             or 'version unknown (no release.json and no git checkout)')
     csr = host.csr_config()
     boot_args = _out(host, 'nvram', 'boot-args').partition('\t')[2]
@@ -199,11 +312,10 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
         section('hao detect', json.dumps(p, indent=1))
     except (DETECT.DetectError, LP.PatchError, OSError, KeyError, ValueError) as x:
         section('hao detect', 'failed: %s' % x)
-    log = last_log(folders)
+    log = last_log(folders, env)
     section('Last command' + (' (%s)' % log.name if log else ''), _json(log) if log else
             'no hao command log (looked in %s)' % ', '.join(str(f) for f in folders))
-    others = sorted((p.name for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')
-                     if log is None or p != log), reverse=True)
+    others = [p.name for _, p in candidates(folders, env) if p != log]
     if others:
         section('Earlier command logs', '\n'.join(others[:KEEP]))
     record = Path(state) / 'install-record.json'
@@ -226,35 +338,47 @@ def default_output(now=None, cwd=None):
     return (cwd if os.access(cwd, os.W_OK) else Path('/private/tmp')) / name
 
 
-def write(path, text, env=None):
+def write(path, text, env=None, numbered=False):
     """Write the report; under sudo, give it to the user who ran sudo so they can attach and delete it."""
     env = os.environ if env is None else env
     path = Path(path)
-    # a new file, never through a link or over an existing file (the name is predictable): O_EXCL | O_NOFOLLOW, and the
-    # mode and owner set on the open file, not on the name
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
-    with os.fdopen(fd, 'w') as f:
-        f.write(text)
-        os.fchmod(f.fileno(), 0o644)
-        if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit() and env.get('SUDO_GID', '').isdigit():
+    owner = SAFE.sudo_owner(env)
+
+    def new():
+        # a new file only: an existing name (or a symlink planted at it) is never written through; a name the user
+        # gave is refused when it exists, a default one (NUMBERED) gets -1 ... -9
+        for n in range(10 if numbered else 1):
+            candidate = path if n == 0 else path.with_name('%s-%d%s' % (path.stem, n, path.suffix))
             try:
-                os.fchown(f.fileno(), int(env['SUDO_UID']), int(env['SUDO_GID']))
-            except OSError:
-                pass
-    return path
+                return str(SAFE.create(candidate, text, 0o600))
+            except FileExistsError:
+                continue
+        raise FileExistsError('%s exists already' % path if not numbered else
+                              '%s and nine numbered names next to it exist already' % path)
+    # under sudo the file is written by the sudo user itself, so the user's folders (and any link in them) can lead
+    # root nowhere: the kernel checks the user's own rights
+    return Path(SAFE.as_user(owner, new) if owner else new())
 
 
 def report(a, c, host, env=None, folders=None, state=STATE, ver=None):
     path = Path(a.output).expanduser() if getattr(a, 'output', None) else default_output()
     text = collect(host, env, folders, state, ver)
-    try:
-        write(path, text, env)
-    except FileExistsError:
-        from console import Stopped
-        raise Stopped('%s exists' % path, why='hao report writes a new file and never replaces one',
-                      options=['name another file with --output, or leave --output out'], untouched='nothing was written')
+    given = bool(getattr(a, 'output', None))
+    if given:
+        try:
+            path = write(path, text, env)
+        except FileExistsError:
+            from console import Stopped
+            raise Stopped('%s exists' % path, why='hao report writes a new file and never replaces one',
+                          options=['name another file with --output, or leave --output out'],
+                          untouched='nothing was written')
+    else:
+        try:
+            path = write(path, text, env, numbered=True)
+        except OSError:                  # not writable here, or every default name taken: a new name in /private/tmp
+            path = write(Path('/private/tmp') / path.name, text, env, numbered=True)
     c.event('report', path=str(path), bytes=len(text))
     c.done('report written to %s' % path.resolve(), path=str(path))
-    c.print('Read it before you attach it to a GitHub issue: hao removed the serial number, user and computer names, '
-            'Wi-Fi names, addresses and link tokens it knows of.', 'quiet')
+    c.print('Read it before you attach it to a GitHub issue: hao removed serials, user and Wi-Fi names, addresses '
+            'and the credentials it recognises; anything else a program printed is still there.', 'quiet')
     return 0

@@ -21,9 +21,11 @@ COMMANDS = (
     ('create-installer', ('build',), 'make the USB installer for an Intel Mac (sudo)'),
     ('install', ('installer',), 'install macOS 27 on this Mac'),
     ('verify', ('installed',), 'check every installed file against its manifest'),
+    ('verify-release', ('build', 'installer', 'installed'), 'check a release yourself: signatures, files, tag'),
     ('explain', ('installed', 'build'), 'where a file comes from and every edit to it'),
     ('run', ('installed',), 'an ARM program through hao, with diagnostics (-v, --stats, --interp)'),
     ('aot', ('installed',), 'the ahead-of-time caches: build (sudo), --status, --background, --clear'),
+    ('doctor', ('build',), 'is this Mac ready to make the USB installer: Python, Xcode, disk, downloads'),
     ('status', ('build', 'installer', 'installed'), 'hao on this Mac: release, macOS, SIP, install, last stop'),
     ('report', ('build', 'installer', 'installed'), 'one file with what a developer needs, for a GitHub issue'),
 )

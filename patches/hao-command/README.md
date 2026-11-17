@@ -23,6 +23,8 @@ On the installed Mac: `hao`, `hao status`, `hao --help`.
 NEEDS VALIDATION: not yet run in an image build, a QEMU install or on a laptop.
 
 ## Revisions
+- r8 2026-11-17 the new launcher is made by mktemp; every folder from usr to bin must be root's and loses its ACLs; a link at its name (to a file or a folder) is removed, a folder refused; release.json.sig staged with release.json
+- r7 2026-11-17 the launcher is written to a new file and renamed into place; symlinked folders refused; make.sh stages committed bytes (git archive) into a fresh folder
 - r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): bundled CPython and tools/hao: no build or hardware dependence. Nothing it installs changes.
 - r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 

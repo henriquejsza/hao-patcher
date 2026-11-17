@@ -486,7 +486,7 @@ class ReportTest(unittest.TestCase):
 
     def test_contents(self):
         text = self.collect()
-        for want in ('hao report  2026-11-13 11:00:00', 'Attach this file to a GitHub issue', '== hao',
+        for want in ('hao report  2026-11-13 11:00:00', 'For a GitHub issue. Removed before writing', '== hao',
                      'release         27.2.1-26B131.0', 'commit          abc123', '== This Mac',
                      'ProductVersion:\t\t27.2.1', 'model          MacBookPro9,2', 'memory         16 GB',
                      'machine        x86_64', '== hao detect', '"board_id": "Mac-6F01561E16C75D06"',

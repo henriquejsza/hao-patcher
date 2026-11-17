@@ -299,6 +299,19 @@ class Round5(unittest.TestCase):
         x = r.explain(CON.Stopped('the build onto /dev/disk0 failed (exit 1)'))
         self.assertEqual(x.untouched, 'before anything was written to the EFI partition. This Mac will not start from disk0 yet.')
 
+    def test_unproven_mac_lists_what_is_not_proven(self):
+        x = CON.Stopped('this Mac is not proven for this release', code=5,
+                        unknown=[('GPU 8086:0126', 'Intel HD 3000: no pack')],
+                        options=['install anyway: /Volumes/HAO/install --unproven'])
+        for env, out in (({}, Pipe()), ({'TERM': 'xterm-256color', 'HAO_THEME': 'dark'}, Tty())):
+            c = CON.Console('steps', out=out, err=out, env=env)
+            c.stopped(x)
+            text = CON.plain(out.getvalue())
+            self.assertIn('Not proven on this Mac', text)
+            self.assertIn('GPU 8086:0126', text)
+            self.assertIn('Intel HD 3000: no pack', text)
+        self.assertEqual(c.events[-1]['unknown'], [['GPU 8086:0126', 'Intel HD 3000: no pack']])
+
     def test_commands_in_what_you_can_do_are_bold(self):
         err = Tty()
         c = CON.Console('steps', out=err, err=err, env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})

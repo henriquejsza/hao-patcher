@@ -6,16 +6,23 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 TOP=$(cd "$HERE/../.." && pwd)
 OUT=${1:?output}
+rm -rf "$OUT/hao"
 mkdir -p "$OUT/hao"
 if [ -e "$TOP/.git" ]; then
-    (cd "$TOP" && git ls-files tools/hao NOTICE.md | grep -v '^tools/hao/tests/' | tar -cf - -T -) | (cd "$OUT/hao" && tar -xf -)
-    VERSION=$(git -C "$TOP" describe --always --dirty --abbrev=12)
+    # the committed bytes, not the working tree (an uncommitted change is never staged into an image)
+    git -C "$TOP" archive HEAD tools/hao NOTICE.md | (cd "$OUT/hao" && tar -xf -)
+    rm -rf "$OUT/hao/tools/hao/tests"
+    VERSION=$(git -C "$TOP" describe --always --abbrev=12)
 else
     (cd "$TOP" && find tools/hao NOTICE.md -type f ! -path 'tools/hao/tests/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
         ! -name '.DS_Store' | tar -cf - -T -) | (cd "$OUT/hao" && tar -xf -)
     VERSION=$(cat "$TOP/pipeline/SOURCE_COMMIT" 2>/dev/null || true)
     case $VERSION in ''|*Format*) VERSION=unknown ;; esac
 fi
-[ ! -f "$TOP/tools/hao/release.json" ] || cp "$TOP/tools/hao/release.json" "$OUT/hao/tools/hao/release.json"
+# release.json is not source (the user downloads it) and is signed: it goes with its signature, which hao checks
+# whenever it reads it
+for f in release.json release.json.sig; do
+    [ ! -f "$TOP/tools/hao/$f" ] || cp "$TOP/tools/hao/$f" "$OUT/hao/tools/hao/$f"
+done
 # the commit staged, for hao's version where there is no checkout and no release.json (a dev image)
 printf '%s\n' "$VERSION" > "$OUT/hao/tools/hao/VERSION"

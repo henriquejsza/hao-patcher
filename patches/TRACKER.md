@@ -40,7 +40,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-userspace | r85 | oclp-hook | experiment |  | x | x |  |  | **needs** | r85 2026-11-17 Declares its scope (`requires`, docs/requires.md): userspace rows for both builds. Nothing it i |
 | golden-gate-wifi-compat | r2 | oclp-hook | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): compat rows for both builds. Nothing it insta |
 | golden-gate-windowserver-filter | r9 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): profiles for 26A428 and 26B131 in src/profile |
-| hao-command | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): bundled CPython and tools/hao: no build or ha |
+| hao-command | r8 | post | experiment |  | x |  |  |  | **needs** | r8 2026-11-17 the new launcher is made by mktemp; every folder from usr to bin must be root's and loses its AC |
 | hao-opencore | r68 | post | experiment |  | x | x |  |  | **needs** | r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refus |
 | hao-runtime | r88 | oclp-hook | experiment |  | x | x |  |  | **needs** | r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): hao refuses a CPU below x86-64-v2 (hao-runti |
 | hao-runtime-fold | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the fold payload for the rebuilt 26B131 famil |

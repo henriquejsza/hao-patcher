@@ -300,14 +300,17 @@ class Runner:
         return None
 
     def logfile(self):
+        """The backend log: appended, never through a symlink, 0600 in a 0700 folder; when that folder cannot be
+        used, a new private folder of this run (never a shared name in /tmp)."""
+        import safety as SAFE
+        import tempfile
         if self.log is None:
             self.log = output_log(self.command)
         try:
-            self.log.parent.mkdir(parents=True, exist_ok=True)
-            return open(self.log, 'a', encoding='utf-8', errors='replace')
+            return SAFE.open_log(self.log)                       # in its pinned folder (SAFE.Folder.open_log)
         except OSError:
-            self.log = Path(os.environ.get('TMPDIR', '/tmp')) / self.log.name
-            return open(self.log, 'a', encoding='utf-8', errors='replace')
+            self.log = Path(tempfile.mkdtemp(prefix='hao-logs-')) / self.log.name
+            return SAFE.open_log(self.log)
 
     def view_for(self, argv):
         words = [str(x) for x in argv]
@@ -377,11 +380,14 @@ class Runner:
         return rc
 
     def feed(self, view, line):
-        text = line.strip()
+        import safety as SAFE
+        text = SAFE.text(line.strip())                  # external text: no control sequences reach the terminal
         if text.startswith('@hao '):
             try:
-                ev = json.loads(text[5:])
-            except ValueError:
+                ev = SAFE.clean(json.loads(line.strip()[5:]))    # every decoded string shown as text
+            except (ValueError, RecursionError):
+                return
+            if not isinstance(ev, dict):
                 return
             kind = ev.get('ev')
             if kind == 'step':
@@ -389,11 +395,11 @@ class Runner:
             elif kind == 'progress':
                 view.progress(ev.get('done'), ev.get('total'), ev.get('unit'))
             elif kind == 'item':
-                self.c.item(str(ev.get('text', '')), ev.get('level', 'steps'), ok=ev.get('ok'))
+                self.c.item(SAFE.text(ev.get('text', '')), ev.get('level', 'steps'), ok=ev.get('ok'))
             elif kind == 'note':
-                self.c.note(str(ev.get('text', '')))
+                self.c.note(SAFE.text(ev.get('text', '')))
             elif kind == 'stop':
-                self.stop = ev
+                self.stop = ev                                   # already cleaned when decoded
             return
         if text.startswith('STEP '):
             view.step(text[5:].strip())
