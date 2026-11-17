@@ -20,8 +20,18 @@ if [ "$(/usr/bin/id -u)" = 0 ]; then
         done
         if [ -z "$bad" ]; then
             sp="$ROOT_PY/lib/python3.14/site-packages"
-            # anything not root's, writable by others, or a link leading out of the tree (absolute, or with ..)
-            w=$(/usr/bin/find "$ROOT_PY" -path "$sp" -prune -o '(' ! -user root -o -perm -g+w -o -perm -o+w ')' -print -o -type l '(' -lname '/*' -o -lname '*..*' ')' -print) || w="$ROOT_PY (it cannot be read whole)"
+            # anything not root's or writable by others; then every link must resolve inside the tree
+            w=$(/usr/bin/find "$ROOT_PY" -path "$sp" -prune -o '(' ! -user root -o -perm -g+w -o -perm -o+w ')' -print) || w="$ROOT_PY (it cannot be read whole)"
+            if [ -z "$w" ]; then
+                w=$(/usr/bin/find "$ROOT_PY" -path "$sp" -prune -o -type l -print | while read -r l; do
+                    r=$(/bin/realpath "$l" 2>/dev/null) && [ "${r#"$ROOT_PY"/}" != "$r" ] && continue
+                    # a dangling link (Tk's PrivateHeaders) may stay if it is relative without ..: it points inside
+                    # the tree, where no one but root can create what is missing
+                    t=$(/usr/bin/readlink "$l")
+                    [ ! -e "$l" ] && [ "${t#/}" = "$t" ] && [ "${t#*..}" = "$t" ] && continue
+                    echo "$l"; break
+                done)
+            fi
             w=${w%%
 *}
             [ -z "$w" ] || bad="$w can be changed by others than root, or leads out of $ROOT_PY"

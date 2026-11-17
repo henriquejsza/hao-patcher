@@ -95,8 +95,10 @@ def check_interpreter(root_py=None):
                 return [check('python', 'fail', '%s can be changed by others than root: sudo ./hao will refuse it'
                               % path, fix)]
             if stat.S_ISLNK(st.st_mode):
-                target = os.readlink(path)
-                if target.startswith('/') or '..' in target:
+                real, target = os.path.realpath(path), os.readlink(path)
+                inside = real.startswith(str(root_py).rstrip('/') + '/')
+                harmless = not os.path.exists(path) and not target.startswith('/') and '..' not in target
+                if not (os.path.exists(path) and inside) and not harmless:
                     return [check('python', 'fail', '%s leads out of %s: sudo ./hao will refuse it' % (path, root_py),
                                   fix)]
     if errors:
