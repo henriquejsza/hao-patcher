@@ -42,6 +42,10 @@ LAUNCHER = '''#!/bin/sh
 D=$(cd "$(dirname "$0")" && pwd)
 export HAO_STICK=$D
 case $(uname -m) in x86_64) PY=$D/kit/py-x86_64 ;; *) PY=$D/kit/py ;; esac
+# Run that CPython from memory (64 MB): the install first reads the whole drive to check it, and a page of a running
+# program read back from a USB drive under that load can fail (SIGBUS). Where /private/var/tmp is not writable, as is.
+M=/private/var/tmp/hao-py.$$
+if [ -w /private/var/tmp ] && ditto "$PY" "$M" 2>/dev/null; then PY=$M; fi
 export PYTHONDONTWRITEBYTECODE=1
 exec "$PY/bin/python3.12" -I -B "$D/hao/tools/hao/hao" %(cmd)s %(args)s"$@"
 '''
@@ -91,6 +95,10 @@ def opencore_config(c):
 def sha256(path):
     h = hashlib.sha256()
     with open(path, 'rb') as f:
+        try:                    # F_NOCACHE: streaming the drive does not push everything else out of memory
+            __import__('fcntl').fcntl(f.fileno(), 48, 1)
+        except (OSError, ImportError):
+            pass
         for block in iter(lambda: f.read(8 * MB), b''):
             h.update(block)
     return h.hexdigest()

@@ -382,6 +382,12 @@ class StickTest(unittest.TestCase):
         self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in host.calls))
         self.assertFalse(any('unmountDisk' in c for c in host.calls))
 
+    def test_launcher_runs_python_from_memory(self):
+        STICK.write(FakeHost(self.mnt), 'disk4', self.bs, self.esp, self.kit, self.top)
+        text = (self.mnt / 'HAO' / 'install').read_text()
+        self.assertIn('ditto "$PY" "$M"', text)
+        self.assertLess(text.index('PY=$M'), text.index('exec "$PY/bin/python3.12"'))
+
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)
         STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)
