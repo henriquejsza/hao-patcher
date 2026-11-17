@@ -10,7 +10,9 @@ read-only (never written) and detached again. Exit 0 when every row checks; 1 na
 
 A download the release marks "stream" (the IPSW, the installer) is not in the store: its producer reads only the
 members it needs from its URL, each checked against the release's pins (pipeline/unpack/ranged.py); a local row
-file is used instead when it is there. --userspace-on DIR writes golden_gate_userspace's 23 GB of disk images into
+file is used instead when it is there. With HAO_MIRROR set, the producers read a streamed download from the local
+mirror by the whole file's sha256 (the IPSW's from its pins' "ipsw_sha256", the installer's from --installer-sha256;
+pipeline/unpack/ranged.py). --userspace-on DIR writes golden_gate_userspace's 23 GB of disk images into
 DIR (the USB drive) and links the row's artifact folder to it. The Tahoe donors are made in one x86_64 pass, and
 each work tree is deleted as soon as the rows made from it check (--keep keeps them).
 """

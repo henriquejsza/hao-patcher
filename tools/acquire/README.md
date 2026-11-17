@@ -17,6 +17,12 @@ python3.14 -I tools/acquire/acquire path release.json NAME --cache CACHE  # wher
   that ignores ranges gets a clean restart.
 - **Refusals:** a file of the wrong size or hash is refused and never moved into place, and the next mirror is
   tried.
+- **Local mirror:** with `HAO_MIRROR=URL` (IPv4, e.g. `http://192.168.64.1:PORT`), each file is fetched first from
+  `URL/sha256/<hex>`, reached without any proxy, then from its own URL and mirrors; the size and hash checks are
+  unchanged. A miss (HTTP error, no connection, a short file) prints one line, `mirror miss NAME SHA256`, on stderr.
+  `HAO_MIRROR_STRICT=1` makes a miss (or wrong bytes from the mirror) an error naming the file and its sha256, with
+  no other source tried and nothing left in the cache. Streamed files use the same variables
+  (`pipeline/unpack/ranged.py`); `pipeline/mirror-list` prints what the mirror must hold.
 - **Output:** `--quiet`, the default (one line per file plus progress), or `--log json`.
 - **Dependencies:** the standard library only.
 
@@ -62,4 +68,6 @@ python3.14 -I -B -m unittest discover -s tools/acquire/tests      # includes hos
 The tests serve files from a local HTTP server and never touch the network. They cover a fetch, then reuse
 without a request; resuming from a partial file; a server that ignores ranges; a wrong file refused and a mirror
 used; a missing URL; a duplicate manifest entry; a release's downloads and assets; assets from a staged folder
-(file:// URLs), a changed staged asset refused, an entry without a URL; and the command line.
+(file:// URLs), a changed staged asset refused, an entry without a URL; the command line; and the local mirror (a
+hit first, a miss falling back with one line, a short copy, a strict miss writing nothing, wrong bytes refused, no
+proxy for the mirror, an IPv6 address refused).
