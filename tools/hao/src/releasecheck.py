@@ -84,12 +84,27 @@ def signed(folder, name, keys):
     return data, check('signature', 'PASS', '%s signed by %s (%s)' % (name, fp, hashed), file=name, key=fp)
 
 
-def sha256_file(path):
-    h = hashlib.sha256()
-    with open(path, 'rb') as f:
-        for block in iter(lambda: f.read(1 << 20), b''):
+def sha256_plain(path):
+    """sha256 of PATH read through one descriptor; None when nothing is there; 'not a plain file' when what is there
+    is a link, a folder, a FIFO or a device (a pinned name taken by anything else is a FAIL, never a SKIP)."""
+    import stat
+    if not os.path.lexists(path):
+        return None
+    try:
+        fd = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return 'not a plain file'
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return 'not a plain file'
+        h = hashlib.sha256()
+        while True:
+            block = os.read(fd, 1 << 20)
+            if not block:
+                return h.hexdigest()
             h.update(block)
-    return h.hexdigest()
+    finally:
+        os.close(fd)
 
 
 def file_checks(folder, sums, release, cache):
@@ -107,18 +122,21 @@ def file_checks(folder, sums, release, cache):
     for name, (digest, source) in sorted(want.items()):
         if name in SIGNED:
             continue
-        places = [Path(folder) / name]
-        if cache and re.fullmatch('[0-9a-f]{64}', digest):
-            places.append(Path(cache) / 'sha256' / digest)
-        here = next((p for p in places if p.is_file() and not p.is_symlink()), None)
-        if here is None:
+        # the copy here decides when there is one (whatever it is); the cache only when there is none
+        have = sha256_plain(Path(folder) / name)
+        where = 'here'
+        if have is None and cache and re.fullmatch('[0-9a-f]{64}', digest):
+            have, where = sha256_plain(Path(cache) / 'sha256' / digest), 'in the cache'
+        if have is None:
             absent += 1
             continue
-        have = sha256_file(here)
-        out.append(check('files', 'PASS' if have == digest else 'FAIL',
-                         '%s %s' % (name, 'matches %s' % source if have == digest else
-                                    'differs from %s (sha256 %s, pinned %s)' % (source, have[:16], digest[:16])),
-                         file=name))
+        if have == digest:
+            out.append(check('files', 'PASS', '%s (%s) matches %s' % (name, where, source), file=name))
+        elif len(have) != 64:
+            out.append(check('files', 'FAIL', '%s (%s) is %s' % (name, where, have), file=name))
+        else:
+            out.append(check('files', 'FAIL', '%s (%s) differs from %s (sha256 %s, pinned %s)' % (
+                name, where, source, have[:16], digest[:16]), file=name))
     if absent:
         out.append(check('files', 'SKIP', '%d pinned files are not here (download them with hao fetch to check them)'
                          % absent, absent=absent))
@@ -168,6 +186,7 @@ def tag_checks(release, tag, opener, offline, here=None):
     if not isinstance(version, str) or not TAG.match(version) or not isinstance(commit, str):
         return out + [check('tag', 'FAIL', 'release.json names no version and hao-patcher commit')]
     lay = layout()
+    why = 'no answer'
     if offline or opener is None:
         out.append(check('tag', 'SKIP', 'public tag %s not looked up (offline)' % version))
     else:
@@ -176,7 +195,7 @@ def tag_checks(release, tag, opener, offline, here=None):
         except urllib.error.HTTPError as x:
             public = 'missing' if x.code == 404 else None
             why = 'HTTP %d' % x.code
-        except (OSError, ValueError) as x:
+        except (OSError, ValueError, AttributeError, TypeError) as x:
             public, why = None, str(getattr(x, 'reason', x))
         if public == 'missing':
             out.append(check('tag', 'FAIL', '%s/%s has no public tag %s' % (lay['owner'], lay['source'], version)))
@@ -217,6 +236,8 @@ def check_folder(folder, keys, cache=None, tag=None, opener=None, offline=False,
         except ValueError as x:
             out.append(check('sums', 'FAIL', 'release.json: %s' % x))
             release = None
+    if sums is not None and 'release.json' in sums and c2 is None:
+        out.append(check('sums', 'FAIL', 'SHA256SUMS lists release.json, which is not here'))
     if sums is not None and rel_bytes is not None:
         if 'release.json' in sums:
             same = hashlib.sha256(rel_bytes).hexdigest() == sums['release.json']
@@ -226,7 +247,7 @@ def check_folder(folder, keys, cache=None, tag=None, opener=None, offline=False,
     if release is not None:
         out += tag_checks(release, tag, opener, offline, here)
     elif tag:
-        out.append(check('tag', 'SKIP', 'no signed release.json here to compare with %s' % tag))
+        out.append(check('tag', 'FAIL', 'no signed release.json here to compare with %s' % tag))
     return out
 
 
@@ -259,18 +280,19 @@ def check_drive(top, keys, stick=None):
     return out
 
 
-def download(tag, opener, beside=None, dest=None):
-    """Release TAG's signed files from GitHub into a new private folder: SHA256SUMS(.sig) and release.json(.sig) from the
-    source repository's release TAG (release.json(.sig) from BESIDE, the files next to hao, when that release has none);
-    then the assets release that release.json names: its SHA256SUMS(.sig) into assets/. A file a release does not have
-    is left out, and the checks say so. Nothing downloaded is trusted before its signature holds."""
+def download(tag, opener, beside=None, dest=None, keys=None):
+    """What `verify-release vX.Y.Z` checks, gathered into a new private folder (nothing here is trusted before its
+    signature holds): release.json(.sig) from BESIDE (the files next to hao: the source release carries none); the
+    source repository's release TAG: its SHA256SUMS(.sig) into source/ (they list hao-patcher-TAG.tar); the assets
+    release release.json names: its SHA256SUMS(.sig) into assets/ (they list release.json). Large files are not
+    downloaded; files a release does not have are left out, and the checks say so."""
     lay = layout()
     dest = Path(dest or tempfile.mkdtemp(prefix='hao-verify-'))
 
     def get(repo, rtag, name, into):
         url = 'https://github.com/%s/%s/releases/download/%s/%s' % (lay['owner'], repo, rtag, name)
         try:
-            data = opener(url, SIGN.RELEASE_LIMIT)
+            data = opener(url, SUMS_LIMIT)
         except urllib.error.HTTPError as x:
             if x.code == 404:
                 return False
@@ -278,15 +300,15 @@ def download(tag, opener, beside=None, dest=None):
         into.mkdir(exist_ok=True)
         (into / name).write_bytes(data)
         return True
-    for name in ('SHA256SUMS', 'SHA256SUMS.sig', 'release.json', 'release.json.sig'):
-        get(lay['source'], tag, name, dest)
-    if not (dest / 'release.json').exists() and beside is not None:
-        for name in ('release.json', 'release.json.sig'):
-            if (Path(beside) / name).is_file():
-                (dest / name).write_bytes((Path(beside) / name).read_bytes())
-    try:
-        name = json.loads((dest / 'release.json').read_bytes()).get('release')
-    except (OSError, ValueError, AttributeError):
+    for name in ('release.json', 'release.json.sig'):
+        if beside is not None and (Path(beside) / name).is_file():
+            (dest / name).write_bytes((Path(beside) / name).read_bytes())
+    for name in ('SHA256SUMS', 'SHA256SUMS.sig'):
+        get(lay['source'], tag, name, dest / 'source')
+    rel_bytes, _ = signed(dest, 'release.json', keys) if keys is not None else (None, None)
+    try:                                       # the assets release is found by the verified release.json only
+        name = json.loads(rel_bytes).get('release') if rel_bytes is not None else None
+    except (ValueError, AttributeError):
         name = None
     if isinstance(name, str) and re.fullmatch(r'[A-Za-z0-9._-]+', name):
         for f in ('SHA256SUMS', 'SHA256SUMS.sig'):
@@ -294,22 +316,38 @@ def download(tag, opener, beside=None, dest=None):
     return dest
 
 
-def assets_checks(folder, keys, release_bytes):
-    """The assets release's SHA256SUMS: signed, and listing the release.json that was verified."""
+def sums_checks(folder, keys, label, lists):
+    """A release's SHA256SUMS in FOLDER: signed, and listing LISTS {name: sha256 or None (only listed)}."""
     sums_bytes, c = signed(Path(folder), 'SHA256SUMS', keys)
     if c is None:
-        return [check('sums', 'SKIP', 'the assets release has no SHA256SUMS')]
-    out = [dict(c, detail='assets ' + c['detail'])]
-    if sums_bytes is not None and release_bytes is not None:
-        try:
-            sums = parse_sums(sums_bytes.decode('utf-8', errors='replace'))
-        except ValueError as x:
-            return out + [check('sums', 'FAIL', 'assets SHA256SUMS: %s' % x)]
-        if 'release.json' in sums:
-            same = sums['release.json'] == hashlib.sha256(release_bytes).hexdigest()
-            out.append(check('sums', 'PASS' if same else 'FAIL', 'release.json %s the assets release\'s SHA256SUMS' %
-                             ('is the file listed in' if same else 'differs from the one listed in')))
+        return [check('sums', 'FAIL', 'the %s release has no SHA256SUMS' % label)]
+    out = [dict(c, detail='%s %s' % (label, c['detail']))]
+    if sums_bytes is None:
+        return out
+    try:
+        sums = parse_sums(sums_bytes.decode('utf-8', errors='replace'))
+    except ValueError as x:
+        return out + [check('sums', 'FAIL', '%s SHA256SUMS: %s' % (label, x))]
+    for name, digest in lists.items():
+        if name not in sums:
+            out.append(check('sums', 'FAIL', 'the %s release\'s SHA256SUMS does not list %s' % (label, name)))
+        elif digest is not None and sums[name] != digest:
+            out.append(check('sums', 'FAIL', '%s differs from the one the %s release lists' % (name, label)))
+        else:
+            out.append(check('sums', 'PASS', '%s is %s the %s release\'s SHA256SUMS' % (
+                name, 'the file listed in' if digest else 'listed in', label)))
     return out
+
+
+def tag_extra(dest, keys, tag):
+    """The two GitHub releases of a vX.Y.Z check (download()): the assets release lists this release.json, the
+    source release lists the tag's archive."""
+    rel = Path(dest) / 'release.json'
+    digest = hashlib.sha256(rel.read_bytes()).hexdigest() if rel.is_file() else None
+    out = sums_checks(Path(dest) / 'assets', keys, 'assets', {'release.json': digest}) if digest else [
+        check('sums', 'FAIL', 'no release.json beside hao to find the assets release by (download it as the release '
+                              'notes say, or give the folder: hao verify-release FOLDER)')]
+    return out + sums_checks(Path(dest) / 'source', keys, 'source', {'hao-patcher-%s.tar' % tag: None})
 
 
 def summary(checks):

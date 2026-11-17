@@ -33,9 +33,12 @@ def elevated(env=None, euid=None):
 
 
 def runs_from(stick, here=HERE):
-    """Whether this hao (HERE) is the one on the drive STICK: only then is HAO_STICK the launcher's."""
+    """Whether this hao (HERE) is the one on the drive STICK, a mounted volume /Volumes/NAME: only then is HAO_STICK
+    the launcher's (not "/", not any folder that happens to contain hao)."""
     try:
-        return bool(stick) and Path(here).resolve().is_relative_to(Path(stick).resolve())
+        s = Path(stick).resolve() if stick else None
+        return (s is not None and s.parent == Path('/Volumes') and os.path.ismount(str(s))
+                and Path(here).resolve().is_relative_to(s))
     except (OSError, ValueError):
         return False
 
@@ -190,13 +193,13 @@ class Folder:
             st = os.fstat(self.fd)
             if not stat.S_ISDIR(st.st_mode) or st.st_uid not in self.owners:
                 raise OSError('%s is not a folder of %s' % (self.path, ', '.join(map(str, sorted(self.owners)))))
-            if private and st.st_uid == os.geteuid() and st.st_mode & 0o7777 != mode:
-                os.fchmod(self.fd, mode)
+            if fd_path(self.fd).lower() != expected_path(self.path).lower():     # where it is, before any change
+                raise OSError('%s is reached through a link' % self.path)
+            if create and private and st.st_uid == os.geteuid() and st.st_mode & 0o7777 != mode:
+                os.fchmod(self.fd, mode)                     # only a folder we write to, never one we only read
                 st = os.fstat(self.fd)
             if private and st.st_uid != UNKNOWN_UID and st.st_mode & 0o022:
                 raise OSError('%s can be written by others' % self.path)
-            if fd_path(self.fd).lower() != expected_path(self.path).lower():
-                raise OSError('%s is reached through a link' % self.path)
         except BaseException:
             os.close(self.fd)
             raise
@@ -212,13 +215,12 @@ class Folder:
             os.close(self.fd)
             self.fd = None
 
-    def entries(self, pattern=None, limit=10000):
-        """[(name, stat)] of the plain files (not links) of the folder's owners, at most LIMIT entries looked at."""
+    def entries(self, pattern=None):
+        """[(name, stat)] of the plain files (not links) of the folder's owners; every entry is looked at, so none can
+        be hidden behind others."""
         out = []
         with os.scandir(self.fd) as it:
-            for n, e in enumerate(it):
-                if n >= limit:
-                    break
+            for e in it:
                 if pattern and not re.fullmatch(pattern, e.name):
                     continue
                 try:

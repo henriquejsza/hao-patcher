@@ -22,7 +22,8 @@ def data_root(root):
     if str(root) == '/':
         return None
     data = root.parent / (root.name + ' - Data')
-    return data if data.is_dir() else None
+    # a real folder next to ROOT, not a link to somewhere else (pin() then fixes where it is)
+    return data if data.is_dir() and not data.is_symlink() else None
 
 
 def manifests(sources, root):
@@ -73,7 +74,7 @@ def inside(root, data, path):
 def pin(base):
     """Where the kernel says BASE is, fixed once at the start (SAFE.fd_path of its open folder)."""
     import safety as SAFE
-    fd = os.open(str(base), os.O_RDONLY | os.O_DIRECTORY)
+    fd = os.open(str(base), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         return SAFE.fd_path(fd).rstrip('/') + '/'
     finally:

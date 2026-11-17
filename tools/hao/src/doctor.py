@@ -196,7 +196,7 @@ def check_mirror(release, purpose):
 
 
 def checks(purpose='create-installer', where='build', release=None, cache=None, offline=False, opener=None,
-           run=subprocess.run, version=None, mac=None):
+           run=subprocess.run, version=None, mac=None, signature=None):
     """[check] for PURPOSE (create-installer, ci, release) at WHERE (frontdoor.where)."""
     p = pins()
     out = check_python(where, p, version)
@@ -206,7 +206,7 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
         out += check_shebangs(p, run=run)
     out += check_xcode(purpose, p, run) + check_macos(p, mac)
     if purpose != 'ci':
-        out += check_signature(release, purpose)
+        out += signature if signature is not None else check_signature(None, purpose)
         out += check_disk(release, cache or Path.home() / 'Library' / 'Caches' / 'hao')
         out += check_urls(release, p, offline, opener) + check_mirror(release, purpose)
     return out
@@ -248,9 +248,13 @@ def doctor(a, c, release_path=None):
     from console import Stopped
     release = None
     path = Path(getattr(a, 'release', None) or release_path or HERE / 'release.json')
-    if path.is_file():
-        release = json.loads(path.read_text())
-    failed = show(c, checks(a.purpose, FD.where(), release, getattr(a, 'cache', None), a.offline), a.purpose)
+    signature = check_signature(path if os.path.lexists(path) else None, a.purpose)
+    if signature and signature[0]['state'] == 'ok':
+        import signing as SIGN
+        copy, _, _ = SIGN.verified_release(path)                 # only the verified bytes are read
+        release = json.loads(copy.read_bytes())
+    failed = show(c, checks(a.purpose, FD.where(), release, getattr(a, 'cache', None), a.offline,
+                            signature=signature), a.purpose)
     if failed:
         raise Stopped('%d check%s failed: %s' % (len(failed), '' if len(failed) == 1 else 's',
                                                  ', '.join(r['name'] for r in failed)),

@@ -227,6 +227,26 @@ def parse_signature(blob, kind):
     return sig, flags, counter
 
 
+def _canonical_b64(text, what):
+    """TEXT's bytes when it is base64 in the one canonical spelling (padding and unused bits as encoding gives them)."""
+    try:
+        raw = base64.b64decode(text, validate=True)
+    except ValueError:
+        raise SignatureError('%s is not base64' % what)
+    if base64.b64encode(raw).decode() != text:
+        raise SignatureError('%s is not canonical base64' % what)
+    return raw
+
+
+def small_order(public):
+    """Whether PUBLIC decodes to a point of small order (8·A is the neutral point), or does not decode."""
+    A = _decompress(public)
+    if A is None:
+        return True
+    P = _mul(8, A)
+    return P[0] % p == 0 and (P[1] - P[2]) % p == 0
+
+
 def fingerprint(blob):
     """SHA256:... of a key blob, as ssh-keygen -l shows it."""
     return 'SHA256:' + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
@@ -243,12 +263,12 @@ def parse_keys(text):
         parts = line.split()
         if len(parts) < 2 or parts[0].encode() not in KINDS:
             raise SignatureError('a release key is not an ssh-ed25519 or sk-ssh-ed25519 public key line')
-        try:
-            blob = base64.b64decode(parts[1], validate=True)
-        except ValueError:
-            raise SignatureError('a release key is not base64')
-        if parse_key(blob)[0] != parts[0].encode():
+        blob = _canonical_b64(parts[1], 'a release key')
+        kind, public, _ = parse_key(blob)
+        if kind != parts[0].encode():
             raise SignatureError('a release key line names another type than its key')
+        if small_order(public):
+            raise SignatureError('a release key is a weak (small-order) point')
         keys[blob] = fingerprint(blob)
     return keys
 
@@ -270,10 +290,7 @@ def armored(text):
     lines = [x.strip() for x in text.strip().splitlines()]
     if len(lines) < 3 or lines[0] != BEGIN or lines[-1] != END:
         raise SignatureError('the signature file is not an SSH signature')
-    try:
-        return base64.b64decode(''.join(lines[1:-1]), validate=True)
-    except ValueError:
-        raise SignatureError('the signature is not base64')
+    return _canonical_b64(''.join(lines[1:-1]), 'the signature')
 
 
 def signed_data(namespace, hash_name, data):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -I
 """hao: user commands of the hao builder (workflow plan step 9a and on).
 
   hao patch OVERLAY... --root ROOT [--state DIR] [--installer] [--dry-run] [--quiet | --show | --log json]
@@ -611,7 +611,7 @@ def cmd_detect(a, c, host=None):
     DETECT.show(c, p)
     # the profile always goes to a file, named on screen, never printed (owner, 2026-11-13: "Reference the artifact")
     out = Path(a.out) if a.out else profile_output(p['model'])
-    out = REP.write(out, json.dumps(p, indent=1) + '\n')         # the name actually written (a new file)
+    out = REP.write(out, json.dumps(p, indent=1) + '\n', numbered=not a.out)   # the name written (a new file)
     c.done('Profile written to %s  (use it with --profile on the Mac that makes the USB installer)' % out, profile=str(out))
     return 0
 
@@ -714,7 +714,7 @@ def cmd_verify_release(a, c, opener=None):
             raise CON.Stopped('verify-release %s downloads the release\'s signed files; --offline forbids it' % target,
                               options=['hao verify-release FOLDER (a folder with the files you downloaded)'], code=5)
         try:
-            where = RC.download(target, opener or RC.opener_default, beside=HERE)
+            where = RC.download(target, opener or RC.opener_default, beside=HERE, keys=keys)
         except (OSError, ValueError) as x:
             raise CON.Stopped('the signed files of %s could not be downloaded: %s' % (target, SAFE.text(str(x))),
                               why='GitHub is not reachable from here', code=1,
@@ -723,7 +723,7 @@ def cmd_verify_release(a, c, opener=None):
     else:
         p = Path(target).expanduser()
         p = p if p.is_dir() else p.parent
-        kind = 'drive' if (p / 'manifest.json').exists() and (p / 'stick.json').exists() else 'folder'
+        kind = 'drive' if os.path.lexists(p / 'stick.json') or os.path.lexists(p / 'manifest.json') else 'folder'
         where = p
     c.banner('hao verify-release  %s  (%s)' % (target or where, 'USB installer' if kind == 'drive' else 'release files'),
              target=str(target or where), kind=kind)
@@ -737,9 +737,8 @@ def cmd_verify_release(a, c, opener=None):
         tag = target if target and RC.TAG.match(target) else None
         checks = RC.check_folder(where, keys, cache=a.cache, tag=tag, opener=opener or RC.opener_default,
                                  offline=a.offline, here=here)
-        if tag and (where / 'assets').is_dir():
-            rel = where / 'release.json'
-            checks += RC.assets_checks(where / 'assets', keys, rel.read_bytes() if rel.is_file() else None)
+        if tag:
+            checks += RC.tag_extra(where, keys, tag)
     for k in checks:
         c.item('%-4s  %-9s  %s' % (k['state'], k['name'], SAFE.text(k['detail'])), 'quiet',
                ok={'PASS': True, 'FAIL': False}.get(k['state']), ev='release.check', **{
@@ -823,8 +822,15 @@ def signed_release(a, c, path, required=True):
 def signed_create(a, c):
     """create-installer: the release beside hao (or --release) verified first; a --kit build may have none."""
     path = Path(a.release) if a.release else HERE / 'release.json'
-    if path.exists():                    # none at all: create-installer itself says so (or a --kit build needs none)
-        a.release = str(signed_release(a, c, path))
+    if os.path.lexists(path):
+        a.release = str(signed_release(a, c, path))     # whenever a release will be read: unsigned stops (exit 4)
+    elif a.plan or (not a.dry_run and not a.image and not a.kit):
+        raise INST.no_release(path)                     # create-installer's own refusal for these runs; nothing read
+    else:
+        # a run that may go on without a release (--dry-run, --image, --kit): create-installer is given a name that
+        # cannot exist (a new empty private folder), so a release.json put beside hao after this check is never read
+        import tempfile
+        a.release = str(Path(tempfile.mkdtemp(prefix='hao-no-release-')) / 'release.json')
     return a
 
 

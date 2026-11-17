@@ -44,6 +44,7 @@ SECRET_WORD = re.compile(r'(\b[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*\s*[=:]\s*)(?!\[remo
 URL_FRAGMENT = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s#"\']+)#[^\s"\']+', re.I)
 SECRET_KEY = re.compile(SECRET_NAMES, re.I)
 SECRET_FLAG = re.compile(r'^--?[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*$' % SECRET_NAMES, re.I)
+SECRET_ASSIGN = re.compile(r'^(--?[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*=)' % SECRET_NAMES, re.I)
 
 
 def redact(value):
@@ -58,6 +59,9 @@ def redact(value):
             out.append('[removed]' if hide else redact(v))
             hide = isinstance(v, str) and bool(SECRET_FLAG.match(v))
         return out
+    if isinstance(value, str):
+        m = SECRET_ASSIGN.match(value)                       # --password=two words: all of it
+        return m.group(1) + '[removed]' if m else value
     return value
 
 
@@ -103,10 +107,7 @@ def version():
             r, out['release_signature'] = json.loads(copy.read_bytes()), 'verified (%s)' % key
         except SIGN.SignatureError as x:
             out['release_signature'] = 'NOT verified: %s' % x
-            try:
-                r = json.loads(rel.read_text())
-            except (OSError, ValueError):
-                r = {}
+            r = {'release': 'release.json beside hao is not verified: its claims are not shown'}
         except (OSError, ValueError):
             r = {}
         if isinstance(r, dict) and r:
@@ -266,7 +267,7 @@ def scrub(text, private):
 def _json(path, env=None):
     text = read_log(path, env)
     if text is None:
-        return '(not read: %s is not a plain file in a plain folder of its owner, or is larger than 4 MB)' % path
+        return 'unreadable: %s is not a plain file in a plain folder of its owner, or is larger than 4 MB' % path
     try:
         return json.dumps(redact(json.loads(text)), indent=1, default=str, ensure_ascii=False)
     except RecursionError:
@@ -337,21 +338,23 @@ def default_output(now=None, cwd=None):
     return (cwd if os.access(cwd, os.W_OK) else Path('/private/tmp')) / name
 
 
-def write(path, text, env=None):
+def write(path, text, env=None, numbered=False):
     """Write the report; under sudo, give it to the user who ran sudo so they can attach and delete it."""
     env = os.environ if env is None else env
     path = Path(path)
     owner = SAFE.sudo_owner(env)
 
     def new():
-        # a new file only: an existing name (or a symlink planted at it) is never written through
-        for n in range(10):
+        # a new file only: an existing name (or a symlink planted at it) is never written through; a name the user
+        # gave is refused when it exists, a default one (NUMBERED) gets -1 ... -9
+        for n in range(10 if numbered else 1):
             candidate = path if n == 0 else path.with_name('%s-%d%s' % (path.stem, n, path.suffix))
             try:
                 return str(SAFE.create(candidate, text, 0o600))
             except FileExistsError:
                 continue
-        raise FileExistsError('%s and nine numbered names next to it exist already' % path)
+        raise FileExistsError('%s exists already' % path if not numbered else
+                              '%s and nine numbered names next to it exist already' % path)
     # under sudo the file is written by the sudo user itself, so the user's folders (and any link in them) can lead
     # root nowhere: the kernel checks the user's own rights
     return Path(SAFE.as_user(owner, new) if owner else new())
@@ -360,12 +363,19 @@ def write(path, text, env=None):
 def report(a, c, host, env=None, folders=None, state=STATE, ver=None):
     path = Path(a.output).expanduser() if getattr(a, 'output', None) else default_output()
     text = collect(host, env, folders, state, ver)
+    given = bool(getattr(a, 'output', None))
     try:
-        path = write(path, text, env)
-    except OSError:
-        if getattr(a, 'output', None):
+        path = write(path, text, env, numbered=not given)
+    except FileExistsError:
+        if not given:
             raise
-        path = write(Path('/private/tmp') / path.name, text, env)      # the current folder is not the user's
+        from console import Stopped
+        raise Stopped('%s exists' % path, why='hao report writes a new file and never replaces one',
+                      options=['name another file with --output, or leave --output out'], untouched='nothing was written')
+    except OSError:
+        if given:
+            raise
+        path = write(Path('/private/tmp') / path.name, text, env, numbered=True)   # the current folder is not the user's
     c.event('report', path=str(path), bytes=len(text))
     c.done('report written to %s' % path.resolve(), path=str(path))
     c.print('Read it before you attach it to a GitHub issue: hao removed serials, user and Wi-Fi names, addresses '

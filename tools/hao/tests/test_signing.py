@@ -166,6 +166,16 @@ class SSHSig(unittest.TestCase):
             two.write_text((FIX / 'test-key.pub').read_text() + sshsig_files(b'\1' * 32, b'')[0])
             self.assertEqual(len(SIGN.load_keys(two)), 2)
 
+    def test_non_canonical_base64_and_weak_keys_are_refused(self):
+        self.assertEqual(base64.b64decode('QR=='), b'A')            # other unused bits: same byte, other spelling
+        self.assertEqual(SIGN._canonical_b64('QQ==', 'x'), b'A')
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN._canonical_b64('QR==', 'x')
+        weak = b'\x01' + b'\0' * 31                                # the neutral point (order 1)
+        blob = ssh_string(b'ssh-ed25519') + ssh_string(weak)
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.parse_keys('ssh-ed25519 %s\n' % base64.b64encode(blob).decode())
+
     def test_verified_release_reads_once_and_keeps_a_private_copy(self):
         with tempfile.TemporaryDirectory() as d:
             for n in ('release.json', 'release.json.sig'):

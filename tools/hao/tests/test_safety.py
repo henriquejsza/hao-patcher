@@ -35,7 +35,9 @@ class Files(unittest.TestCase):
             victim = Path(d) / 'victim'
             victim.write_text('keep')
             (Path(d) / 'hao-report.txt').symlink_to(victim)
-            out = REP.write(Path(d) / 'hao-report.txt', 'report', env={})
+            with self.assertRaises(FileExistsError):              # a name the user gave: refused
+                REP.write(Path(d) / 'hao-report.txt', 'report', env={})
+            out = REP.write(Path(d) / 'hao-report.txt', 'report', env={}, numbered=True)
             self.assertEqual(out.name, 'hao-report-1.txt')
             self.assertEqual(victim.read_text(), 'keep')
             self.assertEqual(out.read_text(), 'report')
@@ -63,7 +65,7 @@ class Files(unittest.TestCase):
             real = Path(d) / 'install-20261117-000000.json'
             real.write_text('{"command": "install", "events": []}')
             self.assertEqual(REP.last_log([d], env={}), real)
-            self.assertIn('not read', REP._json(Path(d) / 'install-20991231-235959.json', env={}))
+            self.assertIn('unreadable', REP._json(Path(d) / 'install-20991231-235959.json', env={}))
 
     def test_logs_are_private(self):
         with tempfile.TemporaryDirectory() as d:
@@ -164,7 +166,16 @@ class Environment(unittest.TestCase):
         SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
         self.assertEqual(env['HOME'], '/home-of-u')
 
+    def test_runs_from_is_a_mounted_volume_holding_this_hao(self):
+        self.assertFalse(SAFE.runs_from('/', here='/usr/local/lib/hao/x.py'))
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(SAFE.runs_from(d, here=Path(d) / 'hao' / 'x.py'))     # a folder, not /Volumes/NAME
+        self.assertFalse(SAFE.runs_from('/Volumes/NotMounted', here='/Volumes/NotMounted/hao/x.py'))
+
     def test_any_root_drops_them_but_the_recovery_keeps_its_drive(self):
+        real = SAFE.runs_from
+        SAFE.runs_from = lambda stick, here=None: str(here).startswith(str(stick))
+        self.addCleanup(setattr, SAFE, 'runs_from', real)
         with tempfile.TemporaryDirectory() as d:
             here = Path(d) / 'hao' / 'tools' / 'hao' / 'src' / 'safety.py'
             env = {'HAO_STICK': d, 'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'PATH': '/x'}

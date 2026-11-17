@@ -108,6 +108,25 @@ class Folder(unittest.TestCase):
             self.assertIn(('tag', 'PASS'), states(RC.check_folder(f, KEYS, offline=True, here=COMMIT)))
             self.assertIn(('tag', 'FAIL'), states(RC.check_folder(f, KEYS, offline=True, tag='v0.0.2')))
 
+    def test_a_pinned_name_taken_by_a_link_or_folder_fails(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as cache:
+            f = release_folder(d)
+            good = Path(cache) / 'sha256' / hashlib.sha256(b'asset bytes').hexdigest()
+            good.parent.mkdir()
+            good.write_bytes(b'asset bytes')                      # a good copy in the cache does not help
+            (f / 'dss.dylib').unlink()
+            (f / 'dss.dylib').symlink_to(good)
+            checks = RC.check_folder(f, KEYS, cache=cache, offline=True)
+            self.assertTrue(any(k['state'] == 'FAIL' and k.get('file') == 'dss.dylib' for k in checks), checks)
+
+    def test_missing_release_json_fails_when_listed_or_when_a_tag_is_asked(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = release_folder(d)
+            (f / 'release.json').unlink()
+            (f / 'release.json.sig').unlink()
+            self.assertIn(('sums', 'FAIL'), states(RC.check_folder(f, KEYS, offline=True)))
+            self.assertIn(('tag', 'FAIL'), states(RC.check_folder(f, KEYS, offline=True, tag='v0.0.1')))
+
     def test_a_signed_sums_file_with_a_bad_line_fails(self):
         with tempfile.TemporaryDirectory() as d:
             f = release_folder(d)
@@ -126,27 +145,47 @@ class Folder(unittest.TestCase):
 
 
 class Tag(unittest.TestCase):
-    def test_download_gets_the_signed_files_and_the_assets_sums(self):
-        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
-            f = release_folder(src)
-            files = {'/hao-patcher/releases/download/v0.0.1/' + n: (f / n).read_bytes()
-                     for n in ('SHA256SUMS', 'SHA256SUMS.sig', 'release.json', 'release.json.sig')}
-            files.update({'/hao-assets/releases/download/27.2.1-26B131.0/' + n: (f / n).read_bytes()
-                          for n in ('SHA256SUMS', 'SHA256SUMS.sig')})
-            got = RC.download('v0.0.1', github(files=files), dest=dest)
-            self.assertTrue((got / 'release.json.sig').is_file())
-            self.assertTrue((got / 'assets' / 'SHA256SUMS.sig').is_file())
-            checks = RC.check_folder(got, KEYS, tag='v0.0.1', opener=github())
-            checks += RC.assets_checks(got / 'assets', KEYS, (got / 'release.json').read_bytes())
-            self.assertNotIn('FAIL', [s for _, s in states(checks)], checks)
-
-    def test_release_json_from_beside_hao_when_the_release_has_none(self):
-        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
-            f = release_folder(src)
-            files = {'/hao-patcher/releases/download/v0.0.1/' + n: (f / n).read_bytes()
+    def gh(self, f, tar_listed=True, assets_rel=None):
+        """hao-patcher v0.0.1: SHA256SUMS(.sig) listing its tar; hao-assets 27.2.1-26B131.0: SHA256SUMS(.sig) listing
+        release.json (ASSETS_REL: other release.json bytes)."""
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            (t / 'SHA256SUMS').write_text('%s  hao-patcher-v0.0.1.tar\n' % ('c' * 64) if tar_listed else '')
+            sign_into(t, 'SHA256SUMS')
+            files = {'/hao-patcher/releases/download/v0.0.1/' + n: (t / n).read_bytes()
                      for n in ('SHA256SUMS', 'SHA256SUMS.sig')}
-            got = RC.download('v0.0.1', github(files=files), beside=f, dest=dest)
-            self.assertTrue((got / 'release.json').is_file())
+            (t / 'SHA256SUMS').write_text('%s  release.json\n' % hashlib.sha256(
+                assets_rel or (f / 'release.json').read_bytes()).hexdigest())
+            sign_into(t, 'SHA256SUMS')
+            files.update({'/hao-assets/releases/download/27.2.1-26B131.0/' + n: (t / n).read_bytes()
+                          for n in ('SHA256SUMS', 'SHA256SUMS.sig')})
+        return github(files=files)
+
+    def checks(self, f, opener, dest):
+        got = RC.download('v0.0.1', opener, beside=f, dest=dest, keys=KEYS)
+        return RC.check_folder(got, KEYS, tag='v0.0.1', opener=opener) + RC.tag_extra(got, KEYS, 'v0.0.1')
+
+    def test_a_good_tag_passes(self):
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
+            f = release_folder(src)
+            checks = self.checks(f, self.gh(f), dest)
+            self.assertNotIn('FAIL', [s for _, s in states(checks)], checks)
+            self.assertEqual(sum(1 for k in checks if k['name'] == 'sums' and k['state'] == 'PASS'), 2)
+            self.assertEqual(sum(1 for k in checks if k['name'] == 'signature' and k['state'] == 'PASS'), 3)
+
+    def test_another_release_json_or_a_missing_archive_fails(self):
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
+            f = release_folder(src)
+            self.assertIn(('sums', 'FAIL'), states(self.checks(f, self.gh(f, assets_rel=b'other'), dest)))
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
+            f = release_folder(src)
+            self.assertIn(('sums', 'FAIL'), states(self.checks(f, self.gh(f, tar_listed=False), dest)))
+
+    def test_without_release_json_beside_hao_it_fails(self):
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
+            f = release_folder(src)
+            got = RC.download('v0.0.1', self.gh(f), beside=None, dest=dest, keys=KEYS)
+            self.assertIn(('sums', 'FAIL'), states(RC.tag_extra(got, KEYS, 'v0.0.1')))
 
 
 class Drive(unittest.TestCase):
