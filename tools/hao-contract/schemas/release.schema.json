@@ -15,6 +15,8 @@
   "release": {"type": "string", "pattern": "^\\d+(\\.\\d+){1,2}-\\d{2}[A-Z]\\d{2,4}[a-z]?\\.\\d+$",
               "description": "the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0; also the release tag"},
   "prerelease": {"type": "boolean"},
+  "candidate": {"type": "boolean", "description": "true: a candidate cut for the proof images; never published"},
+  "unvalidated": {"type": "array", "items": {"type": "string"}},
   "proven_models": {"type": "array", "items": {"type": "string"}},
   "assembly": {"type": "string"},
   "golden_build": {"type": "string"},

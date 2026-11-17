@@ -323,7 +323,7 @@ class Write(unittest.TestCase):
             packs = real['load_packs'](str(root / 'packs'), str(root / 'patches'))
             real['generate'].__globals__['detect_packs'] = lambda target, packs=None: ['base']
             fixture = lambda name, **kw: real['release_problems'](
-                'rel', str(root / 'patches'), packs, str(root / 'profiles'), str(root / 'order.txt'), waivers=[])
+                'rel', str(root / 'patches'), packs, str(root / 'profiles'), str(root / 'order.txt'), waivers=[], gate=kw.get('gate', True))
             g = R['build_release'].__globals__
             saved = g['runpy']
             g['runpy'] = type('runpy', (), {'run_path': staticmethod(
@@ -331,10 +331,16 @@ class Write(unittest.TestCase):
                 if str(path).endswith('patches.py') else saved.run_path(path, *a, **k))})
             try:
                 rel, problems = R['build_release'](ASSEMBLY, '27.2.1-26B131.0')
+                cand, cand_problems = R['build_release'](ASSEMBLY, '27.2.1-26B131.0', candidate=True)
             finally:
                 g['runpy'] = saved
-        self.assertIn('profile rel: exp-a r3 is status experiment (no owner waiver in pipeline/release-waivers.json)',
-                      problems)
+        why = 'profile rel: exp-a r3 is status experiment (no owner waiver in pipeline/release-waivers.json)'
+        self.assertIn(why, problems)
+        self.assertFalse(rel['candidate'])
+        # a candidate cut (proof images) allows it, says so, and lists it
+        self.assertNotIn(why, cand_problems)
+        self.assertTrue(cand['candidate'])
+        self.assertEqual(cand['unvalidated'], [why])
 
 
 class Versions(unittest.TestCase):

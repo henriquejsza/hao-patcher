@@ -4,7 +4,7 @@
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
   release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z[-alpha.N|-beta.N] [--stage DIR]
               [--no-harvested-assets]
-              [--allow-pending | --allow-pending-row ROW ...]
+              [--allow-pending | --allow-pending-row ROW ...] [--candidate]
         the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
         hao-assets contract's release schema, format 2), release version VERSION (e.g. v0.1.0) on CHANNEL: downloads (url, size, sha256), our assets (file, url, size, sha256, producing commit, format),
         the rows made on the user's Mac (producer, Apple input rows), harvested rows, plus pending rows, recipe
@@ -17,6 +17,9 @@
         (there is no final channel yet) unless --not-prerelease (DECISIONS 2026-11-16: "v0.0.1 no pre release").
         Promotion (alpha -> beta) is a new --write from the same commits with the new --channel: the release.json
         then differs only in channel (and state/prerelease where the channel rules change them).
+        --candidate cuts a candidate for the proof images: recipes not yet validated (or status experiment) are allowed
+        and listed in "unvalidated", and release.json says "candidate": true. A cut without it is final: every recipe
+        of the profile validated, or waived by the owner (pipeline/release-waivers.json); never publish a candidate.
 
 Rows: every input the assembly's set and donors use, the rows golden-run reads besides them (KDK, CPythons, site
 packages, the firmlink tool, OpenCore, PatcherSupportPkg) and the Apple inputs of the rows made on the Mac, resolved
@@ -398,7 +401,8 @@ COMPLETE_CHANNELS = ('beta',)
 VERSION = __import__('re').compile(r'^v\d+\.\d+\.\d+(-(alpha|beta)\.\d+)?$')   # v0.1.0, v0.1.0-alpha.1
 
 
-def build_release(assembly, name, stage=None, prerelease=True, channel='dev', version='v0.0.0', harvested_assets=True):
+def build_release(assembly, name, stage=None, prerelease=True, channel='dev', version='v0.0.0', harvested_assets=True,
+                  candidate=False):
     """(release.json as a dict, problems). Every row of release_rows is placed by its content class
     (release-classes.json): ours rows become assets (made, hashed and, with STAGE, written there), downloads carry
     their URL, made-on-mac rows their producer and Apple inputs. A problem is anything that keeps the release from
@@ -420,7 +424,11 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     packs = patches['load_packs']()
     data = classes()
     data_settings = settings()
-    problems, notes = list(patches['release_problems'](a['patch_set'], packs=packs)), []
+    problems, notes = list(patches['release_problems'](a['patch_set'], packs=packs, gate=False)), []
+    # the validation gate: a candidate cut (for the proof images) records what is not yet validated; a final cut refuses
+    unvalidated = [p for p in patches['release_problems'](a['patch_set'], packs=packs, gate=True) if p not in problems]
+    if not candidate:
+        problems += unvalidated
     downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
     runtime_commit = None
     all_rows = list(release_rows(assembly))
@@ -516,6 +524,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             problems.append('%s: needs %s, harvested and not shipped, but is not optional: a build from this release '
                             'would stop there' % (n, ', '.join(left_out)))
     rel = {'contract_version': 2, 'release': name, 'version': version, 'channel': channel, 'prerelease': prerelease,
+           'candidate': candidate, 'unvalidated': unvalidated if candidate else [],
            'proven_models': sorted({m for p in packs.values() for m in p.get('proven_on', [])}),
            'assembly': Path(assembly).stem, 'golden_build': a['golden_build'], 'donor_build': a['donor_build'],
            'oclp': a['oclp'], 'hao_patcher': head, 'hao_runtime': runtime_commit or '',
@@ -654,7 +663,8 @@ def main(argv):
             rel, problems = build_release(assembly, opts['--release'], stage, channel=opts['--channel'],
                                           prerelease='--not-prerelease' not in argv,
                                           version=opts['--version'],
-                                          harvested_assets='--no-harvested-assets' not in argv)
+                                          harvested_assets='--no-harvested-assets' not in argv,
+                                          candidate='--candidate' in argv)
         except ValueError as x:
             print('release-cut: %s' % x, file=sys.stderr)
             return 2
