@@ -269,6 +269,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r78 2026-11-17 Reasons for the generic image's run-efi-updater (Add No, and its Delete), from the QEMU reference: no firmware updater on a VM or PC. Generic-only, so a Mac image still refuses them. Declaration only.
 - r77 2026-11-17 config-reasons.json has OCLP's `revblock=media`: the reasons check runs inside this recipe, before golden-gate-live-text-service turns it into `none`, and the r70 build stopped on it. Declaration only.
 - r76 2026-11-17 Declares its scope (`requires`, docs/requires.md): the kernel repairs, IntelCommpage and AMFI site are bound to 26B131's kernel and the 25G342 donors; its OpenCore part is model-neutral (the model's own is its pack's). Nothing it installs changes.
 - r75 2026-11-17 The edit spec's origin names the target's model generically (GEN1, S15). Declaration only.
