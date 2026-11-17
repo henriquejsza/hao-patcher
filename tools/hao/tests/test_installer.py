@@ -527,13 +527,34 @@ class CommandLineTest(unittest.TestCase):
 
 
 class PrelinkedKit(unittest.TestCase):
-    """A stick's kit must carry darwin27-kernel's prelinked collections: the stick's Recovery cannot link them."""
-    def test_kit_without_prelinked_collections_is_refused(self):
+    """By default the install links the kernel collections on the target; --prelinked (development) needs a kit that
+    carries darwin27-kernel's prelinked collections."""
+    def test_link_on_target_is_the_default(self):
         with tempfile.TemporaryDirectory() as d:
             kit = Path(d) / 'share'; (kit / 'hooks/01-darwin27-kernel').mkdir(parents=True)
             (kit / 'kit.json').write_text('{}')
             c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
-            a = argparse.Namespace(kit=str(kit))
+            self.assertEqual(kit.resolve(), INST.prepare_kit(argparse.Namespace(kit=str(kit)), c, None))
+            ran = []
+            with self.assertRaises(CON.Stopped):        # staging: golden-run is asked for a kit without them
+                INST.prepare_kit(argparse.Namespace(work=d + '/w'), c, Path(d) / 'asm.json', run=lambda cmd: ran.append(cmd) or 0)
+            self.assertIn('--link-on-target', ran[0])
+
+    def test_staging_with_prelinked_does_not_ask_for_linking(self):
+        with tempfile.TemporaryDirectory() as d:
+            c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
+            ran = []
+            with self.assertRaises(CON.Stopped):
+                INST.prepare_kit(argparse.Namespace(work=d + '/w', prelinked=True), c, Path(d) / 'asm.json',
+                                 run=lambda cmd: ran.append(cmd) or 0)
+            self.assertNotIn('--link-on-target', ran[0])
+
+    def test_kit_without_prelinked_collections_is_refused_with_prelinked(self):
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'share'; (kit / 'hooks/01-darwin27-kernel').mkdir(parents=True)
+            (kit / 'kit.json').write_text('{}')
+            c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
+            a = argparse.Namespace(kit=str(kit), prelinked=True)
             with self.assertRaises(CON.Stopped) as x:
                 INST.prepare_kit(a, c, None)
             self.assertIn('no prelinked kernel collections', x.exception.what)

@@ -431,6 +431,12 @@ def kit_assembly(kit):
         return None
 
 
+def link_on_target(a):
+    """Whether hao install links the kernel collections on the target (the default, the release path) rather than
+    the kit carrying prelinked ones (--prelinked, development: they come from a builder-VM build)."""
+    return not getattr(a, 'prelinked', False)
+
+
 def prepare_kit(a, c, path, run=subprocess.call):
     """The kit the stick carries: --kit, else staged now (golden-run --stage-kit) from the checkout's store."""
     if getattr(a, 'kit', None):
@@ -438,7 +444,7 @@ def prepare_kit(a, c, path, run=subprocess.call):
     else:
         work = Path(getattr(a, 'work', None) or BUILD.BUILDS / datetime.datetime.now().strftime('%Y%m%d-%H%M%S')).resolve()
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit'] + (
-            ['--link-on-target'] if getattr(a, 'link_on_target', False) else []) + [
+            ['--link-on-target'] if link_on_target(a) else []) + [
                '--work', str(work / 'stage'), '--record', str(work / 'record')]
         c.event('command', argv=cmd)
         c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
@@ -449,14 +455,15 @@ def prepare_kit(a, c, path, run=subprocess.call):
     if not (kit / 'kit.json').is_file():
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
     prelinked = prelinked_kc(kit)
-    if prelinked is None and getattr(a, 'link_on_target', False):
+    if prelinked is None and link_on_target(a):
         c.item('kit  %s  (kernel collections linked by the install, as root)' % c.paint('dim', str(kit)), 'files',
                ok=True)
         return kit
     if prelinked is None:
-        raise Stopped('the kit has no prelinked kernel collections',
-                      why='the stick\'s Recovery cannot link them: its kmutil reads no kext of the disk it installs',
-                      options=['build this image once in the builder VM (hao build-image, or golden-run ASSEMBLY '
+        raise Stopped('the kit has no prelinked kernel collections (--prelinked)',
+                      why='--prelinked asks for collections linked in advance, and this kit has none',
+                      options=['leave out --prelinked: hao install then links them on the target Mac',
+                               'or build this image once in the builder VM (hao build-image, or golden-run ASSEMBLY '
                                '--repo REPO): it stores them, and a kit staged afterwards carries them',
                                'the kit record names the key it looked for: %s' % (kit.parent.parent / 'record')],
                       untouched='the stick was not touched')
