@@ -1,0 +1,10 @@
+{
+ "comment": "dev-alpha-v0.1.0: the v0.1.0 alpha set plus pack dev (SSH, OpenCore file log, keep-awake), for bench boots of the alpha candidate.",
+ "target": "mbp92",
+ "recipes": [
+  "golden-gate-store"
+ ],
+ "packs": [
+  "dev"
+ ]
+}
