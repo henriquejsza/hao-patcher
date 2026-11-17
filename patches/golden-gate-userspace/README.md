@@ -394,6 +394,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r89 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03-ae09c83d: the same objects (same row hash), with build.json naming the commit that produced it (ae09c83d), which release-cut's provenance check requires. Nothing installed changes.
 - r88 2026-11-17 Model-neutral (GEN1, S15): the model gates rename the target's model, read from HAO_TARGET_MODEL and HAO_TARGET_DATA's `model_gates` (none for a target without it, such as the generic image); `src/model-gates.json` names no Mac, the 9,2's edit is declared by golden-gate-model-gates-mbp92, and the target is part of the cryptex cache key. The MPSMatrix reason names the GPU family, not a product. The 9,2's bytes are unchanged.
 - r87 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r86 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03: the same carrier.o and libhao_codeid.a (same row hash), with a build.json that `src/codeid/make` now writes without a date or cache plan, so `tools/asset-build codeid_carrier` rebuilds the asset byte for byte. Nothing installed changes.
