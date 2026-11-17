@@ -89,6 +89,9 @@ class FakeMac:
                     'hw.memsize': str(16 * GiB)}[argv[2]].encode()
         if argv[:2] == ['uname', '-m']:
             return self.machine.encode()
+        if argv[0] == 'ioreg' and 'IODeviceTree' in argv and 'efi' in argv:
+            vendor = getattr(self, 'firmware', 'Apple')
+            return plistlib.dumps([{'firmware-vendor': (vendor + '\0').encode('utf-16-le')}] if vendor else [])
         if argv[0] == 'ioreg' and 'IOPlatformExpertDevice' in argv:
             return plistlib.dumps([{k: v for k, v in (('board-id', self.board), ('model', self.model.encode() + b'\0'))
                                     if v is not None}])
@@ -500,6 +503,50 @@ class BuilderTest(unittest.TestCase):
             self.assertIn('was not erased', x.exception.what)
             self.assertEqual(ran, [])                    # the assembler never ran
 
+    def test_install_checks_the_usb_installer_and_shows_the_statement_first(self):
+        sys.path.insert(0, str(TOOL / 'src'))
+        import stick as STICK
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            top = Path(d) / 'HAO'; kit = top / 'kit'; kit.mkdir(parents=True)
+            (kit / 'kit.json').write_text('{}'); (top / 'stick.json').write_text('{}'); (top / 'install').write_text('x')
+            STICK.write_manifest(top)
+            c, out = console('quiet')
+            ran, run = self.fake_run()
+            self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
+            text = out.getvalue()
+            self.assertIn('Reduced security.', text)
+            evs = [e['ev'] for e in c.events]
+            self.assertLess(evs.index('drive.check'), evs.index('statement'))
+            self.assertLess(evs.index('statement'), evs.index('confirm'))
+            os.environ['HAO_STICK'] = str(top)                       # a kit elsewhere on the drive is not the covered one
+            try:
+                other = top / 'reports' / 'kit'; other.mkdir(parents=True); (other / 'kit.json').write_text('{}')
+                c, _ = console('quiet')
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(other)), c, host, run=run)
+                self.assertEqual(x.exception.code, 4)
+            finally:
+                del os.environ['HAO_STICK']
+            (top / 'stick.json').unlink()                            # launched from the drive: the check is not optional
+            os.environ['HAO_STICK'] = str(top)
+            try:
+                ran2, run2 = self.fake_run()
+                c, _ = console('quiet')
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run2)
+                self.assertEqual((x.exception.code, ran2), (4, []))
+            finally:
+                del os.environ['HAO_STICK']
+            (top / 'stick.json').write_text('{}')
+            (top / 'install').write_text('changed')                  # the drive was edited: nothing is erased
+            ran, run = self.fake_run()
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run)
+            self.assertEqual((x.exception.code, ran), (4, []))
+            self.assertIn('install (a different size)', x.exception.what)
+
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
@@ -640,6 +687,37 @@ class BuilderTest(unittest.TestCase):
         a = ns()
         BUILD.proof_gate(a, c, odd, 'build-image')           # not an install: plan's own check (builder) applies
         self.assertEqual(a.unproven_reasons, [])
+
+    def test_the_generic_image_always_needs_unproven(self):
+        generic = {'model': 'QEMU Standard PC', 'packs': ['base', 'generic'], 'proven': {'base': True, 'generic': True},
+                   'proven_model': True, 'unknown': []}
+        self.assertEqual(BUILD.unproven(generic)[0], 'the generic image is an unsupported testing baseline')
+        c, _ = console('quiet')
+        with self.assertRaises(CON.Stopped) as x:
+            BUILD.proof_gate(ns(), c, generic, 'create-installer')
+        self.assertEqual((x.exception.code, x.exception.what), (5, 'the generic image needs --unproven'))
+        c, out = console('quiet')
+        a = ns(unproven=True)
+        BUILD.proof_gate(a, c, generic, 'install')
+        self.assertIn('unsupported baseline for testing', out.getvalue())
+        self.assertIn('the generic image is an unsupported testing baseline', a.unproven_reasons)
+
+    def test_generic_image_on_a_real_mac_says_so(self):
+        mac = FakeMac(); vm = FakeMac(); vm.firmware = 'EDK II'
+        self.assertEqual(DETECT.facts(mac)['firmware_vendor'], 'Apple')
+        self.assertEqual(DETECT.facts(vm)['firmware_vendor'], 'EDK II')
+        for host, is_mac in ((mac, True), (vm, False)):
+            p = DETECT.profile(DETECT.facts(host)); p['packs'] = ['base', 'generic']
+            reasons = BUILD.unproven(p)
+            self.assertEqual(any('this is a Mac (Apple firmware)' in r for r in reasons), is_mac)
+            c, out = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:                 # a real Mac and a VM: both need --unproven
+                BUILD.proof_gate(ns(), c, p, 'install')
+            self.assertEqual(x.exception.code, 5)
+            self.assertIn('This generic image is for virtual machines and non-Apple PCs, not for Mac hardware.',
+                          out.getvalue())
+            c, _ = console('quiet')
+            BUILD.proof_gate(ns(unproven=True), c, p, 'install')       # with --unproven it goes on (recorded)
 
     def test_unproven_install_is_in_the_record_and_the_launcher(self):
         c, _ = console('quiet')

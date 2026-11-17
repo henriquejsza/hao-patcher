@@ -227,10 +227,23 @@ def recipes_by_pack(asm, profile):
 GATED = ('install', 'create-installer', 'build-disk')
 
 
+GENERIC = 'generic'     # the generic image's model pack / release profile (owner, v0.0.1: a software-graphics baseline)
+GENERIC_NOTE = ('The generic image is an unsupported baseline for testing: it runs with software graphics on hardware '
+                'hao does not know, and nothing about it is proven.')
+GENERIC_LINE = 'This generic image is for virtual machines and non-Apple PCs, not for Mac hardware.'
+
+
+def is_generic(profile):
+    return GENERIC in (profile.get('packs') or []) or GENERIC in (profile.get('target'), profile.get('profile'))
+
+
 def unproven(profile):
-    """Why PROFILE is not a proven Mac (PROTOCOL S10): an unknown GPU, a pack with no proof on this model, a model
-    that is not proven. Empty when it is."""
-    out = ['unknown GPU %s%s: no rule picks its packs' % (d['device'], ' (%s)' % d['name'] if d.get('name') else '')
+    """Why PROFILE is not a proven Mac (PROTOCOL S10): the generic image (always), an unknown GPU, a pack with no
+    proof on this model, a model that is not proven. Empty when it is."""
+    out = ['the generic image is an unsupported testing baseline'] if is_generic(profile) else []
+    if is_generic(profile) and (profile.get('firmware_vendor') or '').startswith('Apple'):
+        out.append('this is a Mac (Apple firmware): the generic image is for virtual machines and non-Apple PCs')
+    out += ['unknown GPU %s%s: no rule picks its packs' % (d['device'], ' (%s)' % d['name'] if d.get('name') else '')
            for d in profile.get('unknown') or [] if d.get('role') == 'gpu']
     packs = [n for n, ok in (profile.get('proven') or {}).items() if not ok]
     if packs:
@@ -245,13 +258,22 @@ def proof_gate(a, c, profile, command):
     the install record (a.unproven_reasons)."""
     reasons = unproven(profile) if command in GATED else []
     a.unproven_reasons = reasons
+    if command in GATED and is_generic(profile):
+        c.print(c.paint('warn', GENERIC_LINE), 'quiet')     # before any confirmation (patcher GEN1, pm)
     if not reasons:
         return
     c.event('unproven', reasons=reasons, allowed=bool(getattr(a, 'unproven', False)))
     if getattr(a, 'unproven', False):
+        if is_generic(profile):
+            c.print(c.paint('warn', GENERIC_NOTE), 'quiet')
         c.warning('installing on a Mac hao has not proven (--unproven, kept in the install record): %s'
                   % '; '.join(reasons))
         return
+    if is_generic(profile):
+        raise Stopped('the generic image needs --unproven', why=GENERIC_NOTE, code=5,
+                      untouched='nothing was downloaded or written',
+                      options=['to install it for testing, run the same command with --unproven: the install record '
+                               'keeps it'])
     raise Stopped('%s is not a Mac hao has proven' % profile.get('model'), why='; '.join(reasons), code=5,
                   untouched='nothing was downloaded or written',
                   options=['use a proven Mac (hao detect shows what it finds)',
@@ -468,6 +490,76 @@ def build_disk(a, c, host, run=subprocess.call):
     return 0
 
 
+STATEMENT = TOP / 'tools' / 'hao' / 'data' / 'security-statement.txt'   # releases' one statement (O-2), verbatim
+
+
+def show_statement(c):
+    """Releases' reduced-security statement (owner O-2), shown before the user confirms an erase."""
+    try:
+        text = ' '.join(STATEMENT.read_text().split())
+        if not text:
+            raise OSError('empty')
+    except OSError:
+        raise Stopped('the reduced-security statement is missing (%s)' % STATEMENT, code=4,
+                      why='hao shows it before anything is erased', untouched='nothing was written')
+    c.event('statement', text=text)
+    c.print('', 'quiet')
+    c.print(c.paint('warn', text), 'quiet')
+    return text
+
+
+def check_drive(a, c):
+    """Before the install erases anything: the USB installer the kit is on must match the manifest create-installer
+    wrote (owner O-1: custody plus an integrity check). A kit not on a USB installer (build-disk, --kit elsewhere) has
+    none to check."""
+    import stick as STICK
+    kit = Path(a.kit).resolve()
+    if os.environ.get('HAO_STICK'):             # run by the USB installer's launcher: the check is not optional
+        top = Path(os.environ['HAO_STICK']).resolve()
+        if kit != top / 'kit':                  # only the kit the manifest covers
+            raise Stopped('the kit %s is not on the USB installer %s' % (kit, top), code=4,
+                          untouched='nothing was erased')
+    else:
+        top = kit.parent
+        if not any(os.path.lexists(top / n) for n in ('stick.json', STICK.MANIFEST)):
+            return None                         # a kit that is not on a USB installer (build-disk, a developer's --kit)
+    keep_awake()
+    total = _manifest_bytes(top / STICK.MANIFEST)
+    done = [0]
+    with c.task('check the USB installer against its manifest', total=total or None, unit='bytes') as t:
+        def seen(rel, size):
+            done[0] += size
+            t.update(done=done[0])
+        problems = STICK.check_manifest(top, on_file=seen)
+    c.event('drive.check', problems=len(problems), files=None)
+    if problems:
+        path, what = problems[0]
+        raise Stopped('the USB installer differs from what hao wrote: %s (%s)%s' % (
+                          path, what, ' and %d more' % (len(problems) - 1) if len(problems) > 1 else ''),
+                      why='a changed or damaged USB installer could install something else', code=4,
+                      untouched='nothing was erased',
+                      options=['make the USB installer again with hao create-installer, and keep it with you until '
+                               'the install'])
+    return True
+
+
+def keep_awake():
+    """The check reads the whole drive (minutes): keep the Mac awake while this process runs, where caffeinate exists."""
+    import shutil
+    if shutil.which('caffeinate'):
+        subprocess.Popen(['caffeinate', '-dimsu', '-w', str(os.getpid())], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+
+
+def _manifest_bytes(path):
+    """The bytes the check reads (each hard-linked file once), for its progress bar."""
+    try:
+        m = json.loads(Path(path).read_text())
+        return int(m.get('bytes') or sum(int(f.get('size') or 0) for f in m.get('files', {}).values()))
+    except Exception:                       # only the progress bar's total: the check itself judges the manifest
+        return None
+
+
 def create_installer(a, c, host):
     """The USB stick: asks its questions and runs its steps in installer.py (the user's one command)."""
     import installer
@@ -475,6 +567,8 @@ def create_installer(a, c, host):
 
 
 def install(a, c, host, run=subprocess.call):
+    if getattr(a, 'kit', None) and not a.dry_run:
+        check_drive(a, c)                       # first: before any planning code from the drive runs (owner O-1)
     if not getattr(a, 'profile', None) and not getattr(a, 'model', None):
         profile = DETECT.profile(DETECT.facts(host))
         name, _ = DETECT.target_for_model(profile['model'])
@@ -508,6 +602,7 @@ def install(a, c, host, run=subprocess.call):
     if not getattr(a, 'kit', None):
         raise Stopped('no kit named', why='install assembles the kit the USB installer carries',
                       options=['name it: hao install /dev/diskN --kit /Volumes/HAO/kit'], untouched='nothing was written')
+    show_statement(c)
     question, word = (('Continue the install on %s? The steps it completed are kept.' % DISKS.label(info), 'RESUME')
                       if prior else
                       ('Install macOS 27 on %s? Everything on it will be erased.' % DISKS.label(info), 'ERASE'))

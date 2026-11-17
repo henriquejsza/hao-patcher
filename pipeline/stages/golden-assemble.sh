@@ -60,11 +60,15 @@ stay_awake() {
         caffeinate -dimsu -w $$ &
         echo "golden-assemble.sh: caffeinate -dimsu keeps this Mac awake until the assembly ends (pid $!)"
     else
-        "$G/$PYDIR/bin/python3.12" -I "$G/assembly-source/recovery-tools.py" awake $$ &
+        "$G/$PYDIR/bin/python3.12" -I -B "$G/assembly-source/recovery-tools.py" awake $$ &
         echo "golden-assemble.sh: no caffeinate on this Mac: hao's recovery-tools keeps it awake (pid $!)"
     fi
 }
 stay_awake
+# The copies the assembly runs are made fresh from the kit each run (a fresh install, a resume, a reused --work): nothing
+# left in them from before is ever run. The kit is the one hao install checked against the USB installer's manifest;
+# the resume records (work/) and tmp stay. -B on every start of the kit's CPython: no __pycache__ is written into the kit.
+rm -rf "${W:?}/source" "${W:?}/hooks" "${W:?}/post" "${W:?}/py" "${W:?}/site" || exit $?
 # mkdir, not install: a macOS Recovery has no /usr/bin/install (nor shasum, cmp, readlink: see recovery_tools below)
 mkdir -p "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
 chmod 755 "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
@@ -73,7 +77,7 @@ bootstrap() {
     (cd "$G/assembly-source" && tar -cf - .) | (cd "$W/source" && tar -xf -) || return $?
     (cd "$G/$PYDIR" && tar -cf - .) | (cd "$W/py" && tar -xf -) || return $?
     (cd "$G/site" && tar -cf - .) | (cd "$W/site" && tar -xf -) || return $?
-    "$W/py/bin/python3.12" -I "$W/source/copy-hooks.py" "$G/hooks" "$W/hooks" --owner "$OWNER" || return $?
+    "$W/py/bin/python3.12" -I -B "$W/source/copy-hooks.py" "$G/hooks" "$W/hooks" --owner "$OWNER" || return $?
     (cd "$G/post" && tar -cf - .) | (cd "$W/post" && tar -xf -) || return $?
     chown -R "$OWNER" "$W/source" "$W/py" "$W/site" "$W/post" || return $?
 }
@@ -84,7 +88,7 @@ recovery_tools() {
     mkdir -p "$W/recovery-bin" || return $?
     for t in install shasum cmp readlink; do
         command -v "$t" >/dev/null 2>&1 && continue
-        printf '#!/bin/sh\nexec "%s" -I "%s" %s "$@"\n' "$W/py/bin/python3.12" "$W/source/recovery-tools.py" "$t" \
+        printf '#!/bin/sh\nexec "%s" -I -B "%s" %s "$@"\n' "$W/py/bin/python3.12" "$W/source/recovery-tools.py" "$t" \
             > "$W/recovery-bin/$t" && chmod 755 "$W/recovery-bin/$t" || return $?
         echo "golden-assemble.sh: no $t on this Mac: hao's recovery-tools stands in for it"
     done
@@ -96,7 +100,7 @@ df -k "$W"
 set --
 [ -z "$DISK" ] || set -- --disk "$DISK" --confirm-disk "$CONFIRM" $EXTERNAL
 [ -z "$NOCACHE" ] || set -- "$@" $NOCACHE
-"$W/py/bin/python3.12" -I "$W/source/kit.py" render "$G" "$W" --out "$W/config.json" "$@" || exit $?
+"$W/py/bin/python3.12" -I -B "$W/source/kit.py" render "$G" "$W" --out "$W/config.json" "$@" || exit $?
 set --
 [ -z "$RESUME" ] || set -- --resume "$RESUME"
-PYTHONPATH="$W/site" "$W/py/bin/python3.12" -I "$W/source/golden-image.py" "$W/config.json" "$@"
+PYTHONPATH="$W/site" "$W/py/bin/python3.12" -I -B "$W/source/golden-image.py" "$W/config.json" "$@"

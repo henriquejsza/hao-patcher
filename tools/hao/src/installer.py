@@ -394,6 +394,8 @@ def create_installer(a, c, host, acquire=None):
     else:
         c.print('Drive  %s  external, big enough %s' % (DISKS.label(info), c.ok))
         c.event('disk', disk=disk, policy='external', size=info.get('TotalSize') or info.get('Size'))
+    BUILD.show_statement(c)                 # every run, before any confirmation (owner O-2)
+    c.print(STICK.CUSTODY, 'quiet')
     if not a.dry_run and not image:
         c.print('')
         expect = dict(identity=DISKS.identity(host, disk), policy='external', minimum=minimum, sources=a.sources)
@@ -466,7 +468,7 @@ def create_installer(a, c, host, acquire=None):
         if image:
             host.run(['hdiutil', 'detach', '/dev/' + disk], check=False, timeout=300)
     c.event('stick.written', stick=rec)
-    left = finish_kit(a, c, kit)
+    left = finish_kit(a, c, kit) + [STICK.CUSTODY]
     if image:
         c.done('USB installer image written: %s' % image, disk=disk, more=left)
         return 0

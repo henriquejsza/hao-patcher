@@ -42,7 +42,8 @@ LAUNCHER = '''#!/bin/sh
 D=$(cd "$(dirname "$0")" && pwd)
 export HAO_STICK=$D
 case $(uname -m) in x86_64) PY=$D/kit/py-x86_64 ;; *) PY=$D/kit/py ;; esac
-exec "$PY/bin/python3.12" -I "$D/hao/tools/hao/hao" %(cmd)s %(args)s"$@"
+export PYTHONDONTWRITEBYTECODE=1
+exec "$PY/bin/python3.12" -I -B "$D/hao/tools/hao/hao" %(cmd)s %(args)s"$@"
 '''
 LAUNCHERS = {
     'install': dict(what='Install macOS 27', cmd='install', args='--kit "$D/kit" %(assembly)s%(unproven)s'),
@@ -280,7 +281,10 @@ def read_plain(path):
     with os.fdopen(fd, 'rb') as f:
         if not __import__('stat').S_ISREG(os.fstat(f.fileno()).st_mode):
             raise StickError('%s is not a regular file' % path)
-        return f.read()
+        try:
+            return f.read()
+        except OSError as x:
+            raise StickError('%s: not read (%s)' % (path, x.strerror)) from None
 
 
 def real_folder(path):
@@ -294,6 +298,160 @@ def real_folder(path):
     if not __import__('stat').S_ISDIR(st.st_mode):
         raise StickError('%s is not a folder (a link?): refusing to write through it' % path)
     return path
+
+
+MANIFEST = 'manifest.json'
+# On HAO but not in the manifest: what macOS and the user add (reports), and the manifest itself
+MANIFEST_SKIP = {MANIFEST, 'reports', 'logs', '.fseventsd', '.Spotlight-V100', '.Trashes', '.TemporaryItems',
+                 '.DS_Store', '.DocumentRevisions-V100', '.VolumeIcon.icns', '.hao-build'}
+WORK_PREFIX = 'hao-install-'        # hao install's work folders on HAO (written after the check; rebuilt from the kit)
+
+
+def _skipped_top(name):
+    return name in MANIFEST_SKIP or name.startswith(WORK_PREFIX)
+CUSTODY = ('Keep the USB installer with you between making it and installing: anyone who can change it can change '
+           'what it installs. hao install checks it against its manifest first, which catches damage and casual edits.')
+
+
+def _manifest_walk(top):
+    """(relative path, os.stat_result, kind) of everything on HAO the manifest covers, without following links. Only
+    a few top-level names are left out (macOS's own folders, reports, logs, install work); inside hao/ and kit/ only
+    Finder's .DS_Store is. A folder that cannot be read is an error, not a gap."""
+    top = Path(top)
+
+    def unreadable(err):
+        raise StickError('%s: cannot be read (%s)' % (err.filename, err.strerror))
+    for root, dirs, files in os.walk(top, onerror=unreadable):
+        r = Path(root)
+        rel_root = r.relative_to(top)
+        if rel_root == Path('.'):
+            dirs[:] = [d for d in dirs if not _skipped_top(d)]
+        dirs.sort()
+        for name in sorted(files) + [d for d in dirs if (r / d).is_symlink()]:
+            if (rel_root == Path('.') and _skipped_top(name)) or (name == '.DS_Store' and _finder_file(r / name)):
+                continue
+            p = r / name
+            st = os.lstat(p)
+            kind = 'link' if __import__('stat').S_ISLNK(st.st_mode) else 'file' if __import__('stat').S_ISREG(
+                st.st_mode) else 'other'
+            yield str(p.relative_to(top)), st, kind
+        dirs[:] = [d for d in dirs if not (r / d).is_symlink()]
+
+
+def _finder_file(path):
+    """A real Finder .DS_Store (a small regular file with its header), the one name left out inside hao/ and kit/."""
+    try:
+        st = os.lstat(path)
+        if not __import__('stat').S_ISREG(st.st_mode) or st.st_size > 1 << 20:
+            return False
+        with open(path, 'rb') as f:
+            return f.read(8) == b'\x00\x00\x00\x01Bud1'
+    except OSError:
+        return False
+
+
+def _link_ok(top, rel, target):
+    """A link on HAO may not lead into what the manifest leaves out (reports, logs, install work, the manifest)."""
+    if os.path.isabs(target):
+        return
+    inside = os.path.normpath(os.path.join(os.path.dirname(rel), target))
+    first = inside.split(os.sep, 1)[0]
+    if inside != '.' and not inside.startswith('..') and _skipped_top(first):
+        raise StickError('%s links into %s, which the manifest does not cover' % (rel, first))
+
+
+def write_manifest(top, on_file=None):
+    """HAO/manifest.json: every file on HAO (hao, the kit, the launchers, release.json, stick.json) with its sha256,
+    size and mode, and every link with its target, read back from the drive. hao install checks the drive against it
+    before it erases anything (O-1: custody plus an integrity check). Returns the manifest."""
+    top = Path(top)
+    files, links = {}, {}
+    seen, unique = {}, 0
+    for rel, st, kind in _manifest_walk(top):
+        if kind == 'link':
+            links[rel] = os.readlink(top / rel)
+            _link_ok(top, rel, links[rel])
+        elif kind == 'file':
+            key = (st.st_dev, st.st_ino)
+            if key not in seen:                             # hard links (the userspace twin) hashed and counted once
+                seen[key] = sha256(top / rel)
+                unique += st.st_size
+            digest = seen[key]
+            files[rel] = {'sha256': digest, 'size': st.st_size, 'mode': '%04o' % (st.st_mode & 0o7777)}
+            if on_file:
+                on_file(rel, st.st_size)
+        else:
+            raise StickError('%s on %s is neither a file nor a link' % (rel, KIT_NAME))
+    m = {'format': 1, 'files': files, 'links': links, 'release_sha256': files.get('release.json', {}).get('sha256'),
+         'bytes': unique}
+    write_new(top / MANIFEST, (json.dumps(m, indent=1, sort_keys=True) + '\n').encode())
+    return m
+
+
+def check_manifest(top, on_file=None):
+    """What on HAO differs from its manifest: [(path, problem)], empty when the drive is as it was written. Every
+    listed file is read and hashed; a file or link that is not listed is a problem too."""
+    top = Path(top)
+    try:
+        m = json.loads(read_plain(top / MANIFEST))
+    except (StickError, ValueError) as x:
+        return [(MANIFEST, 'missing or unreadable (%s)' % x)]
+    if not _manifest_shape(m):
+        return [(MANIFEST, 'not a format-1 manifest')]
+    try:
+        return _compare(top, m, on_file)
+    except (StickError, OSError) as x:
+        return [('(drive)', 'could not be read completely: %s' % x)]
+
+
+def _manifest_shape(m):
+    if not isinstance(m, dict) or m.get('format') != 1 or not isinstance(m.get('files'), dict) or \
+            not isinstance(m.get('links'), dict):
+        return False
+    for v in m['files'].values():
+        if not (isinstance(v, dict) and isinstance(v.get('sha256'), str) and len(v['sha256']) == 64 and
+                isinstance(v.get('size'), int) and isinstance(v.get('mode'), str)):
+            return False
+    return all(isinstance(v, str) for v in m['links'].values())
+
+
+def _compare(top, m, on_file):
+    problems, found, hashed = [], set(), {}
+    for rel, st, kind in _manifest_walk(top):
+        found.add(rel)
+        if kind == 'link':
+            if rel not in m['links']:
+                problems.append((rel, 'a link that is not in the manifest'))
+            elif os.readlink(top / rel) != m['links'][rel]:
+                problems.append((rel, 'the link points elsewhere'))
+            else:
+                try:
+                    _link_ok(top, rel, m['links'][rel])
+                except StickError as x:
+                    problems.append((rel, str(x)))
+        elif kind == 'file':
+            want = m['files'].get(rel)
+            if want is None:
+                problems.append((rel, 'a file that is not in the manifest'))
+            elif st.st_size != want['size']:
+                problems.append((rel, 'a different size'))
+            elif '%04o' % (st.st_mode & 0o7777) != want['mode']:
+                problems.append((rel, 'a different mode'))
+            else:
+                key = (st.st_dev, st.st_ino)            # hard links (the userspace twin) are read once
+                first = key not in hashed
+                if first:
+                    hashed[key] = sha256(top / rel)
+                if hashed[key] != want['sha256']:
+                    problems.append((rel, 'different content (sha256)'))
+                if on_file and first:
+                    on_file(rel, st.st_size)
+        else:
+            problems.append((rel, 'neither a file nor a link'))
+    for rel in sorted(set(m['files']) | set(m['links'])):
+        if rel not in found:
+            problems.append((rel, 'missing'))
+    return problems
 
 
 def verify_kit(kit, copy, skip=('.DS_Store', '__pycache__'), skip_paths=KIT_LEFT_OUT):
@@ -422,6 +580,7 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
         dict(source='prelinked', key=json.loads(prelinked[0].read_text()).get('key')) if prelinked else
         dict(source='linked by hao install on the target, as root (Tahoe kmutil + its x86_64 collection builder)'))
     write_new(mount / 'stick.json', (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
+    write_manifest(mount)
     return rec
 
 
@@ -572,6 +731,10 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
             raise StickError('%s has no Recovery (com.apple.recovery.boot/BaseSystem.dmg): name one' % BOOT_NAME)
     if info.is_symlink():
         raise StickError('%s/stick.json is a link: this drive was changed by something other than hao' % KIT_NAME)
+    problems = check_manifest(top)          # before anything on the drive changes
+    if problems:
+        raise StickError('%s differs from its manifest (%s: %s): make the USB installer again' % (
+            KIT_NAME, problems[0][0], problems[0][1]))
     rec = json.loads(read_plain(info))
     reports = real_folder(top / 'reports')
     logs = sorted(p.name for p in esp.glob('opencore-*.txt') if p.is_file() and not p.is_symlink())
@@ -589,6 +752,11 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
     step('EFI      OpenCore again (picker after %d s, log %s)' % (PICKER_TIMEOUT, 'on' if log else 'off'))
     step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
     write_new(info, (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
+    # stick.json changed (and nothing else on HAO): its entry alone follows
+    m = json.loads(read_plain(top / MANIFEST))
+    st = os.lstat(info)
+    m['files']['stick.json'] = {'sha256': sha256(info), 'size': st.st_size, 'mode': '%04o' % (st.st_mode & 0o7777)}
+    write_new(top / MANIFEST, (json.dumps(m, indent=1, sort_keys=True) + '\n').encode())
     host.run(['diskutil', 'unmountDisk', '/dev/' + disk], check=False, timeout=300)
     return rec
 
