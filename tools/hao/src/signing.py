@@ -15,7 +15,8 @@ the verified bytes (a private copy), so the file cannot change between the check
 The format is OpenSSH's PROTOCOL.sshsig, parsed strictly: version 1, namespace hao-release, empty reserved field,
 sha512 or sha256, nothing left over. Two key kinds: ssh-ed25519 (a key file, or a wallet's SSH agent) and
 sk-ssh-ed25519@openssh.com (a FIDO security key such as a YubiKey, PROTOCOL.u2f: the authenticator signs
-sha256(application) || flags || counter || sha256(SSHSIG data); the user-presence flag is required). Ed25519 verification is RFC 8032 section 6's
+sha256(application) || flags || counter || sha256(SSHSIG data); the touch and PIN flags are both required, as the
+release keys are made with -O verify-required). Ed25519 verification is RFC 8032 section 6's
 reference code (Simplified BSD, IETF Trust; see NOTICE.md) with the same checks: a point that does not decode, or
 S >= L, fails. Verification uses no secret, so it need not run in constant time. `sign`/`secret_to_public` are there for
 the tests' own keys only.
@@ -194,6 +195,7 @@ ED25519 = b'ssh-ed25519'
 SK_ED25519 = b'sk-ssh-ed25519@openssh.com'
 KINDS = (ED25519, SK_ED25519)
 USER_PRESENT = 0x01
+USER_VERIFIED = 0x04          # the key's PIN was given (keys made with -O verify-required)
 
 
 def parse_key(blob, what='a release key'):
@@ -304,6 +306,8 @@ def verify(data, sig_text, keys, namespace=NAMESPACE):
     if kind == SK_ED25519:
         if not flags & USER_PRESENT:
             raise SignatureError('the security key signed without a touch (user presence not set)')
+        if not flags & USER_VERIFIED:
+            raise SignatureError('the security key signed without its PIN (user verification not set)')
         message = (hashlib.sha256(application).digest() + bytes([flags]) + counter.to_bytes(4, 'big')
                    + hashlib.sha256(message).digest())
     if not ed25519_verify(public, message, sig):

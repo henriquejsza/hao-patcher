@@ -54,7 +54,7 @@ def sshsig_files(secret, data, namespace='hao-release', hash_name='sha512'):
     return 'ssh-ed25519 %s test\n' % base64.b64encode(key_blob).decode(), armor
 
 
-def sk_sshsig_files(secret, data, application=b'ssh:', flags=0x01, counter=7, namespace='hao-release',
+def sk_sshsig_files(secret, data, application=b'ssh:hao-release', flags=0x05, counter=7, namespace='hao-release',
                     key_application=None):
     """(public key line, armored SSHSIG) as a FIDO security key (sk-ssh-ed25519@openssh.com) signs through ssh-keygen:
     the authenticator signs sha256(application) || flags || counter || sha256(SSHSIG data) (OpenSSH PROTOCOL.u2f)."""
@@ -195,11 +195,12 @@ class SecurityKey(unittest.TestCase):
     @unittest.skipUnless(shutil.which('ssh-keygen'), 'no ssh-keygen here')
     def test_ssh_keygen_agrees(self):
         with tempfile.TemporaryDirectory() as d:
-            # touched (0x01) and touched + verified (0x05) are accepted by both; without a touch ssh-keygen 10.5 still
-            # accepts, hao does not (stricter on purpose: test_refusals)
-            for flags, want in ((0x01, 0), (0x05, 0)):
+            # touched + PIN (0x05), as the release keys sign: ssh-keygen with the allowed-signers line users are given
+            # accepts it too. Without a touch or the PIN hao refuses (test_refusals); ssh-keygen's allowed-signers
+            # format has no option to require either, so only hao (and the release gate) enforce them.
+            for flags, want in ((0x05, 0),):
                 pub, sig = sk_sshsig_files(b'\10' * 32, self.data, flags=flags)
-                (Path(d) / 'allowed').write_text('hao ' + pub)
+                (Path(d) / 'allowed').write_text('hao namespaces="hao-release" ' + pub)
                 (Path(d) / 'sig').write_text(sig)
                 r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'hao',
                                     '-n', 'hao-release', '-s', str(Path(d) / 'sig')], input=self.data,
@@ -217,10 +218,11 @@ class SecurityKey(unittest.TestCase):
         pub, _ = sk_sshsig_files(secret, self.data)
         keys = SIGN.parse_keys(pub)
         cases = {
-            'no touch': sk_sshsig_files(secret, self.data, flags=0x00)[1],
+            'no touch': sk_sshsig_files(secret, self.data, flags=0x04)[1],
+            'no PIN': sk_sshsig_files(secret, self.data, flags=0x01)[1],
+            'neither': sk_sshsig_files(secret, self.data, flags=0x00)[1],
             'other application': sk_sshsig_files(secret, self.data, application=b'ssh:other')[1],
-            'application changed after signing': sk_sshsig_files(secret, self.data, application=b'ssh:',
-                                                                 key_application=b'ssh:x')[1],
+            'application changed after signing': sk_sshsig_files(secret, self.data, key_application=b'ssh:x')[1],
             'changed file': sk_sshsig_files(secret, self.data + b' ')[1],
         }
         _, good = sk_sshsig_files(secret, self.data, counter=7)
