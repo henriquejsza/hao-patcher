@@ -55,6 +55,7 @@ class Snapshots(unittest.TestCase):
         lines = [json.loads(l) for l in render('json').splitlines()]
         for e in lines:
             e.pop('log', None)
+            e.pop('edits', None)        # counted from the recipes' declarations, which change with every recipe
         self.check('install-json.txt', '\n'.join(json.dumps(e, sort_keys=True) for e in lines) + '\n')
 
     def test_install_failure(self):
