@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
-import subprocess
+import runpy
 import sys
 
 ROOT = Path(__file__).resolve().parent
@@ -74,11 +74,10 @@ def main():
         apply_edits(dst, changes)
         resign_file(dst, force=True)
         rows.append(dict(name=src.name, source_sha256=sha(src), sha256=sha(dst)))
-    revision = subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
-                              capture_output=True, text=True)
+    source = runpy.run_path(str(ROOT.parents[1]/'pipeline'/'source_commit.py'))
     (a.output/'build.json').write_text(json.dumps(dict(
         unit='tools/audiomxd-fix', revision=2,
-        commit=revision.stdout.strip() if revision.returncode == 0 else None,
+        commit=source['commit'](ROOT.parents[1]) or None,
         files=rows, edits=serialized), indent=2)+'\n')
 
 

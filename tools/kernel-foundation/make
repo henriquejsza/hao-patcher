@@ -64,10 +64,10 @@ def package_kernel(argv):
     out.mkdir(parents=True, exist_ok=False)
     (out/'payload').mkdir()
     shutil.copyfile(args.kernel, out/'payload/kernel')
-    git = lambda *a: subprocess.check_output(['git', '-C', str(HERE), *a], text=True)
+    source = runpy.run_path(str(ROOT/'pipeline'/'source_commit.py'))
     record = dict(unit='tools/kernel-foundation', revision=REVISION, operation='kernel',
         date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        commit=git('rev-parse', 'HEAD').strip(), dirty=bool(git('status', '--porcelain')),
+        commit=source['commit'](ROOT), dirty=source['dirty'](ROOT),
         inputs=dict(kernel=str(args.kernel.resolve()), kernel_sha256=digest(args.kernel)),
         kernel_uuid=uuid, kernel_version=version,
         files={'payload/kernel': digest(out/'payload/kernel')})

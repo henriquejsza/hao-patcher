@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 import plistlib
 import shutil
 import stat
+import runpy
 import subprocess
 import sys
 
@@ -306,10 +307,10 @@ def package(args):
     manifest['replacement_policy'] = recipe.get('replacement_policy','replace-maximal-declared-roots')
     write(args.output/'manifest.json', manifest)
     root = UNIT.parents[1]
+    source = runpy.run_path(str(root/'pipeline'/'source_commit.py'))
     record = dict(unit='tools/tahoe-donors', revision=REVISION, operation=args.command,
                   date=datetime.now(timezone.utc).isoformat(),
-                  commit=subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True).strip(),
-                  dirty=bool(subprocess.check_output(['git','-C',str(root),'status','--porcelain'],text=True)),
+                  commit=source['commit'](root), dirty=source['dirty'](root),
                   inputs=[dict(path=str(p.resolve()), sha256=sha(p)) for p in inputs],
                   source_inputs=[dict(path=str(p), sha256=sha(p)) for p in [Path(__file__), UNIT/'adhoc_signature.py'] + (
                       sorted(CACHE_DYLIB.glob('*.py')) if args.command == 'native' and recipe.get('cache_images') else [])],

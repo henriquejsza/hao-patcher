@@ -585,10 +585,10 @@ _IntelCommpage_iosurface_set_value_original:
     inputs['donor_source'] = dict(path=str(args.donor_source.resolve()),
         identity=json.loads((args.donor_source/'source.json').read_text()),
         file_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+    source = runpy.run_path(str(here.parents[1]/'pipeline'/'source_commit.py'))
     record = dict(unit='tools/kernel-foundation',revision=runpy.run_path(str(Path(__file__).resolve().parent / 'unit.py'))['REVISION'],operation='commpage-kext',
         date=datetime.datetime.now(datetime.timezone.utc).isoformat(),kernel_uuid=uuid.hex(),
-        commit=subprocess.check_output(['git','-C',str(here),'rev-parse','HEAD'],text=True).strip(),
-        dirty=bool(subprocess.check_output(['git','-C',str(here),'status','--porcelain'],text=True)),
+        commit=source['commit'](here.parents[1]),dirty=source['dirty'](here.parents[1]),
         dependencies={n:dependency_identity(getattr(args,n)) for n in ('lilu','sdk')},
         inputs=inputs,dyld_cache=dict(path=str(args.dyld_cache.resolve()),uuid=target_cache),fixed_beyond_max=hex(args.fixed_beyond_max),map_jit_flag=hex(args.map_jit_flag),
         files={str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file()})

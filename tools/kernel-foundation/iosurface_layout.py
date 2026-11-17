@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 import runpy
 import struct
-import subprocess
 
 HERE = Path(__file__).resolve().parent
 MACHO = runpy.run_path(str(HERE/'commpage_build.py'))
@@ -126,10 +125,10 @@ def main():
     args = parser.parse_args()
     donor = args.donor_iosurface.read_bytes()
     result = capture(donor, args.boot_kc.read_bytes())
+    source = runpy.run_path(str(HERE.parents[1]/'pipeline'/'source_commit.py'))
     result.update(unit='tools/kernel-foundation', revision=runpy.run_path(str(HERE/'unit.py'))['REVISION'],
                   operation='iosurface-layout', date=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                  commit=subprocess.check_output(['git', '-C', str(HERE), 'rev-parse', 'HEAD'], text=True).strip(),
-                  dirty=bool(subprocess.check_output(['git', '-C', str(HERE), 'status', '--porcelain'], text=True)),
+                  commit=source['commit'](HERE.parents[1]), dirty=source['dirty'](HERE.parents[1]),
                   inputs=dict(donor_iosurface=str(args.donor_iosurface.resolve()),
                               donor_file_sha256=hashlib.sha256(donor).hexdigest(),
                               boot_kc=str(args.boot_kc.resolve())))
