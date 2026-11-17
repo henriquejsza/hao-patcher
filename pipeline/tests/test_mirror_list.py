@@ -44,7 +44,8 @@ class MirrorList(unittest.TestCase):
         self.assertEqual(lines, sorted(lines))
         self.assertEqual(lines, ['%s 30 %s %s' % (IPSW['sha256'], IPSW['url'], IPSW['name']),
                                  '%s 20 https://e/t.tgz a%%20tool.tar.gz' % h('a'),
-                                 '%s 10 https://e/kdk.dmg kdk.dmg' % h('b')])
+                                 '%s 10 https://e/kdk.dmg kdk.dmg' % h('b'),
+                                 '%s 1 https://x/ours.tar ours.tar' % h('f')])     # the release's assets too
         self.assertTrue(all(len(l.split(' ')) == 4 for l in lines))
         self.assertEqual(r.stderr, '')
         self.assertEqual(self.run_tool('--release', p).stdout, r.stdout)       # positional or --release
@@ -54,7 +55,8 @@ class MirrorList(unittest.TestCase):
                            'size': 99, 'sha256': h('c'), 'stream': 'ipsw'}])
         r = self.run_tool(p)
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(r.stdout, '%s 99 ? UniversalMac_27.0_26A428_Restore.ipsw\n' % h('c'))
+        self.assertEqual(r.stdout, '%s 99 ? UniversalMac_27.0_26A428_Restore.ipsw\n%s 1 https://x/ours.tar ours.tar\n'
+                         % (h('c'), h('f')))
         self.assertIn('origin unknown', r.stderr)
         self.assertIn(h('c'), r.stderr)
 

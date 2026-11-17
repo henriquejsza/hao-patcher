@@ -4,7 +4,8 @@
   mirror-list [RELEASE.json | --release RELEASE.json] [--assembly ASSEMBLY.json]
 
 Prints `SHA256 SIZE ORIGIN_URL NAME` per file, sorted, no duplicates: the release's whole-file downloads
-(tools/acquire) and the downloads read by byte range (the IPSW and the installer, pipeline/unpack/ranged.py). Every
+(tools/acquire), the downloads read by byte range (the IPSW and the installer, pipeline/unpack/ranged.py) and, from a
+release.json, its assets (hao fetch reads them through the mirror too, so HAO_MIRROR_STRICT needs them there). Every
 line has exactly these four fields; a space in NAME is written %20. The mirror serves each at /sha256/SHA256.
 
 Without a release.json it cuts a dry release from this checkout the way release-cut computes downloads (its
@@ -42,6 +43,11 @@ def from_release(path, classes, holds):
         if entry.get('url') == url and not holds(entry, sha):
             url = None
         out.append((sha, size, url, name))
+    for x in rel.get('assets') or []:
+        try:
+            out.append((x['sha256'], int(x['size']), x.get('url') or None, x['file']))
+        except (KeyError, TypeError, ValueError) as e:
+            problems.append('%s: assets entry %r lacks %s' % (path, x.get('file') or x.get('row'), e))
     return out, problems
 
 
