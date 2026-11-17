@@ -26,8 +26,9 @@ def true_cdhash():
 def entry(path, **changes):
     """The fixture's programs.txt entry for PATH (a re-signed /usr/bin/true): its own digests, TRUE's cdhash."""
     data = ni.x86_64(path)[1]
-    one = dict(refs=true_cdhash(), digests=ni.content_digest(data), ents=ni.entitlements_digest(data),
-               policies=ni.signature_policy(data))
+    profile = ni.signature_profile(data)
+    one = dict(refs=true_cdhash(), digests=ni.content_digest(data), ents=profile['entitlements'],
+               policies=profile['policy'])
     libs = changes.pop('libs', frozenset())
     one.update(changes)
     build = (one['refs'], one['digests'], one['ents'], one['policies'])
@@ -40,8 +41,16 @@ def cdhash(path):
     return next(l.split('=', 1)[1] for l in out.splitlines() if l.startswith('CDHash='))
 
 
+ENTITLEMENTS = Path(tempfile.gettempdir())/'native-identities-test.entitlements'
+
+
 def resign(path, identifier):
-    subprocess.run(['codesign', '-f', '-s', '-', '-i', identifier, str(path)], check=True, capture_output=True)
+    """Ad hoc, with entitlements: the XML and DER blobs signature_profile requires, as codesign writes them."""
+    ENTITLEMENTS.write_text('<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>'
+                            '<key>com.example.flag</key><true/><key>com.example.count</key><integer>3</integer>'
+                            '</dict></plist>')
+    subprocess.run(['codesign', '-f', '-s', '-', '-i', identifier, '--entitlements', str(ENTITLEMENTS), str(path)],
+                   check=True, capture_output=True)
 
 
 class NativeIdentitiesTests(unittest.TestCase):
@@ -147,7 +156,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         for change, words in ((dict(refs='1' * 40), 'has cdhash'),
                               (dict(digests='2' * 64), 'is not a line programs.txt pins'),
                               (dict(ents='3' * 64), 'is not a line programs.txt pins'),
-                              (dict(policies='00010002:0000000000000001:00000000'), 'is not a line programs.txt pins')):
+                              (dict(policies='4' * 64), 'is not a line programs.txt pins')):
             rows, _, refused = ni.scan(self.system, [self.source], {'usr/bin/kept': entry(self.system/'usr/bin/kept', **change)})
             self.assertEqual(rows, [], change)
             self.assertIn(words, refused['usr/bin/kept'])
@@ -167,10 +176,31 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertIn('listed but not enrolled', refused['usr/bin/orphan'])
 
     def test_der_and_xml_entitlements_must_agree(self):
-        der = bytes([0x70, 0x0c, 0x02, 0x01, 0x01, 0xb0, 0x07, 0x30, 0x05, 0x0c, 0x01, 0x6b, 0x01, 0x01, 0xff])
-        self.assertEqual(ni._der(bytes([0x30]) + der[1:])[0], [1, {'k': True}])
+        good = bytes([0x30, 0x0d, 0x02, 0x01, 0x01, 0xb0, 0x08, 0x30, 0x06, 0x0c, 0x01, 0x6b, 0x01, 0x01, 0xff])
+        self.assertEqual(ni._der(good, 0, len(good))[0], ('a', [('i', 1), ('d', {'k': ('b', True)})]))
+        self.assertNotEqual(ni._typed({'k': True}), ni._typed({'k': 1}))           # a boolean is not an integer
+        for bad in (bytes([0x30, 0x05, 0x0c, 0x09]),                                  # runs past its container
+                    bytes([0x01, 0x01, 0x01]),                                        # BOOLEAN 01
+                    bytes([0x02, 0x02, 0x00, 0x05]),                                  # INTEGER not minimal
+                    bytes([0x0c, 0x81, 0x01, 0x61]),                                  # length not minimal
+                    bytes([0xb0, 0x0a, 0x30, 0x03, 0x0c, 0x01, 0x6b, 0x30, 0x03, 0x0c, 0x01, 0x6b]),  # pair not a pair
+                    bytes([0x30, 0x80] * 40)):                                        # too deep / bad length
+            with self.assertRaises(ValueError, msg=bad.hex()):
+                ni._der(bad, 0, len(bad))
+
+    def test_signature_profile_is_strict(self):
+        data = bytearray(ni.x86_64(self.system/'usr/bin/kept')[1])
+        profile = ni.signature_profile(bytes(data))
+        self.assertEqual(profile['cdhash'], cdhash(self.system/'usr/bin/kept'))
+        sig = next(at for c, at, l in ni._commands(data) if c == 0x1d)
+        dataoff = struct.unpack_from('<I', data, sig + 8)[0]
+        moved = bytearray(data)
+        struct.pack_into('>I', moved, dataoff + 12, 2)                              # the CodeDirectory's slot -> 2
         with self.assertRaises(ValueError):
-            ni._der(bytes([0x30, 0x05, 0x0c, 0x09]))
+            ni.signature_profile(bytes(moved))
+        longer = bytes(data) + b'\0' * 16                                           # bytes past the signature
+        with self.assertRaises(ValueError):
+            ni.signature_profile(longer)
 
     def test_dylibs(self):
         sig, data = ni.x86_64(TRUE)
@@ -187,12 +217,12 @@ class NativeIdentitiesTests(unittest.TestCase):
         bad = Path(self.tmp.name)/'bad.txt'
         spaced = Path(self.tmp.name)/'spaced.txt'
         line = 'System/A B.app/Contents/MacOS/A B  some-recipe  +/usr/lib/x.dylib  =%s  ~%s  %%%s  !%s\n'
-        spaced.write_text(line % ('a' * 40, 'b' * 64, 'c' * 64, '00000002:0000000000000001:00000000') +
-                          line % ('d' * 40, 'e' * 64, 'f' * 64, '00000002:0000000000000001:00000000'))
+        spaced.write_text(line % ('a' * 40, 'b' * 64, 'c' * 64, '4' * 64) +
+                          line % ('d' * 40, 'e' * 64, 'f' * 64, '4' * 64))
         got = ni.load_programs(spaced)['System/A B.app/Contents/MacOS/A B']
         self.assertEqual((got['recipe'], got['libs'], len(got['builds'])), ('some-recipe', frozenset({'/usr/lib/x.dylib'}), 2))
-        self.assertIn(('a' * 40, 'b' * 64, 'c' * 64, '00000002:0000000000000001:00000000'), got['builds'])
-        self.assertNotIn(('a' * 40, 'e' * 64, 'c' * 64, '00000002:0000000000000001:00000000'), got['builds'])
+        self.assertIn(('a' * 40, 'b' * 64, 'c' * 64, '4' * 64), got['builds'])
+        self.assertNotIn(('a' * 40, 'e' * 64, 'c' * 64, '4' * 64), got['builds'])
         spaced.write_text('usr/bin/x  r  +/usr/lib/x.dylib\n')   # no pinned original
         with self.assertRaises(ValueError):
             ni.load_programs(spaced)

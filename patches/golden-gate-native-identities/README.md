@@ -29,11 +29,14 @@ takes the first source root that has, at the same path, the program's original:
 - listed in [src/programs.txt](src/programs.txt), the reviewed list of programs that may have an Apple identity, each with
   the recipe that edits it. Its library load commands differ from the original's by exactly the libraries listed there:
   none removed and no other added. Its own ad hoc signature must verify against its bytes (`codesign --verify
-  --strict`) and end the slice as codesign lays it out. These four values must match one pinned line together:
+  --strict`, and the cdhash it reports must be the one enrolled). It must be the plain ad hoc signature codesign
+  makes, read strictly by `signature_profile`: one SHA-256 CodeDirectory, so nothing chooses between directories;
+  requirements; an empty CMS; XML and DER entitlements that agree by type; nothing else. These four values must
+  match one pinned line together:
   - the original's cdhash;
   - the edited program's content digest (its x86_64 bytes up to the code signature, so independent of who signs);
   - its entitlements (XML and DER must agree);
-  - its CodeDirectory signing policy (flags, execution-segment flags, runtime).
+  - its signing policy (every CodeDirectory field but the hashes, the requirements and the unused signature space).
 
   A re-signed program that matches an original but is not listed stops `install`, so the build fails. So does a
   listed program that differs in any of these, or that its recipe re-signed but that does not get its row. `tests/test_programs.py` checks the list against the edit specs'
@@ -54,8 +57,9 @@ flags and the CMS blob); the whole slice of the observed program and of its orig
 comparison, which only programs with a matching Apple-signed original reach. On the 26B131 image that is 172 MB
 instead of 7.4 GB (6,500 executables, 4 compared), with the same rows and the same skips as reading every file whole.
 
-On the 26B131 inputs the expected rows are WindowServer (original: Tahoe's, from the native donors), `corespotlightd`
-and `managedcorespotlightd` (originals: 27.2.1's universal programs). A host simulation of the WindowServer and
+On the 26B131 inputs the expected rows are the programs in `src/programs.txt` that the set's recipes re-sign:
+WindowServer (original: Tahoe's, from the native donors), `corespotlightd` and `managedcorespotlightd` (originals:
+27.2.1's universal programs), and two more with golden-gate-store. A host simulation of the WindowServer and
 `corespotlightd` edits against those inputs gave both rows (307/317 and 1501/1501 pieces unchanged).
 
 Trust: the list sits on the sealed System volume; hao-runtime reads it only when root owns it and every directory up
@@ -63,7 +67,7 @@ to `/` and none is writable by group or others. The carrier gives a listed progr
 original gets; the program itself is the edited one (security trade-off: hao-runtime `docs/security-model.md`,
 "Apple identity for listed programs").
 
-Declared files: `patch.json` `files` lists `usr/lib/hao/native-identities`, the record, and the three originals the README expects (WindowServer from Tahoe, `corespotlightd` and `managedcorespotlightd` from 27.2.1). They are generated or copied whole, so no edit spec is needed; `tests/test_edits.py` checks the paths against the script. Each says `"after": ["overlays"]`: the list is keyed on the CDHashes of the re-signed programs as installed (an overlay signed on another machine has other CDHashes, if only from signature padding), so it is generated on the target after every overlay file is in place; `pipeline/materialize.py` defers it and lists it last in `deferred.json`.
+Declared files: `patch.json` `files` lists `usr/lib/hao/native-identities`, the record, and the original of every program in `src/programs.txt`. `tests/test_edits.py` derives the expected paths from that list. They are generated or copied whole, so no edit spec is needed; `tests/test_edits.py` checks the paths against the script. Each says `"after": ["overlays"]`: the list is keyed on the CDHashes of the re-signed programs as installed (an overlay signed on another machine has other CDHashes, if only from signature padding), so it is generated on the target after every overlay file is in place; `pipeline/materialize.py` defers it and lists it last in `deferred.json`.
 
 ## Verify
 

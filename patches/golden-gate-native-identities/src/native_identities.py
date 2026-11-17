@@ -125,22 +125,33 @@ def slice_signature(piece):
     if piece.size < 32 or piece.get(0, 4) != b'\xcf\xfa\xed\xfe':
         return None
     filetype, count, commands = struct.unpack_from('<III', piece.get(12, 24))
+    if commands > MAX_COMMANDS or 32 + commands > piece.size or count > commands // 8:
+        return None
     piece.load(32 + commands)
     at, blob = 32, None
     for _ in range(count):
         command, length = struct.unpack_from('<II', piece.get(at, at + 8))
+        if length < 8 or at + length > 32 + commands:
+            return None
         if command == 0x1d:                             # LC_CODE_SIGNATURE
             dataoff, datasize = struct.unpack_from('<II', piece.get(at + 8, at + 16))
+            if datasize > MAX_SIGNATURE or dataoff + datasize > piece.size:
+                return None
             blob = piece.get(dataoff, dataoff + datasize)
-        if length < 8:
-            return None
         at += length
     if not blob or blob[:4] != b'\xfa\xde\x0c\xc0':
         return None
     best, cms = None, False
-    for k in range(struct.unpack_from('>I', blob, 8)[0]):
+    count = struct.unpack_from('>I', blob, 8)[0]
+    if count > 64 or 12 + 8 * count > len(blob):
+        return None
+    for k in range(count):
         kind, at = struct.unpack_from('>II', blob, 12 + 8 * k)
+        if at + 8 > len(blob):
+            return None
         magic, length = struct.unpack_from('>II', blob, at)
+        if at + length > len(blob):
+            return None
         if kind == 0x10000 and length > 8:
             cms = True
         if magic == 0xfade0c02:
@@ -212,8 +223,7 @@ def load_programs(path=PROGRAMS):
         libs, one = set(), dict(refs=[], digests=[], ents=[], policies=[])
         for w in words[2:]:
             kind = {'+': 'libs', '=': 'refs', '~': 'digests', '%': 'ents', '!': 'policies'}.get(w[:1])
-            shape = {'libs': r'/\S.*', 'refs': r'[0-9a-f]{40}', 'policies': r'[0-9a-f]{8}:[0-9a-f]{16}:[0-9a-f]{8}'}.get(
-                kind, r'[0-9a-f]{64}')
+            shape = {'libs': r'/\S.*', 'refs': r'[0-9a-f]{40}'}.get(kind, r'[0-9a-f]{64}')
             if not kind or not re.fullmatch(shape, w[1:]):
                 raise ValueError(f'{path}: bad field {w!r}: {line}')
             (libs.add if kind == 'libs' else one[kind].append)(w[1:])
@@ -278,130 +288,155 @@ def content_digest(data):
     return hashlib.sha256(bytes(data[:dataoff])).hexdigest()
 
 
-def _der(data, at=0):
-    """(value, next offset) of the DER entitlements encoding: dictionaries ([16] SET of SEQUENCE {UTF8String,
-    value}), arrays (SEQUENCE), UTF8String, BOOLEAN and INTEGER."""
-    tag, at = data[at], at + 1
-    length, at = data[at], at + 1
+MAX_COMMANDS, MAX_SIGNATURE, MAX_DEPTH = 1 << 20, 1 << 24, 32
+AD_HOC_SLOTS = {0, 2, 5, 7, 0x10000}                       # what codesign writes for an ad hoc signature with entitlements
+EMPTY_CMS = bytes.fromhex('fade0b0100000008')
+
+
+def _der(data, at, end, depth=0):
+    """(typed value, next offset) of one DER item in data[at:end], strictly: minimal lengths, items inside their
+    container, BOOLEAN 00/FF, minimal INTEGER, dictionaries with unique UTF8String keys. Values are typed
+    (('b', bool), ('i', int), ('s', str), ('a', [...]), ('d', {...})) so a boolean never equals an integer."""
+    if depth > MAX_DEPTH or at + 2 > end:
+        raise ValueError('DER too deep or truncated')
+    tag, length, at = data[at], data[at + 1], at + 2
     if length & 0x80:
         n = length & 0x7f
-        if not 1 <= n <= 4:
+        if not 1 <= n <= 3 or at + n > end or data[at] == 0:
             raise ValueError('bad DER length')
         length, at = int.from_bytes(data[at:at + n], 'big'), at + n
-    end = at + length
-    if end > len(data):
-        raise ValueError('DER runs past its blob')
-    body = data[at:end]
+        if length < 0x80 or length < 1 << (8 * (n - 1)):
+            raise ValueError('DER length not minimal')
+    stop = at + length
+    if stop > end:
+        raise ValueError('DER item runs past its container')
+    body = data[at:stop]
     if tag == 0x0c:
-        return body.decode(), end
+        return ('s', body.decode()), stop
     if tag == 0x01:
-        return body != b'\0', end
+        if body not in (b'\0', b'\xff'):
+            raise ValueError('bad DER BOOLEAN')
+        return ('b', body == b'\xff'), stop
     if tag == 0x02:
-        return int.from_bytes(body, 'big', signed=True), end
+        if not body or (len(body) > 1 and (body[0] == 0 and body[1] < 0x80 or body[0] == 0xff and body[1] >= 0x80)):
+            raise ValueError('bad DER INTEGER')
+        return ('i', int.from_bytes(body, 'big', signed=True)), stop
     if tag in (0x30, 0xb0):
         items, p = [], at
-        while p < end:
-            item, p = _der(data, p)
+        while p < stop:
+            item, p = _der(data, p, stop, depth + 1)
             items.append(item)
         if tag == 0x30:
-            return items, end
-        if not all(isinstance(i, list) and len(i) == 2 and isinstance(i[0], str) for i in items):
-            raise ValueError('bad DER dictionary')
-        return {k: v for k, v in items}, end
+            return ('a', items), stop
+        out = {}
+        for item in items:
+            pair = item[1] if item[0] == 'a' else None
+            if not pair or len(pair) != 2 or pair[0][0] != 's' or pair[0][1] in out:
+                raise ValueError('bad DER dictionary entry')
+            out[pair[0][1]] = pair[1]
+        return ('d', out), stop
     raise ValueError(f'unsupported DER tag {tag:#x}')
 
 
-def signature_blobs(data):
-    """{slot: blob bytes} of a slice's code signature superblob, every index and length checked."""
-    found = {}
-    for command, at, length in _commands(data):
-        if command == 0x1d:
-            if length != 16:
-                raise ValueError('bad LC_CODE_SIGNATURE')
-            dataoff, datasize = struct.unpack_from('<II', data, at + 8)
-            blob = data[dataoff:dataoff + datasize]
-            if len(blob) < 12 or dataoff + datasize > len(data) or blob[:4] != b'\xfa\xde\x0c\xc0':
-                raise ValueError('bad code signature')
-            total, count = struct.unpack_from('>II', blob, 4)
-            if total > len(blob) or count > 64 or 12 + 8 * count > total:
-                raise ValueError('bad code signature index')
-            for k in range(count):
-                kind, off = struct.unpack_from('>II', blob, 12 + 8 * k)
-                if off + 8 > total:
-                    raise ValueError('bad code signature blob offset')
-                size = struct.unpack_from('>I', blob, off + 4)[0]
-                if size < 8 or off + size > total or kind in found:
-                    raise ValueError('bad or repeated code signature blob')
-                found[kind] = bytes(blob[off:off + size])
-    return found
+def _typed(value, depth=0):
+    """A property-list value as _der types it."""
+    if depth > MAX_DEPTH:
+        raise ValueError('entitlements too deep')
+    if isinstance(value, bool):
+        return ('b', value)
+    if isinstance(value, int):
+        return ('i', value)
+    if isinstance(value, str):
+        return ('s', value)
+    if isinstance(value, list):
+        return ('a', [_typed(v, depth + 1) for v in value])
+    if isinstance(value, dict):
+        return ('d', {k: _typed(v, depth + 1) for k, v in value.items()})
+    raise ValueError(f'unsupported entitlement value {type(value).__name__}')
 
 
-def entitlements_digest(data):
-    """sha256 of a slice's entitlements (the XML entitlements blob, parsed, as sorted JSON); {} when it has none."""
-    blobs, found = signature_blobs(data), {}
-    xml, der = blobs.get(5), blobs.get(7)
-    if xml is not None:
-        if xml[:4] != b'\xfa\xde\x71\x71':
-            raise ValueError('slot 5 is not an entitlements blob')
-        found = plistlib.loads(xml[8:])
-    if der is not None:
-        if der[:4] != b'\xfa\xde\x71\x72' or der[8] != 0x70:
-            raise ValueError('slot 7 is not a DER entitlements blob')
-        body, _ = _der(bytes([0x30]) + der[9:])                     # [APPLICATION 16] { INTEGER 1, [16] dict }
-        if len(body) != 2 or body[0] != 1 or not isinstance(body[1], dict):
-            raise ValueError('bad DER entitlements')
-        if xml is not None and json.loads(json.dumps(body[1], sort_keys=True)) != json.loads(
-                json.dumps(found, sort_keys=True, default=repr)):
-            raise ValueError('DER and XML entitlements differ')
-        found = found if xml is not None else body[1]
-    return hashlib.sha256(json.dumps(found, sort_keys=True, default=repr).encode()).hexdigest()
-
-
-def signature_policy(data):
-    """'FLAGS:EXECSEGFLAGS:RUNTIME' (hex) of the slice's best CodeDirectory: what the kernel enforces beyond the
-    bytes and entitlements (hardened runtime, library validation, main-binary execution segment, runtime version)."""
-    best = None
-    for kind, blob in signature_blobs(data).items():
-        if (kind == 0 or 0x1000 <= kind < 0x1005) and blob[:4] == b'\xfa\xde\x0c\x02' and len(blob) >= 44:
-            hash_type = blob[37]
-            if hash_type in RANK and (best is None or RANK[hash_type] > RANK[best[37]]):
-                best = blob
-    if best is None:
-        raise ValueError('no CodeDirectory')
-    version, flags = struct.unpack_from('>II', best, 8)
-    exec_flags = struct.unpack_from('>Q', best, 80)[0] if version >= 0x20400 and len(best) >= 88 else 0
-    runtime = struct.unpack_from('>I', best, 88)[0] if version >= 0x20500 and len(best) >= 92 else 0
-    return f'{flags:08x}:{exec_flags:016x}:{runtime:08x}'
-
-
-def layout_problems(data):
-    """Why a signed slice's layout is not the one codesign makes: exactly one code signature, at the end of the
-    slice (only zero padding after it), inside __LINKEDIT, which ends where the signature does."""
-    sig = [(at, length) for command, at, length in _commands(data) if command == 0x1d]
-    linkedit = [at for command, at, length in _commands(data)
-                if command == 0x19 and data[at + 8:at + 24].rstrip(b'\0') == b'__LINKEDIT']
-    if len(sig) != 1 or len(linkedit) != 1:
-        return 'not exactly one code signature and one __LINKEDIT'
-    dataoff, datasize = struct.unpack_from('<II', data, sig[0][0] + 8)
-    fileoff, filesize = struct.unpack_from('<QQ', data, linkedit[0] + 40)
-    if dataoff + datasize > len(data) or data[dataoff + datasize:].strip(b'\0'):
-        return 'bytes after the code signature'
-    if not fileoff <= dataoff or fileoff + filesize != dataoff + datasize:
-        return '__LINKEDIT does not end with the code signature'
-    return None
+def signature_profile(data):
+    """The one signature layout this accepts, read strictly, or ValueError:
+    exactly one LC_CODE_SIGNATURE and one __LINKEDIT, the signature at the end of the slice, __LINKEDIT ending with it (vmsize its filesize rounded to 4 or 16 KiB); the SuperBlob's blobs
+    contiguous right after its index, in the slots codesign writes for an ad hoc signature with entitlements and no
+    other: one SHA-256 CodeDirectory (so nothing chooses between directories), requirements, empty CMS, XML and
+    DER entitlements that agree by type. Returns dict(cdhash, policy, entitlements): policy is a sha256 of the
+    CodeDirectory's every field but its hashes (version, flags, slot counts, code limit, hash and page size,
+    platform, execution segment, runtime, identifier), of the requirements blob and of the bytes between the SuperBlob and the end of the
+    signature space (zeros, or what codesign left there from the input's signature: pinned, never free);
+    entitlements a sha256 of the typed entitlements."""
+    cmds = _commands(data)
+    sig = [at for command, at, length in cmds if command == 0x1d and length == 16]
+    link = [at for command, at, length in cmds
+            if command == 0x19 and length >= 72 and data[at + 8:at + 24].rstrip(b'\0') == b'__LINKEDIT']
+    if len(sig) != 1 or len(link) != 1 or sum(1 for c, _, _ in cmds if c == 0x1d) != 1:
+        raise ValueError('not exactly one code signature and one __LINKEDIT')
+    dataoff, datasize = struct.unpack_from('<II', data, sig[0] + 8)
+    vmsize, fileoff, filesize = struct.unpack_from('<QQQ', data, link[0] + 32)
+    if datasize > MAX_SIGNATURE or dataoff + datasize != len(data) or fileoff + filesize != len(data) \
+            or not fileoff <= dataoff or vmsize not in ((filesize + 0xfff) & ~0xfff, (filesize + 0x3fff) & ~0x3fff):
+        raise ValueError('signature or __LINKEDIT not where codesign puts them')
+    blob = data[dataoff:]
+    magic, total, count = struct.unpack_from('>III', blob, 0)
+    if magic != 0xfade0cc0 or total > datasize or count != len(AD_HOC_SLOTS):
+        raise ValueError('not an ad hoc SuperBlob')
+    blobs, at = {}, 12 + 8 * count
+    for k in range(count):
+        kind, off = struct.unpack_from('>II', blob, 12 + 8 * k)
+        if off != at or off + 8 > total or kind in blobs:
+            raise ValueError('SuperBlob blobs not contiguous after the index')
+        size = struct.unpack_from('>I', blob, off + 4)[0]
+        if size < 8 or off + size > total:
+            raise ValueError('bad SuperBlob blob')
+        blobs[kind], at = bytes(blob[off:off + size]), off + size
+    if at != total or set(blobs) != AD_HOC_SLOTS:
+        raise ValueError(f'SuperBlob slots {sorted(blobs)}, not {sorted(AD_HOC_SLOTS)}')
+    if blobs[0x10000] != EMPTY_CMS or blobs[2][:4] != b'\xfa\xde\x0c\x01':
+        raise ValueError('CMS not the empty ad hoc one, or no requirements blob')
+    cd = blobs[0]
+    if cd[:4] != b'\xfa\xde\x0c\x02' or len(cd) < 88:
+        raise ValueError('bad CodeDirectory')
+    version, flags, hash_offset, ident_offset, n_special, n_code, limit = struct.unpack_from('>IIIIIII', cd, 8)
+    hash_size, hash_type, platform, page = cd[36], cd[37], cd[38], cd[39]
+    if version not in (0x20400, 0x20500, 0x20600) or not flags & CS_ADHOC or hash_type != 2 or hash_size != 32 \
+            or page != 12 or limit != dataoff or n_code != (limit + 4095) // 4096 or n_special < 7 \
+            or hash_offset != len(cd) - 32 * n_code or hash_offset < 32 * n_special or not 88 <= ident_offset < hash_offset:
+        raise ValueError('CodeDirectory is not a plain SHA-256 ad hoc one covering the whole slice')
+    ident = cd[ident_offset:cd.index(b'\0', ident_offset, hash_offset)]
+    fixed = cd[8:hash_offset - 32 * n_special]                  # every field and the identifier, no hashes
+    xml, der = blobs[5], blobs[7]
+    if xml[:4] != b'\xfa\xde\x71\x71' or der[:4] != b'\xfa\xde\x71\x72':
+        raise ValueError('bad entitlements blobs')
+    from_xml = _typed(plistlib.loads(xml[8:]))
+    if len(der) < 10 or der[8] != 0x70:                      # [APPLICATION 16] { INTEGER 1, [16] dictionary }
+        raise ValueError('bad DER entitlements')
+    inner, end = _der(bytes([0x30]) + der[9:], 0, len(der) - 8)
+    if end != len(der) - 8 or inner[0] != 'a' or len(inner[1]) != 2 or inner[1][0] != ('i', 1) \
+            or inner[1][1][0] != 'd':
+        raise ValueError('bad DER entitlements')
+    if inner[1][1] != from_xml:
+        raise ValueError('DER and XML entitlements differ')
+    return dict(cdhash=hashlib.sha256(cd).hexdigest()[:40], identifier=ident.decode(),
+                policy=hashlib.sha256(fixed + b'\0requirements\0' + blobs[2] + b'\0slack\0' + bytes(blob[total:])).hexdigest(),
+                entitlements=hashlib.sha256(json.dumps(from_xml, sort_keys=True).encode()).hexdigest())
 
 
 def verify_observed(path):
-    """codesign checks the x86_64 slice's signature against its bytes (page hashes, special slots, DER)."""
+    """codesign checks the x86_64 slice's signature against its bytes; returns (ok, why, the CDHash it reports)."""
     result = subprocess.run(['codesign', '--verify', '--strict', '--arch', 'x86_64', str(path)],
                             capture_output=True, text=True)
-    return result.returncode == 0, result.stderr.strip()
+    if result.returncode:
+        return False, result.stderr.strip(), None
+    shown = subprocess.run(['codesign', '-dvvv', '--arch', 'x86_64', str(path)], capture_output=True, text=True).stderr
+    cdhash = next((line.split('=', 1)[1].strip() for line in shown.splitlines() if line.startswith('CDHash=')), None)
+    return True, '', cdhash
 
 
 def same_program(observed, reference, limit):
     """At least 90% of the reference's signed bytes after the load commands, compared in 64-byte pieces at the same
     offsets, are unchanged. The Mach-O header and load commands are left out: re-signing rewrites them, and an
     inserted load command takes the padding after them."""
+    limit = min(limit, len(reference))
     start = 32 + max(struct.unpack_from('<I', observed, 20)[0], struct.unpack_from('<I', reference, 20)[0])
     start = (start + PIECE - 1) // PIECE * PIECE
     pieces = max(1, (limit - start + PIECE - 1) // PIECE)
@@ -489,20 +524,20 @@ def scan(system, sources, programs=None):
                     refused[rel] = (f'its original {original} has cdhash {ref["cdhash"]}, not one programs.txt pins '
                                     f'({", ".join(sorted(want["refs"]))})')
                     break
-                ok, why = verify_observed(system/rel)
+                ok, why, shown = verify_observed(system/rel)
                 if not ok:
                     refused[rel] = f'its own signature does not verify against its bytes: {why}'
                     break
                 try:
-                    layout = layout_problems(observed)
-                    seen = (ref['cdhash'], content_digest(observed), entitlements_digest(observed),
-                            signature_policy(observed))
+                    profile = signature_profile(observed)
+                    seen = (ref['cdhash'], content_digest(observed), profile['entitlements'], profile['policy'])
                     have, had = collections.Counter(dylibs(observed)), collections.Counter(dylibs(reference))
                 except (ValueError, struct.error, IndexError, UnicodeDecodeError, plistlib.InvalidFileException) as e:
-                    refused[rel] = f'cannot read its load commands or signature: {e}'
+                    refused[rel] = f'its signature is not the plain ad hoc one this accepts: {e}'
                     break
-                if layout:
-                    refused[rel] = f'its layout is not codesign\'s: {layout}'
+                if not (profile['cdhash'] == sig['cdhash'] == shown) or profile['identifier'] != sig['identifier']:
+                    refused[rel] = (f'its CodeDirectory is ambiguous: parsed {profile["cdhash"]}, selected '
+                                    f'{sig["cdhash"]}, codesign reports {shown}')
                     break
                 if seen not in want['builds']:
                     refused[rel] = (f'(original, content digest, entitlements, signature policy) = {seen} is not a '
@@ -525,8 +560,9 @@ def scan(system, sources, programs=None):
         if rel in enrolled or rel in refused or not (system/rel).is_file():
             continue
         found = x86_64_signature(system/rel)
-        if found is None or found[0] is None or found[0]['adhoc']:
-            refused[rel] = 'listed but not enrolled: ' + skipped.get(rel, 'its x86_64 slice or signature is unreadable')
+        if found is None or found[0] is None or found[0]['adhoc'] or not verify(system/rel)[0]:
+            refused[rel] = ('listed but not enrolled, and not an Apple-signed program either: ' +
+                            skipped.get(rel, 'its x86_64 slice or signature is unreadable'))
     return rows, skipped, refused
 
 
@@ -564,8 +600,7 @@ def install(system, sources, owner=(0, 0), programs=None):
         ok, why = verify(copy)
         if not ok:
             copy.unlink()
-            skipped[row['path']] = 'original fails anchor apple: ' + why
-            continue
+            raise SystemExit(f'native-identities: the original of {row["path"]} fails anchor apple: {why}')
         kept.append(row)
     text = ['# native-identities: native programs this image re-signed ad hoc -> their Apple-signed originals',
             '# (golden-gate-native-identities; hao-runtime include/hao/idlist.h). Generated; do not edit.']
