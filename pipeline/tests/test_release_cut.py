@@ -164,7 +164,7 @@ class Archive(unittest.TestCase):
         (stage / 'release.json').write_text('{}')
         (stage / '.DS_Store').write_text('')
         self.assertEqual(R['check_stage'](rel, stage), [])
-        for sig in ('release.json.minisig', 'SHA256SUMS.minisig'):           # D5: the owner's signatures
+        for sig in ('release.json.sig', 'SHA256SUMS.sig'):           # D5: the owner's signatures
             (stage / sig).write_text('untrusted comment: x\n')
         self.assertEqual(R['check_stage'](rel, stage), [])
         R['write_sums'](stage, stage / 'release.json')
