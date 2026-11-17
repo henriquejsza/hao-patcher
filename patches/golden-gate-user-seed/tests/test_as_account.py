@@ -54,7 +54,8 @@ class Static(unittest.TestCase):
             self.assertIn(n, FN)
 
     def test_poke_runs_as_the_account(self):
-        self.assertIn('launchctl asuser $uid sudo -u "#$uid" -- "$POKE"', SCRIPT)
+        self.assertIn('launchctl asuser $uid $SUDO -n -u "#$uid" -- "$POKE"', SCRIPT)
+        self.assertIn('\nSUDO=/usr/bin/sudo\n', SCRIPT)
 
 
 @unittest.skipUnless(os.getuid() >= 501, 'asuser refuses uids below 501')
@@ -65,8 +66,8 @@ class AsAccount(unittest.TestCase):
         shims = d / 'shims'
         shims.mkdir()
         # sudo -u #UID -- CMD...: run CMD as this user, and record that it went through sudo
-        (shims / 'sudo').write_text('#!/bin/sh\n[ "$1" = -u ] || exit 9\necho "$2" >> "%s"\nshift 3\nexec "$@"\n'
-                                    % (d / 'sudo.log'))
+        (shims / 'sudo').write_text('#!/bin/sh\n[ "$1 $2" = "-n -u" ] && [ "$4" = -- ] || exit 9\n'
+                                    'echo "$3" >> "%s"\nshift 4\nexec "$@"\n' % (d / 'sudo.log'))
         (shims / 'sudo').chmod(0o755)
         self.seed = d / 'seed'
         (self.seed / 'is').mkdir(parents=True)
@@ -102,6 +103,7 @@ class AsAccount(unittest.TestCase):
             'zmodload zsh/datetime; zmodload -F zsh/files b:zf_mv b:zf_rm b:zf_mkdir b:zf_chown b:zf_chmod;'
             ' zmodload -F zsh/stat b:zstat; zmodload zsh/zselect',
             'SEED=%s LSN=com.apple.LaunchServices-20971545-v2.csstore BMSRC= FONTPH=/var/empty/Library/Fonts' % self.seed,
+            'SUDO=%s' % (self.d / 'shims/sudo'),
             head, defs, body])
         r = subprocess.run(['/bin/zsh', '-f', '-c', text], capture_output=True, text=True, env=self.env)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -132,6 +134,18 @@ class AsAccount(unittest.TestCase):
         reg.close()
         self.assertEqual(set((self.d / 'sudo.log').read_text().split()), {'#%d' % uid})
         self.assertEqual(len((self.d / 'sudo.log').read_text().split()), 5)
+
+    def test_a_forged_chunk_answer_is_refused(self):
+        uid = os.getuid()
+        r = self.run_zsh('\n'.join([
+            'chunk_place_as() { print -u3 -r -- "1 0 x=5" }; ASFNS+=(chunk_place_as)',
+            'NB=0 NS=0 KEPT=(); place_chunk u %d 20 %s/ 0 com.apple.dock.extra && exit 6' % (uid, self.C),
+            'chunk_place_as() { print -u3 -r -- "0 1 /etc" }',
+            'place_chunk u %d 20 %s/ 0 com.apple.dock.extra && exit 7' % (uid, self.C),
+            'print -r -- "RESULT $NB $NS ${KEPT[*]}"']))
+        self.assertIn('RESULT 0 0 ', r.stdout)
+        self.assertIn('bad answer', r.stdout)
+        self.assertIn('unknown tree /etc', r.stdout)
 
     def test_refuses_system_uids(self):
         r = self.run_zsh('asuser 0 is_place_as root %s/ && exit 7; exit 0' % self.C)

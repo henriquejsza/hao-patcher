@@ -124,11 +124,12 @@ nap() { zselect -t $1 2>/dev/null || : }                                       #
 # never as root: the account owns those folders, so a link it plants there must not turn a root write, chown or
 # rename into one somewhere else. asuser runs one of the *_as functions below in `sudo -u #uid` zsh with this
 # script's helpers; its log lines go to the daemon's log (stderr), its result (if any) to stdout (fd 3 inside).
+SUDO=/usr/bin/sudo
 ASFNS=(log hms ms nap ls_stage_as ls_swap_as is_place_as fonts_place_as chunk_place_as chunk_body_as bm_place_as)
 asuser() {   # $1 uid, $2 function, rest its arguments
     local uid=$1 fn=$2; shift 2
     [[ $uid == <-> ]] && (( uid >= 501 )) || { log "asuser: refused uid '$uid'"; return 1 }
-    sudo -u "#$uid" -- /bin/zsh -f -c "exec 3>&1 1>&2
+    $SUDO -n -u "#$uid" -- /bin/zsh -f -c "exec 3>&1 1>&2
 zmodload zsh/datetime && zmodload -F zsh/files b:zf_mv b:zf_rm b:zf_mkdir b:zf_chmod && zmodload -F zsh/stat b:zstat || exit 1
 SEED=${(q)SEED} LSN=${(q)LSN} BMSRC=${(q)BMSRC} FONTPH=${(q)FONTPH}
 $(functions $ASFNS)
@@ -270,7 +271,7 @@ bm_pass() {
         [[ -d $X ]] || { BMWHY[$uid]="no cache dir $BMDIR (or not accessible)"; continue }
         f=("$X"/*.bmp(N))
         (( ${#f} )) && { log "$u ($uid): aerials cache already holds ${#f} .bmp (${f[1]:t}); left alone"; bm_end $uid; continue }
-        n=$(sudo -u "#$uid" -- "$BMNAME" "$V" 1280 800 0 2>&1)
+        n=$($SUDO -n -u "#$uid" -- "$BMNAME" "$V" 1280 800 0 2>&1)
         [[ $n == [0-9a-f](#c64)-1280-800-0-[0-9a-f](#c16).bmp ]] || { log "$u ($uid): wpcache-name failed ($n); aerial still skipped"; bm_end $uid; continue }
         if asuser $uid bm_place_as "$X" "$n"; then
             ms ${LSAT[$uid]}; log "$u ($uid): aerial still placed $BMDIR/$n (+$REPLY ms after the LS store; movie mtime ${st[mtime]})"
@@ -446,7 +447,7 @@ pk_chain() {   # $1 uid, in the background: prints "gui <epoch>" once Apple's pa
     print -r -- "gui $EPOCHREALTIME"
     e=$(( EPOCHREALTIME + PKHOLD ))
     while (( EPOCHREALTIME < e )); do
-        n+=1; r=$(launchctl asuser $uid sudo -u "#$uid" -- "$POKE" $POKESVC $PKWAITS 2>&1)   # in its session, as the account
+        n+=1; r=$(launchctl asuser $uid $SUDO -n -u "#$uid" -- "$POKE" $POKESVC $PKWAITS 2>&1)   # in its session, as the account
         [[ $r == *timeout* ]] || { print -r -- "poke $n: $r"; return 0 }
     done
     print -r -- "poke $n: $r"; return 3
@@ -515,7 +516,11 @@ pk_pass() {
 place_chunk() {   # $1 u $2 uid $3 gid $4 C $5 metal start, rest = tree names. Adds to NB NS KEPT (placed / kept)
     local r rc; local -a w
     r=$(asuser $2 chunk_place_as "$1" "$4" "$5" "${@:6}"); rc=$?
-    w=(${=r}); (( NB += ${w[1]:-0}, NS += ${w[2]:-0} )); KEPT+=(${w[3,-1]})
+    w=(${=r})
+    # the account's answer is data: two counts, then names it was asked to place (never arithmetic text)
+    [[ ${w[1]} == <-> && ${w[2]} == <-> ]] && (( ${#w} - 2 == w[2] )) || { log "$1: metal chunk: bad answer ($r)"; return 1 }
+    local k; for k in ${w[3,-1]}; do (( ${@[6,-1][(Ie)$k]} )) || { log "$1: metal chunk: unknown tree $k"; return 1 }; done
+    (( NB += w[1], NS += w[2] )); KEPT+=(${w[3,-1]})
     return rc
 }
 chunk_place_as() {   # as the account: $1 u $2 C $3 metal start, rest = tree names. Prints "NB NS KEPT..." on fd 3
