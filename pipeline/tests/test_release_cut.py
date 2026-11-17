@@ -16,7 +16,9 @@ import unittest
 TOP = Path(__file__).resolve().parents[2]
 R = runpy.run_path(str(TOP / 'pipeline' / 'release-cut'))
 ASSEMBLY = TOP / 'pipeline/assemblies/mbp92-26B131.json'
-CONTENT = {'ours', 'made-on-mac', 'download', 'harvested', 'in-checkout', 'pending'}
+ALPHA_ASSEMBLY = TOP / 'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json'
+DEV_ASSEMBLY = TOP / 'pipeline/assemblies/dev-26B131-alpha-v0.1.0.json'
+CONTENT = {'ours', 'made-on-mac', 'download', 'harvested', 'in-checkout', 'dev-local', 'pending'}
 STORE = (TOP / 'store/artifacts').is_dir()
 
 
@@ -304,6 +306,36 @@ class Write(unittest.TestCase):
             a.write_text(json.dumps(dict(json.loads(ASSEMBLY.read_text()), patch_set='dev-bs-test')))
             rel, problems = R['build_release'](a, '27.2.1-26B131.0')
         self.assertIn('profile dev-bs-test: not marked "release": true', problems)
+
+    def test_dev_cuts_only_a_candidate(self):
+        with self.assertRaises(ValueError):
+            R['build_release'](DEV_ASSEMBLY, '27.2.1-26B131.0', dev=True)
+        r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--write', '/nonexistent/r.json',
+                            str(DEV_ASSEMBLY), '--release', '27.2.1-26B131.0', '--channel', 'dev', '--version',
+                            'v0.0.1', '--dev'], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn('--candidate --dev', r.stderr)
+
+    def test_dev_refuses_a_release_profile(self):
+        rel, problems = R['build_release'](ALPHA_ASSEMBLY, '27.2.1-26B131.0', candidate=True, dev=True)
+        self.assertIn('profile alpha-v0.1.0: a release profile is cut without --dev', problems)
+
+    def test_a_dev_candidate_is_marked_and_allows_the_dev_pack(self):
+        rel, problems = R['build_release'](DEV_ASSEMBLY, '27.2.1-26B131.0', candidate=True, dev=True)
+        self.assertIs(rel['dev'], True)
+        self.assertIs(rel['candidate'], True)
+        self.assertEqual([p for p in problems if 'dev-layer' in p or 'status dev' in p or 'release": true' in p
+                          or 'dev-local' in p], [])
+        self.assertEqual({x['row'] for x in rel['dev_local']},
+                         {'test_host_key', 'test_authorized_key', 'screensharing_users'})
+        self.assertTrue(any('dev-access' in u for u in rel['unvalidated']))
+        # without --dev the same profile is refused, and its private rows are problems, never assets
+        plain, plain_problems = R['build_release'](DEV_ASSEMBLY, '27.2.1-26B131.0', candidate=True)
+        self.assertNotIn('dev', plain)
+        self.assertNotIn('dev_local', plain)
+        self.assertIn('profile dev-alpha-v0.1.0: not marked "release": true', plain_problems)
+        self.assertIn('test_host_key: dev-local, cut only into a dev candidate (--candidate --dev)', plain_problems)
+        self.assertNotIn('test_host_key', [x['row'] for x in plain['assets'] + rel['assets']])
 
     def test_release_cut_refuses_an_experiment_recipe(self):
         # release-cut runs release_problems with the validated/experiment gate on; here against a small tree whose

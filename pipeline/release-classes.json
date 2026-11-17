@@ -1,12 +1,24 @@
 {
  "format": 1,
- "note": "What each input row of a release is, by its content (release-cut reads this; its build-record classes say only whether a row can be made again). ours: our own bytes, published as a release asset (a file row as the file, a folder row as one deterministic tar of the listed files). made-on-mac: made on the user's Mac by the named producer from the named input rows (Apple's files, or third-party downloads); never published. download: Apple or third-party bytes the user's Mac fetches from their own servers, pinned by url, size and sha256. harvested: made on a running laptop; not shipped, unless harvested_assets turns it on for the release's target (then a tar asset marked harvested; hao_contract.py allows that for mbp92 only). in-checkout: a tracked file of hao-patcher, delivered with the source at the release commit. pending: held out of this release for the reason given. made_on_mac_files: files of an ours row that are Apple-derived; the asset leaves them out and the user's Mac adds them from the named row.",
+ "note": "What each input row of a release is, by its content (release-cut reads this; its build-record classes say only whether a row can be made again). ours: our own bytes, published as a release asset (a file row as the file, a folder row as one deterministic tar of the listed files). made-on-mac: made on the user's Mac by the named producer from the named input rows (Apple's files, or third-party downloads); never published. download: Apple or third-party bytes the user's Mac fetches from their own servers, pinned by url, size and sha256. harvested: made on a running laptop; not shipped, unless harvested_assets turns it on for the release's target (then a tar asset marked harvested; hao_contract.py allows that for mbp92 only). in-checkout: a tracked file of hao-patcher, delivered with the source at the release commit. pending: held out of this release for the reason given. made_on_mac_files: files of an ours row that are Apple-derived; the asset leaves them out and the user's Mac adds them from the named row. dev-local: a dev pack's private input (bench SSH keys); never published, listed only by a dev candidate cut (release-cut --candidate --dev), which uses the local store copy.",
  "archive": "tar: POSIX pax, entries sorted by path, folders before their contents, mtime 0, uid and gid 0, no user or group names, mode 0755 for folders and executables and 0644 otherwise, symbolic links kept, no extended attributes, no compression; paths relative to the row's folder",
  "harvested_assets": {
   "_note": "per target: true publishes its harvested rows (laptop-made caches) as release assets marked harvested. Owner, 2026-11-14: 'Ship the caches for 9,2'; how (public, font registry only, or a private testers' channel) is still the owner's to choose, answered 2026-11-15 when asked public / font registry only / private testers: \"Ship the caches for 9,2\" = all four rows, public assets, MacBookPro9,2 only (pm, 0050). Publishing a release still needs the owner's go-ahead at cut time. hao_contract.py allows it only for its HARVESTED_ASSET_TARGETS.",
   "mbp92": true
  },
  "rows": {
+  "test_host_key": {
+   "class": "dev-local",
+   "reason": "dev-access (pack dev): the test laptop's SSH host key; private, never published; a dev candidate uses the store copy of the Mac that makes it"
+  },
+  "test_authorized_key": {
+   "class": "dev-local",
+   "reason": "dev-access (pack dev): the bench host's SSH public key; private, never published; a dev candidate uses the store copy of the Mac that makes it"
+  },
+  "screensharing_users": {
+   "class": "dev-local",
+   "reason": "dev-access (pack dev): the accounts allowed to use Screen Sharing; private, never published; a dev candidate uses the store copy of the Mac that makes it"
+  },
   "appstore_slice_guard": {
    "class": "ours",
    "publish": "tar",

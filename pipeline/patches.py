@@ -692,15 +692,20 @@ def load_waivers(path=WAIVERS):
 
 
 def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER,
-                     gate=True, waivers=None):
+                     gate=True, waivers=None, dev=False):
     """Why the set NAME may not be released (empty: it may): it must be a profile marked "release": true, and none of
     its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES. With gate (release-cut,
     patches.py release-gate), none may be "validated": false or have a status in RELEASE_GATED_STATUSES either, unless
-    a waiver (pipeline/release-waivers.json) names this profile, that recipe and its current revision."""
+    a waiver (pipeline/release-waivers.json) names this profile, that recipe and its current revision. With dev (a dev
+    candidate, release-cut --candidate --dev; never published) the profile must not be a release profile, and its
+    dev-layer and dev/diagnostic recipes are allowed; the gate still applies."""
     f = os.path.join(profiles, name + '.json')
     if not os.path.isfile(f):
         return ['set %s: not a profile (pipeline/profiles/%s.json); only release profiles are released' % (name, name)]
-    if json.load(open(f)).get('release') is not True:
+    is_release = json.load(open(f)).get('release') is True
+    if dev and is_release:
+        return ['profile %s: a release profile is cut without --dev' % name]
+    if not dev and not is_release:
         return ['profile %s: not marked "release": true' % name]
     packs = packs if packs is not None else load_packs(root=root)
     waivers = load_waivers() if waivers is None else waivers
@@ -710,9 +715,9 @@ def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profil
         pj = os.path.join(directory(r, root), 'patch.json')
         p = json.load(open(pj)) if os.path.isfile(pj) else {}
         status = p.get('status')
-        if layer.get(r) == 'dev':
+        if layer.get(r) == 'dev' and not dev:
             bad.append('profile %s: %s is in a dev-layer pack' % (name, r))
-        if status in RELEASE_REFUSED_STATUSES:
+        if status in RELEASE_REFUSED_STATUSES and not dev:
             bad.append('profile %s: %s has status %s' % (name, r, status))
         if not gate:
             continue

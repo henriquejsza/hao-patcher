@@ -1,8 +1,8 @@
 #!/usr/bin/env python3.14
-"""candidate-cut: one command from a commit to a candidate release and its MacBookPro9,2 USB installer image.
+"""candidate-cut: one command from a commit to a candidate release and its MacBookPro9,2 USB installer images.
 
   pipeline/candidate-cut COMMIT [--out DIR] [--cache DIR] [--sign-key KEY] [--version vX.Y.Z] [--release NAME]
-                         [--assembly NAME]
+                         [--assembly NAME] [--dev-assembly NAME | --no-dev]
 
 For the hardware benches' acceptance runs. COMMIT is checked out detached in a new worktree (the cut sees only the
 committed tree); there:
@@ -13,9 +13,15 @@ committed tree); there:
   3. hao fetch release.json --assets-from OUT/release (downloads by sha256 into CACHE, kept between cuts)
   4. hao create-installer --model MacBookPro9,2 --release release.json --image OUT/stick.img
      (the user's path, on this Mac; an image file instead of a drive, so no root)
-  5. OUT/stick.img.sha256 and OUT/candidate.json: commit, release.json sha256, image path, size and sha256, signed or
-     not, each step's seconds and log. Exit 0 only when every step passed.
-OUT defaults to store/artifacts/candidate-COMMIT8; CACHE to store/cache/candidate-fetch.
+  5. the dev stick, from the same commit, the same way into OUT/dev/: release-cut --candidate --dev with the dev
+     assembly (DEV_ASSEMBLY: the alpha set plus pack dev; release.json "dev": true, never published), signed with the
+     same key, fetched, and hao create-installer --image OUT/dev/stick.img. --no-dev leaves it out; a commit without
+     the dev assembly or release-cut --dev is recorded as skipped.
+  6. OUT/stick.img.sha256, OUT/dev/stick.img.sha256 and OUT/candidate.json: commit, each stick (path, size, sha256),
+     release.json sha256s, signed or not, each step's seconds and log, create-installer's phases (from its event log
+     in OUT/logs and OUT/dev/logs), and "dev": the dev stick's own record. Exit 0 only when every step passed.
+OUT defaults to store/artifacts/candidate-COMMIT8; CACHE to store/cache/candidate-fetch. Rows made on this Mac are
+reused by their pins (make-on-mac leaves a row whose sha256 checks), so the dev stick costs about one more kit write.
 """
 import argparse
 import datetime
@@ -31,6 +37,7 @@ import time
 
 TOP = Path(__file__).resolve().parents[1]
 PY = sys.executable
+MODEL = 'MacBookPro9,2'
 
 
 def sha256(p):
@@ -41,7 +48,59 @@ def sha256(p):
     return h.hexdigest()
 
 
-def main(argv=None):
+def phases(logs):
+    """create-installer's phases from its event log (HAO_LOGS/create-installer-*.json): [(name, seconds)], each
+    command and task from its start to the next one's."""
+    found = sorted(Path(logs).glob('create-installer-*.json'))
+    if not found:
+        return None
+    try:
+        events = json.loads(found[-1].read_text())['events']
+    except (OSError, ValueError, KeyError):
+        return None
+    marks = []
+    for e in events:
+        if e['ev'] == 'run.start':
+            marks.append(('doctor and questions', 0.0))
+        elif e['ev'] == 'step.start':
+            marks.append(('step: ' + str(e.get('step')), e['t']))
+        elif e['ev'] == 'command':
+            marks.append((Path(e['argv'][2]).name, e['t']))
+        elif e['ev'] == 'task.start':
+            marks.append((' '.join(str(e.get('text') or e.get('label') or '').split()), e['t']))
+        elif e['ev'] in ('task.end', 'run.end'):
+            marks.append(('', e['t']))
+    out = []
+    for (name, t), (_, nxt) in zip(marks, marks[1:]):
+        if name and nxt - t >= 0.5:
+            out.append([name, round(nxt - t, 1)])
+    return out
+
+
+def run_step(cmd, cwd, log, env):
+    with open(log, 'w') as f:
+        return subprocess.run([str(c) for c in cmd], cwd=cwd, stdout=f, stderr=subprocess.STDOUT,
+                              stdin=subprocess.DEVNULL, env=env).returncode
+
+
+def checkout(sha, tree):
+    subprocess.run(['git', 'worktree', 'add', '-q', '--detach', str(tree), sha], cwd=TOP, check=True)
+
+
+def remove_checkout(tree):
+    subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=TOP, capture_output=True)
+
+
+def dev_skip(tree, assembly):
+    """Why this commit cannot cut the dev stick, or None."""
+    if not (tree / 'pipeline/assemblies' / (assembly + '.json')).is_file():
+        return 'the commit has no pipeline/assemblies/%s.json' % assembly
+    if "'--dev'" not in (tree / 'pipeline/release-cut').read_text():
+        return 'the commit\'s release-cut has no --dev'
+    return None
+
+
+def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkout)):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('commit')
     ap.add_argument('--out', type=Path)
@@ -50,83 +109,118 @@ def main(argv=None):
     ap.add_argument('--version', default='v0.0.1')
     ap.add_argument('--release', default='27.2.1-26B131.0')
     ap.add_argument('--assembly', default='mbp92-26B131-alpha-v0.1.0')
+    ap.add_argument('--dev-assembly', default='dev-26B131-alpha-v0.1.0')
+    ap.add_argument('--no-dev', action='store_true', help='make only the release stick')
     a = ap.parse_args(argv)
     sha = subprocess.run(['git', 'rev-parse', '--verify', a.commit + '^{commit}'], cwd=TOP, capture_output=True,
                          text=True, check=True).stdout.strip()
-    if not (TOP / 'store').is_symlink() and not (TOP / 'store').is_dir():
-        sys.exit('candidate-cut: %s has no store (link store to the local store first)' % TOP)
-    store = (TOP / 'store').resolve()
+    if store is None:
+        if not (TOP / 'store').is_symlink() and not (TOP / 'store').is_dir():
+            sys.exit('candidate-cut: %s has no store (link store to the local store first)' % TOP)
+        store = (TOP / 'store').resolve()
     out = (a.out or store / 'artifacts' / ('candidate-' + sha[:8])).resolve()
     cache = (a.cache or store / 'cache' / 'candidate-fetch').resolve()
     if out.exists():
         sys.exit('candidate-cut: %s exists; remove it or give --out' % out)
     out.mkdir(parents=True)
     cache.mkdir(parents=True, exist_ok=True)
-    record = dict(commit=sha, out=str(out), signed=bool(a.sign_key), steps=[],
+    record = dict(commit=sha, out=str(out), signed=bool(a.sign_key), steps=[], sticks=[],
                   started=datetime.datetime.now().astimezone().isoformat(timespec='seconds'))
     work = Path(tempfile.mkdtemp(prefix='candidate-cut-'))
     tree = work / 'tree'
-    subprocess.run(['git', 'worktree', 'add', '-q', '--detach', str(tree), sha], cwd=TOP, check=True)
+    worktree[0](sha, tree)
     (tree / 'store').symlink_to(store)
-    rel = out / 'release' / 'release.json'
     # python.org's Python carries no CA bundle until its Install Certificates step runs; macOS's own is used instead,
     # so hao doctor's URL checks and the downloads verify against the system roots
-    env = dict(os.environ)
-    if not env.get('SSL_CERT_FILE') and Path('/etc/ssl/cert.pem').is_file():
-        env['SSL_CERT_FILE'] = '/etc/ssl/cert.pem'
+    base_env = dict(os.environ)
+    if not base_env.get('SSL_CERT_FILE') and Path('/etc/ssl/cert.pem').is_file():
+        base_env['SSL_CERT_FILE'] = '/etc/ssl/cert.pem'
     if a.sign_key:
         # the candidate key's public line goes into this cut's hao (tools/hao/data/candidate-keys.pub, never tracked)
         # so the USB installer's hao accepts the candidate signature; final builds never carry it
         pub = Path(a.sign_key + '.pub').read_text().strip()
         (tree / 'tools/hao/data/candidate-keys.pub').write_text(pub + '\n')
         record['candidate_key'] = pub.split()[-1] if ' ' in pub else pub
+    current = {'rec': record, 'out': out}
 
-    def step(name, cmd):
-        log = out / ('%d-%s.log' % (len(record['steps']) + 1, name))
+    def step(name, cmd, rec, where):
+        log = where / ('%d-%s.log' % (len(rec['steps']) + 1, name))
+        env = dict(base_env, HAO_LOGS=str(where / 'logs'))     # create-installer's event log, for the phase times
         t0 = time.time()
-        with open(log, 'w') as f:
-            rc = subprocess.run([str(c) for c in cmd], cwd=tree, stdout=f, stderr=subprocess.STDOUT,
-                                stdin=subprocess.DEVNULL, env=env).returncode
-        record['steps'].append(dict(name=name, rc=rc, seconds=round(time.time() - t0), log=log.name))
-        print('%-4s %-16s %4d s  %s' % ('ok' if rc == 0 else 'FAIL', name, time.time() - t0, log), flush=True)
+        rc = run(cmd, tree, log, env)
+        rec['steps'].append(dict(name=name, rc=rc, seconds=round(time.time() - t0), log=str(log.relative_to(out))))
+        print('%-4s %-20s %4d s  %s' % ('ok' if rc == 0 else 'FAIL', name, time.time() - t0, log), flush=True)
         if rc:
+            current.update(rec=rec, out=where)
             raise SystemExit(1)
+
+    def stick(kind, rec, where, assembly, extra):
+        """release-cut, sign, fetch and create-installer into WHERE; returns the stick's entry."""
+        rel = where / 'release' / 'release.json'
+        suffix = '' if kind == 'release' else '-' + kind
+        step('release-cut' + suffix, [PY, '-I', 'pipeline/release-cut', '--write', rel,
+                                      'pipeline/assemblies/%s.json' % assembly, '--release', a.release,
+                                      '--channel', 'dev', '--version', a.version, '--not-prerelease',
+                                      '--stage', rel.parent] + extra, rec, where)
+        unsigned = []
+        if a.sign_key:
+            step('sign' + suffix, ['ssh-keygen', '-Y', 'sign', '-f', a.sign_key, '-n', 'hao-release',
+                                   rel, rel.parent / 'SHA256SUMS'], rec, where)
+        else:
+            unsigned = ['--unsigned']
+        step('fetch' + suffix, [PY, '-I', 'tools/hao/hao', 'fetch', rel, '--cache', cache, '--assets-from',
+                                rel.parent] + unsigned, rec, where)
+        image = where / 'stick.img'
+        step('create-installer' + suffix, [PY, '-I', 'tools/hao/hao', 'create-installer', '--model', MODEL,
+                                           '--release', rel, '--cache', cache, '--image', image] + unsigned,
+             rec, where)
+        digest = sha256(image)
+        (where / 'stick.img.sha256').write_text('%s  stick.img\n' % digest)
+        entry = dict(kind=kind, path=str(image), size=image.stat().st_size, sha256=digest,
+                     release_json_sha256=sha256(rel), assembly=assembly)
+        rec['phases'] = phases(where / 'logs')
+        print('candidate-cut: %s %s %s stick %s  sha256 %s' % (sha[:8], 'signed' if a.sign_key else 'UNSIGNED', kind,
+                                                               image, digest), flush=True)
+        return entry
 
     try:
         # a commit from before release-cut had --candidate cuts as it did then (recorded)
         candidate = ['--candidate'] if '--candidate' in (tree / 'pipeline/release-cut').read_text() else []
         record['candidate_flag'] = bool(candidate)
-        step('release-cut', [PY, '-I', 'pipeline/release-cut', '--write', rel,
-                             'pipeline/assemblies/%s.json' % a.assembly, '--release', a.release, '--channel', 'dev',
-                             '--version', a.version, '--not-prerelease', '--stage', rel.parent] + candidate)
-        unsigned = []
-        if a.sign_key:
-            step('sign', ['ssh-keygen', '-Y', 'sign', '-f', a.sign_key, '-n', 'hao-release',
-                          rel, rel.parent / 'SHA256SUMS'])
+        entry = stick('release', record, out, a.assembly, candidate)
+        record['sticks'].append(entry)
+        record.update(release_json_sha256=entry['release_json_sha256'], image=entry['path'],
+                      image_size=entry['size'], image_sha256=entry['sha256'])
+        if a.no_dev:
+            record['dev'] = dict(skipped='--no-dev')
+        elif dev_skip(tree, a.dev_assembly):
+            record['dev'] = dict(skipped=dev_skip(tree, a.dev_assembly))
+            print('candidate-cut: no dev stick: %s' % record['dev']['skipped'], file=sys.stderr)
         else:
-            unsigned = ['--unsigned']
-        step('fetch', [PY, '-I', 'tools/hao/hao', 'fetch', rel, '--cache', cache, '--assets-from', rel.parent]
-             + unsigned)
-        step('create-installer', [PY, '-I', 'tools/hao/hao', 'create-installer', '--model', 'MacBookPro9,2',
-                                  '--release', rel, '--cache', cache, '--image', out / 'stick.img']
-             + unsigned)
-        image = out / 'stick.img'
-        digest = sha256(image)
-        (out / 'stick.img.sha256').write_text('%s  stick.img\n' % digest)
-        record.update(release_json_sha256=sha256(rel), image=str(image), image_size=image.stat().st_size,
-                      image_sha256=digest, passed=True)
-        print('candidate-cut: %s %s  image %s  sha256 %s' % (sha[:8], 'signed' if a.sign_key else 'UNSIGNED', image,
-                                                             digest))
+            dev = record['dev'] = dict(assembly=a.dev_assembly, out=str(out / 'dev'), steps=[])
+            (out / 'dev').mkdir()
+            dev_entry = stick('dev', dev, out / 'dev', a.dev_assembly, ['--candidate', '--dev'])
+            dev.update(image=dev_entry['path'], image_size=dev_entry['size'], image_sha256=dev_entry['sha256'],
+                       release_json_sha256=dev_entry['release_json_sha256'], passed=True)
+            record['sticks'].append(dev_entry)
+        record['passed'] = True
         return 0
     except SystemExit:
         record['passed'] = False
-        print('candidate-cut: %s FAILED at %s (see %s)' % (sha[:8], record['steps'][-1]['name'],
-                                                         out / record['steps'][-1]['log']), file=sys.stderr)
+        rec = current['rec']
+        if rec is not record:
+            rec['passed'] = False
+        print('candidate-cut: %s FAILED at %s (see %s)' % (sha[:8], rec['steps'][-1]['name'],
+                                                         out / rec['steps'][-1]['log']), file=sys.stderr)
         return 1
     finally:
+        if 'phases' not in record:
+            record['phases'] = phases(out / 'logs')
+        if isinstance(record.get('dev'), dict) and 'steps' in record['dev'] and 'phases' not in record['dev']:
+            record['dev']['phases'] = phases(out / 'dev' / 'logs')
         record['finished'] = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
         (out / 'candidate.json').write_text(json.dumps(record, indent=1) + '\n')
-        subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=TOP, capture_output=True)
+        worktree[1](tree)
         shutil.rmtree(work, ignore_errors=True)
 
 
