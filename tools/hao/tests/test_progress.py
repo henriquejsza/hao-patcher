@@ -388,3 +388,17 @@ class Hooks(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+
+class RunnerEnv(unittest.TestCase):
+    """installer.prepare_kit passes env= (KIT_ON_DRIVE) through the console's runner: it reaches the process once."""
+    def test_caller_env_reaches_the_process(self):
+        seen = []
+        c = CON.Console('quiet', out=Pipe(), err=Pipe(), env={})
+        with tempfile.TemporaryDirectory() as d:
+            PROG.Runner(c, 'create-installer', log=Path(d) / 'c.log', popen=popen_of('', 0, seen), env={'A': 'b'})(
+                ['true'], env={'KIT_ON_DRIVE': '/Volumes/HAO/.hao-build'})
+        env = seen[0][1]['env']
+        self.assertEqual(env.get('KIT_ON_DRIVE'), '/Volumes/HAO/.hao-build')
+        self.assertEqual(env.get('HAO_EVENTS'), '1')
