@@ -1,5 +1,5 @@
 {
- "revision": 16,
+ "revision": 17,
  "pack": "intel-hd4000",
  "stage": "post",
  "inputs": [
@@ -664,7 +664,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.list",
@@ -673,7 +675,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/31001/libraries.data",
@@ -682,7 +686,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/31001/libraries.list",
@@ -691,7 +697,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.data",
@@ -700,7 +708,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.list",
@@ -709,7 +719,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.data",
@@ -718,7 +730,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list",
@@ -727,7 +741,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/0_0/functions.data",
@@ -736,7 +752,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/0_0/functions.list",
@@ -745,7 +763,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/31001/libraries.data",
@@ -754,7 +774,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/31001/libraries.list",
@@ -763,7 +785,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.data",
@@ -772,7 +796,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.list",
@@ -781,7 +807,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/31001/libraries.data",
@@ -790,7 +818,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/31001/libraries.list",
@@ -799,7 +829,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000b000002r/C/WindowServer/com.apple.WindowServer/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/0_0/functions.data",
@@ -808,7 +840,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/0_0/functions.list",
@@ -817,7 +851,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/31001/libraries.data",
@@ -826,7 +862,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/31001/libraries.list",
@@ -835,7 +873,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000bh00002w/C/com.apple.SecurityAgent/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/0_0/functions.data",
@@ -844,7 +884,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/0_0/functions.list",
@@ -853,7 +895,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/31001/libraries.data",
@@ -862,7 +906,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/31001/libraries.list",
@@ -871,7 +917,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/290985HPWBR7I/modules.idx",
@@ -880,7 +928,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/290985HPWBR7I/modules.idx"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/290985HPWBR7I/modules.idx",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/290985HPWBR7I/monolithic_metal-4JF842TLW74.pcm",
@@ -889,7 +939,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/290985HPWBR7I/monolithic_metal-4JF842TLW74.pcm"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/290985HPWBR7I/monolithic_metal-4JF842TLW74.pcm",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/modules.timestamp",
@@ -898,7 +950,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/modules.timestamp"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.AvatarUI.AvatarPickerMemojiPicker/com.apple.metalfe/modules.timestamp",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/0_0/functions.data",
@@ -907,7 +961,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/0_0/functions.list",
@@ -916,7 +972,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/31001/libraries.data",
@@ -925,7 +983,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/31001/libraries.list",
@@ -934,7 +994,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/3BFB57ANS780/modules.idx",
@@ -943,7 +1005,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/3BFB57ANS780/modules.idx"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/3BFB57ANS780/modules.idx",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/3BFB57ANS780/monolithic_metal-4JF842TLW74.pcm",
@@ -952,7 +1016,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/3BFB57ANS780/monolithic_metal-4JF842TLW74.pcm"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/3BFB57ANS780/monolithic_metal-4JF842TLW74.pcm",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/modules.timestamp",
@@ -961,7 +1027,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/modules.timestamp"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.SetupAssistant/com.apple.metalfe/modules.timestamp",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/0_0/functions.data",
@@ -970,7 +1038,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/0_0/functions.list",
@@ -979,7 +1049,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/31001/libraries.data",
@@ -988,7 +1060,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/31001/libraries.list",
@@ -997,7 +1071,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.controlcenter/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/0_0/functions.data",
@@ -1006,7 +1082,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/0_0/functions.list",
@@ -1015,7 +1093,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/31001/libraries.data",
@@ -1024,7 +1104,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/31001/libraries.list",
@@ -1033,7 +1115,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.coremedia.videodecoder/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.data",
@@ -1042,7 +1126,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.list",
@@ -1051,7 +1137,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/0_0/functions.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.data",
@@ -1060,7 +1148,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.data"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.data",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list",
@@ -1069,7 +1159,9 @@
     "row": "shader_caches_golden_gate",
     "note": "system account's Metal shader cache, from data.tar (owner as harvested)"
    },
-   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list"
+   "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list",
+   "content": "seed",
+   "reason": "Metal appends to this shader cache on first GPU use"
   }
  ],
  "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": ["intel-ivb"], "firmware": "any"}

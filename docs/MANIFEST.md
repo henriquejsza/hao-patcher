@@ -37,7 +37,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-model-gates-mbp92 | r1 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-native-identities | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
 | golden-gate-root-launchservices | r5 | experiment | post | no: row root_launchservices_golden_gate | - | root_launchservices_golden_gate - root-launchservices-26B131-not-made-yet |
-| golden-gate-shader-caches | r16 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
+| golden-gate-shader-caches | r17 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
 | golden-gate-shared-cache | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 2f5ee391 rebuilt-cache-fold-in-26B131-20261117-2b471bea |
 | golden-gate-shared-cache-catalog | r4 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog d56244ea rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e |
 | golden-gate-store | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
@@ -171,7 +171,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `private/var/db/auth.db`: from hao (row root_launchservices_golden_gate)
   - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: from hao (row root_launchservices_golden_gate)
   - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore`: from hao (row root_launchservices_golden_gate)
-- **golden-gate-shader-caches** r16
+- **golden-gate-shader-caches** r17
   - 72 files under `Library/Application Support/PerUserSeed/metal/`, from hao (row shader_caches_golden_gate)
   - 46 files under `private/var/folders/zz/`, from hao (row shader_caches_golden_gate)
 - **golden-gate-shared-cache** r9
@@ -498,7 +498,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-metal-framebuffer r13 is newer than every image built with it (newest r10).
 - golden-gate-metal-libraries r23 is newer than every image built with it (newest r21).
 - golden-gate-native-identities r11 is newer than every image built with it (newest r6).
-- golden-gate-shader-caches r16 is newer than every image built with it (newest r14).
+- golden-gate-shader-caches r17 is newer than every image built with it (newest r14).
 - golden-gate-shared-cache r9 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r4 is newer than every image built with it (newest r1).
 - golden-gate-store r6 is newer than every image built with it (newest r4).
