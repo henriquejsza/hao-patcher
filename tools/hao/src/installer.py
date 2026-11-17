@@ -381,7 +381,7 @@ def create_installer(a, c, host, acquire=None):
     if getattr(a, 'kit', None) and not getattr(a, 'assembly', None):
         a.assembly = kit_assembly(a.kit)
     ask_mac(a, c, host, release)
-    a.sources = [str(p) for p in (TOP, cache) if p.exists()]
+    a.sources = input_paths(a, cache, release_path)
     if image:
         info = dict(DeviceIdentifier='image', MediaName=str(image), TotalSize=a.image_size)
     else:
@@ -502,6 +502,22 @@ def finish_kit(a, c, kit):
     c.item('removed the staged kit from this Mac (the USB installer has it)', 'steps', ok=True)
     return ['%s on this Mac: the staged kit is on the USB installer now (--keep-kit keeps it)'
             % ('%s freed' % human_size(freed) if freed >= 1 << 20 else 'Space freed')]
+
+
+def input_paths(a, cache, release_path):
+    """Every place create-installer reads from or works in, as existing paths (a path not made yet: its nearest
+    existing folder; a link: where it points too): the drive that holds any of them is never erased."""
+    out = []
+    for p in [TOP, cache, release_path] + [getattr(a, k, None) for k in ('kit', 'basesystem', 'opencore', 'work')]:
+        if not p:
+            continue
+        p = Path(p).expanduser()
+        for q in (p, p.resolve()):
+            while not q.exists() and q != q.parent:
+                q = q.parent
+            if str(q) not in out:
+                out.append(str(q))
+    return out
 
 
 def lock_path(*argv):
