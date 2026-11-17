@@ -97,7 +97,14 @@ class FakeMac:
             if argv[3] == '/':
                 return plistlib.dumps({'DeviceIdentifier': self.root_device})
             info = DISKS_INFO.get(argv[3])
+            if info is None and argv[3].endswith('s1'):
+                info = {'MountPoint': '/Volumes/EFI'}
             return None if info is None else plistlib.dumps(dict(info, DeviceIdentifier=argv[3]))
+        if argv[:3] == ['diskutil', 'list', '-plist']:      # the install's end: the target's EFI partition
+            return plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': [
+                {'DeviceIdentifier': argv[3] + 's1', 'Content': 'EFI'}]}]})
+        if argv[:2] == ['diskutil', 'mount'] or argv[0] == 'bless':
+            return b''
         if argv[:4] == ['diskutil', 'apfs', 'list', '-plist']:
             return plistlib.dumps({'Containers': [
                 {'ContainerReference': 'disk1', 'PhysicalStores': [{'DeviceIdentifier': 'disk0s2'}]}]})
@@ -116,7 +123,7 @@ def console(level='steps', answer='ERASE'):
 
 def ns(**kw):
     base = dict(model=None, profile=None, assembly=None, dry_run=True, disk=None, confirm=None, quiet=False,
-                show=False, show_edits=False, log=None, sources=[])
+                show=False, show_edits=False, log=None, sources=[], no_restart=True)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -423,6 +430,10 @@ class BuilderTest(unittest.TestCase):
             # nothing collects a stick's kit: the sealed cryptex images are not stored (they filled the stick)
             self.assertEqual(assemble[4], '--no-cryptex-cache')
             self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'hao-install-')))
+            # the start-up disk is set to OpenCore on the internal disk's EFI partition; --no-restart: no countdown
+            self.assertIn(['bless', '--mount', '/Volumes/EFI', '--file',
+                           '/Volumes/EFI/System/Library/CoreServices/boot.efi', '--setBoot'], host.calls)
+            self.assertNotIn('restart.countdown', [e['ev'] for e in c.events])
 
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
@@ -462,6 +473,49 @@ class BuilderTest(unittest.TestCase):
                 BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), work=str(work)), c, host, run=run)
             self.assertIn('in step boot-and-esp', x.exception.what)
             self.assertTrue(any('--resume %s' % work.resolve() in o for o in x.exception.options))
+
+    def test_install_end_blesses_the_internal_esp(self):
+        esp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__('shutil').rmtree(esp))
+        listing = plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': [
+            {'DeviceIdentifier': 'disk0s1', 'Content': 'EFI'}, {'DeviceIdentifier': 'disk0s2', 'Content': 'Apple_APFS'}]}]})
+
+        class Host:
+            calls = []
+            def run(self, argv, check=True, timeout=120):
+                argv = [str(x) for x in argv]
+                self.calls.append(argv)
+                out = (listing if argv[:2] == ['diskutil', 'list'] else
+                       plistlib.dumps({'MountPoint': str(esp)}) if argv[:2] == ['diskutil', 'info'] else b'')
+                return subprocess.CompletedProcess(argv, 0, out, b'')
+        host = Host()
+        c, out = console('steps')
+        self.assertTrue(BUILD.set_startup_disk(c, host, 'disk0'))
+        self.assertEqual(host.calls[-1], ['bless', '--mount', str(esp), '--file',
+                                          '%s/System/Library/CoreServices/boot.efi' % esp, '--setBoot'])
+        self.assertIn('start-up disk', out.getvalue())
+        c, out = console('steps')
+        listing = plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': []}]})
+        self.assertFalse(BUILD.set_startup_disk(c, host, 'disk0'))    # no EFI partition: a warning, not a stop
+
+    def test_restart_counts_down_and_a_key_cancels(self):
+        class Host:
+            calls = []
+            def run(self, argv, check=True, timeout=120):
+                self.calls.append(list(argv))
+                return subprocess.CompletedProcess(argv, 0, b'', b'')
+        host, c = Host(), console('steps')[0]
+        self.assertTrue(BUILD.restart(c, host, lambda s: False, seconds=3))
+        evs = [e['ev'] for e in c.events]
+        self.assertEqual(evs, ['restart.countdown', 'restart.tick', 'restart.tick', 'restart.tick', 'restart.now'])
+        self.assertEqual(host.calls, [['/sbin/reboot']])
+        host.calls.clear()
+        c, out = console('steps')
+        presses = iter([False, True])
+        self.assertFalse(BUILD.restart(c, host, lambda s: next(presses), seconds=3))
+        self.assertEqual(c.events[-1], dict(c.events[-1], ev='restart.cancelled', left=2))
+        self.assertEqual(host.calls, [])
+        self.assertIn('Not restarting', out.getvalue())
 
     def test_resumable_steps_are_the_assemblers(self):
         spec = importlib.util.spec_from_file_location('gi', BUILD.TOP / 'pipeline' / 'stages' / 'golden-image.py')

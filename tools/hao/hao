@@ -620,6 +620,8 @@ def main():
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
     q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
+    q.add_argument('--no-restart', action='store_true',
+                   help='stay in the Recovery when the install is done (default: restart after a 10 s countdown)')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
     q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')

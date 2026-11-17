@@ -21,6 +21,7 @@ it: the command stops before writing. create-installer writes the stick (install
 """
 import json
 import os
+import plistlib
 from pathlib import Path
 import runpy
 import subprocess
@@ -468,5 +469,79 @@ def install(a, c, host, run=subprocess.call):
     if not getattr(a, 'local', None) and not getattr(a, 'work', None):
         a.work = str(Path(a.kit).resolve().parent / ('hao-install-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))
     work = assemble_onto(a, c, host, path, info, 'internal', run)
-    c.done('macOS 27 installed on /dev/%s; restart to use it' % DISKS.normalize(a.disk), work=str(work))
+    set_startup_disk(c, host, DISKS.normalize(a.disk))
+    wait = None if getattr(a, 'no_restart', False) else (key_within if sys.stdin.isatty() else None)
+    if wait is None:
+        c.done('Installed macOS 27 on /dev/%s; restart to use it' % DISKS.normalize(a.disk), work=str(work))
+        return 0
+    c.done('Installed macOS 27 on /dev/%s' % DISKS.normalize(a.disk), work=str(work))
+    restart(c, host, wait)
     return 0
+
+
+RESTART_SECONDS = 10
+BOOTSTRAP = 'System/Library/CoreServices/boot.efi'     # OpenCore's Bootstrap on the EFI partition (as OCLP installs it)
+
+
+def set_startup_disk(c, host, disk):
+    """Bless the OpenCore Bootstrap on DISK's EFI partition as the startup disk, so a Mac with another bootable disk
+    starts hao's macOS. A Mac with only this disk finds the Bootstrap by itself (owner, laptop 1 after an NVRAM reset),
+    so a failure here is a warning, not a stop. Returns True when blessed."""
+    esp = None
+    try:
+        listing = plistlib.loads(host.run(['diskutil', 'list', '-plist', disk], check=False).stdout or b'')
+        parts = (listing.get('AllDisksAndPartitions') or [{}])[0].get('Partitions', [])
+        esp = next((p['DeviceIdentifier'] for p in parts if p.get('Content') == 'EFI'), None)
+    except (ValueError, KeyError, IndexError):
+        pass
+    if esp is None:
+        c.warning('the start-up disk was not set (no EFI partition found on /dev/%s): choose it in the Option picker' % disk)
+        return False
+    host.run(['diskutil', 'mount', esp], check=False)
+    try:
+        mount = plistlib.loads(host.run(['diskutil', 'info', '-plist', esp], check=False).stdout or b'').get('MountPoint')
+    except ValueError:
+        mount = None
+    r = host.run(['bless', '--mount', mount, '--file', '%s/%s' % (mount, BOOTSTRAP), '--setBoot'], check=False) \
+        if mount else None
+    c.event('startup-disk', disk=disk, esp=esp, mount=mount, ok=bool(r and r.returncode == 0))
+    if not (r and r.returncode == 0):
+        c.warning('the start-up disk was not set (bless on /dev/%s failed): choose it in the Option picker' % esp)
+        return False
+    c.item('start-up disk  OpenCore on /dev/%s' % esp, 'steps', ok=True)
+    return True
+
+
+def key_within(seconds):
+    """True when a key is pressed on the terminal within SECONDS (read without Return; the terminal is restored)."""
+    import select
+    import termios
+    import tty
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        if select.select([fd], [], [], seconds)[0]:
+            os.read(fd, 64)
+            return True
+        return False
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def restart(c, host, wait, seconds=RESTART_SECONDS):
+    """Restart the Mac after a visible countdown that any key cancels (events restart.countdown, restart.tick,
+    restart.cancelled or restart.now: cli renders them). WAIT(1) is True when a key was pressed in that second."""
+    c.event('restart.countdown', seconds=seconds)
+    c.print('Restarting in %d s. Press any key to stay in the Recovery.' % seconds, 'quiet')
+    for left in range(seconds, 0, -1):
+        c.event('restart.tick', left=left)
+        if wait(1):
+            c.event('restart.cancelled', left=left)
+            c.print('Not restarting. Restart from the Apple menu when you are ready.', 'quiet')
+            return False
+    c.event('restart.now')
+    if host.run(['/sbin/reboot'], check=False).returncode:
+        c.warning('the Mac did not restart: restart it from the Apple menu')
+        return False
+    return True
