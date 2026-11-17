@@ -250,21 +250,37 @@ def write_new(path, data, mode=0o644):
     be a real folder), then renamed over PATH (a rename replaces a link at PATH, it does not follow it). For volumes
     whose existing contents are not trusted (an existing USB installer's HAO)."""
     path = Path(path)
-    st = os.lstat(path.parent)
-    if not __import__('stat').S_ISDIR(st.st_mode):
-        raise StickError('%s is not a folder (a link?)' % path.parent)
-    tmp = path.parent / ('.%s.%s.tmp' % (path.name, os.urandom(6).hex()))
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
+    try:            # the folder opened once, without following a link: the file and the rename are relative to it
+        dfd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError:
+        raise StickError('%s is not a folder (a link?)' % path.parent) from None
+    tmp = '.%s.%s.tmp' % (path.name, os.urandom(6).hex())
     try:
-        with os.fdopen(fd, 'wb') as f:
-            f.write(data)
-        os.replace(tmp, path)
-    except BaseException:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode, dir_fd=dfd)
         try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+            with os.fdopen(fd, 'wb') as f:
+                f.write(data)
+            os.replace(tmp, path.name, src_dir_fd=dfd, dst_dir_fd=dfd)
+        except BaseException:
+            try:
+                os.unlink(tmp, dir_fd=dfd)
+            except OSError:
+                pass
+            raise
+    finally:
+        os.close(dfd)
+
+
+def read_plain(path):
+    """PATH's bytes, refusing a link (no-follow open) or anything but a regular file."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as x:
+        raise StickError('%s: not read (%s)' % (path, x.strerror)) from None
+    with os.fdopen(fd, 'rb') as f:
+        if not __import__('stat').S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise StickError('%s is not a regular file' % path)
+        return f.read()
 
 
 def real_folder(path):
@@ -431,12 +447,15 @@ def partition(host, disk, boot_size_mb, expect=None):
 def check_mounts(host, disk, parts):
     """Each saved mount point of PARTS still belongs to DISK (the same partition): nothing is written into a volume
     that took the USB drive's place under /Volumes. Raises StickError."""
-    for name, (dev, mount) in parts.items():
+    for name, part in parts.items():
+        dev, mount = part[0], part[1]
+        uuid = part[2] if len(part) > 2 else None
         try:
             info = _plist(host, 'diskutil', 'info', '-plist', str(mount))
         except Exception:
             info = {}
-        if info.get('DeviceIdentifier') != dev or info.get('ParentWholeDisk', disk) != disk:
+        if info.get('DeviceIdentifier') != dev or info.get('ParentWholeDisk', disk) != disk or \
+                (uuid and (info.get('VolumeUUID') or info.get('DiskUUID')) != uuid):
             raise StickError('%s (%s) is no longer /dev/%s on the USB drive: was it unplugged?' % (mount, name, dev))
 
 
@@ -450,7 +469,7 @@ def mounted_parts(host, disk, when=None):
             if not info.get('MountPoint'):
                 host.run(['diskutil', 'mount', part['DeviceIdentifier']])
                 info = _plist(host, 'diskutil', 'info', '-plist', part['DeviceIdentifier'])
-            found[name] = (part['DeviceIdentifier'], info.get('MountPoint'))
+            found[name] = (part['DeviceIdentifier'], info.get('MountPoint'), info.get('VolumeUUID') or info.get('DiskUUID'))
     missing = [n for n in ('EFI', BOOT_NAME, KIT_NAME) if not (found.get(n) or (None, None))[1]]
     if missing:
         raise StickError('%s, %s is not mounted' % (when or 'on %s' % disk, ', '.join(missing)))
@@ -504,6 +523,7 @@ def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, reco
     rec.update(write_boot(parts['EFI'][1], parts[BOOT_NAME][1], basesystem, opencore_tar))
     step('EFI      OpenCore, as OCLP installs it (Bootstrap + EFI/OC)')
     step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
+    check_mounts(host, disk, parts)
     rec = write_kit(parts[KIT_NAME][1], kit, hao_top, release, rec)
     step('%s      hao, the kit (%.1f GB), install and report' % (KIT_NAME, rec['kit_bytes'] / 1e9))
     host.run(['diskutil', 'unmountDisk', '/dev/' + disk], check=False, timeout=300)
@@ -529,6 +549,7 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
     Returns the updated stick.json."""
     step = on_step or (lambda text: None)
     parts = mounted_parts(host, disk)
+    check_mounts(host, disk, parts)
     esp, boot, top = (Path(parts[n][1]) for n in ('EFI', BOOT_NAME, KIT_NAME))
     info = top / 'stick.json'
     if not info.is_file():
@@ -546,11 +567,11 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
             raise StickError('%s has no Recovery (com.apple.recovery.boot/BaseSystem.dmg): name one' % BOOT_NAME)
     if info.is_symlink():
         raise StickError('%s/stick.json is a link: this drive was changed by something other than hao' % KIT_NAME)
-    rec = json.loads(info.read_text())
+    rec = json.loads(read_plain(info))
     reports = real_folder(top / 'reports')
     logs = sorted(p.name for p in esp.glob('opencore-*.txt') if p.is_file() and not p.is_symlink())
     for name in logs:
-        write_new(reports / name, (esp / name).read_bytes())
+        write_new(reports / name, read_plain(esp / name))
         (esp / name).unlink()
     if logs:
         step('kept %d OpenCore log%s in %s/reports' % (len(logs), '' if len(logs) == 1 else 's', KIT_NAME))
@@ -598,8 +619,13 @@ def rewrite_boot_main(argv):
         return 1
     info, _ = DISKS.describe(host, disk)
     print('The boot partitions (EFI and HAOBOOT) of %s will be written again.' % DISKS.label(info))
+    before = DISKS.identity(host, disk)
     if (a.confirm or input('Type %s to continue: ' % disk)).strip() != disk:
         print('stopped: not confirmed', file=sys.stderr)
+        return 1
+    why = DISKS.recheck(host, disk, before, 'external', 0)
+    if why:
+        print('stopped: /dev/%s was not written: %s' % (disk, why), file=sys.stderr)
         return 1
     try:
         rewrite_boot(host, disk, a.opencore, a.basesystem, log=a.opencore_log, on_step=print)

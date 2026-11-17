@@ -53,6 +53,7 @@ class FakeHost:
     def __init__(self, root):
         self.root, self.calls, self.partitioned = Path(root), [], False
         self.moved = {}                 # mount point -> another disk's partition (a swapped drive)
+        self.uuid = None                # the VolumeUUID diskutil reports for mounted partitions
 
     def run(self, argv, check=True, timeout=120):
         argv = [str(a) for a in argv]
@@ -71,11 +72,12 @@ class FakeHost:
         elif argv[:3] == ['diskutil', 'info', '-plist']:
             devs = {'disk4s1': 'EFI', 'disk4s2': 'HAOBOOT', 'disk4s3': 'HAO'}
             if argv[3] in devs:
-                out = plistlib.dumps({'MountPoint': str(self.root / devs[argv[3]]), 'DeviceIdentifier': argv[3],
-                                      'ParentWholeDisk': 'disk4'})
+                out = plistlib.dumps(dict({'MountPoint': str(self.root / devs[argv[3]]), 'DeviceIdentifier': argv[3],
+                                      'ParentWholeDisk': 'disk4'}, **({'VolumeUUID': self.uuid} if self.uuid else {})))
             else:                               # a mount point: which partition is mounted there now
                 dev = self.moved.get(argv[3]) or {str(self.root / n): d for d, n in devs.items()}.get(argv[3])
-                out = plistlib.dumps({'DeviceIdentifier': dev, 'ParentWholeDisk': dev[:5] if dev else None})
+                out = plistlib.dumps(dict({'DeviceIdentifier': dev, 'ParentWholeDisk': dev[:5] if dev else None},
+                                          **({'VolumeUUID': self.uuid} if self.uuid else {})))
         elif argv[:2] == ['hdiutil', 'attach']:
             out = plistlib.dumps({'system-entities': [{'dev-entry': '/dev/disk7s1'}, {'dev-entry': '/dev/disk7'}]})
         return subprocess.CompletedProcess(argv, 0, out, b'')
@@ -281,6 +283,11 @@ class StickTest(unittest.TestCase):
         host = FakeHost(self.mnt)
         parts = STICK.prepare(host, 'disk4', self.esp, self.bs)
         STICK.check_mounts(host, 'disk4', parts)                 # still the same partitions: fine
+        same_number = dict(parts); same_number[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'), 'OTHER-UUID')
+        host.uuid = 'THIS-UUID'
+        with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s3'):   # same numbers, another volume
+            STICK.check_mounts(host, 'disk4', same_number)
+        host.uuid = None
         host.moved[str(self.mnt / 'HAO')] = 'disk9s2'            # another volume took HAO's place
         parts[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'))
         (self.mnt / 'HAO').rename(self.mnt / 'gone')

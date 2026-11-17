@@ -35,8 +35,8 @@ LABELLED = [
 EMAIL = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
 MAC_ADDRESS = re.compile(r'\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b')
 # a URL's user:password@ and its ?query (signed download links carry tokens there)
-URL_USERINFO = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@"\']+@')
-URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?"\']+)\?[^\s"\']*')
+URL_USERINFO = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@"\']+@', re.I)
+URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?"\']+)\?[^\s"\']*', re.I)
 
 
 def log_dir(env=None, euid=None):
@@ -158,9 +158,9 @@ def scrub(text, private):
 
 def _json(path):
     try:
-        if Path(path).is_symlink():
-            return 'not read: %s is a link' % path
-        return json.dumps(json.loads(Path(path).read_text()), indent=1, default=str)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)      # a link (even one put there just now) is not read
+        with os.fdopen(fd, 'rb') as f:
+            return json.dumps(json.loads(f.read()), indent=1, default=str)
     except (OSError, ValueError) as x:
         return 'unreadable: %s' % x
 

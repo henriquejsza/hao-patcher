@@ -673,6 +673,11 @@ class BuilderTest(unittest.TestCase):
             logs = Path(d) / 'logs'; logs.mkdir()
             os.symlink(victim, logs / 'install-20261117-000000.json')
             self.assertIsNone(REP.last_log([logs]))
+        up = REP.scrub('HTTPS://alice:secret@example.invalid/f?token=secret2', {})
+        self.assertNotIn('secret', up)
+        with tempfile.TemporaryDirectory() as d:
+            os.symlink('/etc/hosts', Path(d) / 'x.json')
+            self.assertTrue(REP._json(Path(d) / 'x.json').startswith('unreadable'))
         text = REP.scrub('fetch https://user:pw@example.invalid/a.dmg?X-Amz-Signature=abc&t=1 ok', {})
         self.assertNotIn('pw', text); self.assertNotIn('abc', text)
         self.assertIn('https://[credentials]@example.invalid/a.dmg?[query] ok', text)

@@ -34,6 +34,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 
@@ -427,15 +428,19 @@ def _copy_new(source, target, prefix):
     that folder beforehand (a link, a file) is written through. Returns its path."""
     if target.parent.is_symlink() or not target.parent.is_dir():
         raise PatchError('%s is not a folder (a link?)' % target.parent)
-    tmp = target.with_name('%s%s.%s' % (prefix, target.name, os.urandom(6).hex()))
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    name = '%s%s.%s' % (prefix, target.name, os.urandom(6).hex())
+    dfd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)   # the folder, opened once, no link
     try:
-        with os.fdopen(fd, 'wb') as out, open(source, 'rb') as src:
-            shutil.copyfileobj(src, out, 1 << 20)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
-    return tmp
+        fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644, dir_fd=dfd)
+        try:
+            with os.fdopen(fd, 'wb') as out, open(source, 'rb') as src:
+                shutil.copyfileobj(src, out, 1 << 20)
+        except BaseException:
+            os.unlink(name, dir_fd=dfd)
+            raise
+    finally:
+        os.close(dfd)
+    return target.parent / name
 
 
 def _install(source, target, want, attributes):
@@ -446,8 +451,11 @@ def _install(source, target, want, attributes):
     return attributes.apply(target, want)
 
 
-def glob_escape(name):
-    return ''.join('[%s]' % ch if ch in '*?[' else ch for ch in name)
+def _no_links_above(resolve, rel):
+    """A link between the root and REL stops the patch (they would take its writes elsewhere)."""
+    for parent in [p for p in Path(rel).parents if str(p) != '.']:
+        if resolve(str(parent)).is_symlink():
+            raise PatchError('%s is a link: a patch never writes through one' % parent)
 
 
 def _attrs_record(a):
@@ -591,6 +599,9 @@ def _write(p, record, folder, resolve, attributes, emit):
               'sha256': row['sha256'], 'old_sha256': now_sha})
     for row in p['attrs']:
         target = resolve(row['path'])
+        _no_links_above(resolve, row['path'])
+        if target.is_symlink():
+            raise PatchError('%s is a link: a patch never changes one' % row['path'])
         if sha256_file(target) != row['sha256']:
             raise PatchError('%s changed while patching' % row['path'])
         entry = dict({k: row[k] for k in ('path', 'pack', 'sha256')}, old_sha256=row['sha256'], attrs_only=True,
@@ -631,11 +642,10 @@ def _undo(record, folder, resolve, attributes, emit):
     sha256, with their attributes; new files removed; then the folders the patch made, when empty."""
     for f in reversed(record['files']):
         target = resolve(f['path'])
-        for parent in [p for p in Path(f['path']).parents if str(p) != '.']:
-            if resolve(str(parent)).is_symlink():
-                raise PatchError('%s is a link: a revert never writes through one' % parent)
-        for cut in target.parent.glob('.hao-patch-%s*' % glob_escape(target.name)):   # a copy cut short
-            if not cut.is_symlink():
+        _no_links_above(resolve, f['path'])
+        cut_name = re.compile(r'\.hao-patch-%s\.[0-9a-f]{12}\Z' % re.escape(target.name))
+        for cut in target.parent.iterdir() if target.parent.is_dir() else []:      # a copy cut short: exactly ours
+            if cut_name.match(cut.name) and cut.is_file() and not cut.is_symlink():
                 cut.unlink(missing_ok=True)
         if f['old_sha256'] is None:
             if target.exists() or target.is_symlink():

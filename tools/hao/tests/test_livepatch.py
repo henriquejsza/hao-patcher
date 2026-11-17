@@ -116,6 +116,26 @@ class ApplyRevert(Base):
                      self.root, self.state, now=T0)
         self.assertEqual(list(outside.iterdir()), [])
 
+    def test_revert_cleans_up_only_its_own_copies(self):
+        rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
+        keep = self.metal.with_name('.hao-patch-Metalnotes.txt'); keep.write_text('not ours')
+        ours = self.metal.with_name('.hao-patch-Metal.0123456789ab'); ours.write_bytes(b'cut short')
+        LP.revert(self.root, self.state, patch_id=rec['id'])
+        self.assertTrue(keep.exists())
+        self.assertFalse(ours.exists())
+
+    def test_attributes_only_never_go_through_a_link(self):
+        outside = self.d / 'outside'; (outside).mkdir()
+        (outside / 'libsame.dylib').write_bytes(b'same')
+        (self.root / 'usr/lib').rename(self.d / 'lib-moved')
+        os.symlink(outside, self.root / 'usr/lib')
+        o = self.overlay('attrs', 'live-capable', {'usr/lib/libsame.dylib': b'same'})
+        m = json.loads((o / 'manifest.json').read_text()); m['files']['usr/lib/libsame.dylib']['mode'] = '0700'
+        (o / 'manifest.json').write_text(json.dumps(m))
+        with self.assertRaises(LP.PatchError):
+            LP.apply([LP.load_overlay(o)], self.root, self.state, now=T0)
+        self.assertNotEqual(oct(os.stat(outside / 'libsame.dylib').st_mode & 0o777), '0o700')
+
     def test_revert_refuses_files_changed_since(self):
         rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
         self.metal.write_bytes(b'someone else')
