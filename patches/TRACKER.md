@@ -48,7 +48,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | metal-compiler-compat | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
-| opencore-generic | r1 | post | experiment |  |  |  |  |  | **needs** | r1 2026-11-17 New (GEN1): SMBIOS iMac20,1 with a per-image identity, VirtualSMC, and the QEMU reference's firm |
+| opencore-generic | r2 | post | experiment |  |  |  |  |  | **needs** | r2 2026-11-17 Adds CryptexFixup (from OCLP's payload in row oclp_source, the pinned bytes): the modified OS cr |
 | opencore-mbp92 | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | rec-audio | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it  |
 | rec-bluetooth-input | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. |
