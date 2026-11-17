@@ -65,6 +65,7 @@ named on failure (the USB installer's logs folder when run from the USB installe
 --deferred FILE, else from deferred.json beside the overlays (the materialiser's output folder), when there is one.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -91,6 +92,7 @@ import run as RUN        # noqa: E402
 import aot as AOT        # noqa: E402
 import doctor as DOCTOR  # noqa: E402
 import safety as SAFE    # noqa: E402
+import signing as SIGN   # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -625,6 +627,7 @@ def cmd_fetch(a, c):
                                                                                  else []))
         if r.returncode:
             return r.returncode
+    a.release = signed_release(a, c, a.release)
     try:
         rows = acquire['load'](a.release, a.assets_from)
     except acquire['AcquireError'] as x:
@@ -720,6 +723,71 @@ def cmd_assets(a, c):
     return 0
 
 
+def signed_args(q):
+    q.add_argument('--unsigned', action='store_true',
+                   help='(developers, in a hao checkout only) use a release.json that has no signature')
+
+
+def signed_release(a, c, path, required=True):
+    """PATH (a release.json) checked against its PATH.minisig and the release keys hao carries, before anything in
+    it is read; returns the private verified copy every later step uses. Exit 4 when the signature is missing or
+    does not match; --unsigned (a checkout only) skips the check and says so."""
+    path = Path(path)
+    if not path.exists() and not required:
+        return None
+    if getattr(a, 'unsigned', False):
+        if not (REPO / '.git').exists():
+            raise CON.Stopped('--unsigned is refused: this hao is a release, not a checkout',
+                              why='a release is used only when the owner\'s signature on it holds', code=5)
+        c.item('%s: signature not checked (--unsigned, a checkout)' % path, ok=False, ev='release.signature',
+               checked=False)
+        return path
+    try:
+        copy, kid, comment = SIGN.verified_release(path)
+    except SIGN.SignatureError as x:
+        raise CON.Stopped('%s is not signed by hao: %s' % (path, x),
+                          why='hao reads a release only when the signature beside it (%s.minisig) is the owner\'s'
+                              % path.name,
+                          untouched='nothing was downloaded or written',
+                          options=['download the release again from its GitHub release page'], code=4)
+    c.item('%s signed (key %s, %s)' % (path.name, kid, comment), 'files', ok=True, ev='release.signature',
+           checked=True, key=kid, comment=comment)
+    return copy
+
+
+def signed_create(a, c):
+    """create-installer: the release beside hao (or --release) verified first; a --kit build may have none."""
+    path = Path(a.release) if a.release else HERE / 'release.json'
+    if path.exists():                    # none at all: create-installer itself says so (or a --kit build needs none)
+        a.release = str(signed_release(a, c, path))
+    return a
+
+
+def stick_release(a, c):
+    """The install step: the USB installer's release.json checked against its signature and against the sha256 the
+    drive's stick.json recorded when it was written. A drive written from a checkout carries no release."""
+    stick = os.environ.get('HAO_STICK')
+    if not stick:
+        return
+    rel = Path(stick) / 'release.json'
+    try:
+        recorded = json.loads((Path(stick) / 'stick.json').read_text()).get('release_sha256')
+    except (OSError, ValueError, AttributeError):
+        recorded = None
+    if not rel.exists():
+        if recorded:
+            raise CON.Stopped('the USB installer\'s release.json is gone (stick.json records one)',
+                              why='the drive was changed after it was written', code=4,
+                              options=['write the USB installer again: sudo ./hao create-installer'])
+        c.item('this USB installer was written from a checkout: no release to check', 'files')
+        return
+    copy = signed_release(a, c, rel)
+    if recorded and copy != rel and hashlib.sha256(Path(copy).read_bytes()).hexdigest() != recorded:
+        raise CON.Stopped('the USB installer\'s release.json is not the one it was written with',
+                          why='the drive was changed after it was written', code=4,
+                          options=['write the USB installer again: sudo ./hao create-installer'])
+
+
 def kit_args(q):
     q.add_argument('--kit', help='a staged kit folder (on the USB installer: /Volumes/HAO/kit)')
     q.add_argument('--work', help='build folder (default ~/Library/Caches/hao/builds/DATE)')
@@ -769,7 +837,7 @@ def main():
     q.add_argument('--out', help='the profile file to write (default hao-profile-MODEL-DATE.json here)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_detect))
-    q = sub.add_parser('fetch'); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
+    q = sub.add_parser('fetch'); signed_args(q); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
     q.add_argument('--verify', action='store_true'); q.add_argument('--host-check', action='store_true')
     q.add_argument('--assets-from', help='fetch the release assets from this folder or URL prefix first')
     CON.add_level_flags(q); q.set_defaults(fn=guarded(cmd_fetch))
@@ -814,14 +882,18 @@ def main():
     q.add_argument('--keep-kit', action='store_true',
                    help='keep the kit staged on this Mac (default: removed once the USB installer is written and checked)')
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
-    q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(a, c, MAC.SystemHost(), acquire=PROG.download_view(
+    signed_args(q)
+    q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(signed_create(a, c), c, MAC.SystemHost(),
+                                                                 acquire=PROG.download_view(
         c, runpy.run_path(str(INST.ACQUIRE)), INST.origin_of)), log='create-installer'))
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
     q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
     q.add_argument('--no-restart', action='store_true',
                    help='stay in the Recovery when the install is done (default: restart after a 10 s countdown)')
-    q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
+    signed_args(q)
+    q.set_defaults(fn=guarded(lambda a, c: (stick_release(a, c), BUILD.install(a, c, MAC.SystemHost(), run=c.run))[1],
+                              log='install'))
     q = sub.add_parser('run', help='an ARM program through the hao runtime, with its diagnostic switches')
     q.add_argument('-v', dest='verbose', action='count', default=0, help='diagnostics (-vv for more)')
     q.add_argument('--interp', action='store_true', help='the interpreter only')

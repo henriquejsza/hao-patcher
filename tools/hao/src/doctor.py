@@ -7,6 +7,8 @@ Checks, each ok, warn (reported, not stopping) or fail (stopping):
   xcode     Xcode and its Metal toolchain (the Metal rows are made with them); its version is the pinned one for a
             byte-for-byte release proof
   macos     the host macOS against the oldest one a build was made on (older is reported, not refused)
+  signature release.json is signed by a key hao carries (release.json.minisig, src/signing.py); for --for release the
+            keys themselves must be there
   disk      free space against the release's peak (src/space.py), when there is a release.json
   urls      a HEAD request for each URL release.json downloads from (--offline skips it)
   mirror    each download has a mirror besides Apple's CDN (required for --for release)
@@ -118,6 +120,23 @@ def check_macos(p, mac=None):
     return [check('macos', 'ok', 'macOS %s' % have)]
 
 
+def check_signature(release, purpose, keys_path=None):
+    import signing as SIGN
+    keys_path = keys_path or SIGN.KEYS
+    if not release:
+        if purpose == 'release':
+            try:
+                SIGN.load_keys(keys_path)
+            except SIGN.SignatureError as x:
+                return [check('signature', 'fail', str(x), 'the owner\'s public key goes in tools/hao/data/release-keys.pub')]
+        return [check('signature', 'warn', 'no release.json beside hao: no signature to check')]
+    try:
+        _, kid, comment = SIGN.verified_release(release, SIGN.load_keys(keys_path))
+    except SIGN.SignatureError as x:
+        return [check('signature', 'fail', 'release.json: %s' % x, 'download the release again from its GitHub page')]
+    return [check('signature', 'ok', 'release.json signed (key %s, %s)' % (kid, comment))]
+
+
 def check_disk(release, cache):
     if not release:
         return [check('disk', 'warn', 'no release.json beside hao: the space needed is not known')]
@@ -187,6 +206,7 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
         out += check_shebangs(p, run=run)
     out += check_xcode(purpose, p, run) + check_macos(p, mac)
     if purpose != 'ci':
+        out += check_signature(release, purpose)
         out += check_disk(release, cache or Path.home() / 'Library' / 'Caches' / 'hao')
         out += check_urls(release, p, offline, opener) + check_mirror(release, purpose)
     return out

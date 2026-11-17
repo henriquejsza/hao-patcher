@@ -357,6 +357,9 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     (mount / 'reports').mkdir(exist_ok=True)
     if release:
         shutil.copyfile(release, mount / 'release.json')
+        sig = Path(str(release) + '.minisig')          # its signature, checked again by hao install
+        if sig.is_file():
+            shutil.copyfile(sig, mount / 'release.json.minisig')
     rec = dict(record or {})
     rec.update(schema=1, kit_json_sha256=sha256(kit / 'kit.json'), kit_bytes=kit_bytes(mount / 'kit'),
                hard_links=[[str(Path(a).relative_to(mount)), str(Path(b).relative_to(mount))] for a, b in linked],
