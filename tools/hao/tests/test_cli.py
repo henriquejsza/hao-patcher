@@ -63,6 +63,7 @@ class FakeMac:
         self.root_device = root_device
         self.df = {}
         self.calls = []
+        self.data_mount = None      # where the installed Data volume (disk1s2) is mounted, if anywhere
 
     def run(self, argv, check=True, timeout=120):
         argv = [str(a) for a in argv]
@@ -96,6 +97,8 @@ class FakeMac:
         if argv[:3] == ['diskutil', 'info', '-plist']:
             if argv[3] == '/':
                 return plistlib.dumps({'DeviceIdentifier': self.root_device})
+            if argv[3] == 'disk1s2':
+                return plistlib.dumps({'MountPoint': self.data_mount} if self.data_mount else {})
             info = DISKS_INFO.get(argv[3])
             if info is None and argv[3].endswith('s1'):
                 info = {'MountPoint': '/Volumes/EFI'}
@@ -107,7 +110,10 @@ class FakeMac:
             return b''
         if argv[:4] == ['diskutil', 'apfs', 'list', '-plist']:
             return plistlib.dumps({'Containers': [
-                {'ContainerReference': 'disk1', 'PhysicalStores': [{'DeviceIdentifier': 'disk0s2'}]}]})
+                {'ContainerReference': 'disk1', 'PhysicalStores': [{'DeviceIdentifier': 'disk0s2'}],
+                 'Volumes': [{'DeviceIdentifier': 'disk1s1', 'Roles': ['System']},
+                             {'DeviceIdentifier': 'disk1s2', 'Roles': ['Data']}]}]})
+
         if argv[:2] == ['df', '-P']:
             lines = ['Filesystem 512-blocks Used Available Capacity Mounted on']
             for s in argv[2:]:
@@ -434,6 +440,30 @@ class BuilderTest(unittest.TestCase):
             self.assertIn(['bless', '--mount', '/Volumes/EFI', '--file',
                            '/Volumes/EFI/System/Library/CoreServices/boot.efi', '--setBoot'], host.calls)
             self.assertNotIn('restart.countdown', [e['ev'] for e in c.events])
+
+    def test_install_writes_the_install_record_on_the_data_volume(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{"schema": 1}')
+            host.data_mount = str(Path(d) / 'Data')
+            c, out = console('files')
+            ran, run = self.fake_run()
+            self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
+            path = Path(d) / 'Data/private/var/db/hao/install-record.json'
+            r = json.loads(path.read_text())
+            self.assertEqual(oct(path.stat().st_mode & 0o777), '0o644')
+            for key in ('date', 'release', 'golden_build', 'donor_build', 'model', 'board_id', 'packs', 'recipes', 'kit',
+                        'disk'):
+                self.assertIn(key, r)
+            self.assertEqual((r['schema'], r['model'], r['disk'], r['command']), (1, 'MacBookPro9,2', 'disk0', 'install'))
+            self.assertEqual(r['board_id'], 'Mac-6F01561E16C75D06')
+            self.assertEqual(r['kit']['kit_json_sha256'], hashlib.sha256(b'{"schema": 1}').hexdigest())
+            self.assertTrue(r['recipes'] and all(isinstance(v, int) for v in r['recipes'].values()), r['recipes'])
+            self.assertEqual(sorted(sum(r['recipes_by_pack'].values(), [])), sorted(r['recipes']))
+            self.assertIn('install record', out.getvalue())
+            host.data_mount = None                  # no Data volume mounted (and mounting does not help): a warning
+            c, _ = console('quiet')
+            self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
 
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
