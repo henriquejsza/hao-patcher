@@ -576,6 +576,49 @@ class BuilderTest(unittest.TestCase):
             finally:
                 os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
 
+    def test_unknown_or_unproven_mac_stops_unless_unproven(self):
+        proven = DETECT.profile(DETECT.facts(FakeMac()))
+        self.assertEqual(BUILD.unproven(proven), [])
+        # a GPU no rule knows (a GT 650M in place of the HD 4000), and an unproven model
+        odd = DETECT.profile(DETECT.facts(FakeMac(model='MacBookPro9,1', devices=[pci(0x10de, 0x0fd5, 0x030000, 'display')]
+                                                                          + LAPTOP_PCI[1:])))
+        self.assertTrue(odd['unknown'][0]['device'].startswith('10de:'), odd['unknown'])
+        reasons = BUILD.unproven(odd)
+        self.assertTrue(any(r.startswith('unknown GPU 10de:') for r in reasons), reasons)
+        self.assertTrue(any('MacBookPro9,1' in r for r in reasons), reasons)
+        for command in BUILD.GATED:
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.proof_gate(ns(), c, odd, command)
+            self.assertEqual(x.exception.code, 5)
+            self.assertIn('--unproven', ' '.join(x.exception.options))
+        c, _ = console('quiet')
+        a = ns(unproven=True)
+        BUILD.proof_gate(a, c, odd, 'install')               # allowed, and kept for the install record
+        self.assertEqual(a.unproven_reasons, reasons)
+        self.assertIn('unproven', [e['ev'] for e in c.events])
+        a = ns()
+        BUILD.proof_gate(a, c, odd, 'build-image')           # not an install: plan's own check (builder) applies
+        self.assertEqual(a.unproven_reasons, [])
+
+    def test_unproven_install_is_in_the_record_and_the_launcher(self):
+        c, _ = console('quiet')
+        a = ns(kit=None)
+        a.unproven_reasons = ['MacBookPro9,1 is not a proven model']
+        rec = BUILD.install_record(a, c, {'model': 'MacBookPro9,1', 'packs': []}, Path('x.json'), {}, {}, 'disk0')
+        self.assertEqual(rec['unproven'], ['MacBookPro9,1 is not a proven model'])
+        sys.path.insert(0, str(TOOL / 'src'))
+        import stick as STICK
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            top = Path(d) / 'top'; (top / 'tools/hao').mkdir(parents=True); (top / 'tools/hao/hao').write_text('')
+            mount = Path(d) / 'HAO'; mount.mkdir()
+            STICK.write_kit(mount, kit, top, record={'assembly': 'a1', 'unproven': ['x']})
+            self.assertIn('--assembly a1 --unproven "$@"', (mount / 'install').read_text())
+            mount2 = Path(d) / 'HAO2'; mount2.mkdir()
+            STICK.write_kit(mount2, kit, top, record={'assembly': 'a1', 'unproven': []})
+            self.assertNotIn('--unproven', (mount2 / 'install').read_text())
+
     def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
         hao = __import__('runpy').run_path(str(TOOL / 'hao'), run_name='hao_module')
         def last(command, text):

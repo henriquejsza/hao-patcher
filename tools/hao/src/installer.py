@@ -443,7 +443,8 @@ def create_installer(a, c, host, acquire=None):
     record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
                   target=asm['target'], assembly=path.stem, golden_build=asm['golden_build'],
                   donor_build=asm['donor_build'], basesystem=Path(basesystem).name,
-                  hao_commit=BUILD.release_of()[1])      # the install record names it (a dev drive has no git)
+                  hao_commit=BUILD.release_of()[1],      # the install record names it (a dev drive has no git)
+                  unproven=list(getattr(a, 'unproven_reasons', None) or []))   # its install launcher passes --unproven
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)

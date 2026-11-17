@@ -216,9 +216,45 @@ def recipes_by_pack(asm, profile):
     return out
 
 
+# Commands that put macOS on a Mac (or the drive that will): they refuse an unknown or unproven Mac unless --unproven
+GATED = ('install', 'create-installer', 'build-disk')
+
+
+def unproven(profile):
+    """Why PROFILE is not a proven Mac (PROTOCOL S10): an unknown GPU, a pack with no proof on this model, a model
+    that is not proven. Empty when it is."""
+    out = ['unknown GPU %s%s: no rule picks its packs' % (d['device'], ' (%s)' % d['name'] if d.get('name') else '')
+           for d in profile.get('unknown') or [] if d.get('role') == 'gpu']
+    packs = [n for n, ok in (profile.get('proven') or {}).items() if not ok]
+    if packs:
+        out.append('packs not proven on %s: %s' % (profile.get('model'), ', '.join(packs)))
+    if not profile.get('proven_model') and not packs:
+        out.append('%s is not a proven model' % profile.get('model'))
+    return out
+
+
+def proof_gate(a, c, profile, command):
+    """Stop COMMAND (exit 5) on an unknown or unproven Mac unless --unproven; with it, warn and keep the reasons for
+    the install record (a.unproven_reasons)."""
+    reasons = unproven(profile) if command in GATED else []
+    a.unproven_reasons = reasons
+    if not reasons:
+        return
+    c.event('unproven', reasons=reasons, allowed=bool(getattr(a, 'unproven', False)))
+    if getattr(a, 'unproven', False):
+        c.warning('installing on a Mac hao has not proven (--unproven, kept in the install record): %s'
+                  % '; '.join(reasons))
+        return
+    raise Stopped('%s is not a Mac hao has proven' % profile.get('model'), why='; '.join(reasons), code=5,
+                  untouched='nothing was downloaded or written',
+                  options=['use a proven Mac (hao detect shows what it finds)',
+                           'or, to try it anyway, run the same command with --unproven: the install record keeps it'])
+
+
 def resolve(a, c, command):
     """Profile, assembly and recipes, shown on C; the common head of every builder command."""
     profile = mac(a)
+    proof_gate(a, c, profile, command)
     path, asm = assembly(getattr(a, 'assembly', None), profile)
     groups = recipes_by_pack(asm, profile)
     proven = 'proven model %s' % c.ok if profile.get('proven_model') else 'not proven on this model'
@@ -537,7 +573,7 @@ def install_record(a, c, profile, path, asm, groups, disk, kit=None, now=None):
                 recipes=recipes, recipes_by_pack={k: list(v) for k, v in groups.items()},
                 kit=dict(kit_json_sha256=_sha256(kit_json)) if kit_json and kit_json.is_file() else None,
                 disk=disk, command='install' if getattr(a, 'kit', None) else 'build-disk',
-                manifests=str(MANIFESTS))
+                manifests=str(MANIFESTS), unproven=list(getattr(a, 'unproven_reasons', None) or []))
 
 
 def data_volume(host, disk):

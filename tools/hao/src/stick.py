@@ -45,7 +45,7 @@ case $(uname -m) in x86_64) PY=$D/kit/py-x86_64 ;; *) PY=$D/kit/py ;; esac
 exec "$PY/bin/python3.12" -I "$D/hao/tools/hao/hao" %(cmd)s %(args)s"$@"
 '''
 LAUNCHERS = {
-    'install': dict(what='Install macOS 27', cmd='install', args='--kit "$D/kit" %(assembly)s'),
+    'install': dict(what='Install macOS 27', cmd='install', args='--kit "$D/kit" %(assembly)s%(unproven)s'),
     'report': dict(what='A report for a GitHub issue', cmd='report', args='--output "$D/reports/hao-report-$(date +%Y%m%d-%H%M%S).txt" '),
 }
 SKIP = {'store', '.git', '__pycache__', '.DS_Store', '.claude'}
@@ -350,7 +350,8 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     assembly = (record or {}).get('assembly')
     for name, fill in LAUNCHERS.items():
         p = mount / name
-        fill = dict(fill, args=fill['args'] % {'assembly': '--assembly %s ' % shlex.quote(assembly) if assembly else ''}
+        fill = dict(fill, args=fill['args'] % {'assembly': '--assembly %s ' % shlex.quote(assembly) if assembly else '',
+                                               'unproven': '--unproven ' if (record or {}).get('unproven') else ''}
                     if '%(assembly)s' in fill['args'] else fill['args'])
         p.write_text(LAUNCHER % fill)
         p.chmod(0o755)

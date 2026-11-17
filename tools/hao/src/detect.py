@@ -142,7 +142,9 @@ def profile(f, packs=None, rules=None):
             'matched': [{'device': '%s:%s' % (d['vendor'], d['device']), 'role': d['role'], 'family': r['family'],
                          'patchsets': r['patchsets']} for d, r in matched],
             'oclp_patchsets': patchsets, 'patchsets_source': source, 'packs': chosen, 'proven': proven,
-            'proven_model': bool(chosen) and all(proven.values()), 'notes': notes}
+            'proven_model': bool(chosen) and all(proven.values()), 'notes': notes,
+            'unknown': [{'role': d['role'], 'device': '%s:%s' % (d['vendor'], d['device']), 'name': d.get('name')}
+                        for d in unknown]}
 
 
 def for_model(model, packs=None):
