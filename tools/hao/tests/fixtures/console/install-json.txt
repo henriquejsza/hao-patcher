@@ -1,0 +1,42 @@
+{"argv": ["sh", "/Volumes/HAO/kit/assembly-source/golden-assemble.sh", "/nonexistent/kit", "/nonexistent/local"], "ev": "backend", "t": 0.0}
+{"ev": "step.start", "index": 1, "of": 7, "step": "Lay out the disk", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  copy the installer's tools and Python", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  copy the installer's tools and Python"}
+{"ev": "task.start", "t": 0.0, "text": "  GPT partition map and an APFS container", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  GPT partition map and an APFS container"}
+{"ev": "step.start", "index": 2, "of": 7, "step": "Copy macOS 27", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  the System volume, from the installer's filesystem image", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  the System volume, from the installer's filesystem image"}
+{"ev": "task.start", "t": 0.0, "text": "  Data, Preboot, Recovery and VM volumes", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  Data, Preboot, Recovery and VM volumes"}
+{"ev": "step.start", "index": 3, "of": 7, "step": "Add Intel support", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  Tahoe's Intel drivers, the Data template and firmlinks", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  Tahoe's Intel drivers, the Data template and firmlinks"}
+{"ev": "task.start", "t": 0.0, "text": "  Intel boot files and the EFI partition", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  Intel boot files and the EFI partition"}
+{"ev": "task.start", "t": 0.0, "text": "  OCLP's legacy hardware support: graphics, Wi-Fi, audio", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  OCLP's legacy hardware support: graphics, Wi-Fi, audio"}
+{"ev": "step.start", "index": 4, "of": 7, "step": "Link the kernel", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  kernel collections linked with Tahoe's kmutil", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  kernel collections linked with Tahoe's kmutil"}
+{"ev": "step.start", "index": 5, "of": 7, "step": "Apply packs", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  base                   build the system cryptex (the shared cache); the longest step", "total": null, "unit": null}
+{"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  base                   build the system cryptex (the shared cache); the longest step"}
+{"ev": "task.start", "t": 0.0, "text": "  metal-3802             recipe 2", "total": null, "unit": null}
+{"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  metal-3802             recipe 2"}
+{"ev": "task.start", "t": 0.0, "text": "  other fixes            recipe 3", "total": null, "unit": null}
+{"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  other fixes            recipe 3"}
+{"bytes": 0, "ev": "pack.applied", "files": 0, "ok": true, "pack": "base", "recipes": ["golden-gate-userspace"], "t": 0.0, "text": "base                   1 recipe"}
+{"bytes": 0, "ev": "pack.applied", "files": 0, "ok": true, "pack": "metal-3802", "recipes": ["golden-gate-hello"], "t": 0.0, "text": "metal-3802             1 recipe"}
+{"bytes": 0, "ev": "pack.applied", "files": 0, "ok": true, "pack": "(no pack)", "recipes": ["golden-gate-store"], "t": 0.0, "text": "other fixes            1 recipe"}
+{"ev": "step.start", "index": 6, "of": 7, "step": "Seal", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  update Preboot, bless, take the system snapshot", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  update Preboot, bless, take the system snapshot"}
+{"ev": "step.start", "index": 7, "of": 7, "step": "Make it bootable", "t": 0.0}
+{"ev": "task.start", "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 1", "total": null, "unit": null}
+{"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 1"}
+{"ev": "task.start", "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 2", "total": null, "unit": null}
+{"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 2"}
+{"ev": "posts.applied", "ok": true, "recipes": ["hao-opencore", "golden-gate-shader-caches"], "t": 0.0, "text": "settings, caches and the OpenCore configuration  2 recipes"}
+{"ev": "task.start", "t": 0.0, "text": "  unmount the new volumes", "total": null, "unit": null}
+{"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  unmount the new volumes"}
