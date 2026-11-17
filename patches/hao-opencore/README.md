@@ -171,6 +171,12 @@ must still die with VM guard flavor 13 (status 137), which shows the fix leaves 
 has a 15-second alarm. Finally load a website in Safari and scroll, navigate and reload.
 
 ## Validation
+NEEDS VALIDATION (r69): row `kernel_repair_efi` -> kernel-repairs-26B131-r44, whose IntelCommpage drops the
+`ic_csr_internal` probe and carries the Sandbox adapter fix. Needs a laptop boot in which:
+- the kernel log shows "IntelCommpage: Sandbox profile operation layout adapter installed" and no `ic_csr_internal`
+  line;
+- `strings` of the loaded kext has no `ic_csr_internal`;
+- every check from r68 still holds.
 NEEDS VALIDATION: r52 drops `ic_csr_internal=1` (host tests); needs a laptop boot proving OCLP's Metal still loads
 (dyld edit) and mobileassetd uses the public asset server. r50 writes `Misc.Debug.Target` 0 and never the measurement switches (host tests); not built or
 booted yet. With dev-diagnostics after it, a dev set's config.plist is unchanged (the real-config test on a
@@ -189,6 +195,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no longer carries the `ic_csr_internal` probe, and the Sandbox adapter rewrites a shared modifier list once. config.plist is byte-identical to r42's; only IntelCommpage's executable changes.
 - r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refuse a boot-args value without one); `-pmap_pcid_disable` is recorded as not known to be needed (a 2026-11-02 isolation test that did not change the stall). Declaration only: nothing it installs changes.
 - r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the new recipe opencore-mbp92 (pack mbp92), which runs just before this one; it adds no kext on any recorded build, so the config is the same.
 - r66 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
