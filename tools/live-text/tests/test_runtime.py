@@ -113,24 +113,51 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn(str(folder/name), needed)
         self.assertEqual(record['inputs']['MPSNDArray.metallib']['source'], runtime.SOURCE_METALLIB)
 
-    @unittest.skipUnless(HOST_DETECTOR.is_dir(), 'host has no TextRecognition detector')
-    def test_recognizes_text_with_the_runtime(self):
-        folder, _ = self.build('host', HOST_DETECTOR)
-        probe = clang(self.root/'ocr_probe', '-fobjc-arc', FIXTURES/'ocr_probe.m', '-framework', 'Foundation',
-                      '-framework', 'CoreGraphics', '-framework', 'CoreText', '-framework', 'Vision')
-        # A private home: e5rt keeps compiled models in ~/Library/Caches/ocr_probe, and an earlier run's entries point
-        # at that run's (deleted) build folder, which fails the compile.
-        home = self.root/'home'
-        (home/'Library/Caches').mkdir(parents=True)
+    def recognize(self, home):
+        """ocr_probe with the host runtime loaded and HOME as its home (e5rt keeps compiled models in
+        HOME/Library/Caches/ocr_probe; a shared one would hold an earlier run's entries, which point at that run's
+        deleted build folder and fail the compile)."""
+        if not hasattr(type(self), 'host_folder'):
+            type(self).host_folder, _ = self.build('host', HOST_DETECTOR)
+            type(self).probe = clang(self.root/'ocr_probe', '-fobjc-arc', FIXTURES/'ocr_probe.m', '-framework',
+                                     'Foundation', '-framework', 'CoreGraphics', '-framework', 'CoreText',
+                                     '-framework', 'Vision')
+        (home/'Library/Caches').mkdir(parents=True, exist_ok=True)
         environment = dict(os.environ, HAO_LIVE_TEXT_DIAGNOSTICS='1', CFFIXED_USER_HOME=str(home), HOME=str(home),
-                           DYLD_INSERT_LIBRARIES=str(folder/runtime.UMBRELLA))
-        result = subprocess.run([str(probe), *LINES], env=environment, capture_output=True, text=True, timeout=900)
+                           DYLD_INSERT_LIBRARIES=str(self.host_folder/runtime.UMBRELLA))
+        result = subprocess.run([str(self.probe), *LINES], env=environment, capture_output=True, text=True,
+                                timeout=900)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('hao: Live Text client support loaded', result.stderr)
         self.assertIn('event=detector-bind-pass', result.stderr)
         self.assertNotIn('detector-bind-refusal count', result.stderr)
         self.assertEqual(result.stdout.splitlines(), LINES)
+        return result
 
+    @unittest.skipUnless(HOST_DETECTOR.is_dir(), 'host has no TextRecognition detector')
+    def test_recognizes_text_with_the_runtime(self):
+        self.recognize(self.root/'home')
+
+    @unittest.skipUnless(HOST_DETECTOR.is_dir(), 'host has no TextRecognition detector')
+    def test_recognizes_text_past_undeletable_stale_cache_entries(self):
+        """diag#0017: empty e5 cache entries whose folders deny delete. e5rt's remove_all() of such an entry fails
+        (EACCES), it throws, and TextRecognition's compile fails with Code 11 on every request; the policy removes
+        those deny-delete entries from e5rt's own cache before compiling."""
+        home = self.root/'home-stale'
+        self.recognize(home)
+        cache = home/'Library/Caches/ocr_probe/com.apple.e5rt.e5bundlecache'
+        folders = [p for p in cache.rglob('*') if p.is_dir()]
+        self.assertTrue(folders)
+        self.addCleanup(subprocess.run, ['chmod', '-R', '-N', str(cache)], capture_output=True)
+        for path in cache.rglob('*'):
+            if path.is_file():
+                path.unlink()
+        for path in folders:
+            path.chmod(0o700)
+            run('chmod', '+a', 'group:everyone deny delete', path)
+        result = self.recognize(home)
+        self.assertRegex(result.stderr, r'event=e5-cache-acl removed=[1-9][0-9]* failed=0')
+        self.assertNotIn('deny', run('ls', '-leR', cache))
 
 if __name__ == '__main__':
     unittest.main()

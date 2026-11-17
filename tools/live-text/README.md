@@ -25,6 +25,10 @@ photo; the daemon runs Vision's TextRecognition (Espresso E5 models) natively in
 - Detector input IOSurfaces are locked and unlocked once before each E5 execution so the GPU reads current pixels.
 - Runtime-generated MPSGraph/Espresso shaders need `cache/metallib`'s AIR repairs at compile time: the compiler
   service loads `compat.dylib` at startup.
+- e5rt replaces an incomplete model-cache entry with `remove_all()`; when the entry's folders carry a
+  `deny delete` ACE (seen in `mediaanalysisd`'s container) that fails, e5rt throws and every TextRecognition compile
+  fails with Code 11. Before the first compile (and once more after a failed one) the policy removes deny-delete
+  ACEs below e5rt's own cache folder, and logs it (subsystem `com.hao.live-text`, category `e5-cache`).
 - RestrictEvents blocks the daemon (`revblock=media`, OCLP's default for 3802-compiler GPUs).
 
 The MPS matrix initializer repair (family 25 skips the native MPSMatrix fallback) is not here: `golden-gate-userspace`
