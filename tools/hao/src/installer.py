@@ -407,7 +407,7 @@ def create_installer(a, c, host, acquire=None):
         opencore = opencore_input(a, asm)
         if image:
             disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
-            c.item('stick image %s attached as /dev/%s' % (image, disk), 'files')
+            c.item('USB installer image %s attached as /dev/%s' % (image, disk), 'files')
         try:
             parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
                                   on_step=lambda text: c.item(text, 'steps', ok=True))
