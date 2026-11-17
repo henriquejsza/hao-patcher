@@ -215,7 +215,8 @@ def recipes_by_pack(asm, profile):
     owner = {r: n for n, d in defs.items() for r in d.get('recipes', [])}
     rows = _quiet(lambda: list(patches['plan'](patches['set_path'](asm['patch_set']),
                                                TOP / 'pipeline/targets' / (asm['target'] + '.json'),
-                                               asm['donor_build'], packs=profile['packs'])))
+                                               '%s/%s' % (asm['golden_build'], asm['donor_build']),
+                                               packs=profile['packs'])))
     out = {n: [] for n in profile['packs']}
     for stage, name, _ in rows:
         out.setdefault(owner.get(name, '(no pack)'), []).append(name)

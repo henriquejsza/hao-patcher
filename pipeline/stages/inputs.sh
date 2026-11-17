@@ -78,10 +78,11 @@ ditto $(common python_site) $SHARE/site
 
 # A patch input: the Golden Gate build's row (GOLDEN_LOCK, golden-first only), else the donor build's, else common's.
 # Optional patches whose rows are not there, or whose group is in SKIP_OPTIONAL (space-separated), are left out of the
-# plan; SHARE/optional.json says which ran and which were skipped, and why.
+# plan; SHARE/optional.json says which ran and which were skipped, and why. The build is OS/DONOR (26B131/25G342)
+# when GOLDEN_LOCK is set, so plan checks each recipe's requires against both.
 GOLDEN_LOCK=${GOLDEN_LOCK:-}
 skip=(); for g in ${=SKIP_OPTIONAL:-}; do skip+=(--skip-optional $g); done
-python3 -I $TOP/pipeline/patches.py plan $SET $TARGET ${LOCK:t:r} --locks ${GOLDEN_LOCK:+$GOLDEN_LOCK:}$LOCK:$COMMON \
+python3 -I $TOP/pipeline/patches.py plan $SET $TARGET ${GOLDEN_LOCK:+${GOLDEN_LOCK:t}/}${LOCK:t:r} --locks ${GOLDEN_LOCK:+$GOLDEN_LOCK:}$LOCK:$COMMON \
     $skip --record $SHARE/optional.json > $SHARE/plan.txt
 awk '$1 != "recovery"' $SHARE/plan.txt > $SHARE/patches.txt; rm $SHARE/plan.txt   # recovery patches: pipeline/recovery
 row() { if [[ -n $GOLDEN_LOCK && -f $GOLDEN_LOCK/$1 ]]; then $L path $GOLDEN_LOCK $1; elif [[ -f $LOCK/$1 ]]; then in $1; else common $1; fi; }

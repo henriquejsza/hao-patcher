@@ -14,7 +14,8 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
 ## Declarations
 
 - `patches/NAME/patch.json` has `"pack": PACK`, exactly one. A recipe's machine scope is its pack's detection;
-  `applies` names only the macOS builds it is written for (`"builds"`) or `"any"`.
+  `requires` ([requires.md](requires.md)) states the builds, GPU, CPU features and firmware it is valid for, and
+  `patches.py plan` stops on an unmet one (it replaces `applies`).
 - `packs/PACK.json` has `"layer"` (`os`, `platform`, `dev`); a platform pack also `"kind"` and `"platform"`
   (`apple-intel`). A pack lists no recipes: `pipeline/patches.py` collects them from the recipes' `pack`.
 - A variant recipe has `"variant": NAME` and may have `"replaces": RECIPE` of the same pack (e.g. `hao-runtime-fold`

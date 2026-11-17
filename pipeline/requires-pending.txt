@@ -1,0 +1,59 @@
+# Recipes that have no "requires" yet (docs/requires.md). patches.py check refuses a recipe without it unless it
+# is listed here, and one listed here that has it: give a recipe its requires and remove its line in the same
+# commit. The list only shrinks; when it is empty this file goes.
+
+# metal
+golden-gate-hello
+golden-gate-live-text-service
+golden-gate-live-text-shared
+golden-gate-metal-argbuf
+golden-gate-metal-framebuffer
+golden-gate-metal-libraries
+golden-gate-metal27
+golden-gate-shader-caches
+metal-compiler-compat
+metal-metalold
+metalold-selectors
+
+# patcher
+darwin27-kernel
+darwin27-sandbox-disk-space
+dev-access
+dev-diagnostics
+dev-keepawake
+golden-gate-appstore-slices
+golden-gate-av1-encoder-x86
+golden-gate-corespotlight-compat
+golden-gate-dyld-internal
+golden-gate-font-registry
+golden-gate-hd4000-planes
+golden-gate-icon-caches
+golden-gate-ids
+golden-gate-launchd-warm
+golden-gate-native-identities
+golden-gate-root-launchservices
+golden-gate-shared-cache-catalog
+golden-gate-shared-cache
+golden-gate-store
+golden-gate-user-seed
+golden-gate-user-template
+golden-gate-userspace
+golden-gate-wifi-compat
+golden-gate-windowserver-filter
+hao-command
+hao-opencore
+hao-runtime-fold
+hao-runtime
+opencore-mbp92
+rec-audio
+rec-bluetooth-input
+rec-brightness-keys
+rec-display-ethernet
+rec-install-volume
+rec-language-list
+rec-power
+rec-progress-phase
+rec-reinstall
+rec-startup-guard
+rec-wifi-autojoin
+rec-wifi
