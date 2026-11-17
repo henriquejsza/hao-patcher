@@ -289,6 +289,15 @@ class StickTest(unittest.TestCase):
         with self.assertRaisesRegex(STICK.StickError, 'differs from its manifest|manifest'):
             STICK.rewrite_boot(host, 'disk4', self.esp)
 
+    def test_each_file_is_named_before_it_is_read(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        started, read = [], []
+        self.assertEqual(STICK.check_manifest(top, on_file=lambda r, s: read.append(r),
+                                              on_start=lambda r, s: started.append(r)), [])
+        self.assertEqual(started, read)          # every file read was named first, in the same order
+        self.assertIn('install', started)
+
     def test_manifest_holes_are_closed(self):
         host = FakeHost(self.mnt)
         esp, boot, top = self.written(host)
@@ -372,6 +381,12 @@ class StickTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in host.calls))
         self.assertFalse(any('unmountDisk' in c for c in host.calls))
+
+    def test_launcher_runs_python_from_memory(self):
+        STICK.write(FakeHost(self.mnt), 'disk4', self.bs, self.esp, self.kit, self.top)
+        text = (self.mnt / 'HAO' / 'install').read_text()
+        self.assertIn('ditto "$PY" "$M"', text)
+        self.assertLess(text.index('PY=$M'), text.index('exec "$PY/bin/python3.12"'))
 
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)

@@ -42,6 +42,10 @@ LAUNCHER = '''#!/bin/sh
 D=$(cd "$(dirname "$0")" && pwd)
 export HAO_STICK=$D
 case $(uname -m) in x86_64) PY=$D/kit/py-x86_64 ;; *) PY=$D/kit/py ;; esac
+# Run that CPython from memory (64 MB): the install first reads the whole drive to check it, and a page of a running
+# program read back from a USB drive under that load can fail (SIGBUS). Where /private/var/tmp is not writable, as is.
+M=/private/var/tmp/hao-py.$$
+if [ -w /private/var/tmp ] && ditto "$PY" "$M" 2>/dev/null; then PY=$M; fi
 export PYTHONDONTWRITEBYTECODE=1
 exec "$PY/bin/python3.12" -I -B "$D/hao/tools/hao/hao" %(cmd)s %(args)s"$@"
 '''
@@ -91,6 +95,10 @@ def opencore_config(c):
 def sha256(path):
     h = hashlib.sha256()
     with open(path, 'rb') as f:
+        try:                    # F_NOCACHE: streaming the drive does not push everything else out of memory
+            __import__('fcntl').fcntl(f.fileno(), 48, 1)
+        except (OSError, ImportError):
+            pass
         for block in iter(lambda: f.read(8 * MB), b''):
             h.update(block)
     return h.hexdigest()
@@ -394,9 +402,10 @@ def write_manifest(top, on_file=None):
     return m
 
 
-def check_manifest(top, on_file=None):
+def check_manifest(top, on_file=None, on_start=None):
     """What on HAO differs from its manifest: [(path, problem)], empty when the drive is as it was written. Every
-    listed file is read and hashed; a file or link that is not listed is a problem too."""
+    listed file is read and hashed; a file or link that is not listed is a problem too. ON_START(rel, size) is called
+    before each file is read (a trace names the file a crash happened in)."""
     top = Path(top)
     try:
         m = json.loads(read_plain(top / MANIFEST))
@@ -405,7 +414,7 @@ def check_manifest(top, on_file=None):
     if not _manifest_shape(m):
         return [(MANIFEST, 'not a format-1 manifest')]
     try:
-        return _compare(top, m, on_file)
+        return _compare(top, m, on_file, on_start)
     except (StickError, OSError) as x:
         return [('(drive)', 'could not be read completely: %s' % x)]
 
@@ -421,7 +430,7 @@ def _manifest_shape(m):
     return all(isinstance(v, str) for v in m['links'].values())
 
 
-def _compare(top, m, on_file):
+def _compare(top, m, on_file, on_start=None):
     problems, found, hashed = [], set(), {}
     for rel, st, kind in _manifest_walk(top):
         found.add(rel)
@@ -447,6 +456,8 @@ def _compare(top, m, on_file):
                 key = (st.st_dev, st.st_ino)            # hard links (the userspace twin) are read once
                 first = key not in hashed
                 if first:
+                    if on_start:
+                        on_start(rel, st.st_size)
                     hashed[key] = sha256(top / rel)
                 if hashed[key] != want['sha256']:
                     problems.append((rel, 'different content (sha256)'))
