@@ -50,6 +50,7 @@ NEEDS VALIDATION. Host tests pass. The same edit (from the 26A428 build of the s
 yet built into an image or booted with 26B131.
 
 ## Revisions
+- r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r8 2026-11-16 Row `metal_compiler_compat` is the f479d6c7 build, reproducible from source with Xcode 27.2: compat.dylib linked with a fixed install name (code identical), build.json holds content hashes only.
 - r7 2026-11-14 Input row `metal_compiler_compat` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.

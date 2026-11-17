@@ -103,6 +103,7 @@ succeeds with it. Quick Look of USDZ files and WindowServer's desktop effects on
 built image remain open, and nothing has been checked on 26B131.
 
 ## Revisions
+- r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`.
 - r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 
 - r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged; validated_digest carried forward for that reason.

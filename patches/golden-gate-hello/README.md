@@ -44,6 +44,7 @@ NEEDS VALIDATION: on a MacBookPro9,2 the Language Chooser played hello and MTLCo
 without a crash; frame rate on the HD 4000 and `textFragment_watchPreview` are untested.
 
 ## Revisions
+- r11 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r10 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r9 2026-11-16 Row `libhelloblur` is the Xcode 27.2 build of `build/make.sh` (9c273f39), which the same command reproduces byte for byte; code identical to d471519b (SDK and linker stamps, UUID and signature differ).
 - r8 2026-11-14 Input rows `hello_metallib_golden_gate` now hash their payload only (`# hash: without build.json ...` in the row: the build record's dates and paths and README.txt are left out, pipeline/lock.py without()), so a remake of the same payload on a user's Mac matches; their sha256 changed, the artifacts did not, so what this recipe installs is unchanged.

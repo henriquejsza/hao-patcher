@@ -64,6 +64,7 @@ NEEDS VALIDATION. Config tests pass on authored configs and on OCLP 3.0.0's MacB
 an image or booted; background analysis load on the HD 4000 is unmeasured.
 
 ## Revisions
+- r7 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r6 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 
 - r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the rebuilt shared cache: golden-gate-shared-cache's record must list both, LiveText at its manifest hash. Config bytes unchanged.
