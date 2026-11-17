@@ -42,7 +42,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r9 | post | product |  | x |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| hao-opencore | r77 | post | product |  | x | x |  |  | **needs** | r77 2026-11-17 config-reasons.json has OCLP's `revblock=media`: the reasons check runs inside this recipe, bef |
+| hao-opencore | r78 | post | product |  | x | x |  |  | **needs** | r78 2026-11-17 Reasons for the generic image's run-efi-updater (Add No, and its Delete), from the QEMU referen |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
