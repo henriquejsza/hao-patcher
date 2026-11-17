@@ -707,6 +707,8 @@ def cmd_verify_release(a, c, opener=None):
     here = None
     if target is None and stick:
         kind, where = 'drive', Path(stick)
+    elif target is None and FD.where() == 'installer':
+        kind, where = 'drive', REPO.parent                # hao run from the USB installer (/Volumes/HAO/hao)
     elif target is None:
         kind, where, here = 'folder', HERE, RC.checkout_commit()
     elif RC.TAG.match(target):
@@ -807,7 +809,8 @@ def signed_release(a, c, path, required=True):
                checked=False)
         return path
     try:
-        copy, kid, hashed = SIGN.verified_release(path)
+        copy = SIGN.verified(path)                        # the same verified copy for every later reader
+        _, kid, hashed = SIGN._VERIFIED[os.path.abspath(str(path))]
     except SIGN.SignatureError as x:
         raise CON.Stopped('%s is not signed by hao: %s' % (path, x),
                           why='hao reads a release only when the signature beside it (%s.sig) is the owner\'s'

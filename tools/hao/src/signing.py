@@ -370,3 +370,15 @@ def verified_release(path, keys=None):
     copy = SAFE.create(folder / path.name, data, 0o644)
     SAFE.create(signature_of(copy), sig, 0o644)
     return copy, kid, hashed
+
+
+_VERIFIED = {}
+
+
+def verified(path, keys=None):
+    """The verified private copy of release file PATH for every reader in this run (verified_release() once per path,
+    then the same copy): readers use this, never PATH itself. SignatureError when it does not verify."""
+    key = os.path.abspath(str(path))
+    if key not in _VERIFIED:
+        _VERIFIED[key] = verified_release(path, keys)
+    return _VERIFIED[key][0]
