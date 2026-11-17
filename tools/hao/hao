@@ -745,6 +745,10 @@ def cmd_verify_release(a, c, opener=None):
         c.item('%-4s  %-9s  %s' % (k['state'], k['name'], SAFE.text(k['detail'])), 'quiet',
                ok={'PASS': True, 'FAIL': False}.get(k['state']), ev='release.check', **{
                    x: y for x, y in k.items() if x in ('name', 'state', 'file')})
+    candidate = any(SIGN.is_candidate(k.get('key')) for k in checks)
+    if candidate:
+        c.item('CANDIDATE, not a release: signed with the candidate key, for testing only', 'quiet', ok=False,
+               ev='release.candidate')
     n = RC.summary(checks)
     if n['FAIL']:
         raise CON.Stopped('%d of %d checks failed: this is not the release the owner signed, or it was changed'
@@ -752,8 +756,9 @@ def cmd_verify_release(a, c, opener=None):
                           untouched='nothing was changed', options=[
                               'download the release again from its GitHub release page',
                               'report it: hao report'], code=4)
-    c.done('%d checks passed%s' % (n['PASS'], ', %d not made (SKIP: see why above)' % n['SKIP'] if n['SKIP'] else ''),
-           passed=n['PASS'], skipped=n['SKIP'])
+    c.done('%s%d checks passed%s' % ('CANDIDATE, not a release: ' if candidate else '', n['PASS'],
+                                     ', %d not made (SKIP: see why above)' % n['SKIP'] if n['SKIP'] else ''),
+           passed=n['PASS'], skipped=n['SKIP'], candidate=candidate)
     return 0
 
 

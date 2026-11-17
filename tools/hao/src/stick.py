@@ -185,7 +185,13 @@ def hao_files(top):
     top = Path(top)
     if (top / '.git').exists():
         r = subprocess.run(['git', '-C', str(top), 'ls-files', '-z'], stdout=subprocess.PIPE, check=True)
-        return sorted(f for f in r.stdout.decode().split('\0') if f and ((top / f).exists() or (top / f).is_symlink()))
+        out = [f for f in r.stdout.decode().split('\0') if f and ((top / f).exists() or (top / f).is_symlink())]
+        # a candidate build's key (never tracked: release-cut --candidate writes it) goes with hao, so the drive's
+        # hao install accepts the candidate-signed release.json it carries
+        cand = 'tools/hao/data/candidate-keys.pub'
+        if (top / cand).is_file() and not (top / cand).is_symlink():
+            out.append(cand)
+        return sorted(set(out))
     out = []
     for root, dirs, files in os.walk(top):
         dirs[:] = sorted(d for d in dirs if d not in SKIP)
