@@ -111,6 +111,48 @@ class Cut(unittest.TestCase):
         self.assertFalse((out / 'stick.img').exists())
         self.assertTrue(all('--dev' in c for c, _ in self.calls if 'pipeline/release-cut' in c))
 
+    def fresh(self, passed, rc=None):
+        real = self.fake_run
+
+        def run(cmd, cwd, log, env):
+            cmd = [str(c) for c in cmd]
+            if 'pipeline/fresh-mac-run' not in cmd:
+                return real(cmd, cwd, log, env)
+            self.calls.append((cmd, env['HAO_LOGS']))
+            log.write_text('ran\n')
+            where = Path(cmd[cmd.index('--out') + 1])
+            where.mkdir(parents=True)
+            (where / 'fresh-mac.json').write_text(json.dumps(dict(passed=passed, stick_sha256='ab' * 32)))
+            return (0 if passed else 1) if rc is None else rc
+        self.fake_run = run
+        return self.cut('--no-dev', '--fresh-mac', '--fresh-mac-vm', str(self.root / 'vm'))
+
+    def test_fresh_mac_runs_last_on_the_release_stick(self):
+        rc, rec, out = self.fresh(True)
+        self.assertEqual(rc, 0)
+        self.assertEqual(rec['fresh_mac'], 'PASS')
+        self.assertTrue(rec['fresh_mac_result']['passed'])
+        self.assertEqual(rec['steps'][-1]['name'], 'fresh-mac')
+        cmd = self.calls[-1][0]
+        self.assertEqual(cmd[cmd.index('pipeline/fresh-mac-run') + 1], str(out / 'release'))
+        self.assertEqual(cmd[cmd.index('--mirror') + 1], 'http://192.168.64.1:8765')
+        self.assertEqual(cmd[cmd.index('--vm') + 1], str(self.root / 'vm'))
+
+    def test_a_fresh_mac_failure_fails_the_cut(self):
+        rc, rec, out = self.fresh(False)
+        self.assertEqual(rc, 1)
+        self.assertFalse(rec['passed'])
+        self.assertEqual(rec['fresh_mac'], 'FAIL')
+
+    def test_fresh_mac_without_a_result_is_a_failure(self):
+        real = self.fake_run
+        self.fake_run = lambda cmd, cwd, log, env: 3 if 'pipeline/fresh-mac-run' in [str(c) for c in cmd] \
+            else real(cmd, cwd, log, env)
+        rc, rec, out = self.cut('--no-dev', '--fresh-mac', '--fresh-mac-vm', str(self.root / 'vm'))
+        self.assertEqual(rc, 1)
+        self.assertEqual(rec['fresh_mac'], 'FAIL')
+        self.assertIsNone(rec['fresh_mac_result'])
+
 
 def sh(cwd, *cmd):
     return subprocess.run(list(cmd), cwd=cwd, capture_output=True, text=True, check=True).stdout
