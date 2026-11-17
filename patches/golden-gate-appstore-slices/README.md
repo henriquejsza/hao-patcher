@@ -57,6 +57,7 @@ others: `main=universal`, `missing_x86_64=0`; Xcode `main=arm64`, thinned for th
 logged nothing.
 
 ## Revisions
+- r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): a Data tool and LaunchDaemon that read Mach-O headers: no build or hardware dependence. Nothing it installs changes.
 - r4 2026-11-17 Status diagnostic: it only reports, so release profiles leave it out.
 - r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes.
 - r2 2026-11-15 Row hash scope.

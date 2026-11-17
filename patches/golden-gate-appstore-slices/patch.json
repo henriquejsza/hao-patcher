@@ -1,8 +1,7 @@
 {
- "revision": 4,
+ "revision": 5,
  "pack": "os-extras",
  "stage": "post",
- "applies": "any",
  "inputs": [
   "appstore_slice_guard"
  ],
@@ -24,5 +23,6 @@
     "note": "Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
 }
