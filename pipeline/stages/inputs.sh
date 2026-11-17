@@ -95,7 +95,13 @@ while read -r stage name ins; do
     mkdir -p $d/inputs
     # Bundle mtimes participate in IconServices identities. Preserve the artifact's
     # metadata when cloning it into the share, so its generated indexes stay valid.
-    for n in ${=ins}; do cp -Rpc $(row $n) $d/inputs/$n; done
+    # A row on the USB drive (KIT_ON_DRIVE, create-installer: the userspace images) is linked, never copied: the
+    # stick writer moves it into the kit on that drive.
+    for n in ${=ins}; do
+        src=$(row $n)
+        if [[ -n ${KIT_ON_DRIVE:-} && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then ln -s $(realpath $src) $d/inputs/$n
+        else cp -Rpc $src $d/inputs/$n; fi
+    done
 done < $SHARE/patches.txt
 $L target $TARGET oclp_hardware_profile > $SHARE/profile.json
 {

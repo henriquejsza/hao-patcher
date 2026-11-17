@@ -43,12 +43,14 @@ By build record (whether the bytes can be made again):
   missing       the row's file is not in the store
 --dry-run exits 1 when a row has no content class or an ours row is not reproducible.
 """
+import hashlib
 import json
 import os
 from pathlib import Path
 import runpy
 import subprocess
 import sys
+import zipfile
 
 TOP = Path(__file__).resolve().parents[1]
 # Repositories a reader can see: an asset's producing commit is cited only from these. Anything else (a predecessor
@@ -410,7 +412,9 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     problems, notes = [], []
     downloads, assets, made, harvested, in_checkout, pending = [], [], [], [], [], []
     runtime_commit = None
-    for row, hit in release_rows(assembly):
+    all_rows = list(release_rows(assembly))
+    rows = dict(all_rows)
+    for row, hit in all_rows:
         entry = data.get(row)
         if entry is None:
             problems.append('%s: not in pipeline/release-classes.json' % row)
@@ -449,8 +453,16 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             if not path or not os.path.isfile(path):
                 problems.append('%s: the download is not here to size (%s)' % (row, path))
                 continue
-            downloads.append({'row': row, 'name': entry['name'], 'url': entry['url'], 'size': os.path.getsize(path),
-                              'sha256': hit[1][0], 'reason': entry['reason']})
+            item = {'row': row, 'name': entry['name'], 'url': entry['url'], 'size': os.path.getsize(path),
+                    'sha256': hit[1][0], 'reason': entry['reason']}
+            if entry.get('stream'):
+                # read by byte range on the user's Mac, never downloaded whole: each member it can read is pinned
+                try:
+                    item['stream'], item['pins'] = entry['stream'], stream_pins(entry['stream'], path, hit[1][0], rows)
+                except (OSError, ValueError, KeyError, SystemExit) as x:
+                    problems.append('%s: its member pins could not be made: %s' % (row, x))
+                    continue
+            downloads.append(item)
         elif kind == 'ours':
             record, detail = classify(row, hit)
             if record not in ('reproducible', 'reproducible-except'):
@@ -512,6 +524,39 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     return rel, problems
 
 
+def stream_pins(kind, path, digest, rows):
+    """The pins of a download read by byte range (release-classes "stream"), cached in store/cache/pins/DIGEST.json:
+    ipsw: every zip member's size and sha256, and the images golden_gate_userspace decodes from them (its payload's
+    userspace.json); installer: the package TOC's sha256 and every asset zip member's size and sha256."""
+    sys.path.insert(0, str(TOP / 'pipeline' / 'unpack'))
+    import ranged, inplace
+    cache = TOP / 'store' / 'cache' / 'pins' / (digest + '.json')
+    if cache.is_file():
+        pins = json.loads(cache.read_text())
+    else:
+        if kind == 'ipsw':
+            z = zipfile.ZipFile(path)
+            pins = {'members': ranged.pins_for(z, [n for n in z.namelist() if not n.endswith('/')], 'IPSW member')}
+        elif kind == 'installer':
+            src = ranged.open_source(path)
+            _, z = inplace.open_zip(src)
+            pins = {'toc_sha256': hashlib.sha256(inplace.xar_toc(src)[2]).hexdigest(),
+                    'members': ranged.pins_for(z, [n for n in z.namelist() if not n.endswith('/')],
+                                               'installer member')}
+        else:
+            raise ValueError('unknown stream kind %r' % kind)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(pins, indent=1, sort_keys=True) + '\n')
+    if kind == 'ipsw':
+        hit = rows.get('golden_gate_userspace')
+        if not hit:
+            raise ValueError('no golden_gate_userspace row to pin the decoded images by')
+        meta = json.loads((Path(hit[1][1]) / 'userspace.json').read_text())
+        pins = dict(pins, ipsw_sha256=digest, images={role: {'size': c['size'], 'sha256': c['sha256']}
+                                                      for role, c in meta['components'].items()})
+    return pins
+
+
 def public_provenance(row, repo, commit, notes):
     """(repo, commit) as release.json may cite them: unchanged from a public repository, else (None, '') with a note
     that the asset stands on its sha256 alone."""
@@ -519,6 +564,20 @@ def public_provenance(row, repo, commit, notes):
         return repo, commit
     notes.append('%s: no public producing commit; published by its sha256 alone' % row)
     return None, ''
+
+
+def write_sums(stage, release_json):
+    """STAGE/SHA256SUMS (owner: every release ships a checksum file): `shasum -a 256` lines for each file at STAGE's top,
+    release.json included when it is written there; STAGE/external/ (hosted by another repository) gets its own."""
+    def sums(folder, extra=()):
+        by_name = {p.name: p for p in list(Path(folder).iterdir()) + list(extra) if p.is_file() and p.name != 'SHA256SUMS'}
+        files = [by_name[n] for n in sorted(by_name)]
+        if files:
+            (Path(folder) / 'SHA256SUMS').write_text(''.join('%s  %s\n' % (sha256_file(p), p.name) for p in files))
+    rel = Path(release_json).resolve()
+    sums(stage, [rel] if rel.parent == Path(stage).resolve() else [])
+    if (Path(stage) / 'external').is_dir():
+        sums(Path(stage) / 'external')
 
 
 def check_stage(rel, stage):
@@ -533,7 +592,7 @@ def check_stage(rel, stage):
         elif f.stat().st_size != x['size'] or sha256_file(f) != x['sha256']:
             bad.append('staged %s is not the file release.json pins' % x['file'])
     bad += ['%s is staged but not an asset' % p.name for p in sorted(stage.iterdir())
-            if p.name not in names and p.name not in ('release.json', 'external') and not p.name.startswith('.')]
+            if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') and not p.name.startswith('.')]
     return bad
 
 
@@ -600,6 +659,8 @@ def main(argv):
             return 1
         out_path.write_text(json.dumps(rel, indent=1) + '\n')
         bad = check_stage(rel, stage) if stage is not None else []
+        if stage is not None and not bad:
+            write_sums(stage, out_path)
         for b in bad:
             print('release-cut: ' + b, file=sys.stderr)
         print('release-cut: wrote %s (%s; %d downloads, %d assets, %d made on the Mac, %d harvested, %d pending)' % (

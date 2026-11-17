@@ -273,14 +273,55 @@ def write_boot(esp, mount, basesystem, opencore_tar, log=False):
                 opencore_log=c['Misc']['Debug']['Target'], opencore_picker_timeout=PICKER_TIMEOUT)
 
 
+BUILD_DIR = '.hao-build'     # on HAO: what create-installer makes straight onto the drive (the userspace images)
+
+
+def adopt_drive_links(kit, mount, moved=None):
+    """Every symlink in KIT (on the drive MOUNT) that points into MOUNT/BUILD_DIR becomes the folder or file it points
+    to: moved there the first time (a rename on the same volume, no copy), hard-linked file by file after that (the
+    userspace images are in two hooks). Returns [(link, target)]."""
+    kit, base = Path(kit), (Path(mount) / BUILD_DIR).resolve()
+    moved = {} if moved is None else moved
+    done = []
+    for link in sorted(p for p in kit.rglob('*') if p.is_symlink()):
+        target = Path(os.path.realpath(link))
+        if target != base and base not in target.parents and str(target) not in moved:
+            continue
+        link.unlink()
+        if str(target) not in moved:
+            if not target.exists():
+                raise StickError('%s points to %s, which is not on the drive' % (link, target))
+            os.rename(target, link)
+            moved[str(target)] = link
+        else:
+            first = Path(moved[str(target)])
+            if first.is_dir():
+                link.mkdir()
+                for p in sorted(first.rglob('*')):
+                    out = link / p.relative_to(first)
+                    if p.is_dir() and not p.is_symlink():
+                        out.mkdir(parents=True, exist_ok=True)
+                    elif p.is_symlink():
+                        os.symlink(os.readlink(p), out)
+                    else:
+                        os.link(p, out)
+            else:
+                os.link(first, link)
+        done.append((link, target))
+    return done
+
+
 def write_kit(mount, kit, hao_top, release=None, record=None):
-    """HAO's files: hao, the kit, the launchers, release.json and stick.json."""
+    """HAO's files: hao, the kit, the launchers, release.json and stick.json. Payloads already made on the drive
+    (BUILD_DIR, linked from the kit) are moved into the kit, then BUILD_DIR is removed."""
     mount, kit = Path(mount), Path(kit)
     if not (kit / 'kit.json').is_file():
         raise StickError('%s is no kit (no kit.json)' % kit)
     copy_hao(hao_top, mount / 'hao')
     linked = []
     copy_tree(kit, mount / 'kit', skip={'.DS_Store', '__pycache__'}, linked=linked, skip_paths=KIT_LEFT_OUT)
+    adopted = adopt_drive_links(mount / 'kit', mount)
+    shutil.rmtree(mount / BUILD_DIR, ignore_errors=True)
     assembly = (record or {}).get('assembly')
     for name, fill in LAUNCHERS.items():
         p = mount / name
@@ -294,6 +335,7 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     rec = dict(record or {})
     rec.update(schema=1, kit_json_sha256=sha256(kit / 'kit.json'), kit_bytes=kit_bytes(mount / 'kit'),
                hard_links=[[str(Path(a).relative_to(mount)), str(Path(b).relative_to(mount))] for a, b in linked],
+               made_on_drive=[str(Path(a).relative_to(mount)) for a, _ in adopted],
                release_sha256=sha256(release) if release else None)
     prelinked = sorted(kit.glob('hooks/*darwin27-kernel/prelinked/prelinked.json'))
     rec['kernel_collections'] = (
@@ -352,13 +394,31 @@ def attach_image(host, image, size_bytes):
     raise StickError('hdiutil attached %s as no whole disk' % image)
 
 
-def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, record=None, on_step=None):
-    """The whole stick on DISK. ON_STEP(text) is told each part once it is done and checked. Returns stick.json's
-    content."""
-    step = on_step or (lambda text: None)
-    mb = boot_mb(Path(basesystem).stat().st_size, Path(opencore_tar).stat().st_size)
+OPENCORE_MAX_BYTES = 64 * MB        # OpenCore's ESP (about 20 MB): before the kit has built it
+BASESYSTEM_MAX_BYTES = 1600 * MB    # Tahoe's x86_64 BaseSystem is 1.46 GB (25G342): the boot partition before it exists
+
+
+def prepare(host, disk, opencore_tar, basesystem=None, on_step=None):
+    """Erase DISK first (create-installer then makes the large parts straight onto HAO). Returns the partitions."""
+    size = Path(basesystem).stat().st_size if basesystem and Path(basesystem).is_file() else BASESYSTEM_MAX_BYTES
+    mb = boot_mb(size, Path(opencore_tar).stat().st_size if opencore_tar else OPENCORE_MAX_BYTES)
     parts = partition(host, disk, mb)
-    step('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (disk, BOOT_NAME, mb, KIT_NAME))
+    (on_step or (lambda text: None))('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (
+        disk, BOOT_NAME, mb, KIT_NAME))
+    (Path(parts[KIT_NAME][1]) / BUILD_DIR).mkdir(exist_ok=True)
+    return parts
+
+
+def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, record=None, on_step=None, parts=None):
+    """The whole stick on DISK (PARTS: already erased by prepare()). ON_STEP(text) is told each part once it is done
+    and checked. Returns stick.json's content."""
+    step = on_step or (lambda text: None)
+    if parts is None:
+        mb = boot_mb(Path(basesystem).stat().st_size, Path(opencore_tar).stat().st_size)
+        parts = partition(host, disk, mb)
+        step('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (disk, BOOT_NAME, mb, KIT_NAME))
+    else:       # erased by prepare() before the downloads; the first step stays the erase (the console's parts)
+        step('/dev/%s was erased first: %s and %s' % (disk, BOOT_NAME, KIT_NAME))
     rec = dict(record or {})
     rec.update(write_boot(parts['EFI'][1], parts[BOOT_NAME][1], basesystem, opencore_tar))
     step('EFI      OpenCore, as OCLP installs it (Bootstrap + EFI/OC)')

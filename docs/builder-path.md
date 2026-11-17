@@ -16,6 +16,8 @@ as is. Anyone can read what each patch changes and why.
   listed on purpose.
 - **Releases are frozen kits.** A release names exact inputs, recipe revisions and expected outputs, and is cut
   only from clean, recorded producers after a laptop boot.
+- **Releases use the user path only.** A release's USB installer is made the way a user makes it (`hao create-installer`
+  from the release's downloads and assets); the arm64 builder VM is for development builds.
 - **A normal boot looks like a stock Mac's.** Only the Apple logo: OpenCore's RELEASE build, no debug text, no
   verbose boot. Diagnosis builds that show logs are explicit opt-ins. The installer's Recovery is meant to look like
   a stock macOS 27 Recovery too.
