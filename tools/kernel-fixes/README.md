@@ -49,6 +49,17 @@ python3 -I tools/kernel-fixes/kernel-fixes commpage-kext \
   --out /path/to/new-commpage-artifact
 ```
 
+The three Tahoe donors (and IOSurface, for `iosurface-layout`) come from Apple's 25G342 Kernel Debug Kit, the row `kdk`
+that KdkSupportPkg mirrors:
+
+```sh
+python3 -I tools/kernel-fixes/kernel-fixes kdk-donors /path/to/mounted/KDK /path/to/new-donors --build 25G342
+```
+
+It writes each kext's x86_64 slice exactly as `lipo -thin x86_64` does, plus a `build.json` with no date or host path,
+so the same KDK always gives the same folder. `tests/test_kdk_donors.py` with `KERNEL_FIXES_KDK` checks the four hashes
+the recorded IntelCommpage builds used.
+
 The output holds the signed `IntelCommpage.kext`, the generated sources and objects in `build/`,
 and `build.json` with input and output hashes.
 
