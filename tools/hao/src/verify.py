@@ -70,12 +70,23 @@ def inside(root, data, path):
     return target
 
 
-def hash_inside(target, base):
+def pin(base):
+    """Where the kernel says BASE is, fixed once at the start (SAFE.fd_path of its open folder)."""
+    import safety as SAFE
+    fd = os.open(str(base), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        return SAFE.fd_path(fd).rstrip('/') + '/'
+    finally:
+        os.close(fd)
+
+
+def hash_inside(target, base, pinned=None):
     """sha256 of TARGET read through one descriptor (no link followed), or None when it is not a plain file, or
-    'outside' when the file that descriptor opened is not under BASE (a folder swapped after the path was checked)."""
-    import fcntl
+    'outside' when the file that descriptor opened is not under BASE as PINNED at the start (a folder swapped after the
+    path was checked, or the root itself swapped later). Without F_GETPATH nothing is hashed ('outside')."""
     import hashlib
     import stat
+    import safety as SAFE
     try:
         fd = os.open(str(target), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError:
@@ -83,11 +94,13 @@ def hash_inside(target, base):
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             return None
-        if hasattr(fcntl, 'F_GETPATH'):
-            where = fcntl.fcntl(fd, fcntl.F_GETPATH, bytes(1024)).split(b'\0', 1)[0].decode(errors='replace')
-            real = os.path.realpath(str(base)).rstrip('/') + '/'
-            if not where.startswith(real):
-                return 'outside'
+        try:
+            where = SAFE.fd_path(fd)
+            real = pinned or pin(base)
+        except OSError:
+            return 'outside'
+        if not where.startswith(real):
+            return 'outside'
         h = hashlib.sha256()
         while True:
             block = os.read(fd, 1 << 20)
@@ -105,6 +118,9 @@ def verify(root, found, attributes=None, on_file=None):
     data = data_root(root)
     attributes = attributes or LP.Attributes(root, privileged=True)
     out = {'ok': 0, 'problems': [], 'packs': {}}
+    pins = {root: pin(root)}
+    if data is not None:
+        pins[data] = pin(data)
     for where, m in found:
         pack = m.get('pack', Path(where).parent.name)
         out['packs'][pack] = len(m['files'])
@@ -119,7 +135,8 @@ def verify(root, found, attributes=None, on_file=None):
                 if on_file:
                     on_file(row)
                 continue
-            have = hash_inside(target, data if data is not None and target.is_relative_to(data) else root)
+            base = data if data is not None and target.is_relative_to(data) else root
+            have = hash_inside(target, base, pins[base])
             if have == 'outside':
                 row['problem'] = 'outside'
             elif have is None:

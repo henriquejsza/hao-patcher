@@ -307,8 +307,7 @@ class Runner:
         if self.log is None:
             self.log = output_log(self.command)
         try:
-            SAFE.private_dir(self.log.parent)
-            return SAFE.open_log(self.log)
+            return SAFE.open_log(self.log)                       # in its pinned folder (SAFE.Folder.open_log)
         except OSError:
             self.log = Path(tempfile.mkdtemp(prefix='hao-logs-')) / self.log.name
             return SAFE.open_log(self.log)

@@ -25,7 +25,7 @@ def last_stop(folders):
     """(command, when, what) of the newest command log that ended stopped, or None."""
     import safety as SAFE
     for _, path in REP.candidates(folders)[:REP.KEEP]:              # plain files in plain folders of their owners
-        text = SAFE.read_small(path, owners=REP.owners_of(path.parent))
+        text = REP.read_log(path)                                    # through its pinned folder
         try:
             data = json.loads(text) if text is not None else None
         except (ValueError, RecursionError):

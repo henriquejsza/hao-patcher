@@ -40,17 +40,20 @@ class Files(unittest.TestCase):
             self.assertEqual(victim.read_text(), 'keep')
             self.assertEqual(out.read_text(), 'report')
 
-    def test_read_small_refuses_symlinks_fifos_big_files_and_other_owners(self):
+    def test_folder_read_refuses_symlinks_fifos_big_files_and_other_owners(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / 'a.json'
             f.write_text('{}')
             (Path(d) / 'link.json').symlink_to(f)
             os.mkfifo(str(Path(d) / 'fifo.json'))
-            self.assertEqual(SAFE.read_small(f), '{}')
-            self.assertIsNone(SAFE.read_small(Path(d) / 'link.json'))
-            self.assertIsNone(SAFE.read_small(Path(d) / 'fifo.json'))
-            self.assertIsNone(SAFE.read_small(f, limit=1))
-            self.assertIsNone(SAFE.read_small(f, owners={os.getuid() + 12345}) if os.getuid() else None)
+            with SAFE.Folder(d, {os.geteuid()}, private=False) as pinned:
+                self.assertEqual(pinned.read('a.json'), '{}')
+                self.assertIsNone(pinned.read('link.json'))
+                self.assertIsNone(pinned.read('fifo.json'))
+                self.assertIsNone(pinned.read('a.json', limit=1))
+            with SAFE.Folder(d, {os.geteuid()}, private=False) as pinned:
+                pinned.owners = {os.geteuid() + 12345}          # only that owner's files are read
+                self.assertIsNone(pinned.read('a.json'))
 
     def test_last_log_skips_symlinks(self):
         with tempfile.TemporaryDirectory() as d:
@@ -70,16 +73,33 @@ class Files(unittest.TestCase):
 
 
 class Folders(unittest.TestCase):
-    def test_private_dir_refuses_links_above_and_narrows_its_mode(self):
+    def test_folder_refuses_links_at_and_above_it_and_narrows_its_mode(self):
         with tempfile.TemporaryDirectory() as d:
             real = Path(d) / 'real'
             (real / 'logs').mkdir(parents=True)
             (Path(d) / 'link').symlink_to(real)
-            with self.assertRaises(OSError):
-                SAFE.private_dir(Path(d) / 'link' / 'logs')
+            (Path(d) / 'logs-link').symlink_to(real / 'logs')
+            for bad in (Path(d) / 'link' / 'logs', Path(d) / 'logs-link'):
+                with self.assertRaises(OSError, msg=bad):
+                    SAFE.own_folder(bad)
             (real / 'logs').chmod(0o777)
-            SAFE.private_dir(real / 'logs')
+            SAFE.own_folder(real / 'logs').close()
             self.assertEqual(oct((real / 'logs').stat().st_mode & 0o777), '0o700')
+            with self.assertRaises(OSError):                     # another user's folder
+                SAFE.Folder(real / 'logs', {os.geteuid() + 12345})
+
+    def test_a_folder_swapped_after_it_was_pinned_changes_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            logs, elsewhere = Path(d) / 'logs', Path(d) / 'elsewhere'
+            elsewhere.mkdir()
+            with SAFE.own_folder(logs) as pinned:
+                logs.rename(Path(d) / 'moved')
+                logs.symlink_to(elsewhere)                       # the name now leads elsewhere
+                pinned.create('x.json', '{}')
+                with pinned.open_log('a.log') as f:
+                    f.write('line')
+            self.assertEqual(list(elsewhere.iterdir()), [])
+            self.assertEqual(sorted(x.name for x in (Path(d) / 'moved').iterdir()), ['a.log', 'x.json'])
 
     def test_open_log_refuses_a_fifo_and_a_hard_link(self):
         with tempfile.TemporaryDirectory() as d:
@@ -145,10 +165,14 @@ class Environment(unittest.TestCase):
         self.assertEqual(env['HOME'], '/home-of-u')
 
     def test_any_root_drops_them_but_the_recovery_keeps_its_drive(self):
-        env = {'HAO_STICK': '/Volumes/HAO', 'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'PATH': '/x'}
-        self.assertEqual(sorted(SAFE.harden_env(env, euid=0)), ['HAO_LAUNCHER', 'HAO_LOGS'])
-        self.assertEqual(env['HAO_STICK'], '/Volumes/HAO')
-        self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
+        with tempfile.TemporaryDirectory() as d:
+            here = Path(d) / 'hao' / 'tools' / 'hao' / 'src' / 'safety.py'
+            env = {'HAO_STICK': d, 'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'PATH': '/x'}
+            self.assertEqual(sorted(SAFE.harden_env(env, euid=0, here=here)), ['HAO_LAUNCHER', 'HAO_LOGS'])
+            self.assertEqual(env['HAO_STICK'], d)             # this hao runs from that drive: the launcher's
+            self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
+            env = {'HAO_STICK': d}                             # a hao elsewhere: HAO_STICK is not the launcher's
+            self.assertEqual(SAFE.harden_env(env, euid=0, here=Path('/usr/local/lib/hao/x.py')), ['HAO_STICK'])
         env = {'HAO_LAUNCHER': '/tmp/x', 'SUDO_USER': 'u'}
         self.assertEqual(SAFE.harden_env(env, euid=501), [])
 

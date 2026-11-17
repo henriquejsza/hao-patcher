@@ -129,9 +129,8 @@ def aot(a, c, env=None, euid=None, run=subprocess.run, caches=CACHES, popen=subp
     if a.background:
         need_root(euid, 'background')
         import safety as SAFE
-        SAFE.private_dir(LOG, 0o755)
         log = LOG / 'aot.log'
-        with SAFE.open_log(log) as out:
+        with SAFE.own_folder(LOG, 0o755) as folder, folder.open_log('aot.log') as out:
             argv = ['/usr/sbin/taskpolicy', '-b', exe, '--aot'] if os.access('/usr/sbin/taskpolicy', os.X_OK) else [exe, '--aot']
             popen(argv, stdout=out, stderr=out, stdin=subprocess.DEVNULL, start_new_session=True)
         c.done('building the caches in the background; hao aot --status shows how far, the log is %s' % log)

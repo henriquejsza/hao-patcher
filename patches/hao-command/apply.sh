@@ -13,12 +13,15 @@ tar -xzf "$P/inputs/python_x86_64" -C "$L"
 [ -x "$L/python/bin/python3.12" ] || { echo "hao-command: the CPython archive has no python/bin/python3.12" >&2; exit 1; }
 (cd "$P/build" && tar -cf - hao) | (cd "$L" && tar -xf -)
 [ -f "$L/hao/tools/hao/hao" ] || { echo "hao-command: the staged tools/hao is missing" >&2; exit 1; }
-# the launcher: a new file, then renamed over the old name (mv replaces a symlink there; it never writes through it)
+# the launcher: a new file renamed over the old name; a link at the name is removed first, a folder refused
 if [ -d "$B/hao" ] && [ ! -L "$B/hao" ]; then
     echo "hao-command: $B/hao is a folder: refusing to replace it" >&2; exit 1
 fi
 [ ! -L "$B/hao" ] || rm -f "$B/hao"        # a link (to a file or a folder) is removed, never followed
-N=$(mktemp "$B/.hao.new.XXXXXX")          # created new and exclusive by mktemp, 0600 until chmod
+# $B is root's alone (root:wheel 755 above, ACLs removed here), so no one else can swap a name in it; the new launcher
+# is made by mktemp (exclusive), filled, and renamed over the name
+chmod -N "$B" 2>/dev/null || true
+N=$(mktemp "$B/.hao.new.XXXXXX")
 printf '#!/bin/sh\nexec /usr/local/lib/hao/python/bin/python3.12 -I /usr/local/lib/hao/hao/tools/hao/hao "$@"\n' > "$N"
 chown root:wheel "$N"
 chmod 755 "$N"

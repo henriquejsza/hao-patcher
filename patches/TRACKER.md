@@ -40,7 +40,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-userspace | r84 | oclp-hook | experiment |  | x | x |  |  | **needs** | r84 2026-11-16 The IO80211 and WiFiPeerToPeer compat installs, their two inputs, files and edit specs move to  |
 | golden-gate-wifi-compat | r1 | oclp-hook | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: golden-gate-userspace's IO80211 and WiFiPeerToPeer steps, files and edit specs, unchanged,  |
 | golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| hao-command | r7 | post | experiment |  | x |  |  |  | **needs** | r7 2026-11-17 the new launcher is made by mktemp; a link at its name (to a file or a folder) is removed, a fol |
+| hao-command | r7 | post | experiment |  | x |  |  |  | **needs** | r7 2026-11-17 the new launcher is made by mktemp in a root-only folder (ACLs removed); a link at its name (to  |
 | hao-opencore | r67 | post | experiment |  | x | x |  |  | **needs** | r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the  |
 | hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | hao-runtime-fold | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83 |

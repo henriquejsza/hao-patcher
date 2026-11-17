@@ -28,8 +28,7 @@ class Apply(unittest.TestCase):
         if prepare:
             prepare(data)
         env = dict(os.environ, P=str(p), DATA=str(data))
-        script = (RECIPE / 'apply.sh').read_text().replace('chown ', ': chown ') \
-            .replace('install -d -o root -g wheel', 'install -d')
+        script = (RECIPE / 'apply.sh').read_text().replace('chown ', ': chown ').replace(' -o root -g wheel', '')
         return subprocess.run(['sh', '-eu', '-c', script], env=env, capture_output=True, text=True)
 
     def test_lays_out_the_command(self):
