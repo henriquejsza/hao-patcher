@@ -111,6 +111,32 @@ class Cut(unittest.TestCase):
         self.assertFalse((out / 'stick.img').exists())
         self.assertTrue(all('--dev' in c for c, _ in self.calls if 'pipeline/release-cut' in c))
 
+    def test_generic_cuts_one_release_and_a_second_stick(self):
+        rc, rec, out = self.cut('--no-dev', '--generic')
+        self.assertEqual(rc, 0)
+        self.assertIsNone(rec['fresh_mac'])
+        self.assertEqual([s['name'] for s in rec['sticks']], ['release', 'generic'])
+        cut = next(c for c, _ in self.calls if 'pipeline/release-cut' in c)
+        self.assertIn('pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json', cut)
+        self.assertIn('pipeline/assemblies/generic-26B131.json', cut)
+        gen = [c for c, _ in self.calls if 'create-installer' in c][-1]
+        self.assertEqual(gen[gen.index('--profile') + 1], 'generic')
+        self.assertEqual(gen[gen.index('--image') + 1], str(out / 'generic' / 'stick.img'))
+        self.assertEqual(gen[gen.index('--release') + 1], str(out / 'release' / 'release.json'))
+        self.assertTrue((out / 'generic/stick.img.sha256').read_text().startswith(rec['sticks'][1]['sha256'] + '  stick.img'))
+        self.assertTrue((out / 'stick.img.sha256').read_text().endswith('  stick.img\n'))
+
+    def test_a_cut_that_cannot_start_still_writes_candidate_json(self):
+        def broken(sha, tree):
+            raise OSError('no worktree')
+        out = self.root / 'out'
+        rc = C['main'](['HEAD', '--out', str(out)], store=self.root / 'store', run=self.fake_run,
+                       worktree=(broken, lambda tree: None))
+        rec = json.loads((out / 'candidate.json').read_text())
+        self.assertEqual(rc, 1)
+        self.assertFalse(rec['passed'])
+        self.assertIsNone(rec['fresh_mac'])
+
     def fresh(self, passed, rc=None):
         real = self.fake_run
 

@@ -3,7 +3,7 @@
 
   pipeline/candidate-cut COMMIT [--out DIR] [--cache DIR] [--sign-key KEY] [--version vX.Y.Z] [--release NAME]
                          [--assembly NAME] [--dev-assembly NAME] [--no-dev | --only-dev] [--dev-overlay REV]
-                         [--fresh-mac [--mirror URL] [--fresh-mac-vm VMDIR]]
+                         [--generic [--generic-assembly NAME]] [--fresh-mac [--mirror URL] [--fresh-mac-vm VMDIR]]
 
 For the hardware benches' acceptance runs. COMMIT is checked out detached in a new worktree (the cut sees only the
 committed tree); there:
@@ -24,11 +24,15 @@ committed tree); there:
   6. OUT/stick.img.sha256, OUT/dev/stick.img.sha256 and OUT/candidate.json: commit, each stick (path, size, sha256),
      release.json sha256s, signed or not, each step's seconds and log, create-installer's phases (from its event log
      in OUT/logs and OUT/dev/logs), and "dev": the dev stick's own record. Exit 0 only when every step passed.
+  --generic: the release is cut with the generic assembly too (release-cut ASSEMBLY GENERIC_ASSEMBLY, one release
+     for both profiles), and after the 9,2 stick a second one, hao create-installer --profile generic --image
+     OUT/generic/stick.img (OUT/generic/stick.img.sha256), listed in "sticks" as "generic".
   7. with --fresh-mac, last: pipeline/fresh-mac-run OUT/release COMMIT --out OUT/fresh-mac (the release stick made
      again the user's way, `sudo ./hao create-installer` from a git clone on a reset Tahoe VM, every download from the
      local mirror URL, default http://192.168.64.1:8765, in strict mode; VMDIR default $HAO_FRESH_MAC_VM).
-     candidate.json "fresh_mac" is "PASS" or "FAIL" and "fresh_mac_result" its OUT/fresh-mac/fresh-mac.json; a FAIL
-     makes candidate-cut exit 1, and such a candidate goes to no bench.
+     candidate.json "fresh_mac" is "PASS" or "FAIL" and "fresh_mac_result" its OUT/fresh-mac/fresh-mac.json (null
+     without --fresh-mac); a FAIL makes candidate-cut exit 1, and such a candidate goes to no bench. It checks the
+     MacBookPro9,2 stick only. candidate.json is written for every cut, a failed one too.
 OUT defaults to store/artifacts/candidate-COMMIT8; CACHE to store/cache/candidate-fetch. Rows made on this Mac are
 reused by their pins (make-on-mac leaves a row whose sha256 checks), so the dev stick costs about one more kit write.
 """
@@ -168,6 +172,8 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
     ap.add_argument('--no-dev', action='store_true', help='make only the release stick')
     ap.add_argument('--only-dev', action='store_true', help='make only the dev stick')
     ap.add_argument('--dev-overlay', metavar='REV', help='a commit without the dev cut gets it from REV (dev stick only)')
+    ap.add_argument('--generic', action='store_true', help='also the generic profile: one release, a second stick')
+    ap.add_argument('--generic-assembly', default='generic-26B131')
     ap.add_argument('--fresh-mac', action='store_true', help='last: the release stick made the user\'s way on a reset VM')
     ap.add_argument('--mirror', default='http://192.168.64.1:8765', help='--fresh-mac: the mirror, as the VM reaches it')
     ap.add_argument('--fresh-mac-vm', default=os.environ.get('HAO_FRESH_MAC_VM'), metavar='VMDIR',
@@ -175,6 +181,8 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
     a = ap.parse_args(argv)
     if a.no_dev and (a.only_dev or a.dev_overlay):
         ap.error('--no-dev excludes --only-dev and --dev-overlay')
+    if a.generic and a.only_dev:
+        ap.error('--generic cuts with the release stick: not with --only-dev')
     if a.fresh_mac and a.only_dev:
         ap.error('--fresh-mac checks the release stick: not with --only-dev')
     if a.fresh_mac and not a.fresh_mac_vm:
@@ -191,12 +199,24 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
         sys.exit('candidate-cut: %s exists; remove it or give --out' % out)
     out.mkdir(parents=True)
     cache.mkdir(parents=True, exist_ok=True)
-    record = dict(commit=sha, out=str(out), signed=bool(a.sign_key), steps=[], sticks=[],
+    record = dict(commit=sha, out=str(out), signed=bool(a.sign_key), steps=[], sticks=[], fresh_mac=None,
                   started=datetime.datetime.now().astimezone().isoformat(timespec='seconds'))
     work = Path(tempfile.mkdtemp(prefix='candidate-cut-'))
     tree = work / 'tree'
-    worktree[0](sha, tree)
-    (tree / 'store').symlink_to(store)
+    try:
+        worktree[0](sha, tree)
+        (tree / 'store').symlink_to(store)
+        if a.sign_key:
+            Path(a.sign_key + '.pub').read_text()
+    except (OSError, subprocess.CalledProcessError) as x:
+        # a cut that stops here still says so in candidate.json
+        record.update(passed=False, error='setup: %s' % x,
+                      finished=datetime.datetime.now().astimezone().isoformat(timespec='seconds'))
+        (out / 'candidate.json').write_text(json.dumps(record, indent=1) + '\n')
+        worktree[1](tree)
+        shutil.rmtree(work, ignore_errors=True)
+        print('candidate-cut: %s FAILED before the first step: %s' % (sha[:8], x), file=sys.stderr)
+        return 1
     # python.org's Python carries no CA bundle until its Install Certificates step runs; macOS's own is used instead,
     # so hao doctor's URL checks and the downloads verify against the system roots
     base_env = dict(os.environ)
@@ -221,12 +241,13 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
             current.update(rec=rec, out=where)
             raise SystemExit(1)
 
-    def stick(kind, rec, where, assembly, extra):
+    def stick(kind, rec, where, assembly, extra, more=()):
         """release-cut, sign, fetch and create-installer into WHERE; returns the stick's entry."""
         rel = where / 'release' / 'release.json'
         suffix = '' if kind == 'release' else '-' + kind
         step('release-cut' + suffix, [PY, '-I', 'pipeline/release-cut', '--write', rel,
-                                      'pipeline/assemblies/%s.json' % assembly, '--release', a.release,
+                                      'pipeline/assemblies/%s.json' % assembly,
+                                      *['pipeline/assemblies/%s.json' % m for m in more], '--release', a.release,
                                       '--channel', 'dev', '--version', a.version, '--not-prerelease',
                                       '--stage', rel.parent] + extra, rec, where)
         unsigned = []
@@ -243,12 +264,28 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
              rec, where)
         digest = sha256(image)
         (where / 'stick.img.sha256').write_text('%s  stick.img\n' % digest)
-        entry = dict(kind=kind, path=str(image), size=image.stat().st_size, sha256=digest,
+        entry = dict(kind=kind, name=kind, path=str(image), size=image.stat().st_size, sha256=digest,
                      release_json_sha256=sha256(rel), assembly=assembly)
         rec['phases'] = phases(where / 'logs')
         print('candidate-cut: %s %s %s stick %s  sha256 %s' % (sha[:8], 'signed' if a.sign_key else 'UNSIGNED', kind,
                                                                image, digest), flush=True)
         return entry
+
+    def generic_stick(release_entry):
+        """The generic profile's stick from the same release (cut with both assemblies), into OUT/generic."""
+        where = out / 'generic'
+        where.mkdir()
+        rel = out / 'release' / 'release.json'
+        image = where / 'stick.img'
+        step('create-installer-generic', [PY, '-I', 'tools/hao/hao', 'create-installer', '--profile', 'generic',
+                                          '--release', rel, '--cache', cache, '--image', image]
+             + ([] if a.sign_key else ['--unsigned']), record, where)
+        digest = sha256(image)
+        (where / 'stick.img.sha256').write_text('%s  stick.img\n' % digest)
+        print('candidate-cut: %s generic stick %s  sha256 %s' % (sha[:8], image, digest), flush=True)
+        return dict(kind='generic', name='generic', path=str(image), size=image.stat().st_size, sha256=digest,
+                    release_json_sha256=release_entry['release_json_sha256'], assembly=a.generic_assembly,
+                    phases=phases(where / 'logs'))
 
     try:
         # a commit from before release-cut had --candidate cuts as it did then (recorded)
@@ -257,8 +294,14 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
         if a.only_dev:
             record['release_stick'] = dict(skipped='--only-dev')
         else:
-            entry = stick('release', record, out, a.assembly, candidate)
+            entry = stick('release', record, out, a.assembly, candidate,
+                          more=[a.generic_assembly] if a.generic else ())
             record['sticks'].append(entry)
+            profiles = json.loads((out / 'release' / 'release.json').read_text()).get('profiles')
+            if isinstance(profiles, dict):
+                record['profiles'] = sorted(profiles)
+            if a.generic:
+                record['sticks'].append(generic_stick(entry))
             record.update(release_json_sha256=entry['release_json_sha256'], image=entry['path'],
                           image_size=entry['size'], image_sha256=entry['sha256'])
         if a.dev_overlay and not a.no_dev:
