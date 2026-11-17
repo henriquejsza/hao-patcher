@@ -377,6 +377,18 @@ class Edits(unittest.TestCase):
 
 
 class Live(unittest.TestCase):
+    def test_bars_fit_80_columns(self):
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c.width = lambda: 80
+        t = c.task('  copy Recovery files', total=1500 * 10 ** 6, unit='bytes')
+        t.update(done=10 ** 9)
+        self.assertLessEqual(len(CON.plain(t.render())), 80)
+        q = c.task('Installing macOS 27', 'quiet', total=1000, unit='%')
+        q.width, q.bar_at = 30, 0
+        self.assertIn('█' * 15, CON.plain(q.render()))                 # the --quiet bar keeps its 30 cells
+        q.drop()
+        t.drop()
+
     def test_heartbeat_without_a_terminal(self):
         now = [0.0]
         out = Pipe()

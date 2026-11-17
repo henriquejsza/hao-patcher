@@ -772,7 +772,7 @@ class Task:
             line = at_column(line, at) if len(plain(line)) < at else line + ' '
             width = getattr(self, 'width', None) or c.bar_width
             if c.animate:          # one width for every bar: room for "357.3 / 357.3 MB", the check and the time
-                width = max(6, min(width, c.width() - max(len(plain(line)), c.bar_column) - 26))
+                width = max(6, min(width, c.width() - max(len(plain(line)), getattr(self, 'bar_at', c.bar_column)) - 26))
             line += c.paint('bar', bar(f, width, utf)) + ' ' + self.count()
         if self.tail and final is None:
             line += '  ' + c.paint('dim', self.tail)
