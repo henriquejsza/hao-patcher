@@ -191,6 +191,18 @@ class RecoveryCommands(unittest.TestCase):
             self.assertEqual('rsync' in links, os.access('/usr/bin/rsync', os.X_OK))   # only for absolute-path shims
             # the stub kit has no kit.py: the assembly stops at the render, after the PATH and the stand-ins
             self.assertNotEqual(r.returncode, 0)
+            # a second run (a resume, a reused --work) starts from fresh copies of the kit: a file added to a copy is
+            # gone, the resume records stay, and nothing was written into the kit (no __pycache__)
+            (local / 'source' / 'extra.pth').write_text('import os')
+            (local / 'work').mkdir(exist_ok=True); (local / 'work' / 'build.json').write_text('{}')
+            subprocess.run(['/bin/sh', str(STAGES / 'golden-assemble.sh'), str(kit), str(local),
+                            '--owner', '%d:%d' % (os.getuid(), os.getgid())],
+                           env={'HOME': tmp, 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HAO_RECOVERY_COMMANDS': str(LIST)},
+                           capture_output=True, text=True, timeout=60)
+            self.assertFalse((local / 'source' / 'extra.pth').exists())
+            self.assertTrue((local / 'source' / 'recovery-tools.py').is_file())
+            self.assertTrue((local / 'work' / 'build.json').is_file())
+            self.assertEqual([p for p in kit.rglob('__pycache__')], [])
 
 
 if __name__ == '__main__':

@@ -117,7 +117,7 @@ class Kit(unittest.TestCase):
     def test_assemble_script_passes_no_cryptex_cache_to_render(self):
         text = (TOP / 'pipeline/stages/golden-assemble.sh').read_text()
         self.assertIn('--no-cryptex-cache) NOCACHE=--no-cryptex-cache; shift ;;', text)
-        self.assertIn('[ -z "$NOCACHE" ] || set -- "$@" $NOCACHE\n"$W/py/bin/python3.12" -I "$W/source/kit.py" render', text)
+        self.assertIn('[ -z "$NOCACHE" ] || set -- "$@" $NOCACHE\n"$W/py/bin/python3.12" -I -B "$W/source/kit.py" render', text)
 
 
 class CaptureKit(unittest.TestCase):
