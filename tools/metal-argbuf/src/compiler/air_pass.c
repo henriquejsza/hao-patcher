@@ -66,7 +66,8 @@ void air_transform_init(void) {
 #undef LOAD
     if (ok) td64 = LLVMCreateTargetData(AIR64);
     ready = ok && td64;
-    // ARGBUF_LLVM_OPTIONS="-print-after-all ..." (host harness): LLVM options for the IGIL target's passes
+#ifdef ARGBUF_DIAGNOSTICS
+    // ARGBUF_LLVM_OPTIONS="-print-after-all ..." (diagnostic build only): LLVM options for the IGIL target's passes
     const char *opts = getenv("ARGBUF_LLVM_OPTIONS");
     void (*parse)(int, const char *const *, const char *) = opts ? (void (*)(int, const char *const *, const char *))dlsym(llvm, "LLVMParseCommandLineOptions") : NULL;
     if (parse) {
@@ -75,6 +76,7 @@ void air_transform_init(void) {
         for (char *t = strtok(buf, " "); t && argc < 31; t = strtok(NULL, " ")) argv[argc++] = t;
         parse(argc, argv, "argbuf");
     }
+#endif
 }
 
 static int contains_pointer(T t, int depth) {
@@ -166,6 +168,9 @@ static int fix_load(void *ctx, B b, V load) {
 }
 
 static void dump(M m, int n, const char *kind) {
+#ifndef ARGBUF_DIAGNOSTICS
+    (void)m; (void)n; (void)kind; return;   // diagnostic build only
+#endif
     const char *dir = getenv("ARGBUF_IR_DUMP_DIR"); if (!dir) return;
     char p[1024]; snprintf(p, sizeof p, "%s/%d.%s.ll", dir, n, kind);
     char *err = NULL; LLVMPrintModuleToFile(m, p, &err);

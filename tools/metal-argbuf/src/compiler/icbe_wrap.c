@@ -41,6 +41,9 @@ static char *rewrite(const char *in) {
 }
 
 // ---- proxy translation block ---------------------------------------------------------------------------------
+// The dump and replace switches below exist only in a diagnostic build (make --diagnostics), never in the installed
+// wrapper: a release build reads no path from the environment.
+#ifdef ARGBUF_DIAGNOSTICS
 // ICBE_WRAP_DUMP_DIR=DIR (host harness): every program is saved as DIR/N.in.igil, and its rewrite as DIR/N.out.igil
 static void dump(const char *kind, int n, const char *text) {
     const char *dir = getenv("ICBE_WRAP_DUMP_DIR"); if (!dir || !text) return;
@@ -60,6 +63,15 @@ static char *inject(const char *text) {
     syslog(LOG_NOTICE, "icbe_wrap: injected %s", p);
     return s;
 }
+static void dump_file(const char *text) {
+    const char *path = getenv("ICBE_WRAP_DUMP"); if (!path) return;
+    FILE *f = fopen(path, "w"); if (f) { fputs(text, f); fclose(f); }
+}
+#else
+static void dump(const char *kind, int n, const char *text) { (void)kind; (void)n; (void)text; }
+static char *inject(const char *text) { (void)text; return NULL; }
+static void dump_file(const char *text) { (void)text; }
+#endif
 static int p_translate(TB *self, const void *in, void *out) {
     int (*t)(TB*, const void*, void*) = (int (*)(TB*, const void*, void*))rvt(self->real)[0];
     const char *text = *(const char *const *)in;
@@ -71,7 +83,7 @@ static int p_translate(TB *self, const void *in, void *out) {
     if (!nt) return t(self->real, in, out);
     unsigned char args[ARGS_COPY]; memcpy(args, in, sizeof args);
     *(const char **)args = nt; *(uint32_t *)(args + 8) = (uint32_t)strlen(nt) + 1;
-    if (getenv("ICBE_WRAP_DUMP")) { FILE *f = fopen(getenv("ICBE_WRAP_DUMP"), "w"); if (f) { fputs(nt, f); fclose(f); } }
+    dump_file(nt);
     int r = t(self->real, args, out);
     free(nt);
     return r;
