@@ -54,9 +54,14 @@ def check_python(where, p, version=None, which=shutil.which):
                          if where == 'build' else 'start hao from the USB installer or /usr/local/bin/hao'))
     else:
         out.append(check('python', 'ok', 'Python %s' % '.'.join(map(str, (version or sys.version_info)[:3]))))
-    if where == 'build' and not which('python%s' % want):
-        out.append(check('python', 'fail', 'python%s is not on PATH (pipeline/ runs python%s -I)' % (want, want),
-                         'install Python %s from python.org and run its Install Certificates once' % want))
+    if where == 'build':
+        # what the pipeline's `env python3.14` will run: this run's PATH (as root, the launcher's verified interpreter)
+        found = which('python%s' % want)
+        if not found:
+            out.append(check('python', 'fail', 'python%s is not on PATH (pipeline/ runs python%s -I)' % (want, want),
+                             'install Python %s from python.org' % want))
+        else:
+            out.append(check('python', 'ok', 'pipeline/ runs %s' % found))
     return out
 
 

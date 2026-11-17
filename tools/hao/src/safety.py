@@ -14,6 +14,7 @@
 import os
 import re
 import stat
+import sys
 from pathlib import Path
 
 # hao's own variables a user's environment could carry into a root run; each one changes what root executes, reads,
@@ -43,7 +44,11 @@ def runs_from(stick, here=HERE):
         return False
 
 
-def harden_env(env=None, euid=None, home_of=None, here=HERE):
+# the interpreter tools/hao/hao's launcher runs as root, after checking it and its whole tree are root's alone
+ROOT_PYTHON = '/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14'
+
+
+def harden_env(env=None, euid=None, home_of=None, here=HERE, executable=None):
     """As root: remove DEVELOPER variables and TMPDIR, set PATH to the system's. HAO_STICK stays only when no user
     started this root (no sudo) and this hao runs from that drive (the USB installer's launcher). Under sudo HOME
     becomes the sudo user's home as the account database has it. Returns the names removed."""
@@ -57,6 +62,11 @@ def harden_env(env=None, euid=None, home_of=None, here=HERE):
     for k in gone:
         del env[k]
     env['PATH'] = SYSTEM_PATH
+    # the pipeline's host scripts start through `env python3.14`: as root they get exactly the interpreter the launcher
+    # verified (only when this run is that interpreter), never one from the user's PATH
+    exe = executable if executable is not None else sys.executable
+    if exe == ROOT_PYTHON:
+        env['PATH'] = os.path.dirname(ROOT_PYTHON) + ':' + SYSTEM_PATH
     if by_sudo:
         home = (home_of or _home_of)(env)
         if home:
