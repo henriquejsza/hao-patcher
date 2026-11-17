@@ -229,6 +229,7 @@ GATED = ('install', 'create-installer', 'build-disk')
 GENERIC = 'generic'     # the generic image's model pack / release profile (owner, v0.0.1: a software-graphics baseline)
 GENERIC_NOTE = ('The generic image is an unsupported baseline for testing: it runs with software graphics on hardware '
                 'hao does not know, and nothing about it is proven.')
+GENERIC_LINE = 'This generic image is for virtual machines and non-Apple PCs, not for Mac hardware.'
 
 
 def is_generic(profile):
@@ -239,6 +240,8 @@ def unproven(profile):
     """Why PROFILE is not a proven Mac (PROTOCOL S10): the generic image (always), an unknown GPU, a pack with no
     proof on this model, a model that is not proven. Empty when it is."""
     out = ['the generic image is an unsupported testing baseline'] if is_generic(profile) else []
+    if is_generic(profile) and (profile.get('firmware_vendor') or '').startswith('Apple'):
+        out.append('this is a Mac (Apple firmware): the generic image is for virtual machines and non-Apple PCs')
     out += ['unknown GPU %s%s: no rule picks its packs' % (d['device'], ' (%s)' % d['name'] if d.get('name') else '')
            for d in profile.get('unknown') or [] if d.get('role') == 'gpu']
     packs = [n for n, ok in (profile.get('proven') or {}).items() if not ok]
@@ -254,6 +257,8 @@ def proof_gate(a, c, profile, command):
     the install record (a.unproven_reasons)."""
     reasons = unproven(profile) if command in GATED else []
     a.unproven_reasons = reasons
+    if command in GATED and is_generic(profile):
+        c.print(c.paint('warn', GENERIC_LINE), 'quiet')     # before any confirmation (patcher GEN1, pm)
     if not reasons:
         return
     c.event('unproven', reasons=reasons, allowed=bool(getattr(a, 'unproven', False)))

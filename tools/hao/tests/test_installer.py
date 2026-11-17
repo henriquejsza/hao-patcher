@@ -56,6 +56,9 @@ class FakeMac(LaptopMac):
         if argv[:3] == ['diskutil', 'info', '-plist'] and argv[3] != '/':
             info = self.disks.get(argv[3])
             return None if info is None else plistlib.dumps(dict(info, DeviceIdentifier=argv[3]))
+        if argv[0] == 'ioreg' and 'IODeviceTree' in argv and 'efi' in argv:
+            vendor = getattr(self, 'firmware', 'Apple')
+            return plistlib.dumps([{'firmware-vendor': (vendor + '\0').encode('utf-16-le')}] if vendor else [])
         if argv[0] == 'ioreg' and 'IOPlatformExpertDevice' in argv:
             return plistlib.dumps([{'board-id': self.board, 'model': self.model.encode() + b'\0',
                                     'IOPlatformSerialNumber': SERIAL, 'IOPlatformUUID': UUID}])

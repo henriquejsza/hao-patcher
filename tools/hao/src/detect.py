@@ -74,7 +74,22 @@ def facts(host):
                         _str(d.get('name'))})
     return {'model': model, 'board_id': _str(pe.get('board-id')), 'cpu': cpu,
             'memory_bytes': int(mem) if mem.isdigit() else None, 'machine': _text(host, 'uname', '-m'),
-            'devices': devices}
+            'devices': devices, 'firmware_vendor': firmware_vendor(host)}
+
+
+def firmware_vendor(host):
+    """The EFI firmware's vendor (IODeviceTree /efi firmware-vendor, UTF-16): "Apple" on a Mac, "EDK II" in a VM, a PC
+    vendor's name on a PC. OpenCore's SMBIOS does not change it, so it tells a real Mac from a machine dressed as one.
+    None where there is no EFI node (Apple silicon)."""
+    try:
+        node = _plist(host, 'ioreg', '-a', '-r', '-p', 'IODeviceTree', '-n', 'efi', '-d', '1')
+    except Exception:
+        return None
+    node = node[0] if isinstance(node, list) and node else node if isinstance(node, dict) else {}
+    raw = node.get('firmware-vendor')
+    if isinstance(raw, bytes):
+        return raw.decode('utf-16-le', errors='replace').rstrip('\0').strip() or None
+    return _str(raw)
 
 
 def recorded_profile(model):
@@ -143,6 +158,7 @@ def profile(f, packs=None, rules=None):
                          'patchsets': r['patchsets']} for d, r in matched],
             'oclp_patchsets': patchsets, 'patchsets_source': source, 'packs': chosen, 'proven': proven,
             'proven_model': bool(chosen) and all(proven.values()), 'notes': notes,
+            'firmware_vendor': f.get('firmware_vendor'),
             'unknown': [{'role': d['role'], 'device': '%s:%s' % (d['vendor'], d['device']), 'name': d.get('name')}
                         for d in unknown]}
 

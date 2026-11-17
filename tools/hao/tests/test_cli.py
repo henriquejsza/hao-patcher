@@ -89,6 +89,9 @@ class FakeMac:
                     'hw.memsize': str(16 * GiB)}[argv[2]].encode()
         if argv[:2] == ['uname', '-m']:
             return self.machine.encode()
+        if argv[0] == 'ioreg' and 'IODeviceTree' in argv and 'efi' in argv:
+            vendor = getattr(self, 'firmware', 'Apple')
+            return plistlib.dumps([{'firmware-vendor': (vendor + '\0').encode('utf-16-le')}] if vendor else [])
         if argv[0] == 'ioreg' and 'IOPlatformExpertDevice' in argv:
             return plistlib.dumps([{k: v for k, v in (('board-id', self.board), ('model', self.model.encode() + b'\0'))
                                     if v is not None}])
@@ -698,6 +701,23 @@ class BuilderTest(unittest.TestCase):
         BUILD.proof_gate(a, c, generic, 'install')
         self.assertIn('unsupported baseline for testing', out.getvalue())
         self.assertIn('the generic image is an unsupported testing baseline', a.unproven_reasons)
+
+    def test_generic_image_on_a_real_mac_says_so(self):
+        mac = FakeMac(); vm = FakeMac(); vm.firmware = 'EDK II'
+        self.assertEqual(DETECT.facts(mac)['firmware_vendor'], 'Apple')
+        self.assertEqual(DETECT.facts(vm)['firmware_vendor'], 'EDK II')
+        for host, is_mac in ((mac, True), (vm, False)):
+            p = DETECT.profile(DETECT.facts(host)); p['packs'] = ['base', 'generic']
+            reasons = BUILD.unproven(p)
+            self.assertEqual(any('this is a Mac (Apple firmware)' in r for r in reasons), is_mac)
+            c, out = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:                 # a real Mac and a VM: both need --unproven
+                BUILD.proof_gate(ns(), c, p, 'install')
+            self.assertEqual(x.exception.code, 5)
+            self.assertIn('This generic image is for virtual machines and non-Apple PCs, not for Mac hardware.',
+                          out.getvalue())
+            c, _ = console('quiet')
+            BUILD.proof_gate(ns(unproven=True), c, p, 'install')       # with --unproven it goes on (recorded)
 
     def test_unproven_install_is_in_the_record_and_the_launcher(self):
         c, _ = console('quiet')
