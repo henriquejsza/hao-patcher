@@ -16,7 +16,7 @@ KIT = runpy.run_path(str(TOP / 'pipeline/kit.py'))
 RUN = runpy.run_path(str(TOP / 'pipeline/golden-run'))
 ROWS = [('oclp-hook', 'darwin27-kernel'), ('oclp-hook', 'golden-gate-userspace'), ('oclp-hook', 'selectors'),
         ('post', 'hao-opencore')]
-RECIPE = dict(size_bytes=80, name='GG', golden_build='26B131', donor_build='25G342')
+RECIPE = dict(size_bytes=80, name='GG', golden_build='26B131', donor_build='25G342', target='mbp92')
 LOCAL = '/Volumes/builder-work-x/job'
 
 
@@ -54,6 +54,9 @@ class Kit(unittest.TestCase):
             self.assertNotIn('image', kit['config'])
             self.assertEqual('${LOCAL}/py/bin/python3.12', kit['config']['python'])
             self.assertEqual('${KIT}', kit['config']['environment']['S'])
+            # every hook and post, wherever the kit is assembled, sees the target (golden-run stage_target)
+            self.assertEqual('MacBookPro9,2', kit['config']['environment']['HAO_TARGET_MODEL'])
+            self.assertEqual('${KIT}/target-data.json', kit['config']['environment']['HAO_TARGET_DATA'])
 
     def test_render_elsewhere_moves_every_path(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -64,6 +67,7 @@ class Kit(unittest.TestCase):
             for p in paths:
                 self.assertTrue(p.startswith(('/Volumes/HAOKIT/kit', '/Volumes/Work/hao')), p)
             self.assertEqual('/Volumes/Work/hao/target.img', config['image'])
+            self.assertEqual('/Volumes/HAOKIT/kit/target-data.json', config['environment']['HAO_TARGET_DATA'])
             self.assertEqual([h['name'] for h in guest['hooks']], [h['name'] for h in config['hooks']])
 
     def test_disk_target_needs_confirmation_and_drops_the_image(self):

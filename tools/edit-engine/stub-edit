@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """stub-edit: edit the x86_64 stub hao-install generated for a program, and refresh its stub identity.
 
-  stub-edit SYSTEM SPEC [--record FILE]
+  stub-edit SYSTEM SPEC [--record FILE] [--target-data FILE]
 
 For a recipe's kc-hook that runs after hao-runtime in the set: SPEC is an edit spec (format 1) whose `path` is a
 program of SYSTEM listed in SYSTEM/usr/lib/hao/stub-identities, whose `arch` is x86_64 and whose `origin.kind` is
@@ -17,6 +17,8 @@ program of SYSTEM listed in SYSTEM/usr/lib/hao/stub-identities, whose `arch` is 
      in place (same inode, owner, mode and flags).
   4. The program's stub-identities line gets the new stub CDHash; every other line is unchanged.
 
+A SPEC with when_target is applied only when the target's platform_data (--target-data, by default the file the
+hook gets in HAO_TARGET_DATA) has that key; otherwise nothing is written and it is reported skipped (exit 0).
 --record writes what was done (input and output sha256 and CDHashes, the spec's sha256, the edit record). Exit 0
 edited, 1 refused, 2 usage. The hook runs in the builder VM against the offline System (macOS codesign).
 """
@@ -202,9 +204,18 @@ def native_edit(spec, spec_path, path, target, data, record_path):
     return result
 
 
-def stub_edit(system, spec_path, record_path=None):
+def stub_edit(system, spec_path, record_path=None, target_data=None):
+    """TARGET_DATA: the file holding the target's platform_data (read only for a spec with when_target)."""
     system = Path(system)
     spec = S.load(str(spec_path))
+    if 'when_target' in spec:
+        skip = S.target_skip(spec, S.load_platform_data(target_data))
+        if skip:
+            result = {'path': spec.get('path'), 'skipped': skip, 'when_target': spec['when_target'],
+                      'spec_sha256': sha256(Path(spec_path).read_bytes())}
+            if record_path:
+                Path(record_path).write_text(json.dumps(result, indent=1) + '\n')
+            return result
     path = spec.get('path', '')
     kind = (spec.get('origin') or {}).get('kind')
     if spec.get('arch') != 'x86_64' or kind not in ('hao', 'apple'):
@@ -272,12 +283,17 @@ def main():
     p.add_argument('system')
     p.add_argument('spec')
     p.add_argument('--record')
+    p.add_argument('--target-data', default=os.environ.get('HAO_TARGET_DATA'),
+                   help='the target\'s platform_data (default $HAO_TARGET_DATA)')
     a = p.parse_args()
     try:
-        r = stub_edit(a.system, a.spec, a.record)
+        r = stub_edit(a.system, a.spec, a.record, a.target_data)
     except (Refused, OSError, ValueError) as x:
         print('stub-edit: refused: %s' % x, file=sys.stderr)
         return 1
+    if r.get('skipped'):
+        print('stub-edit: %s: skipped: %s (when_target %s)' % (r['path'], r['skipped'], r['when_target']))
+        return 0
     if r.get('kind') == 'apple':
         print('stub-edit: %s: %s -> %s (%s); other slices unchanged' % (
             r['path'], r['before']['sha256'][:12], r['after']['sha256'][:12],

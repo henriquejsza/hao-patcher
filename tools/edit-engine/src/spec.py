@@ -31,7 +31,7 @@ EXTERNAL_OPS = {
 # there, so the materialiser lists them as what the deferred step comes after.
 EXTERNAL_INPUTS = {'hao.stamp': ('kernel_collection',), 'kc.bind': ('kernel_collection',)}
 SIGN_KEYS = {'mode', 'identifier', 'preserve', 'entitlements_from'}
-TOP_KEYS = {'format', 'path', 'arch', 'origin', 'applied_by', 'edits', 'sign', 'expect'}
+TOP_KEYS = {'format', 'path', 'arch', 'origin', 'applied_by', 'when_target', 'edits', 'sign', 'expect'}
 COMMON_KEYS = {'id', 'kind', 'reason', 'evidence', 'asm'}
 KIND_KEYS = {
     'literal': {'find', 'replace', 'mask', 'replace_mask', 'count', 'at', 'base', 'limit', 'section'},
@@ -41,6 +41,7 @@ KIND_KEYS = {
 # plist keys whose string value is a list of boot arguments: each argument needs its own reason (arg_reasons).
 ARG_LIST_KEYS = {'boot-args'}
 ID = re.compile(r'[a-z0-9][a-z0-9-]*\Z')
+DATA_KEY = re.compile(r'[a-z][a-z0-9_]*\Z')     # a key of a target's platform_data (pipeline/targets/*.json)
 SHA = re.compile(r'[0-9a-f]{64}\Z')
 FN = re.compile(r'[A-Za-z0-9_./-]+\.py:[A-Za-z_][A-Za-z0-9_]*\Z')
 
@@ -100,6 +101,8 @@ def validate(spec):
         bad.append('origin takes kind, name, row and note (strings)')
     if spec.get('applied_by', 'installer') not in APPLIED_BY:
         bad.append('applied_by must be one of %s' % ', '.join(APPLIED_BY))
+    if 'when_target' in spec and not (isinstance(spec['when_target'], str) and DATA_KEY.match(spec['when_target'])):
+        bad.append('when_target must name a platform_data key of the target (lower-case letters, digits and _)')
     sign = spec.get('sign')
     if sign is not None and (not isinstance(sign, dict) or sign.get('mode') != 'adhoc'
                              or set(sign) - SIGN_KEYS
@@ -165,6 +168,33 @@ def validate(spec):
     if plist_ops and byte_edits:
         bad.append('plist.set edits cannot be mixed with byte edits in one spec')
     return bad
+
+
+def target_skip(spec, platform_data):
+    """Why SPEC is skipped on a target whose platform_data is PLATFORM_DATA (a dict), or None when it applies. A spec
+    without when_target applies everywhere; one with it applies only when the target's platform_data has that key.
+    PLATFORM_DATA None means the target is not known: a spec with when_target cannot be decided then (ValueError)."""
+    key = spec.get('when_target')
+    if key is None:
+        return None
+    if platform_data is None:
+        raise ValueError('%s applies only to targets whose platform_data has %s, and no target was given'
+                         % (spec.get('path'), key))
+    return None if key in platform_data else 'the target has no platform_data %s' % key
+
+
+def load_platform_data(path=None, target=None):
+    """A target's platform_data: from PATH (a JSON object, as hooks get it in HAO_TARGET_DATA) or from TARGET (a
+    pipeline/targets/*.json, its "platform_data", {} when it has none). None when neither is given."""
+    if path is not None:
+        data = load(path)
+    elif target is not None:
+        data = load(target).get('platform_data', {})
+    else:
+        return None
+    if not isinstance(data, dict):
+        raise ValueError('platform data must be a JSON object, not %s' % type(data).__name__)
+    return data
 
 
 def entitlements_problems(sign):
@@ -367,6 +397,8 @@ def describe(spec):
     lines = [spec['path'],
              '  origin   %s' % origin_text(spec['origin']),
              '  applied  by the %s' % spec.get('applied_by', 'installer')]
+    if spec.get('when_target'):
+        lines.append('  only     on targets whose platform_data has %s' % spec['when_target'])
     for n, e in enumerate(spec['edits'], 1):
         lines.append('  %d. %s  %s' % (n, e['id'], edit_summary(e)))
         if e['kind'] == 'literal':

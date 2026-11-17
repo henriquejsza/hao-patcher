@@ -429,5 +429,85 @@ class CommandLine(unittest.TestCase):
         self.assertIn('bytes  B0 01 0F BE  ->  B0 00 0F BE', r.stdout)
 
 
+class WhenTarget(unittest.TestCase):
+    """A spec with when_target applies only to a target whose platform_data has the key; elsewhere it is skipped."""
+    TOOL = HERE.parent / 'edit-engine'
+
+    def run_tool(self, *args, env=None):
+        environment = {k: v for k, v in os.environ.items() if k != 'HAO_TARGET_DATA'}
+        environment.update(env or {})
+        return subprocess.run([sys.executable, '-I', str(self.TOOL), *map(str, args)], capture_output=True, text=True,
+                              env=environment)
+
+    def setUp(self):
+        self.d = Path(tempfile.mkdtemp())
+        (self.d / 'in').write_bytes(image())
+        (self.d / 'spec.json').write_text(json.dumps(spec(literal(), when_target='model_gates')))
+        (self.d / 'with.json').write_text(json.dumps({'model_gates': {'renamed': 'NacBookPro9,2'}}))
+        (self.d / 'without.json').write_text('{}')
+        (self.d / 'target.json').write_text(json.dumps({'model': 'X', 'platform_data': {'model_gates': {}}}))
+        (self.d / 'bare-target.json').write_text(json.dumps({'model': 'Y'}))
+
+    def test_validation(self):
+        self.assertEqual(S.validate(spec(literal(), when_target='model_gates')), [])
+        for bad in ('', 'Model', 'a-b', 3, None, ['model_gates']):
+            self.assertTrue(any('when_target' in p for p in S.validate(spec(literal(), when_target=bad))), bad)
+        self.assertIn('  only     on targets whose platform_data has model_gates',
+                      S.describe(spec(literal(), when_target='model_gates')))
+
+    def test_skip_decision(self):
+        with_key = spec(literal(), when_target='model_gates')
+        self.assertIsNone(S.target_skip(spec(literal()), None))           # no when_target: as before, any target
+        self.assertIsNone(S.target_skip(spec(literal()), {}))
+        self.assertIsNone(S.target_skip(with_key, {'model_gates': {}}))
+        self.assertIn('no platform_data model_gates', S.target_skip(with_key, {}))
+        with self.assertRaises(ValueError):
+            S.target_skip(with_key, None)                                  # unknown target: cannot decide
+        self.assertEqual(S.load_platform_data(target=str(self.d / 'bare-target.json')), {})
+        self.assertEqual(S.load_platform_data(target=str(self.d / 'target.json')), {'model_gates': {}})
+        self.assertIsNone(S.load_platform_data())
+
+    def test_check_command(self):
+        r = self.run_tool('check', self.d / 'spec.json')
+        self.assertEqual(r.returncode, 0, r.stdout)
+        (self.d / 'bad.json').write_text(json.dumps(spec(literal(), when_target='Model Gates')))
+        r = self.run_tool('check', self.d / 'bad.json')
+        self.assertEqual(r.returncode, 1)
+        self.assertIn('when_target must name a platform_data key', r.stdout)
+
+    def test_applies_with_the_key(self):
+        for how in (['--target-data', self.d / 'with.json'], ['--target', self.d / 'target.json']):
+            r = self.run_tool('apply', *how, self.d / 'spec.json', self.d / 'in', self.d / 'out')
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('edit 1/1  answer-no', r.stdout)
+            self.assertEqual((self.d / 'out').read_bytes(), engine.apply(spec(literal()), image())[0])
+        r = self.run_tool('apply', self.d / 'spec.json', self.d / 'in', self.d / 'out2',
+                          env={'HAO_TARGET_DATA': str(self.d / 'with.json')})        # as a hook runs it
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.d / 'out2').read_bytes(), (self.d / 'out').read_bytes())
+
+    def test_skipped_without_the_key(self):
+        for how in (['--target-data', self.d / 'without.json'], ['--target', self.d / 'bare-target.json']):
+            r = self.run_tool('apply', *how, '--record', self.d / 'rec.json', self.d / 'spec.json', self.d / 'in',
+                              self.d / 'out')
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('skipped  the target has no platform_data model_gates', r.stdout)
+            self.assertEqual((self.d / 'out').read_bytes(), image())             # OUT is IN, unchanged
+            self.assertEqual(json.loads((self.d / 'rec.json').read_text())['when_target'], 'model_gates')
+        r = self.run_tool('apply', '--log', 'json', '--target-data', self.d / 'without.json', self.d / 'spec.json',
+                          self.d / 'in', self.d / 'out')
+        self.assertEqual([json.loads(l)['ev'] for l in r.stdout.splitlines()], ['file.skipped'])
+
+    def test_no_target_is_refused_for_a_conditional_spec_only(self):
+        r = self.run_tool('apply', self.d / 'spec.json', self.d / 'in', self.d / 'out')
+        self.assertEqual(r.returncode, 2)
+        self.assertIn('no target was given', r.stderr)
+        self.assertFalse((self.d / 'out').exists())
+        (self.d / 'plain.json').write_text(json.dumps(spec(literal())))
+        r = self.run_tool('apply', self.d / 'plain.json', self.d / 'in', self.d / 'out',
+                          env={'HAO_TARGET_DATA': str(self.d / 'missing.json')})      # never read for a plain spec
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+
 if __name__ == '__main__':
     unittest.main()
