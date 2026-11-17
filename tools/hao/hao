@@ -275,6 +275,8 @@ def guarded(fn, log=None):
             finish_line(c, log)
             if log in ('install', 'build-disk'):
                 c.column = 78                 # the mockups' install layout: P(text, 76) after the indent
+                if c.rich:
+                    c.hide = ('Disk   ',)     # the Erase panel names the disk
             elif log == 'create-installer':
                 c.column, c.gap = 60, True    # P(text, 58), a blank line between steps
                 c.hide = ('hao makes a USB installer',)   # the backend's intro: the mockups open with the header
@@ -361,7 +363,46 @@ def hook_backends(a, c, build=BUILD, inst=INST):
             raise
         live[0].drop()
         return out
+    choose = getattr(inst, 'choose', None)
+    choose = getattr(choose, 'original', choose)
+
+    def choose_hook(c2, key, question, choices, default=1):
+        """A choice as a numbered table on a Rich terminal; the same answers, retries and stop as installer.choose."""
+        if not c2.rich:
+            return choose(c2, key, question, choices, default)
+        from rich import box
+        from rich.table import Table
+        from rich.text import Text
+        numbered = [(label, value) for label, value in choices if value is not None]
+        c2.event('question', key=key, question=question, choices=[label for label, _ in choices])
+        c2.close()
+        t = Table(title=question, title_justify='left', title_style='bold', box=box.ROUNDED, show_header=False,
+                  border_style=c2.style('dim'), padding=(0, 1))
+        t.add_column(justify='right', style=c2.style('bar'), no_wrap=True)
+        t.add_column()
+        n = 0
+        for label, value in choices:
+            if value is None:
+                t.add_row('', Text(label, style=c2.style('dim')))
+            else:
+                n += 1
+                t.add_row(str(n), Text(label, style='bold' if n == default else ''))
+        c2.block(t)
+        for _ in range(3):
+            text = inst._answer(c2, 'Choice [%d]: ' % default if default else 'Choice: ')
+            if not text and default:
+                text = str(default)
+            if text.isdigit() and 1 <= int(text) <= len(numbered):
+                label, value = numbered[int(text) - 1]
+                c2.event('answer', key=key, choice=int(text), label=label)
+                return value
+            c2.print('Type a number from 1 to %d.' % len(numbered), 'quiet')
+        raise CON.Stopped('no choice made', untouched='nothing was downloaded or written',
+                          options=['run it again and type one of the numbers shown'])
     hooks = [(resolve_hook, resolve), (show_steps_hook, show_steps), (prepare_kit_hook, prepare_kit)]
+    if choose is not None:
+        hooks.append((choose_hook, choose))
+        inst.choose = choose_hook
     if write is not None:
         hooks.append((write_hook, write))
         stick.write = write_hook
@@ -371,6 +412,45 @@ def hook_backends(a, c, build=BUILD, inst=INST):
 
 
 def header(c, command, profile, asm):
+    """The header: a panel on a Rich terminal (header_panel), else the mockups' lines (header_lines)."""
+    if c.rich and c.at('steps'):
+        return header_panel(c, command, profile, asm)
+    return header_lines(c, command, profile, asm)
+
+
+def header_panel(c, command, profile, asm):
+    """The program, release and build as the panel's title; this Mac (or the target and the host) and the packs."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+    proven = profile.get('proven_model')
+    title = {'install': 'hao installer', 'build-disk': 'hao installer'}.get(command, 'hao-builder')
+    short = lambda n: (n or '').replace('Graphics ', '').split(' (')[0]
+    gpu = ', '.join(short(d.get('name') or d.get('device')) for d in profile.get('gpu', [])) or \
+        short(profile.get('gpu_name'))
+    check = ('proven model ' + c.ok) if proven else c.paint('warn', 'not proven on this model')
+    grid = Table.grid(padding=(0, 3))
+    grid.add_column(style=c.style('dim'), no_wrap=True)
+    grid.add_column()
+    if command in ('install', 'build-disk'):
+        try:
+            mem = ('%d GB' % profile['memory_gb'] if profile['memory_gb'] else '') if 'memory_gb' in profile else \
+                '%d GB' % round(os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 2.0 ** 30)
+        except (ValueError, OSError):
+            mem = ''
+        grid.add_row('Mac', Text.from_ansi(' · '.join(x for x in (profile['model'], gpu, mem) if x) + '   ' + check))
+    else:
+        grid.add_row('For', Text.from_ansi(' · '.join(x for x in (profile['model'], gpu) if x) + '   ' + check))
+        grid.add_row('Host', Text.from_ansi(host_line(c)))
+    grid.add_row('Packs', ' · '.join(profile.get('packs', [])))
+    head = Text.from_ansi('%s %s  %s' % (c.paint('bold', title), c.paint('bold', c.release or ''),
+                                         c.paint('dim', 'macOS 27 %s' % asm.get('golden_build', ''))))
+    c.block(Panel(grid, title=head, title_align='left', border_style=c.style('dim'), padding=(1, 2), expand=False))
+    detection(c, profile)
+    c.event('header', command=command, model=profile.get('model'), packs=profile.get('packs'))
+
+
+def header_lines(c, command, profile, asm):
     """The mockups' header: the program and release, then this Mac (or the host) and the packs, in columns."""
     proven = profile.get('proven_model')
     build = 'macOS 27 %s' % asm.get('golden_build', '')
@@ -430,11 +510,21 @@ def detection(c, profile, packs_dir=REPO / 'packs'):
             rows.append(('CPU', 'Intel', 'any Intel', pack))
     if not rows:
         return
-    c.print('', 'edits')
-    c.print(c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack'), 'edits')
-    for role, device, via, pack in rows:
-        c.print('  %-8s%-30s%-28s→ %s' % (role, device.replace('Graphics ', '').split(' (')[0][:28], '→ ' + via,
-                                         c.paint('bold', pack)), 'edits')
+    plain = ['', c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack')]
+    plain += ['  %-8s%-30s%-28s→ %s' % (role, device.replace('Graphics ', '').split(' (')[0][:28], '→ ' + via,
+                                       c.paint('bold', pack)) for role, device, via, pack in rows]
+
+    def table():
+        from rich import box
+        from rich.table import Table
+        t = Table(title='Detect hardware', title_justify='left', title_style='bold', box=box.SIMPLE_HEAD,
+                  show_edge=False, header_style=c.style('dim'), padding=(0, 2))
+        for name in ('', 'device', 'OCLP patch set', 'pack'):
+            t.add_column(name, no_wrap=True)
+        for role, device, via, pack in rows:
+            t.add_row(role, device.replace('Graphics ', '').split(' (')[0][:28], via, pack, style=None)
+        return t
+    c.block(table, plain, 'edits')
 
 
 def host_line(c):
@@ -480,12 +570,23 @@ def finish_line(c, command):
             if s.get('repairs'):
                 parts.append('%d kernel repairs' % s['repairs'])
             parts.append('no notes' if not s.get('notes') else '%d notes' % s['notes'])
+            rows = [('Time', took), ('Disk', disk)]
+            rows += [('Files from packs', format(s['files'], ','))] if s.get('files') else []
+            rows += [('Edits', format(s['edits'], ','))] if s.get('edits') else []
+            rows += [('Kernel repairs', str(s['repairs']))] if s.get('repairs') else []
+            rows += [('Log', str(log))] if log else []
+            card = dict(title=c.paint('ok', '✓ ') + c.paint('bold', 'macOS 27 is installed'), rows=rows,
+                        next=['Restart the Mac to start macOS 27. Setup Assistant opens first.'])
             return done(' · '.join(parts), lead=c.paint('ok', 'Installed'), more=more + ['Restart to use it.'],
-                        **fields)
+                        card=card, **fields)
         if command == 'create-installer' and not text.startswith('dry run'):
             text = text.replace('USB stick', 'USB installer').replace('stick image', 'USB installer image')
+            head, _, rest = text.partition('. ')
+            card = dict(title=c.paint('ok', '✓ ') + c.paint('bold', head[:1].upper() + head[1:]),
+                        rows=[('Time', took)] + ([('Log', str(log))] if log else []),
+                        next=[rest] if rest else [])
             return done('in %s. %s' % (took, text[:1].upper() + text[1:]), lead=c.paint('ok', 'Done'), more=more,
-                        **fields)
+                        card=card, **fields)
         return done(text, **fields)
     c.done = wrapped
 

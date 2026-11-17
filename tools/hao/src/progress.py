@@ -58,7 +58,7 @@ SAY = {
     'boot-and-esp': 'Intel boot files and the EFI partition',
     'hardware': 'OCLP\'s legacy hardware support: graphics, Wi-Fi, audio',
     'recipe darwin27-kernel': 'kernel collections linked with Tahoe\'s kmutil',
-    'recipe golden-gate-userspace': 'build the system cryptex (the shared cache); the longest step',
+    'recipe golden-gate-userspace': 'build the shared cache (the longest step)',
     'recipe golden-gate-native-identities': 'Intel identities for Apple\'s programs',
     'recipe hao-runtime': 'hao, which runs ARM-only apps',
     'snapshot': 'update Preboot, bless, take the system snapshot',
@@ -184,41 +184,94 @@ def declared(recipe, top=None):
 ORIGIN_KIND = {'apple': 'apple', 'ventura': 'apple', 'tahoe': 'tahoe', 'oclp': 'oclp', 'hao': 'hao'}
 
 
-def show_edits(c, recipe, top=None):
-    """--show-edits: each file RECIPE declares, where it comes from and every edit to it (the mockups' level 4)."""
+def edit_nodes(c, recipe, top=None):
+    """[(label, [children])] for each file RECIPE declares: origin, every edit (bytes, asm, why) and signing; then
+    one node for its whole files. Labels carry the palette's colours."""
     rows, S = declared(recipe, top)
     if not rows or S is None:
-        return
-    whole = [(path, origin) for path, origin, sp, _ in rows if not sp]
+        return []
+    out = []
     for path, origin, sp, rev in rows:
         if not sp:
             continue
         o = sp['origin']
-        c.print('', 'edits')
-        c.print('  ' + c.paint('bar', path), 'edits')
-        c.print('    %-9s%s' % ('origin', c.paint(ORIGIN_KIND.get(o.get('kind'), 'dim'), S['origin_text'](o))), 'edits')
+        kids = [('origin  ' + c.paint(ORIGIN_KIND.get(o.get('kind'), 'dim'), S['origin_text'](o)), [])]
         n = len(sp['edits'])
         for i, e in enumerate(sp['edits'], 1):
-            c.print('    %-9s%s  %s' % ('edit %d/%d' % (i, n), c.paint('bold', '%-26s' % e['id']),
-                                        c.paint('dim', S['edit_summary'](e))), 'edits')
+            detail = []
             if e['kind'] == 'literal':
                 before, after = S['hexbytes'](e['find']), S['hexbytes'](e['replace'])
-                c.print('             bytes  %s' % ' '.join(
-                    c.paint('bad', '%02X' % b) if i2 < len(after) and after[i2] != b else '%02X' % b
-                    for i2, b in enumerate(before)), 'edits')
-                c.print('                →   %s' % ' '.join(
-                    c.paint('ok', '%02X' % b) if i2 < len(before) and before[i2] != b else '%02X' % b
-                    for i2, b in enumerate(after)), 'edits')
+                detail.append(('bytes  ' + ' '.join(c.paint('bad', '%02X' % b) if j < len(after) and after[j] != b
+                                                    else '%02X' % b for j, b in enumerate(before)), []))
+                detail.append(('   →   ' + ' '.join(c.paint('ok', '%02X' % b) if j < len(before) and before[j] != b
+                                                    else '%02X' % b for j, b in enumerate(after)), []))
             if e.get('asm'):
-                c.print('             asm    %s  →  %s' % (e['asm']['before'], e['asm']['after']), 'edits')
-            c.print('             why    ' + c.paint('dim', e['reason']), 'edits')
-        c.print('    %-9s%s' % ('sign', S['sign_text'](sp.get('sign'))), 'edits')
+                detail.append(('asm    %s  →  %s' % (e['asm']['before'], e['asm']['after']), []))
+            detail.append(('why    ' + c.paint('dim', e['reason']), []))
+            kids.append(('edit %d/%d  %s  %s' % (i, n, c.paint('bold', e['id']), c.paint('dim', S['edit_summary'](e))),
+                         detail))
+        kids.append(('sign    ' + S['sign_text'](sp.get('sign')), []))
+        out.append((c.paint('bar', path), kids))
+    whole = [o for _, o, sp, _ in rows if not sp]
     if whole:
-        kinds = collections.Counter(S['origin_text'](o) for _, o in whole)
-        c.print('  ' + c.paint('dim', '%d whole file%s from %s' % (
-            len(whole), '' if len(whole) == 1 else 's', ', '.join(k + (' ×%d' % v if v > 1 else '')
-                                                                for k, v in kinds.most_common()))),
-            'edits')
+        kinds = collections.Counter(S['origin_text'](o) for o in whole)
+        out.append((c.paint('dim', '%d whole file%s from %s' % (len(whole), '' if len(whole) == 1 else 's', ', '.join(
+            k + (' ×%d' % v if v > 1 else '') for k, v in kinds.most_common()))), []))
+    return out
+
+
+def show_edits(c, recipe, top=None, pack=None):
+    """--show-edits: RECIPE's declared files and every edit to them (the mockups' level 4); a tree on a Rich
+    terminal (recipe -> file -> edit -> bytes, asm, why), else indented lines."""
+    nodes = edit_nodes(c, recipe, top) if c.at('edits') else []
+    if not nodes:
+        return
+    plain = []
+
+    def flat(items, depth):
+        for label, kids in items:
+            plain.append('  ' + '    ' * depth + label)
+            flat(kids, depth + 1)
+    plain.append('')
+    plain.append('  ' + c.paint('bold', recipe) + ('  ' + c.paint('dim', pack_name(pack)) if pack else ''))
+    flat(nodes, 1)
+
+    def tree():
+        from rich.text import Text
+        from rich.tree import Tree
+        from rich.padding import Padding
+        root = Tree(Text.from_ansi(c.paint('bold', recipe) + ('  ' + c.paint('dim', pack_name(pack)) if pack else '')),
+                    guide_style=c.style('dim'))
+
+        def add(node, items):
+            for label, kids in items:
+                add(node.add(Text.from_ansi(label)), kids)
+        add(root, nodes)
+        return Padding(root, (1, 0, 0, 2))
+    c.block(tree, plain, 'edits')
+
+
+def pack_table(c, rows):
+    """The packs applied: a table on a Rich terminal (pack, recipes, files, size, edits, ✓), else one line each."""
+    import console
+    plain = [console.at_column('  ' + (pack_line(c, pack, files, size) if files else '%-24s%d recipe%s' % (
+        pack_name(pack), len(names), '' if len(names) == 1 else 's')), c.col()) + c.ok
+        for pack, names, files, size, edits in rows]
+
+    def table():
+        from rich.table import Table
+        from rich import box
+        t = Table(box=box.SIMPLE_HEAD, show_edge=False, pad_edge=False, padding=(0, 2), header_style=c.style('dim'))
+        for name, just in (('pack', 'left'), ('recipes', 'right'), ('files', 'right'), ('size', 'right'),
+                           ('edits', 'right'), ('', 'left')):
+            t.add_column(name, justify=just, no_wrap=True)
+        for pack, names, files, size, edits in rows:
+            t.add_row(pack_name(pack), str(len(names)), format(files, ',') if files else '',
+                      console.human_size(size) if files else '', format(edits, ',') if edits else '',
+                      console.Text_ok(c))
+        from rich.padding import Padding
+        return Padding(t, (0, 0, 0, 2))
+    c.block(table, plain)
 
 
 def pack_name(pack):
@@ -522,8 +575,7 @@ class Kit:
                 self.c.item(pack_line(self.c, pack, f, b), ok=True, ev='pack.staged', pack=pack, files=f, bytes=b)
                 if self.c.at('edits'):
                     for recipe in self.r.groups.get(pack, []):
-                        show_edits(self.c, recipe)
-                    self.c.print('', 'edits')
+                        show_edits(self.c, recipe, pack=pack)
 
     def step(self, name):
         pass
@@ -619,16 +671,17 @@ class Assembly:
         self.finish()
         if self.packs and self.sizes is None:
             self.sizes = recipe_folders(self.kit) if self.kit and self.kit.is_dir() else {}
+        rows = []
         for pack, names in self.packs.items():
-            self.r.summary['edits'] = self.r.summary.get('edits', 0) + sum(
-                len(sp['edits']) for n in names for _, _, sp, _ in declared(n)[0] if sp)
+            edits = sum(len(sp['edits']) for n in names for _, _, sp, _ in declared(n)[0] if sp)
+            self.r.summary['edits'] = self.r.summary.get('edits', 0) + edits
             files = sum(self.sizes.get(n, (0, 0))[0] for n in names)
             size = sum(self.sizes.get(n, (0, 0))[1] for n in names)
-            text = pack_line(self.c, pack, files, size) if files else '%s %s' % (
-                self.c.paint('bold', '%-22s' % pack_name(pack)),
-                '%d recipe%s' % (len(names), '' if len(names) == 1 else 's'))
-            self.c.item(text, ok=True, ev='pack.applied', pack=pack, recipes=names, files=files, bytes=size)
+            rows.append((pack, names, files, size, edits))
+            self.c.event('pack.applied', pack=pack, recipes=names, files=files, bytes=size, edits=edits)
             self.r.summary['files'] = self.r.summary.get('files', 0) + files
+        if rows:
+            pack_table(self.c, rows)
         self.packs = collections.OrderedDict()
         if self.posts:
             self.c.item('%s  %d recipes' % (SAY['posts'], len(self.posts)), ok=True, ev='posts.applied',
@@ -637,6 +690,31 @@ class Assembly:
 
     def leave(self):
         self.flush()
+
+    # -- the footer: the overall phase, a bar, the time so far and about how long is left
+    def fraction(self):
+        total = float(sum(p.seconds for p in self.phases))
+        before = sum(p.seconds for p in self.phases[:max(self.index - 1, 0)])
+        ph = self.phases[self.index - 1] if self.index else None
+        within = min(0.95, (time.monotonic() - self.phase_started) / float(ph.seconds)) * ph.seconds if ph else 0
+        return (before + within) / total
+
+    def footer(self):
+        import console
+        c = self.c
+        if not self.index:
+            return ''
+        ph = self.phases[self.index - 1]
+        f = self.fraction()
+        spent = time.monotonic() - self.began
+        left = ''
+        if spent > 120 and f > 0.05:
+            left = ' · about %s left' % console.elapsed(max(60, spent / f - spent))
+        width = 24
+        full = int(round(f * width))
+        bar = c.paint('bar', '━' * full) + c.paint('dim', ('╺' if full < width else '') + '━' * max(0, width - full - 1))
+        return '%s %s  %s %3d%%  %s' % (c.paint('dim', '─'), c.paint('bold', '[%d/%d] %s' % (self.index, len(self.phases), ph.title)),
+                                       bar, int(100 * f), c.paint('dim', console.elapsed(spent) + left))
 
     # -- the --quiet bar
     def pace(self):
@@ -656,6 +734,9 @@ class Assembly:
 
     # -- the backend's lines
     def start(self):
+        self.began = time.monotonic()
+        if self.c.rich and self.c.level != 'quiet':
+            self.c.footer = self.footer
         self.c.steps(len(self.phases))
         self.enter(1)
         self.task = self.c.task('  ' + SAY['tools'])
@@ -698,7 +779,7 @@ class Assembly:
         else:
             self.packs.setdefault(self.r.pack_of(recipe), []).append(recipe)
         if self.c.at('edits'):
-            show_edits(self.c, recipe)
+            show_edits(self.c, recipe, pack=self.r.pack_of(recipe))
         self.task = self.c.task(('    ' if self.c.at('files') else '  ') + label)
 
     def command(self, cmd):
@@ -724,7 +805,7 @@ class Assembly:
             elif proven:
                 tail = self.c.paint('warn', 'differs from the proven build')
             else:
-                tail = self.c.paint('dim', 'linked on this Mac' if how == 'built' else how)
+                tail = self.c.paint('dim', 'linked here' if how == 'built' else how)
             self.c.event('kc.link', how=how, boot=boot, proven=proven)
             if self.task and not self.recipe_line:
                 self.task.update(text='  BootKC and SystemKC linked, Boot %s…' % boot[:12])
@@ -817,6 +898,7 @@ class Assembly:
         self.task.update(done=max(0, min(done - self.copy_base, total)), total=total)
 
     def end(self, rc):
+        self.c.footer = None
         if rc == 0:
             self.flush()
             if self.bar:

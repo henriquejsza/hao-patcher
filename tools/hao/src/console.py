@@ -284,6 +284,9 @@ class PlainSurface:
     def stop(self):
         self.c._clear_live()
 
+    def release(self, task):
+        self.c._clear_live()
+
     def pause(self):
         self.c._clear_live()
 
@@ -295,9 +298,10 @@ class PlainSurface:
 
 
 class RichSurface:
-    """A terminal through Rich: finished lines are printed above a Live region holding the line being worked on;
-    Rich refreshes it (10 a second), hides the cursor meanwhile and measures cells for cropping. HAO_RECORD=FILE keeps
-    everything drawn and saves it as SVG (or HTML, by FILE's suffix) when the command ends."""
+    """A terminal through Rich. Finished lines and blocks (rules, panels, tables, trees) print above one Live region
+    that stays for the whole run: the line being worked on and, when a command sets c.footer, a calm footer (the
+    overall phase, its bar, the time so far and left). Rich refreshes it (10 a second), hides the cursor meanwhile and
+    measures cells. HAO_RECORD=FILE keeps the finished lines and blocks and saves them as SVG (or HTML) at the end."""
     threaded = False
 
     def __init__(self, c, modules, record=False):
@@ -305,38 +309,57 @@ class RichSurface:
         self.c = c
         self.rc = RichConsole(file=c.out, force_terminal=True, color_system='truecolor', highlight=False, markup=False,
                               emoji=False, soft_wrap=True)
-        # the record holds only finished lines (no live frames): the screen as it is left
         import io
         self.rec = RichConsole(file=io.StringIO(), force_terminal=True, color_system='256', highlight=False,
                                markup=False, emoji=False, soft_wrap=True, record=True, width=c.width()) if record else None
         self.live = None
 
+    # -- finished output
     def line(self, text, stream=None):
         if stream is not None and stream is not self.c.out:
             self.pause()
             print(text, file=stream, flush=True)
             self.resume()
             return
-        self.rc.print(self.Text.from_ansi(text), soft_wrap=True)
-        if self.rec is not None:
-            self.rec.print(self.Text.from_ansi(text), soft_wrap=True)
+        self.show(self.Text.from_ansi(text), soft_wrap=True)
 
+    def show(self, renderable, **kw):
+        kw.setdefault('soft_wrap', False)       # blocks wrap inside their borders; plain lines pass soft_wrap=True
+        self.rc.print(renderable, **kw)
+        if self.rec is not None:
+            self.rec.print(renderable, **kw)
+
+    # -- the live region
     def _renderable(self):
+        from rich.console import Group
+        parts = []
         task = self.c.live
-        if task is None:
-            return self.Text('')
-        task.frame = int(time.monotonic() / TICK)
-        return self.Text.from_ansi(fit(task.render(), self.c.width() - 1), no_wrap=True, end='')
+        if task is not None:
+            task.frame = int(time.monotonic() / TICK)
+            parts.append(self.Text.from_ansi(fit(task.render(), self.c.width() - 1), no_wrap=True))
+        footer = self.c.footer() if self.c.footer else None
+        if footer:
+            parts.append(self.Text.from_ansi(fit(footer, self.c.width() - 1), no_wrap=True))
+        return Group(*parts) if parts else self.Text('')
 
     def start(self, task):
-        self.stop()
-        self.live = self.Live(get_renderable=self._renderable, console=self.rc, refresh_per_second=1 / TICK,
-                              transient=True, redirect_stdout=False, redirect_stderr=False)
-        self.live.start()
+        if self.live is None:
+            self.live = self.Live(get_renderable=self._renderable, console=self.rc, refresh_per_second=1 / TICK,
+                                  transient=True, redirect_stdout=False, redirect_stderr=False)
+            self.live.start()
+        else:
+            self.live.refresh()
 
     def refresh(self):
         if self.live is not None:
             self.live.refresh()
+
+    def release(self, task):
+        """A line ended: the region stays (no blink between steps) while a footer is set, else it closes."""
+        if self.c.footer:
+            self.refresh()
+        else:
+            self.stop()
 
     def stop(self):
         if self.live is not None:
@@ -359,6 +382,31 @@ class RichSurface:
         else:
             self.rec.save_svg(str(path), title='hao')
         return True
+
+
+def Text_ok(c):
+    """The ✓ as a Rich Text, in the palette's colour."""
+    from rich.text import Text
+    return Text.from_ansi(c.ok)
+
+
+def rich_style(code):
+    """A Rich style from one of the palette's SGR codes ("1;38;5;210" -> "bold color(210)")."""
+    out, parts, i = [], code.split(';'), 0
+    while i < len(parts):
+        if parts[i] == '1':
+            out.append('bold')
+        elif parts[i] == '2':
+            out.append('dim')
+        elif parts[i] == '38' and parts[i + 1] == '5':
+            out.append('color(%s)' % parts[i + 2]); i += 2
+        elif parts[i] == '38' and parts[i + 1] == '2':
+            out.append('rgb(%s,%s,%s)' % tuple(parts[i + 2:i + 5])); i += 4
+        elif parts[i].isdigit() and 30 <= int(parts[i]) <= 97:
+            out.append({30: 'black', 31: 'red', 32: 'green', 33: 'yellow', 34: 'blue', 35: 'magenta', 36: 'cyan',
+                        37: 'white', 90: 'bright_black'}.get(int(parts[i]), 'default'))
+        i += 1
+    return ' '.join(out) or 'none'
 
 
 class Stopped(Exception):
@@ -401,6 +449,7 @@ class Console:
         self.muted = False            # print nothing (events are still kept): a backend's own header is replaced
         self.release = None           # the release (or dev COMMIT) the header names
         self.hide = ()                # lines (by their start) a command does not show
+        self.footer = None            # a function giving the live region's last line (the overall phase), or None
         modules = rich_modules(e) if self.animate else None
         self.surface = RichSurface(self, modules, record=bool(e.get('HAO_RECORD'))) if modules else PlainSurface(self)
         self.record = e.get('HAO_RECORD')
@@ -431,6 +480,30 @@ class Console:
                     self._draw_live()
                 else:
                     self.surface.line(self.paint.erased(text))
+
+    @property
+    def rich(self):
+        """The Rich surface when output draws through Rich (a terminal), else None (pipes, logs, NO_COLOR, json)."""
+        return self.surface if isinstance(getattr(self, 'surface', None), RichSurface) and self.level != 'json' else None
+
+    def style(self, kind):
+        return rich_style(self.paint.codes[kind])
+
+    def close(self):
+        """End the live region (before a question, a report on stderr, the last line)."""
+        if getattr(self, 'surface', None) is not None:
+            self.surface.stop()
+
+    def block(self, renderable, plain_lines=(), level='steps'):
+        """A Rich block (rule, panel, table, tree) on a Rich terminal, else PLAIN_LINES as ordinary lines."""
+        if not self.at(level) or self.muted:
+            return
+        if self.rich:
+            with self.lock:
+                self.rich.show(renderable() if callable(renderable) else renderable)
+        else:
+            for line in plain_lines:
+                self.print(line, level)
 
     def save_record(self):
         """HAO_RECORD=FILE: the run as drawn, saved (SVG, or HTML for a .html FILE). True when saved."""
@@ -491,10 +564,16 @@ class Console:
             self.print(self.paint('bold', '%s...' % title), 'quiet')
         else:
             head = '[%d/%d] %s' % (self.index, self.total, title) if self.total else title
+            note_text = (note if '\033[' in note or not self.paint.on else self.paint('dim', note)) if note else ''
+            if self.rich:
+                from rich.rule import Rule
+                from rich.text import Text
+                label = Text.from_ansi(self.paint('bold', head) + ('  ' + note_text if note_text else ''))
+                self.block(Rule(label, align='left', style=self.style('dim'), characters='─'))
+                return
             if self.gap and self.index > 1:
                 self.print('')
-            self.print(self.paint('bold', head) + ('  ' + (note if '\033[' in note or not self.paint.on
-                                                          else self.paint('dim', note)) if note else ''))
+            self.print(self.paint('bold', head) + ('  ' + note_text if note_text else ''))
 
     def item(self, text, level='steps', ok=None, **fields):
         """One line under a step; OK True adds the check mark. Kept as an event when FIELDS are given."""
@@ -526,7 +605,13 @@ class Console:
     def confirm(self, question, word, given=None):
         """Ask QUESTION and require WORD typed (or GIVEN, from a flag). False when it does not match."""
         self.event('confirm', question=question, word=word, given=given is not None)
-        if self.level != 'json' or given is None:
+        self.close()
+        if self.rich and given is None:
+            from rich.panel import Panel
+            from rich.text import Text
+            self.block(Panel(Text.from_ansi(self.paint.erased(question)), title=Text('Erase', style=self.style('warn')),
+                             title_align='left', border_style=self.style('warn'), expand=False, padding=(0, 1)))
+        elif self.level != 'json' or given is None:
             print(self.paint.erased(question), file=self.out, flush=True)
         answer = given if given is not None else self.ask('Type %s to continue: ' % self.paint('bold', word))
         ok = answer.strip() == word
@@ -539,10 +624,28 @@ class Console:
         """The time since the command started, as the last line says it ("in 41m 18s")."""
         return elapsed(self.clock() - self.started)
 
-    def done(self, text, lead=None, more=(), **fields):
-        """The last line: LEAD (default ✓) and TEXT, with the time it took unless TEXT says it; then MORE, dim."""
+    def done(self, text, lead=None, more=(), card=None, **fields):
+        """The last line: LEAD (default ✓) and TEXT, with the time it took unless TEXT says it; then MORE, dim. On a
+        Rich terminal, CARD ({'title', 'rows': [(label, value)], 'next': [lines]}) is drawn as a summary panel."""
         took = self.clock() - self.started
         self.event('run.end', ok=True, text=text, seconds=round(took, 1), **fields)
+        self.footer = None
+        self.close()
+        if card and self.rich and self.at('steps'):
+            from rich.console import Group
+            from rich.panel import Panel
+            from rich.table import Table
+            from rich.text import Text
+            grid = Table.grid(padding=(0, 3))
+            grid.add_column(style=self.style('dim'), no_wrap=True)
+            grid.add_column()
+            for label, value in card.get('rows', []):
+                grid.add_row(label, Text.from_ansi(str(value)))
+            parts = [Text.from_ansi(card['title']), Text(''), grid]
+            if card.get('next'):
+                parts += [Text('')] + [Text.from_ansi(line) for line in card['next']]
+            self.block(Panel(Group(*parts), border_style=self.style('ok'), padding=(1, 2), expand=False))
+            return
         self.print('%s %s%s' % (lead or self.ok, text, '  ' + self.paint('dim', 'in ' + elapsed(took))
                                 if took >= 60 and ' in ' not in text and lead is None else ''), 'quiet')
         for line in more:
@@ -557,10 +660,15 @@ class Console:
                 self.live.end(False)
         if self.level == 'json':
             return
+        self.footer = None
+        self.close()
         w, s = self.err, self.paint_err
         untouched = x.untouched or ''
         if untouched:
             untouched = untouched + ('' if untouched.endswith('.') else '.')     # "STOPPED before anything ..." 
+        if self.rich and s.on:
+            self.stopped_panel(x, untouched)
+            return
         print('\n%s\n' % ' '.join(x for x in (s('bad', 'STOPPED'), untouched) if x), file=w)
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
@@ -572,6 +680,39 @@ class Console:
         if x.log:
             print('\n  ' + s('dim', 'Log: %s' % x.log), file=w)
         w.flush()
+
+
+    def stopped_panel(self, x, untouched):
+        """The STOPPED report in a red panel, on stderr (and in the record)."""
+        from rich.console import Console as RichConsole, Group
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.text import Text
+        s = self.paint_err
+        bad = rich_style(s.codes['bad'])
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(style=rich_style(s.codes['dim']), no_wrap=True)
+        grid.add_column()
+        for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
+            if text:
+                grid.add_row(label, text)
+        parts = [Text(untouched)] if untouched else []
+        parts += [Text(''), grid] if parts else [grid]
+        if x.options:
+            todo = Table.grid(padding=(0, 2))
+            todo.add_column(justify='right', style=rich_style(s.codes['dim']))
+            todo.add_column()
+            for i, o in enumerate(x.options, 1):
+                todo.add_row(str(i), Text.from_ansi(COMMAND.sub(lambda m: m.group(1) + s('bold', m.group(2)), o)))
+            parts += [Text(''), Text('What you can do', style='bold'), todo]
+        if x.log:
+            parts += [Text(''), Text('Log: %s' % x.log, style=rich_style(s.codes['dim']))]
+        panel = Panel(Group(*parts), title=Text(' STOPPED ', style=bad), title_align='left', border_style=bad,
+                      padding=(1, 2))
+        RichConsole(file=self.err, force_terminal=True, color_system='truecolor', highlight=False, markup=False,
+                    emoji=False).print(panel)
+        if self.rich and self.rich.rec is not None:
+            self.rich.rec.print(panel)
 
 
 class Task:
@@ -677,9 +818,9 @@ class Task:
                 return
             self.ended = True
             if c.live is self:
-                if c.animate:
-                    c.surface.stop()
                 c.live = None
+                if c.animate:
+                    c.surface.release(self)
             c.event('task.end', text=self.text, ok=True, seconds=round(self.seconds(), 1), shown=False, **self.fields)
         if getattr(self, '_thread', None) is not None:
             self._stop.set()
@@ -701,9 +842,9 @@ class Task:
             if timed and secs >= SHOW_TIME:
                 line += '  ' + c.paint('dim', elapsed(secs))
             if c.live is self:
-                if c.animate:
-                    c.surface.stop()
                 c.live = None
+                if c.animate:
+                    c.surface.release(self)
             if self.shown:
                 if c.animate:
                     c.surface.line(c.paint.erased(line))

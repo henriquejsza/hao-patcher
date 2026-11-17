@@ -58,7 +58,7 @@ class Colour(unittest.TestCase):
         self.assertIn(ESC + '38;5;221meverything on it will be erased', out)
         self.assertIn(ESC + '38;5;221mEverything on disk4 (USB, 32 GB) will be erased', out)
         self.assertIn(ESC + '38;5;221mwarning:', err)
-        self.assertIn(ESC + '1;38;5;210mSTOPPED', err)                           # red STOPPED
+        self.assertIn(ESC + '1;38;5;210m  STOPPED  ', err)                         # the red panel's title                           # red STOPPED
         self.assertIn(ESC + '38;5;78m✓' + ESC + '0m the USB stick is ready', out)
 
     def test_events_hold_no_colour(self):
