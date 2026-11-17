@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import plistlib
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -222,6 +223,43 @@ class StickTest(unittest.TestCase):
         STICK.rewrite_boot(host, 'disk4')
         self.assertEqual((esp / 'EFI/OC/OpenCore.efi').read_bytes(), b'MZ kit opencore')
         self.assertEqual((esp / 'EFI/BOOT/BOOTX64.EFI').read_bytes(), b'kit boot')
+
+    def test_rewrite_boot_never_writes_through_links_on_the_drive(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        outside = self.d / 'outside'; outside.mkdir()
+        victim = outside / 'opencore-2026-11-16-132000.txt'; victim.write_text('host file')
+        (esp / 'opencore-2026-11-16-132000.txt').write_text('payload')
+        shutil.rmtree(top / 'reports'); os.symlink(outside, top / 'reports')     # reports -> a folder on the host
+        with self.assertRaisesRegex(STICK.StickError, 'reports is not a folder'):
+            STICK.rewrite_boot(host, 'disk4', self.esp)
+        self.assertEqual(victim.read_text(), 'host file')
+        os.unlink(top / 'reports'); (top / 'reports').mkdir()
+        os.symlink(victim, top / 'reports' / 'opencore-2026-11-16-132000.txt')    # a link where the log goes
+        STICK.rewrite_boot(host, 'disk4', self.esp)
+        self.assertEqual(victim.read_text(), 'host file')                         # the link was replaced, not followed
+        self.assertEqual((top / 'reports' / 'opencore-2026-11-16-132000.txt').read_text(), 'payload')
+        info = top / 'stick.json'; real = info.read_text(); info.unlink(); os.symlink(victim, info)
+        with self.assertRaisesRegex(STICK.StickError, 'stick.json is a link'):
+            STICK.rewrite_boot(host, 'disk4', self.esp)
+        self.assertEqual(victim.read_text(), 'host file')
+
+    def test_write_new_is_exclusive_and_no_follow(self):
+        target = self.d / 'out.json'
+        STICK.write_new(target, b'one')
+        self.assertEqual(target.read_bytes(), b'one')
+        victim = self.d / 'victim'; victim.write_text('keep')
+        os.unlink(target); os.symlink(victim, target)
+        STICK.write_new(target, b'two')
+        self.assertEqual((victim.read_text(), target.read_bytes(), target.is_symlink()), ('keep', b'two', False))
+
+    def test_image_is_created_exclusively(self):
+        host = FakeHost(self.mnt)
+        victim = self.d / 'victim'; victim.write_text('keep')
+        img = self.d / 'link.img'; os.symlink(victim, img)
+        with self.assertRaises((STICK.StickError, FileExistsError)):
+            STICK.attach_image(host, img, 10 ** 6)
+        self.assertEqual(victim.read_text(), 'keep')
 
     def test_rewrite_boot_refuses_a_disk_hao_did_not_write(self):
         host = FakeHost(self.mnt)

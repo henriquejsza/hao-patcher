@@ -245,6 +245,41 @@ def copy_tree(src, dest, skip=SKIP, linked=None, skip_paths=()):
             shutil.copy2(r / f, out / f)
 
 
+def write_new(path, data, mode=0o644):
+    """DATA (bytes) as PATH, never through a link: an exclusive, no-follow temporary file in PATH's folder (which must
+    be a real folder), then renamed over PATH (a rename replaces a link at PATH, it does not follow it). For volumes
+    whose existing contents are not trusted (an existing USB installer's HAO)."""
+    path = Path(path)
+    st = os.lstat(path.parent)
+    if not __import__('stat').S_ISDIR(st.st_mode):
+        raise StickError('%s is not a folder (a link?)' % path.parent)
+    tmp = path.parent / ('.%s.%s.tmp' % (path.name, os.urandom(6).hex()))
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def real_folder(path):
+    """PATH as a real folder (made when missing); a link or a file there is refused."""
+    path = Path(path)
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        path.mkdir()
+        return path
+    if not __import__('stat').S_ISDIR(st.st_mode):
+        raise StickError('%s is not a folder (a link?): refusing to write through it' % path)
+    return path
+
+
 def verify_kit(kit, copy, skip=('.DS_Store', '__pycache__'), skip_paths=KIT_LEFT_OUT):
     """Every regular file of the staged KIT is in COPY (the kit on the drive) with the same size, apart from what the
     drive leaves out; symlinks (moved in from the drive, or kept as links) are not compared. Returns the files checked;
@@ -367,7 +402,7 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
     rec['kernel_collections'] = (
         dict(source='prelinked', key=json.loads(prelinked[0].read_text()).get('key')) if prelinked else
         dict(source='linked by hao install on the target, as root (Tahoe kmutil + its x86_64 collection builder)'))
-    (mount / 'stick.json').write_text(json.dumps(rec, indent=1, sort_keys=True) + '\n')
+    write_new(mount / 'stick.json', (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
     return rec
 
 
@@ -428,7 +463,7 @@ def attach_image(host, image, size_bytes):
     if image.exists():
         raise StickError('%s exists' % image)
     image.parent.mkdir(parents=True, exist_ok=True)
-    with open(image, 'wb') as f:
+    with open(image, 'xb') as f:          # exclusive: never truncates a file or follows a link put there meanwhile
         f.truncate(size_bytes)
     r = host.run(['hdiutil', 'attach', '-imagekey', 'diskimage-class=CRawDiskImage', '-nomount', '-plist', str(image)],
                  timeout=300)
@@ -509,11 +544,13 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
         basesystem = boot / 'com.apple.recovery.boot' / 'BaseSystem.dmg'
         if not basesystem.is_file():
             raise StickError('%s has no Recovery (com.apple.recovery.boot/BaseSystem.dmg): name one' % BOOT_NAME)
+    if info.is_symlink():
+        raise StickError('%s/stick.json is a link: this drive was changed by something other than hao' % KIT_NAME)
     rec = json.loads(info.read_text())
-    (top / 'reports').mkdir(exist_ok=True)
-    logs = sorted(p.name for p in esp.glob('opencore-*.txt'))
+    reports = real_folder(top / 'reports')
+    logs = sorted(p.name for p in esp.glob('opencore-*.txt') if p.is_file() and not p.is_symlink())
     for name in logs:
-        shutil.copyfile(esp / name, top / 'reports' / name)
+        write_new(reports / name, (esp / name).read_bytes())
         (esp / name).unlink()
     if logs:
         step('kept %d OpenCore log%s in %s/reports' % (len(logs), '' if len(logs) == 1 else 's', KIT_NAME))
@@ -523,7 +560,7 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
     rec.update(boot_rewritten=datetime.datetime.now().isoformat(timespec='seconds'), opencore_logs_kept=logs)
     step('EFI      OpenCore again (picker after %d s, log %s)' % (PICKER_TIMEOUT, 'on' if log else 'off'))
     step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
-    info.write_text(json.dumps(rec, indent=1, sort_keys=True) + '\n')
+    write_new(info, (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
     host.run(['diskutil', 'unmountDisk', '/dev/' + disk], check=False, timeout=300)
     return rec
 
@@ -549,10 +586,20 @@ def rewrite_boot_main(argv):
     p.add_argument('--opencore', help="an ESP tar (default: the ESP of the kit on the USB installer)")
     p.add_argument('--basesystem', help='a new BaseSystem.dmg (default: keep the one on HAOBOOT)')
     p.add_argument('--opencore-log', action='store_true', help="OpenCore's log to a file on EFI (slower start)")
+    p.add_argument('--confirm', help='the disk name typed ahead (scripts)')
     a = p.parse_args(argv)
     host, disk = SystemHost(), DISKS.normalize(a.disk)
     if host.euid() != 0:
         print('stick.py rewrite-boot needs administrator rights: run it with sudo', file=sys.stderr)
+        return 1
+    why = DISKS.refusal(host, disk, 'external', 0)
+    if why:
+        print('stopped: /dev/%s may not be written: %s' % (disk, why), file=sys.stderr)
+        return 1
+    info, _ = DISKS.describe(host, disk)
+    print('The boot partitions (EFI and HAOBOOT) of %s will be written again.' % DISKS.label(info))
+    if (a.confirm or input('Type %s to continue: ' % disk)).strip() != disk:
+        print('stopped: not confirmed', file=sys.stderr)
         return 1
     try:
         rewrite_boot(host, disk, a.opencore, a.basesystem, log=a.opencore_log, on_step=print)

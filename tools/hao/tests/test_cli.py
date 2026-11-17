@@ -563,6 +563,24 @@ class BuilderTest(unittest.TestCase):
         listing = plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': []}]})
         self.assertFalse(BUILD.set_startup_disk(c, host, 'disk0'))    # no EFI partition: a warning, not a stop
 
+    def test_no_restart_when_the_start_up_disk_was_not_set(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            ran, run = self.fake_run()
+            real = BUILD.set_startup_disk
+            BUILD.set_startup_disk = lambda c, h, disk: False
+            try:
+                c, out = console('quiet')
+                a = ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), no_restart=False)
+                import unittest.mock as M
+                with M.patch.object(sys.stdin, 'isatty', lambda: True):
+                    self.assertEqual(BUILD.install(a, c, host, run=run), 0)
+            finally:
+                BUILD.set_startup_disk = real
+            self.assertNotIn('restart.countdown', [e['ev'] for e in c.events])
+            self.assertIn('restart to use it', out.getvalue())
+
     def test_restart_counts_down_and_a_key_cancels(self):
         class Host:
             calls = []

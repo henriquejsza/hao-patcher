@@ -517,8 +517,9 @@ def install(a, c, host, run=subprocess.call):
     work = assemble_onto(a, c, host, path, info, 'internal', run)
     write_install_record(c, host, DISKS.normalize(a.disk),
                          install_record(a, c, profile, path, asm, groups, DISKS.normalize(a.disk), a.kit))
-    set_startup_disk(c, host, DISKS.normalize(a.disk))
-    wait = None if getattr(a, 'no_restart', False) else (key_within if sys.stdin.isatty() else None)
+    blessed = set_startup_disk(c, host, DISKS.normalize(a.disk))
+    # no automatic restart when the start-up disk was not set: the Mac could start something else
+    wait = None if getattr(a, 'no_restart', False) or not blessed else (key_within if sys.stdin.isatty() else None)
     if wait is None:
         c.done('Installed macOS 27 on /dev/%s; restart to use it' % DISKS.normalize(a.disk), work=str(work))
         return 0
