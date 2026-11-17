@@ -14,8 +14,8 @@ tools/kernel-foundation vm_esp.py. This sets, in place:
   conflicts with a real Mac's SMC: this pack is never for Mac hardware.
 - The reference's Booter, Kernel and UEFI quirks: each quirk the reference turns on is set to its value (only quirks
   this OpenCore's config knows).
-- Lilu.kext replaced by OCLP's RELEASE payload (1.7.2, the pinned bytes): the reference carries another build, and
-  both images load the same Lilu.
+- Lilu.kext replaced by OCLP's RELEASE payload (1.7.2, the pinned bytes), whatever Lilu the base ESP carries: both
+  images load the same Lilu.
 - CryptexFixup.kext (Acidanthera 1.0.5, OCLP's RELEASE payload from OCLP_SOURCE, the row oclp_source): without it APFS
   requires the image's modified OS cryptex's root hash and the boot stops at its graft (QEMU, bench 0726).
 - boot-args gets `-crypt_force_avx`: CryptexFixup does nothing on a CPU with AVX2 (Haswell and newer, AMD Ryzen) unless
@@ -147,7 +147,7 @@ def main(argv):
     reference = plistlib.loads((reference_root/'EFI/OC/config.plist').read_bytes())
     changed = quirks(config, reference)
     add_smc(config, esp, reference_root)
-    oclp_kext(esp, oclp_tar, LILU_ZIP, 'Lilu.kext')     # the reference's Lilu is another build
+    oclp_kext(esp, oclp_tar, LILU_ZIP, 'Lilu.kext')     # the pinned Lilu, whatever the base ESP carries
     add_cryptexfixup(config, esp, oclp_tar)
     force_avx(config)
     fresh = platform(config)

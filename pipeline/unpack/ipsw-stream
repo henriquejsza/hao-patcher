@@ -13,6 +13,7 @@ Integrity, fail closed: --pins FILE (release.json's "ipsw_pins": {"members": {NA
 {ROLE: {size, sha256}}}) pins each member read (hashed while it streams, checked at its end) and each image written;
 a member not pinned is not read. On any mismatch or error the image being written is deleted and nothing is left in
 DIR/payload that did not check. --trust-local reads a local IPSW without pins (a maintainer's own copy).
+With HAO_MIRROR set, a URL is read from the local mirror by the pins' "ipsw_sha256" (ranged.py: mirror).
 """
 import argparse
 from datetime import datetime, timezone
@@ -125,7 +126,11 @@ def main():
     sys.path.insert(0, str(TOP / 'pipeline'))
     import source_commit
     tool, tool_version = MAKE['ipsw_tool'](a.ipsw_tool, TOP, scratch / 'ipsw-tool')
-    src = ranged.open_source(a.ipsw)
+    try:
+        src = ranged.open_source(a.ipsw, pin_doc.get('ipsw_sha256'))
+    except OSError as x:
+        subprocess.run(['rm', '-rf', str(scratch)])
+        raise SystemExit('ipsw-stream: %s' % x)
     record = dict(unit=UNIT, revision=REVISION, date=datetime.now(timezone.utc).isoformat(),
                   commit=source_commit.commit(TOP), dirty=source_commit.dirty(TOP), ipsw=a.ipsw, board=a.board,
                   pinned=bool(a.pins), dependencies={'ipsw': tool_version}, components={}, status='building')

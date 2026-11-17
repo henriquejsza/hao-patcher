@@ -2,7 +2,8 @@
 
   harden_env(env)        run as root: drop hao's developer variables (they choose what root runs, reads or writes),
                          use the system PATH and, under sudo, the sudo user's home from the account database; called
-                         before hao computes any path. HAO_STICK stays only for the hao that runs from that drive.
+                         before hao computes any path. HAO_STICK stays only for the hao that runs from that drive;
+                         HAO_MIRROR and HAO_MIRROR_STRICT (KEPT) always stay.
   Folder(path, owners)   a folder opened once without following a link at its name, checked through its descriptor
                          (a folder, its owner, not writable by others, and where the kernel says it is: no link above
                          it), then listed, read, created in and appended to only through that descriptor, so a folder
@@ -21,6 +22,10 @@ from pathlib import Path
 # writes or where it looks (developer overrides; HAO_STICK is set by the USB installer's launcher, where only root exists)
 DEVELOPER = ('HAO_LAUNCHER', 'HAO_LOGS', 'HAO_RECORD', 'HAO_ANYWHERE', 'HAO_STICK', 'HAO_DISK_FLOOR_GB',
              'HAO_NO_RICH', 'HAO_PALETTE')
+# kept through a root run (never in DEVELOPER): they only choose where the pinned downloads come from, and every byte
+# from the mirror is checked against the release's size and sha256 (tools/acquire, pipeline/unpack/ranged.py), so a
+# root create-installer does not quietly go to the origin instead
+KEPT = ('HAO_MIRROR', 'HAO_MIRROR_STRICT')
 SYSTEM_PATH = '/usr/bin:/bin:/usr/sbin:/sbin'
 UNKNOWN_UID = 99            # a volume mounted with owners ignored (the USB installer's HAO in the Recovery)
 HERE = Path(__file__).resolve()
@@ -58,7 +63,7 @@ def harden_env(env=None, euid=None, home_of=None, here=HERE, executable=None):
     by_sudo = elevated(env, 0)
     keep_stick = not by_sudo and runs_from(env.get('HAO_STICK'), here)
     gone = [k for k in DEVELOPER + ('TMPDIR', 'SSL_CERT_FILE', 'SSL_CERT_DIR')     # root picks its own CA bundle
-            if k in env and not (k == 'HAO_STICK' and keep_stick)]
+            if k in env and k not in KEPT and not (k == 'HAO_STICK' and keep_stick)]
     for k in gone:
         del env[k]
     env['PATH'] = SYSTEM_PATH

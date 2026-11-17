@@ -93,6 +93,13 @@ class CABundle(unittest.TestCase):
             env = {'SSL_CERT_DIR': '/mine'}                     # named by the user: left alone
             self.assertIsNone(SAFE.ca_bundle(env, self.Paths(), system=str(system)))
 
+    def test_root_keeps_the_mirror_variables(self):
+        env = {'HAO_MIRROR': 'http://192.168.64.1:8080', 'HAO_MIRROR_STRICT': '1', 'HAO_LOGS': '/x', 'SUDO_USER': 'u'}
+        gone = SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
+        self.assertEqual(gone, ['HAO_LOGS'])
+        self.assertEqual((env['HAO_MIRROR'], env['HAO_MIRROR_STRICT']), ('http://192.168.64.1:8080', '1'))
+        self.assertFalse(set(SAFE.KEPT) & set(SAFE.DEVELOPER))
+
     def test_root_drops_inherited_ca_settings(self):
         env = {'SSL_CERT_FILE': '/tmp/evil.pem', 'SSL_CERT_DIR': '/tmp/evil', 'SUDO_USER': 'u'}
         gone = SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')

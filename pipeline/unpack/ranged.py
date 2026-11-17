@@ -4,16 +4,27 @@ A release pins the bytes the build uses, not whole downloads: each zip member it
 installer's asset zip members) has its size and sha256 in release.json, and a member is hashed while it streams and
 refused at its end if it differs. Nothing read from a source counts until its pin is checked.
 
-  open_source(PATH_OR_URL)   -> Source: .size, .read_at(off, n), .reader() (seekable file object), .fetched
+  open_source(PATH_OR_URL, sha256=None, name=None)
+                             -> Source: .size, .read_at(off, n), .reader() (seekable file object), .fetched
+  mirrored(URL, sha256, name=None) -> the URL to read: the local mirror's when it serves the file, else URL
   Pins(DICT, what)            {member: {"size": N, "sha256": HEX}}: .open(zipfile, member) -> a stream that raises
                               PinError at its end when the bytes differ (and at once when the member is not pinned)
 
   ranged.py pins ZIP MEMBER...   the pins of MEMBERs of a trusted local zip (an IPSW), as JSON
+
+A local mirror: with HAO_MIRROR=URL set, a URL whose whole-file SHA256 is known is read from URL/sha256/SHA256 instead
+(the mirror answers Range with 206); the member pins check what is read exactly as before. A mirror miss (HTTP error,
+no connection, no byte ranges) prints one line, `mirror miss NAME SHA256` (stderr; NAME is the URL's file name), and
+the origin URL is read; with HAO_MIRROR_STRICT=1 it raises MirrorMiss (an OSError) naming the file and its sha256.
+HAO_MIRROR is an IPv4 (or host name) URL, e.g. http://192.168.64.1:PORT; an IPv6 address is refused. Connections are
+http.client's own, so no proxy variable applies (to the mirror or the origin).
 """
 import hashlib
 import http.client
 import io
 import os
+import re
+import sys
 import time
 import urllib.parse
 import zipfile
@@ -24,6 +35,10 @@ RETRIES = 5
 
 class PinError(Exception):
     """Bytes that are not the pinned ones: never used."""
+
+
+class MirrorMiss(OSError):
+    """HAO_MIRROR_STRICT=1 and the local mirror does not serve the file."""
 
 
 class Source:
@@ -53,7 +68,12 @@ class HTTPSource(Source):
     def __init__(self, url, window=WINDOW):
         self.url, self.window, self.conn = url, window, None
         self.cache_off, self.cache = 0, b''
-        self.size = self._size()
+        try:
+            self.size = self._size()
+        except BaseException:
+            if self.conn:
+                self.conn.close()
+            raise
 
     def _connect(self, url):
         u = urllib.parse.urlsplit(url)
@@ -119,9 +139,56 @@ class HTTPSource(Source):
         return self.cache[:n]
 
 
-def open_source(where):
+def _from_mirror(url, sha256, name):
+    """An HTTPSource of URL's file on the HAO_MIRROR mirror (by SHA256), or None (not set, or a miss: one line)."""
+    base = os.environ.get('HAO_MIRROR', '').strip()
+    if not base:
+        return None
+    strict = os.environ.get('HAO_MIRROR_STRICT', '') == '1'
+    name = name or urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit('/', 1)[-1]) or url
+    if not (isinstance(sha256, str) and re.fullmatch(r'[0-9a-f]{64}', sha256)):
+        if strict:
+            raise MirrorMiss('%s: no whole-file sha256 to ask the mirror for; HAO_MIRROR_STRICT=1, the origin is not '
+                             'read' % name)
+        print('mirror miss %s -' % name, file=sys.stderr, flush=True)
+        return None
+    murl = base.rstrip('/') + '/sha256/' + sha256
+    netloc = urllib.parse.urlsplit(murl).netloc
+    if not murl.startswith(('http://', 'https://')):
+        raise MirrorMiss('HAO_MIRROR %r is not an http(s) URL' % base)
+    if '[' in netloc or '%' in netloc:          # _connect builds the connection from netloc: no IPv6 zone address
+        raise MirrorMiss('HAO_MIRROR %r: an IPv6 address is not supported; use an IPv4 URL such as '
+                         'http://192.168.64.1:PORT' % base)
+    try:
+        return HTTPSource(murl)
+    except (OSError, http.client.HTTPException) as x:
+        if strict:
+            raise MirrorMiss('%s (sha256 %s): not served by the mirror %s: %s; HAO_MIRROR_STRICT=1, the origin is not '
+                             'read' % (name, sha256, murl, x)) from None
+        print('mirror miss %s %s' % (name, sha256), file=sys.stderr, flush=True)
+        return None
+
+
+def open_source(where, sha256=None, name=None):
+    """A Source of a path or URL; a URL is read from the HAO_MIRROR mirror when it has the file (by SHA256)."""
     w = str(where)
-    return HTTPSource(w) if w.startswith(('http://', 'https://')) else FileSource(w)
+    if not w.startswith(('http://', 'https://')):
+        return FileSource(w)
+    return _from_mirror(w, sha256, name) or HTTPSource(w)
+
+
+def mirrored(url, sha256, name=None):
+    """The URL to read URL's file from (for a program that opens it more than once): the mirror's, when HAO_MIRROR is
+    set and the mirror serves SHA256, else URL itself (after one `mirror miss` line, or MirrorMiss when strict)."""
+    u = str(url)
+    if not u.startswith(('http://', 'https://')):
+        return u
+    src = _from_mirror(u, sha256, name)
+    if src is None:
+        return u
+    if src.conn:
+        src.conn.close()
+    return src.url
 
 
 class _Raw(io.RawIOBase):

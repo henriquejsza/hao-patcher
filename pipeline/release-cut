@@ -487,12 +487,11 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             pending.append({'row': row, 'content': entry.get('content'), 'reason': entry['reason']})
             problems.append('%s: pending (%s)' % (row, entry['reason']))
         elif kind == 'download':
-            path = hit[1][1] if hit else None
-            if not path or not os.path.isfile(path):
-                problems.append('%s: the download is not here to size (%s)' % (row, path))
+            item, problem = download_item(row, hit, entry)
+            if problem:
+                problems.append(problem)
                 continue
-            item = {'row': row, 'name': entry['name'], 'url': entry['url'], 'size': os.path.getsize(path),
-                    'sha256': hit[1][0], 'reason': entry['reason']}
+            path = hit[1][1]
             if entry.get('stream'):
                 # read by byte range on the user's Mac, never downloaded whole: each member it can read is pinned
                 try:
@@ -631,6 +630,24 @@ def merge_releases(cuts):
 def build_releases(assemblies, name, stage=None, **kw):
     """build_release for each of ASSEMBLIES (one per profile), merged into one release (merge_releases)."""
     return merge_releases([build_release(a, name, stage, **kw) for a in assemblies])
+
+
+def origin_holds(entry, sha256):
+    """Whether a download class ENTRY's url can hold the file SHA256: unless the entry names another sha256."""
+    return entry.get('sha256') in (None, sha256)
+
+
+def download_item(row, hit, entry):
+    """(release.json downloads entry without its pins, problem): a download row's name, url, size (of the file here)
+    and sha256 (its input row's). A class entry's own "sha256" is the file its url holds: a row pinning another file
+    (another build's input folder) has no known origin."""
+    path = hit[1][1] if hit else None
+    if not path or not os.path.isfile(path):
+        return None, '%s: the download is not here to size (%s)' % (row, path)
+    if not origin_holds(entry, hit[1][0]):
+        return None, '%s: its url holds sha256 %s, not the row\'s %s' % (row, entry['sha256'], hit[1][0])
+    return {'row': row, 'name': entry['name'], 'url': entry['url'], 'size': os.path.getsize(path),
+            'sha256': hit[1][0], 'reason': entry['reason']}, None
 
 
 def stream_pins(kind, path, digest, rows):

@@ -1,2 +1,5 @@
-# OVMF/OpenCore EFI tree for QEMU, the base of tools/kernel-foundation vm-esp --reference.
-989cb8718de9fa88ef443b06a4a2d735c4b47c622e736b42bbc215f1d1ecbdef store/inputs/qemu-reference-20261022
+# OVMF/OpenCore EFI tree for QEMU (the tree tested on 2026-10-22, no machine identity), the base of build-efi.py
+# base qemu_reference and tools/kernel-foundation vm-esp --reference. Made by pipeline/unpack/qemu-reference from rows
+# opencore_release, oclp_source, ocbinarydata_hfsplus and virtualsmc_release (pipeline/make-on-mac).
+# hash: without build.json  # the producer's record: a remake of the same tree matches
+57e3f1c3c1dc590b514abe2fdcda7e57773c5b46dbcc6d03f0f6817e30891c98 store/artifacts/qemu-reference-efi-20261117

@@ -204,6 +204,32 @@ class RecoveryCommands(unittest.TestCase):
             self.assertTrue((local / 'work' / 'build.json').is_file())
             self.assertEqual([p for p in kit.rglob('__pycache__')], [])
 
+    def test_a_work_folder_with_a_space_is_reached_through_a_link_without_one(self):
+        # a second USB drive mounts as "HAO 1": recipe hooks and posts (plain sh, some paths unquoted) must not see it
+        with tempfile.TemporaryDirectory() as tmp:
+            kit, local = Path(tmp) / 'kit', Path(tmp) / 'HAO 1' / 'local'
+            py = kit / ('py' if os.uname().machine == 'arm64' else 'py-x86_64') / 'bin'
+            py.mkdir(parents=True)
+            (py / 'python3.12').symlink_to(sys.executable)
+            for d in ('assembly-source', 'site', 'hooks', 'post'):
+                (kit / d).mkdir()
+            for name in ('recovery-tools.py', 'copy-hooks.py'):
+                shutil.copy2(STAGES / name, kit / 'assembly-source')
+            (kit / 'kit.json').write_text('{}')
+            r = subprocess.run(['/bin/sh', str(STAGES / 'golden-assemble.sh'), str(kit), str(local),
+                                '--owner', '%d:%d' % (os.getuid(), os.getgid())],
+                               env={'HOME': tmp, 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
+                                    'HAO_RECOVERY_COMMANDS': str(LIST)},
+                               capture_output=True, text=True, timeout=60)
+            out = r.stdout + r.stderr
+            used = re.search(r"path has a space; using (\S+)", out)
+            self.assertTrue(used, out)
+            self.assertNotIn(' ', used.group(1))
+            self.assertEqual(os.path.realpath(used.group(1)), os.path.realpath(local))
+            self.assertTrue((local / 'source' / 'recovery-tools.py').is_file())       # the copies are in the folder
+            for w in (local / 'recovery-bin').iterdir():                              # and the stand-ins name no space
+                self.assertNotIn('HAO 1', w.read_text())
+
 
 if __name__ == '__main__':
     unittest.main()

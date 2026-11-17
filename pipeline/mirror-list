@@ -1,0 +1,120 @@
+#!/usr/bin/env python3.14
+"""mirror-list: every file a release needs from a local Apple mirror (HAO_MIRROR), one line each.
+
+  mirror-list [RELEASE.json | --release RELEASE.json] [--assembly ASSEMBLY.json]
+
+Prints `SHA256 SIZE ORIGIN_URL NAME` per file, sorted, no duplicates: the release's whole-file downloads
+(tools/acquire), the downloads read by byte range (the IPSW and the installer, pipeline/unpack/ranged.py) and, from a
+release.json, its assets (hao fetch reads them through the mirror too, so HAO_MIRROR_STRICT needs them there). Every
+line has exactly these four fields; a space in NAME is written %20. The mirror serves each at /sha256/SHA256.
+
+Without a release.json it cuts a dry release from this checkout the way release-cut computes downloads (its
+release_rows, the download class of pipeline/release-classes.json, the sizes of the files in store/) for ASSEMBLY
+(default: the assembly the current release is cut from). ORIGIN_URL is `?` when the url is known to hold another
+file (the class entry names another sha256, or a release.json entry's url is its class's while the sha256 is not);
+those rows are listed again under "origin unknown" on stderr. Notes go to stderr only. Exit 0 when every needed
+file is listed; 1 when a row has no file here to size or no entry (stderr says which), 2 on a usage error.
+"""
+import argparse
+import json
+from pathlib import Path
+import runpy
+import sys
+
+TOP = Path(__file__).resolve().parents[1]
+DEFAULT_ASSEMBLY = TOP / 'pipeline' / 'assemblies' / 'mbp92-26B131-alpha-v0.1.0.json'   # release v0.0.1's
+
+
+def cut():
+    return runpy.run_path(str(TOP / 'pipeline' / 'release-cut'))
+
+
+def from_release(path, classes, holds):
+    """[(sha256, size, url or None, name)] of release.json PATH's downloads, and the problems."""
+    rel = json.loads(Path(path).read_text())
+    out, problems = [], []
+    for d in rel.get('downloads') or []:
+        try:
+            sha, size, url, name = d['sha256'], int(d['size']), d['url'], d['name']
+        except (KeyError, TypeError, ValueError) as x:
+            problems.append('%s: downloads entry %r lacks %s' % (path, d.get('name') or d.get('row'), x))
+            continue
+        entry = classes.get(d.get('row')) or {}
+        if entry.get('url') == url and not holds(entry, sha):
+            url = None
+        out.append((sha, size, url, name))
+    for x in rel.get('assets') or []:
+        try:
+            out.append((x['sha256'], int(x['size']), x.get('url') or None, x['file']))
+        except (KeyError, TypeError, ValueError) as e:
+            problems.append('%s: assets entry %r lacks %s' % (path, x.get('file') or x.get('row'), e))
+    return out, problems
+
+
+def from_assembly(assembly, R):
+    """[(sha256, size, url or None, name)] of a dry cut of ASSEMBLY's downloads, and the problems."""
+    classes = R['classes']()
+    out, problems = [], []
+    for row, hit in R['release_rows'](assembly):
+        entry = classes.get(row)
+        if not entry or entry.get('class') != 'download':
+            continue
+        if hit is None:
+            problems.append('%s: no input row' % row)
+            continue
+        sha, path = hit[1]
+        if not R['origin_holds'](entry, sha):
+            p = Path(path)
+            if not p.is_file():
+                problems.append('%s: the download is not here to size (%s)' % (row, path))
+                continue
+            out.append((sha, p.stat().st_size, None, p.name))
+            continue
+        item, problem = R['download_item'](row, hit, entry)
+        if problem:
+            problems.append(problem)
+            continue
+        out.append((item['sha256'], item['size'], item['url'], item['name']))
+    return out, problems
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog='mirror-list', description=__doc__.split('\n')[0])
+    p.add_argument('release_json', nargs='?', help='a release.json (as --release)')
+    p.add_argument('--release', help='a release.json: list its downloads')
+    p.add_argument('--assembly', default=str(DEFAULT_ASSEMBLY), help='the assembly a dry cut is made for')
+    a = p.parse_args(argv)
+    if a.release_json and a.release and a.release_json != a.release:
+        p.error('give the release.json once')
+    release = a.release or a.release_json
+    R = cut()
+    try:
+        if release:
+            rows, problems = from_release(release, R['classes'](), R['origin_holds'])
+        else:
+            rows, problems = from_assembly(a.assembly, R)
+    except (OSError, ValueError, KeyError, SystemExit) as x:     # the plan refuses an assembly with SystemExit
+        print('mirror-list: %s' % (x.code if isinstance(x, SystemExit) else x), file=sys.stderr)
+        return 2
+    seen, lines, unknown = set(), [], []
+    for sha, size, url, name in rows:
+        if sha in seen:
+            continue
+        seen.add(sha)
+        name = name.replace(' ', '%20')
+        lines.append('%s %d %s %s' % (sha, size, url or '?', name))
+        if url is None:
+            unknown.append('%s %s' % (sha, name))
+    for line in sorted(lines):
+        print(line)
+    if unknown:
+        print('origin unknown (the url names another file; the mirror needs the file itself):', file=sys.stderr)
+        for u in sorted(unknown):
+            print('  ' + u, file=sys.stderr)
+    for x in problems:
+        print('mirror-list: %s' % x, file=sys.stderr)
+    return 1 if problems else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

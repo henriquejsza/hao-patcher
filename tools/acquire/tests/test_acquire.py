@@ -1,9 +1,12 @@
 """acquire: pinned downloads from a local HTTP server; reuse, resume, mirrors, refusals.
 python3.14 -I -B -m unittest discover -s tools/acquire/tests"""
+import contextlib
 import functools
 import hashlib
+import io
 import http.server
 import json
+import os
 from pathlib import Path
 import runpy
 import subprocess
@@ -11,6 +14,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 
 TOOL = Path(__file__).resolve().parents[1] / 'acquire'
 A = runpy.run_path(str(TOOL))
@@ -255,6 +259,158 @@ class Acquire(unittest.TestCase):
         self.assertEqual(run('verify', m, '--cache', self.cache).returncode, 0)
         self.assertEqual(run('path', m, 'installer', '--cache', self.cache).stdout.strip(),
                          str(A['final_path'](self.cache, self.row())))
+
+
+class CertificateStore(unittest.TestCase):
+    """An empty default store (python.org's Python, certificates not installed): macOS's own bundle is loaded."""
+
+    class Context:
+        def __init__(self, certs):
+            self.certs, self.loaded = certs, []
+
+        def get_ca_certs(self):
+            return self.certs
+
+        def load_verify_locations(self, cafile=None):
+            self.loaded.append(cafile)
+
+    def test_an_empty_store_gets_the_system_bundle(self):
+        system = Path(tempfile.mkdtemp()) / 'cert.pem'
+        system.write_text('x')
+        env = {k: v for k, v in os.environ.items() if k != 'SSL_CERT_FILE'}
+        for certs, extra, want in (([], {}, [str(system)]), ([{'subject': 'x'}], {}, []),
+                                   ([], {'SSL_CERT_FILE': '/mine.pem'}, [])):
+            ctx = self.Context(certs)
+            with mock.patch.dict(os.environ, dict(env, **extra), clear=True):
+                self.assertIs(A['https_context'](lambda: ctx, str(system)), ctx)
+            self.assertEqual(ctx.loaded, want, (certs, extra))
+        ctx = self.Context([])
+        with mock.patch.dict(os.environ, env, clear=True):
+            A['https_context'](lambda: ctx, str(system) + '.missing')
+        self.assertEqual(ctx.loaded, [])
+
+    def test_downloads_use_that_context(self):
+        made = []
+        real = A['https_context']
+        A['opener'].__globals__['https_context'] = lambda: made.append(1) or real()
+        try:
+            o = A['opener'](direct=True)
+        finally:
+            A['opener'].__globals__['https_context'] = real
+        self.assertEqual(made, [1])
+        kinds = [type(h).__name__ for h in o.handlers]
+        self.assertIn('HTTPSHandler', kinds)
+        self.assertNotIn('ProxyHandler', kinds)                    # direct: no proxy handler at all
+
+
+class Mirror(unittest.TestCase):
+    """HAO_MIRROR: URL/sha256/HEX first, then the origin; HAO_MIRROR_STRICT=1 never falls back."""
+    setUpClass, tearDownClass = Acquire.__dict__['setUpClass'], Acquire.__dict__['tearDownClass']
+    setUp, row = Acquire.setUp, Acquire.row
+
+    def env(self, strict=False, **more):
+        e = {k: v for k, v in os.environ.items() if not k.startswith('HAO_MIRROR')}   # proxies as they are (ci: no_proxy)
+        e.pop('HAO_MIRROR_STRICT', None)
+        e.update(HAO_MIRROR=self.base + '/mirror/', **more)
+        if strict:
+            e['HAO_MIRROR_STRICT'] = '1'
+        return mock.patch.dict(os.environ, e, clear=True)
+
+    def served(self, data, content=None):
+        """A row for DATA whose mirror copy (www/HEX) holds CONTENT (DATA when not given)."""
+        hexd = hashlib.sha256(data).hexdigest()
+        (self.www / hexd).write_bytes(data if content is None else content)
+        self.addCleanup((self.www / hexd).unlink)
+        return self.row(name='served', url=self.base + '/origin-missing.bin', size=len(data), sha256=hexd)
+
+    def fetch(self, rows, **kw):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            got = A['fetch'](rows, self.cache, **kw)
+        return got, err.getvalue()
+
+    def test_mirror_is_tried_first_and_hit(self):
+        data = b'from the mirror ' * 4000
+        with self.env():
+            got, err = self.fetch([self.served(data)])
+        self.assertEqual(Path(got['served']).read_bytes(), data)
+        self.assertEqual((Handler.hits, err), (['/mirror/sha256/' + hashlib.sha256(data).hexdigest()], ''))
+
+    def test_a_miss_falls_back_with_exactly_one_line(self):
+        row = self.row()
+        with self.env():
+            got, err = self.fetch([row])
+        self.assertEqual(Path(got['installer']).read_bytes(), self.data)
+        self.assertEqual(err, 'mirror miss installer %s\n' % row['sha256'])
+        self.assertEqual(Handler.hits, ['/mirror/sha256/' + row['sha256'], '/installer.bin'])
+
+    def test_a_short_mirror_copy_is_a_miss(self):
+        data = b'short on the mirror ' * 3000
+        row = dict(self.served(data, data[:100]), url=self.base + '/short.bin')
+        (self.www / 'short.bin').write_bytes(data)
+        self.addCleanup((self.www / 'short.bin').unlink)
+        with self.env():
+            got, err = self.fetch([row])
+        self.assertEqual((Path(got['served']).read_bytes(), err), (data, 'mirror miss served %s\n' % row['sha256']))
+
+    def test_a_strict_miss_fails_and_writes_nothing(self):
+        row = self.row()
+        with self.env(strict=True):
+            with self.assertRaisesRegex(A['AcquireError'], 'installer \\(sha256 %s\\).*HAO_MIRROR_STRICT=1'
+                                        % row['sha256']):
+                self.fetch([row])
+        self.assertEqual(Handler.hits, ['/mirror/sha256/' + row['sha256']])
+        self.assertEqual([p for p in self.cache.rglob('*') if p.is_file()], [])
+
+    def test_wrong_bytes_from_the_mirror_are_refused_by_the_hash(self):
+        data = b'pinned bytes ' * 3000
+        row = self.served(data, bytes(len(data)))            # same size, other bytes
+        events = []
+        with self.env(strict=True):
+            with self.assertRaisesRegex(A['AcquireError'], 'wrong bytes from the mirror'):
+                self.fetch([row], on_event=events.append)
+        self.assertEqual([p for p in self.cache.rglob('*') if p.is_file()], [])
+        row = dict(row, url=self.base + '/good.bin')         # without strict: refused, then the origin
+        (self.www / 'good.bin').write_bytes(data)
+        self.addCleanup((self.www / 'good.bin').unlink)
+        with self.env():
+            got, err = self.fetch([row], on_event=events.append)
+        self.assertEqual(Path(got['served']).read_bytes(), data)
+        self.assertNotIn('mirror miss', err)
+        self.assertIn('mirror-failed', [e['ev'] for e in events])
+
+    def test_no_proxy_applies_to_the_mirror(self):
+        """A process whose environment names a dead proxy (as pipeline/ci sets them): the origin fails through it,
+        the mirror is reached directly. A fresh process: urlopen keeps the proxies it saw first."""
+        data = b'past the proxy ' * 3000
+        row = self.served(data)
+        m = self.cache / 'release.json'
+        dead = 'http://127.0.0.1:9'
+        env = {k: v for k, v in os.environ.items() if 'proxy' not in k.lower() and not k.startswith('HAO_MIRROR')}
+        env.update(http_proxy=dead, HTTP_PROXY=dead, https_proxy=dead, HTTPS_PROXY=dead, all_proxy=dead)
+        run = lambda env, cache: subprocess.run([sys.executable, '-I', str(TOOL), 'fetch', str(m), '--cache',
+                                                 str(cache), '--quiet'], capture_output=True, text=True, env=env)
+        m.write_text(json.dumps({'downloads': [dict(row, url=self.base + '/installer.bin', sha256=self.row()['sha256'],
+                                                    size=len(self.data))]}))
+        self.assertEqual(run(env, Path(tempfile.mkdtemp()) / 'c').returncode, 1)     # the proxy does apply
+        m.write_text(json.dumps({'downloads': [row]}))
+        r = run(dict(env, HAO_MIRROR=self.base + '/mirror', HAO_MIRROR_STRICT='1'), self.cache)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(A['final_path'](self.cache, row).read_bytes(), data)
+
+    def test_an_ipv6_mirror_is_refused(self):
+        with mock.patch.dict(os.environ, {'HAO_MIRROR': 'http://[fe80::1%25en0]:8080'}):
+            with self.assertRaisesRegex(A['AcquireError'], 'IPv4'):
+                A['fetch']([self.row()], self.cache)
+
+    def test_command_line_prints_one_miss_line(self):
+        m = self.cache / 'release.json'
+        m.write_text(json.dumps({'downloads': [self.row()]}))
+        env = dict(os.environ, HAO_MIRROR=self.base + '/mirror')
+        env.pop('HAO_MIRROR_STRICT', None)
+        r = subprocess.run([sys.executable, '-I', str(TOOL), 'fetch', str(m), '--cache', str(self.cache), '--quiet'],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual((r.returncode, r.stderr), (0, 'mirror miss installer %s\n' % self.row()['sha256']))
 
 
 if __name__ == '__main__':

@@ -110,7 +110,8 @@ class Generic(unittest.TestCase):
     def test_every_element_it_adds_has_a_generic_reason(self):
         before = set(CR['elements'](plistlib.loads((self.tmp/'esp/EFI/OC/config.plist').read_bytes())))
         reasons = CR['load_reasons']()
-        real = Path(TOP/'store/inputs/qemu-reference-20261022')
+        rows = runpy.run_path(str(TOP/'pipeline/lock.py'))['rows'](str(TOP/'pipeline/inputs/25G342'))
+        real = Path(rows['qemu_reference_efi'][1])
         if real.is_dir():                                                    # the row's real quirk set
             shutil.rmtree(self.tmp/'ref'); shutil.copytree(real, self.tmp/'ref')
             ref = plistlib.loads((real/'EFI/OC/config.plist').read_bytes())
