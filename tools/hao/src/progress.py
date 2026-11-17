@@ -569,13 +569,20 @@ class Kit:
             pf, pb = packs.get(self.r.pack_of(recipe), (0, 0))
             packs[self.r.pack_of(recipe)] = (pf + f, pb + b)
         order = list(self.r.groups) + [p for p in packs if p not in self.r.groups]
+        rows = []
         for pack in order:
             if pack in packs:
                 f, b = packs[pack]
-                self.c.item(pack_line(self.c, pack, f, b), ok=True, ev='pack.staged', pack=pack, files=f, bytes=b)
-                if self.c.at('edits'):
-                    for recipe in self.r.groups.get(pack, []):
-                        show_edits(self.c, recipe, pack=pack)
+                names = self.r.groups.get(pack, [])
+                edits = sum(len(sp['edits']) for n in names for _, _, sp, _ in declared(n)[0] if sp)
+                rows.append((pack, names, f, b, edits))
+                self.c.event('pack.staged', pack=pack, files=f, bytes=b, edits=edits)
+        if rows:
+            pack_table(self.c, rows)
+        if self.c.at('edits'):
+            for pack, names, _, _, _ in rows:
+                for recipe in names:
+                    show_edits(self.c, recipe, pack=pack)
 
     def step(self, name):
         pass

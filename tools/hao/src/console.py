@@ -638,7 +638,7 @@ class Console:
             from rich.text import Text
             grid = Table.grid(padding=(0, 3))
             grid.add_column(style=self.style('dim'), no_wrap=True)
-            grid.add_column()
+            grid.add_column(overflow='fold')
             for label, value in card.get('rows', []):
                 grid.add_row(label, Text.from_ansi(str(value)))
             parts = [Text.from_ansi(card['title']), Text(''), grid]
@@ -770,7 +770,10 @@ class Task:
             f = min(1.0, self.done / float(self.total)) if self.total else 0
             at = getattr(self, 'bar_at', c.bar_column)
             line = at_column(line, at) if len(plain(line)) < at else line + ' '
-            line += c.paint('bar', bar(f, getattr(self, 'width', None) or c.bar_width, utf)) + ' ' + self.count()
+            width = getattr(self, 'width', None) or c.bar_width
+            if c.animate:          # one width for every bar: room for "357.3 / 357.3 MB", the check and the time
+                width = max(6, min(width, c.width() - max(len(plain(line)), c.bar_column) - 26))
+            line += c.paint('bar', bar(f, width, utf)) + ' ' + self.count()
         if self.tail and final is None:
             line += '  ' + c.paint('dim', self.tail)
         if final is None:
