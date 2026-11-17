@@ -100,6 +100,22 @@ class ApplyRevert(Base):
         self.assertEqual({r['id']: r['state'] for r in LP.records(self.state)},
                          {'hao-20261112-180000': 'reverted', 'hao-20261112-180000-2': 'applied'})
 
+    def test_never_writes_through_links(self):
+        victim = self.d / 'victim'; victim.write_bytes(b'keep')
+        # a planted link at the old, predictable temporary name is not followed
+        os.symlink(victim, self.metal.with_name('.hao-patch-Metal'))
+        LP.apply([self.metal_pack()], self.root, self.state, now=T0)
+        self.assertEqual(victim.read_bytes(), b'keep')
+        self.assertEqual(self.metal.read_bytes(), b'patched metal')
+        # a folder on the way to a file that is a link to somewhere else is refused
+        outside = self.d / 'outside'; outside.mkdir()
+        (self.root / 'usr/lib').rename(self.d / 'lib-moved')
+        os.symlink(outside, self.root / 'usr/lib')
+        with self.assertRaises(LP.PatchError):
+            LP.apply([LP.load_overlay(self.overlay('x', 'live-capable', {'usr/lib/libnew.dylib': b'n'}))],
+                     self.root, self.state, now=T0)
+        self.assertEqual(list(outside.iterdir()), [])
+
     def test_revert_refuses_files_changed_since(self):
         rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
         self.metal.write_bytes(b'someone else')

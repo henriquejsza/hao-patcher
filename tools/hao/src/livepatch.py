@@ -403,6 +403,8 @@ def _folders(resolve, rel, dirs, attributes, created, itself=False):
     for i in range(len(parts)):
         sub = '/'.join(parts[:i + 1])
         folder = resolve(sub)
+        if folder.is_symlink():         # never write through a link between the root and the file
+            raise PatchError('%s is a link: a patch never writes through one' % sub)
         if folder.is_dir():
             continue
         folder.mkdir()
@@ -420,13 +422,32 @@ def _folder_times(resolve, created, dirs):
             os.utime(resolve(sub), (mtime, mtime), follow_symlinks=False)
 
 
+def _copy_new(source, target, prefix):
+    """SOURCE's bytes in a new file beside TARGET: an exclusive, no-follow name with a random part, so nothing put in
+    that folder beforehand (a link, a file) is written through. Returns its path."""
+    if target.parent.is_symlink() or not target.parent.is_dir():
+        raise PatchError('%s is not a folder (a link?)' % target.parent)
+    tmp = target.with_name('%s%s.%s' % (prefix, target.name, os.urandom(6).hex()))
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    try:
+        with os.fdopen(fd, 'wb') as out, open(source, 'rb') as src:
+            shutil.copyfileobj(src, out, 1 << 20)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    return tmp
+
+
 def _install(source, target, want, attributes):
-    tmp = target.with_name('.hao-patch-' + target.name)
-    shutil.copyfile(source, tmp)
+    tmp = _copy_new(source, target, '.hao-patch-')
     if target.exists():
         attributes.clear_flags(target)
     os.replace(tmp, target)
     return attributes.apply(target, want)
+
+
+def glob_escape(name):
+    return ''.join('[%s]' % ch if ch in '*?[' else ch for ch in name)
 
 
 def _attrs_record(a):
@@ -610,15 +631,19 @@ def _undo(record, folder, resolve, attributes, emit):
     sha256, with their attributes; new files removed; then the folders the patch made, when empty."""
     for f in reversed(record['files']):
         target = resolve(f['path'])
-        target.with_name('.hao-patch-' + target.name).unlink(missing_ok=True)    # a copy cut short
+        for parent in [p for p in Path(f['path']).parents if str(p) != '.']:
+            if resolve(str(parent)).is_symlink():
+                raise PatchError('%s is a link: a revert never writes through one' % parent)
+        for cut in target.parent.glob('.hao-patch-%s*' % glob_escape(target.name)):   # a copy cut short
+            if not cut.is_symlink():
+                cut.unlink(missing_ok=True)
         if f['old_sha256'] is None:
             if target.exists() or target.is_symlink():
                 attributes.clear_flags(target)
             target.unlink(missing_ok=True)
         elif not f.get('attrs_only'):
             backup = folder / 'backup' / f['path']
-            tmp = target.with_name('.hao-revert-' + target.name)
-            shutil.copyfile(backup, tmp)
+            tmp = _copy_new(backup, target, '.hao-revert-')
             if target.exists():
                 attributes.clear_flags(target)
             os.replace(tmp, target)
