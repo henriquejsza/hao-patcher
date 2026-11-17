@@ -85,6 +85,34 @@ def refusal(host, disk, policy, minimum_bytes, sources=()):
     return None
 
 
+def identity(host, disk):
+    """What says this is the disk the user confirmed, not another one that took its number: its model, size, bus and
+    IORegistry path, and the UUIDs of the partitions on it now. Compared right before anything is erased."""
+    name = normalize(disk)
+    info, _ = describe(host, name)
+    parts = (_plist(host, 'diskutil', 'list', '-plist', name).get('AllDisksAndPartitions') or [{}])[0].get('Partitions', [])
+    return {'media': (info.get('MediaName') or '').strip(), 'size': info.get('TotalSize') or info.get('Size'),
+            'bus': info.get('BusProtocol'), 'path': info.get('DeviceTreePath') or info.get('IORegistryEntryName'),
+            'partitions': sorted(p.get('DiskUUID') or p.get('VolumeUUID') or p.get('DeviceIdentifier', '')[len(name):]
+                                 for p in parts)}
+
+
+def recheck(host, disk, expected, policy, minimum_bytes, sources=()):
+    """Why DISK may not be erased now although it was confirmed (another disk has its number, or it no longer passes
+    POLICY's checks), or None."""
+    why = refusal(host, disk, policy, minimum_bytes, sources)
+    if why:
+        return why
+    try:
+        now = identity(host, disk)
+    except LP.PatchError:
+        return 'diskutil info failed'
+    if now != expected:
+        changed = ', '.join(k for k in expected if now.get(k) != expected.get(k))
+        return 'it is not the disk that was confirmed (%s changed): was it unplugged or swapped?' % changed
+    return None
+
+
 def label(info):
     """'disk4  SanDisk Ultra 32.0 GB' for the confirmation line."""
     size = info.get('TotalSize') or info.get('Size') or 0

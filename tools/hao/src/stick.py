@@ -377,13 +377,32 @@ def _plist(host, *argv):
     return plistlib.loads(host.run(list(argv), timeout=600).stdout)
 
 
-def partition(host, disk, boot_size_mb):
+def partition(host, disk, boot_size_mb, expect=None):
     """Erase DISK (a whole disk the caller checked and the user confirmed) into EFI + HAOBOOT (FAT32) + HAO (JHFS+).
-    Returns {name: (device, mount point)}, the EFI partition (which diskutil makes on its own) as 'EFI'."""
+    EXPECT (disks.identity at the confirmation, with its policy, minimum and sources) is checked again first: a disk that
+    took the confirmed one's number is never erased. Returns {name: (device, mount point)}, EFI as 'EFI'."""
+    if expect is not None:
+        import disks as DISKS
+        why = DISKS.recheck(host, disk, expect['identity'], expect.get('policy', 'external'),
+                            expect.get('minimum', 0), expect.get('sources', ()))
+        if why:
+            raise StickError('/dev/%s was not erased: %s' % (disk, why))
     host.run(['diskutil', 'unmountDisk', 'force', '/dev/' + disk], check=False)
     host.run(['diskutil', 'partitionDisk', '/dev/' + disk, 'GPT',
               'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
     return mounted_parts(host, disk, 'after partitioning %s' % disk)
+
+
+def check_mounts(host, disk, parts):
+    """Each saved mount point of PARTS still belongs to DISK (the same partition): nothing is written into a volume
+    that took the USB drive's place under /Volumes. Raises StickError."""
+    for name, (dev, mount) in parts.items():
+        try:
+            info = _plist(host, 'diskutil', 'info', '-plist', str(mount))
+        except Exception:
+            info = {}
+        if info.get('DeviceIdentifier') != dev or info.get('ParentWholeDisk', disk) != disk:
+            raise StickError('%s (%s) is no longer /dev/%s on the USB drive: was it unplugged?' % (mount, name, dev))
 
 
 def mounted_parts(host, disk, when=None):
@@ -424,11 +443,11 @@ OPENCORE_MAX_BYTES = 64 * MB        # OpenCore's ESP (about 20 MB): before the k
 BASESYSTEM_MAX_BYTES = 1600 * MB    # Tahoe's x86_64 BaseSystem is 1.46 GB (25G342): the boot partition before it exists
 
 
-def prepare(host, disk, opencore_tar, basesystem=None, on_step=None):
+def prepare(host, disk, opencore_tar, basesystem=None, on_step=None, expect=None):
     """Erase DISK first (create-installer then makes the large parts straight onto HAO). Returns the partitions."""
     size = Path(basesystem).stat().st_size if basesystem and Path(basesystem).is_file() else BASESYSTEM_MAX_BYTES
     mb = boot_mb(size, Path(opencore_tar).stat().st_size if opencore_tar else OPENCORE_MAX_BYTES)
-    parts = partition(host, disk, mb)
+    parts = partition(host, disk, mb, expect=expect)
     (on_step or (lambda text: None))('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (
         disk, BOOT_NAME, mb, KIT_NAME))
     (Path(parts[KIT_NAME][1]) / BUILD_DIR).mkdir(exist_ok=True)
@@ -444,6 +463,7 @@ def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, reco
         parts = partition(host, disk, mb)
         step('erased /dev/%s: %s (FAT32, %d MB) and %s (Mac OS Extended)' % (disk, BOOT_NAME, mb, KIT_NAME))
     else:       # erased by prepare() before the downloads; the first step stays the erase (the console's parts)
+        check_mounts(host, disk, parts)
         step('/dev/%s was erased first: %s and %s' % (disk, BOOT_NAME, KIT_NAME))
     rec = dict(record or {})
     rec.update(write_boot(parts['EFI'][1], parts[BOOT_NAME][1], basesystem, opencore_tar))

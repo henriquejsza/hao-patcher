@@ -51,6 +51,7 @@ class FakeHost:
 
     def __init__(self, root):
         self.root, self.calls, self.partitioned = Path(root), [], False
+        self.moved = {}                 # mount point -> another disk's partition (a swapped drive)
 
     def run(self, argv, check=True, timeout=120):
         argv = [str(a) for a in argv]
@@ -67,8 +68,13 @@ class FakeHost:
                           {'DeviceIdentifier': 'disk4s3', 'VolumeName': 'HAO'}]
             out = plistlib.dumps({'AllDisksAndPartitions': [{'DeviceIdentifier': 'disk4', 'Partitions': parts}]})
         elif argv[:3] == ['diskutil', 'info', '-plist']:
-            name = {'disk4s1': 'EFI', 'disk4s2': 'HAOBOOT', 'disk4s3': 'HAO'}[argv[3]]
-            out = plistlib.dumps({'MountPoint': str(self.root / name)})
+            devs = {'disk4s1': 'EFI', 'disk4s2': 'HAOBOOT', 'disk4s3': 'HAO'}
+            if argv[3] in devs:
+                out = plistlib.dumps({'MountPoint': str(self.root / devs[argv[3]]), 'DeviceIdentifier': argv[3],
+                                      'ParentWholeDisk': 'disk4'})
+            else:                               # a mount point: which partition is mounted there now
+                dev = self.moved.get(argv[3]) or {str(self.root / n): d for d, n in devs.items()}.get(argv[3])
+                out = plistlib.dumps({'DeviceIdentifier': dev, 'ParentWholeDisk': dev[:5] if dev else None})
         elif argv[:2] == ['hdiutil', 'attach']:
             out = plistlib.dumps({'system-entities': [{'dev-entry': '/dev/disk7s1'}, {'dev-entry': '/dev/disk7'}]})
         return subprocess.CompletedProcess(argv, 0, out, b'')
@@ -232,6 +238,33 @@ class StickTest(unittest.TestCase):
         (self.mnt / 'HAO/kit/hooks/15-identities/inputs/u/other.dmg').write_bytes(b'short')
         with self.assertRaisesRegex(STICK.StickError, '1 files .*other.dmg'):
             STICK.verify_kit(self.kit, self.mnt / 'HAO/kit')
+
+    def test_a_drive_that_lost_its_mount_is_not_written(self):
+        host = FakeHost(self.mnt)
+        parts = STICK.prepare(host, 'disk4', self.esp, self.bs)
+        STICK.check_mounts(host, 'disk4', parts)                 # still the same partitions: fine
+        host.moved[str(self.mnt / 'HAO')] = 'disk9s2'            # another volume took HAO's place
+        parts[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'))
+        (self.mnt / 'HAO').rename(self.mnt / 'gone')
+        (self.mnt / 'HAO').mkdir()
+        with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s3'):
+            STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top, parts=parts)
+        self.assertEqual(list((self.mnt / 'HAO').iterdir()), [])
+
+    def test_a_disk_that_is_not_the_confirmed_one_is_not_erased(self):
+        import disks as DISKS
+        host = FakeHost(self.mnt)
+        calls = []
+        real = DISKS.recheck
+        DISKS.recheck = lambda *a, **k: calls.append(a) or 'it is not the disk that was confirmed (media changed)'
+        try:
+            with self.assertRaisesRegex(STICK.StickError, 'not the disk that was confirmed'):
+                STICK.partition(host, 'disk4', 300, expect={'identity': {'media': 'A'}})
+        finally:
+            DISKS.recheck = real
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in host.calls))
+        self.assertFalse(any('unmountDisk' in c for c in host.calls))
 
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)

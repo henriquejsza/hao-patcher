@@ -396,8 +396,10 @@ def create_installer(a, c, host, acquire=None):
         c.event('disk', disk=disk, policy='external', size=info.get('TotalSize') or info.get('Size'))
     if not a.dry_run and not image:
         c.print('')
+        expect = dict(identity=DISKS.identity(host, disk), policy='external', minimum=minimum, sources=a.sources)
         if not c.confirm('Everything on %s will be erased.' % DISKS.label(info), disk, a.confirm):
             raise Stopped('not confirmed', untouched='nothing was downloaded or written')
+        a.disk_expect = expect
     make_here = bool(release and release.get('made_on_mac') and not getattr(a, 'kit', None))
     if make_here and not a.dry_run:
         check_space(c, release, cache, info.get('TotalSize') or info.get('Size'))
@@ -410,7 +412,8 @@ def create_installer(a, c, host, acquire=None):
             c.item('USB installer image %s attached as /dev/%s' % (image, disk), 'files')
         try:
             parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
-                                  on_step=lambda text: c.item(text, 'steps', ok=True))
+                                  on_step=lambda text: c.item(text, 'steps', ok=True),
+                                  expect=getattr(a, 'disk_expect', None))
         except (STICK.StickError, OSError, LP.PatchError) as x:
             raise Stopped('erasing the USB drive failed', cause=str(x).splitlines()[0], options=[REPORT],
                           untouched='nothing was downloaded')
@@ -429,6 +432,12 @@ def create_installer(a, c, host, acquire=None):
     for pack, names in groups.items():
         c.item('%s %d recipes' % (c.paint('bold', '%-22s' % pack), len(names)), 'files')
     if make_here and not a.dry_run:
+        if parts is not None:
+            try:
+                STICK.check_mounts(host, disk, parts)    # the images go straight onto HAO: it must still be the drive
+            except STICK.StickError as x:
+                raise Stopped('the USB drive changed while hao was working', cause=str(x), options=[REPORT],
+                              untouched='nothing more was written')
         make_rows(a, c, release_path, cache, a.drive_build)
     if a.dry_run:
         c.step(STEPS[2], plan=True)

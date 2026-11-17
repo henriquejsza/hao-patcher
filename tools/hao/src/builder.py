@@ -117,6 +117,12 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
            [] if record is not None else ['--no-cryptex-cache']) + ['--disk', name,
            '--confirm-disk', name] + (['--external'] if policy == 'external' else []) + (
            ['--resume', str(prior)] if prior else [])
+    expect = getattr(a, 'disk_expect', None)
+    if expect:                      # staging can take long: the confirmed disk must still be the one at this number
+        why = DISKS.recheck(host, name, expect['identity'], expect['policy'], expect['minimum'], expect['sources'])
+        if why:
+            raise Stopped('/dev/%s was not erased: %s' % (name, why), untouched='nothing was written to any disk',
+                          options=['check the disks (diskutil list) and run the command again'])
     c.event('command', argv=cmd)
     c.item('assemble onto /dev/%s  %s' % (name, DISKS.label(info)), 'steps')
     rc = run(cmd)
@@ -279,6 +285,8 @@ def gate(c, host, a, policy, minimum):
                       why='hao erases only a disk it can tell is the one you mean',
                       untouched='nothing was written to any disk')
     info, _ = DISKS.describe(host, a.disk)
+    a.disk_expect = dict(identity=DISKS.identity(host, a.disk), policy=policy, minimum=minimum,
+                         sources=[s for s in getattr(a, 'sources', []) if s])
     c.event('disk', disk=DISKS.normalize(a.disk), policy=policy, size=info.get('TotalSize') or info.get('Size'))
     return info
 

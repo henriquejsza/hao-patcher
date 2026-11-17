@@ -478,6 +478,28 @@ class BuilderTest(unittest.TestCase):
             c, _ = console('quiet')
             self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
 
+    def test_disk_identity_is_checked_again_before_the_assembler(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        before = DISKS.identity(host, 'disk0')
+        self.assertIsNone(DISKS.recheck(host, 'disk0', before, 'internal', 1))
+        swapped = dict(before, media='Other SSD')
+        self.assertIn('not the disk that was confirmed (media changed)',
+                      DISKS.recheck(host, 'disk0', swapped, 'internal', 1))
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            ran, run = self.fake_run()
+            real = DISKS.identity
+            seen = []
+            DISKS.identity = lambda h, disk: seen.append(disk) or (before if len(seen) == 1 else swapped)
+            try:
+                c, _ = console('quiet')
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run)
+            finally:
+                DISKS.identity = real
+            self.assertIn('was not erased', x.exception.what)
+            self.assertEqual(ran, [])                    # the assembler never ran
+
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
