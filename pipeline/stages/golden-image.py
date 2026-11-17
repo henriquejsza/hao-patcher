@@ -676,6 +676,12 @@ class Assembler:
         destination = self.work/'boot-efi'
         destination.mkdir(mode=0o755)
         self.run(*FAT_COPY,self.mounts['esp'],destination/'payload')
+        # Every OpenCore setting needs a recorded reason, on the ESP as the last post left it (recipes after
+        # hao-opencore change it too): hao-opencore's own check, run once more on the final copy.
+        for post in self.config['posts']:
+            if post['name']=='hao-opencore':
+                self.run(self.config['python'],'-I','-B',str(Path(post['folder'])/'src/config_reasons.py'),'check',
+                         destination/'payload/EFI/OC/config.plist','--kexts',destination/'payload/EFI/OC/Kexts')
         config = plistlib.loads((destination/'payload/EFI/OC/config.plist').read_bytes())
         system = self.mounts['system']
         version = plistlib.loads((system/'System/Library/CoreServices/SystemVersion.plist').read_bytes())
