@@ -385,8 +385,10 @@ class Runner:
         text = SAFE.text(line.strip())                  # external text: no control sequences reach the terminal
         if text.startswith('@hao '):
             try:
-                ev = json.loads(text[5:])
-            except ValueError:
+                ev = SAFE.clean(json.loads(line.strip()[5:]))    # every decoded string shown as text
+            except (ValueError, RecursionError):
+                return
+            if not isinstance(ev, dict):
                 return
             kind = ev.get('ev')
             if kind == 'step':
@@ -398,8 +400,7 @@ class Runner:
             elif kind == 'note':
                 self.c.note(SAFE.text(ev.get('text', '')))
             elif kind == 'stop':
-                self.stop = {k: ([SAFE.text(o) for o in v] if isinstance(v, list) else SAFE.text(v)) if v else v
-                             for k, v in ev.items()}
+                self.stop = ev                                   # already cleaned when decoded
             return
         if text.startswith('STEP '):
             view.step(text[5:].strip())

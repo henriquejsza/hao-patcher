@@ -668,7 +668,8 @@ class Console:
         self.close()
         w, s = self.err, self.paint_err
         import safety as SAFE                  # the report quotes paths, device names and backend errors: shown as text
-        x.what, x.why, x.cause, x.untouched = (SAFE.text(v) if v else v for v in (x.what, x.why, x.cause, x.untouched))
+        x.what, x.why, x.cause, x.untouched, x.log = (SAFE.text(v) if v else v
+                                                      for v in (x.what, x.why, x.cause, x.untouched, x.log))
         x.options = [SAFE.text(o) for o in x.options]
         x.unknown = [(SAFE.text(a), SAFE.text(b)) for a, b in x.unknown]
         untouched = x.untouched or ''

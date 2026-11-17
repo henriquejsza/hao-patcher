@@ -36,6 +36,12 @@ LABELLED = [
 EMAIL = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
 URL_SECRET = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@:]+(?::[^/\s@]*)?@', re.I)
 URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?#"\']+)\?[^\s#"\']+', re.I)
+SECRET_NAMES = r'(?:password|passwd|passphrase|secret|token|api[_-]?key|access[_-]?key|auth(?:orization)?|cookie|session)'
+SECRET_FIELD = re.compile(r'("[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*"\s*:\s*)"(?:[^"\\]|\\.)*"' % SECRET_NAMES, re.I)
+BEARER = re.compile(r'(\b(?:Bearer|Basic|token)\s+)[^\s"\',;&]+', re.I)
+SECRET_WORD = re.compile(r'(\b[A-Za-z0-9_-]*%s[A-Za-z0-9_-]*\s*[=:]\s*)(?!\[removed\])(?:(?:Bearer|Basic)\s+)?[^\s"\',;&]+'
+                         % SECRET_NAMES, re.I)
+URL_FRAGMENT = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s#"\']+)#[^\s"\']+', re.I)
 MAC_ADDRESS = re.compile(r'\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b')
 
 
@@ -57,9 +63,12 @@ def log_dirs(env=None):
     env = os.environ if env is None else env
     if env.get('HAO_LOGS'):
         return [Path(env['HAO_LOGS'])]
-    out = [SYSTEM_LOGS, Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao']
+    out = [Path(env['HAO_STICK']) / 'logs'] if env.get('HAO_STICK') else []
+    out += [SYSTEM_LOGS, Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao']
     if env.get('SUDO_USER'):
-        out.append(Path('/Users') / env['SUDO_USER'] / 'Library' / 'Logs' / 'hao')
+        home = SAFE._home_of(env)
+        if home:
+            out.append(Path(home) / 'Library' / 'Logs' / 'hao')
     return list(dict.fromkeys(out))
 
 
@@ -119,21 +128,67 @@ def log_owners(env=None):
     return {os.geteuid()} | ({int(env['SUDO_UID'])} if env.get('SUDO_UID', '').isdigit() else set())
 
 
-def last_log(folders, env=None):
-    """The newest command log that is a plain file (not a symlink, not another user's)."""
-    owners = log_owners(env)
+def owners_of(folder, env=None):
+    """Whose files FOLDER may hold, for root to read them: the system log folder and the install record's folder are
+    root's; the USB installer's logs root's (or its volume's unknown owner); any other folder is the user's (the sudo
+    user's under sudo), never root's: a user's folder that leads to root's files gives root nothing to read."""
+    env = os.environ if env is None else env
+    folder = Path(folder)
+    if folder == SYSTEM_LOGS or folder == STATE:
+        return {0}
+    if env.get('HAO_STICK') and folder == Path(env['HAO_STICK']) / 'logs':
+        return {0, SAFE.UNKNOWN_UID}
+    if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit():
+        return {int(env['SUDO_UID'])}
+    return {os.geteuid()}
+
+
+def plain_folder(folder, owners):
+    """FOLDER is a folder (no symlink at it or above it) owned by one of OWNERS."""
+    try:
+        st = os.lstat(str(folder))
+    except OSError:
+        return False
+    import stat as _st
+    if not _st.S_ISDIR(st.st_mode) or st.st_uid not in owners:
+        return False
+    return os.path.realpath(str(folder)) == os.path.abspath(str(folder)) or SAFE._firmlinked(Path(folder))
+
+
+SCAN_LIMIT = 1000
+
+
+def candidates(folders, env=None):
+    """[(mtime, path)] of command logs that root may read, newest first: plain files (not links) in plain folders, both
+    owned as owners_of says; at most SCAN_LIMIT entries are looked at per folder."""
+    import stat as _st
     found = []
     for f in folders:
-        if not Path(f).is_dir():
+        owners = owners_of(f, env)
+        if not plain_folder(f, owners):
             continue
-        for p in Path(f).glob('*-*.json'):
-            try:
-                st = p.lstat()
-            except OSError:
-                continue
-            if p.is_file() and not p.is_symlink() and st.st_uid in owners | {0}:
-                found.append((st.st_mtime, p))
-    return max(found)[1] if found else None
+        try:
+            with os.scandir(str(f)) as it:
+                for n, e in enumerate(it):
+                    if n >= SCAN_LIMIT:
+                        break
+                    if not re.fullmatch(r'[A-Za-z0-9._-]+-[0-9-]+\.json', e.name):
+                        continue
+                    try:
+                        st = e.stat(follow_symlinks=False)
+                    except OSError:
+                        continue
+                    if _st.S_ISREG(st.st_mode) and st.st_uid in owners:
+                        found.append((st.st_mtime, Path(e.path)))
+        except OSError:
+            continue
+    return sorted(found, reverse=True)
+
+
+def last_log(folders, env=None):
+    """The newest command log root may read (candidates())."""
+    found = candidates(folders, env)
+    return found[0][1] if found else None
 
 
 def _out(host, *argv):
@@ -178,6 +233,10 @@ def scrub(text, private):
     for pattern, label in LABELLED:
         text = pattern.sub(lambda m: m.group(1) + label, text)
     text = URL_SECRET.sub(lambda m: m.group(1) + '[credentials]@', text)    # https://user:pass@host
+    text = SECRET_FIELD.sub(lambda m: m.group(1) + '"[removed]"', text)       # "password": "..."
+    text = BEARER.sub(lambda m: m.group(1) + '[removed]', text)               # Bearer ...
+    text = SECRET_WORD.sub(lambda m: m.group(1) + '[removed]', text)          # token=..., password: ...
+    text = URL_FRAGMENT.sub(lambda m: m.group(1) + '#[fragment]', text)
     text = URL_QUERY.sub(lambda m: m.group(1) + '?[query]', text)             # tokens in query strings
     text = EMAIL.sub('[email]', text)
     text = MAC_ADDRESS.sub('[hardware address]', text)
@@ -187,11 +246,14 @@ def scrub(text, private):
 
 
 def _json(path, env=None):
-    text = SAFE.read_small(path, owners=log_owners(env))
+    owners = owners_of(Path(path).parent, env)
+    text = SAFE.read_small(path, owners=owners) if plain_folder(Path(path).parent, owners) else None
     if text is None:
-        return '(not read: %s is not a plain file of root or this user, or is larger than 4 MB)' % path
+        return '(not read: %s is not a plain file in a plain folder of its owner, or is larger than 4 MB)' % path
     try:
-        return json.dumps(json.loads(text), indent=1, default=str)
+        return json.dumps(json.loads(text), indent=1, default=str, ensure_ascii=False)
+    except RecursionError:
+        return 'unreadable: nested too deeply'
     except (OSError, ValueError) as x:
         return 'unreadable: %s' % x
 
@@ -231,11 +293,10 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
         section('hao detect', json.dumps(p, indent=1))
     except (DETECT.DetectError, LP.PatchError, OSError, KeyError, ValueError) as x:
         section('hao detect', 'failed: %s' % x)
-    log = last_log(folders)
+    log = last_log(folders, env)
     section('Last command' + (' (%s)' % log.name if log else ''), _json(log) if log else
             'no hao command log (looked in %s)' % ', '.join(str(f) for f in folders))
-    others = sorted((p.name for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')
-                     if log is None or p != log), reverse=True)
+    others = [p.name for _, p in candidates(folders, env) if p != log]
     if others:
         section('Earlier command logs', '\n'.join(others[:KEEP]))
     record = Path(state) / 'install-record.json'
@@ -262,24 +323,33 @@ def write(path, text, env=None):
     """Write the report; under sudo, give it to the user who ran sudo so they can attach and delete it."""
     env = os.environ if env is None else env
     path = Path(path)
-    owner = None
-    if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit() and env.get('SUDO_GID', '').isdigit():
-        owner = (int(env['SUDO_UID']), int(env['SUDO_GID']))
-    # a new file only: an existing name (or a symlink planted at it) is never written through, chmod-ed or chown-ed
-    for n in range(10):
-        candidate = path if n == 0 else path.with_name('%s-%d%s' % (path.stem, n, path.suffix))
-        try:
-            return SAFE.create(candidate, text, 0o600, owner)
-        except FileExistsError:
-            continue
-    raise FileExistsError('%s and nine numbered names next to it exist already' % path)
+    owner = SAFE.sudo_owner(env)
+
+    def new():
+        # a new file only: an existing name (or a symlink planted at it) is never written through
+        for n in range(10):
+            candidate = path if n == 0 else path.with_name('%s-%d%s' % (path.stem, n, path.suffix))
+            try:
+                return str(SAFE.create(candidate, text, 0o600))
+            except FileExistsError:
+                continue
+        raise FileExistsError('%s and nine numbered names next to it exist already' % path)
+    # under sudo the file is written by the sudo user itself, so the user's folders (and any link in them) can lead
+    # root nowhere: the kernel checks the user's own rights
+    return Path(SAFE.as_user(owner, new) if owner else new())
 
 
 def report(a, c, host, env=None, folders=None, state=STATE, ver=None):
     path = Path(a.output).expanduser() if getattr(a, 'output', None) else default_output()
     text = collect(host, env, folders, state, ver)
-    write(path, text, env)
+    try:
+        path = write(path, text, env)
+    except OSError:
+        if getattr(a, 'output', None):
+            raise
+        path = write(Path('/private/tmp') / path.name, text, env)      # the current folder is not the user's
     c.event('report', path=str(path), bytes=len(text))
     c.done('report written to %s' % path.resolve(), path=str(path))
-    c.print('Attach it to a GitHub issue: it holds no serial number, user names or Wi-Fi names.', 'quiet')
+    c.print('Read it, then attach it to a GitHub issue: serials, user and Wi-Fi names, addresses and credentials '
+            'are removed, but messages from programs can hold other details.', 'quiet')
     return 0

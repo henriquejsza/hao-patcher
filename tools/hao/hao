@@ -76,6 +76,9 @@ import sys
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE / 'src'))
+import safety as SAFE    # noqa: E402
+SAFE.harden_env()        # as root: no developer variables, the system PATH, the sudo user's real home; before any
+#                          module below (or CACHE) computes a path from the environment
 import livepatch as LP   # noqa: E402
 import macos as MAC      # noqa: E402
 import console as CON    # noqa: E402
@@ -91,7 +94,6 @@ import status as STATUS  # noqa: E402
 import run as RUN        # noqa: E402
 import aot as AOT        # noqa: E402
 import doctor as DOCTOR  # noqa: E402
-import safety as SAFE    # noqa: E402
 import signing as SIGN   # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
@@ -608,7 +610,7 @@ def cmd_detect(a, c, host=None):
     DETECT.show(c, p)
     # the profile always goes to a file, named on screen, never printed (owner, 2026-11-13: "Reference the artifact")
     out = Path(a.out) if a.out else profile_output(p['model'])
-    REP.write(out, json.dumps(p, indent=1) + '\n')
+    out = REP.write(out, json.dumps(p, indent=1) + '\n')         # the name actually written (a new file)
     c.done('Profile written to %s  (use it with --profile on the Mac that makes the USB installer)' % out, profile=str(out))
     return 0
 
@@ -804,7 +806,6 @@ def cmd_help(a):
 
 
 def main():
-    SAFE.harden_env()        # under sudo: no developer variables, the system PATH (security review F3)
     import signal
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
     p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

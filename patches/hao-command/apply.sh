@@ -14,8 +14,11 @@ tar -xzf "$P/inputs/python_x86_64" -C "$L"
 (cd "$P/build" && tar -cf - hao) | (cd "$L" && tar -xf -)
 [ -f "$L/hao/tools/hao/hao" ] || { echo "hao-command: the staged tools/hao is missing" >&2; exit 1; }
 # the launcher: a new file, then renamed over the old name (mv replaces a symlink there; it never writes through it)
-N="$B/.hao.new.$$"
-rm -f "$N"
+if [ -d "$B/hao" ] && [ ! -L "$B/hao" ]; then
+    echo "hao-command: $B/hao is a folder: refusing to replace it" >&2; exit 1
+fi
+[ ! -L "$B/hao" ] || rm -f "$B/hao"        # a link (to a file or a folder) is removed, never followed
+N=$(mktemp "$B/.hao.new.XXXXXX")          # created new and exclusive by mktemp, 0600 until chmod
 printf '#!/bin/sh\nexec /usr/local/lib/hao/python/bin/python3.12 -I /usr/local/lib/hao/hao/tools/hao/hao "$@"\n' > "$N"
 chown root:wheel "$N"
 chmod 755 "$N"

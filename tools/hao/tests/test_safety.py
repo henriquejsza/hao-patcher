@@ -69,6 +69,67 @@ class Files(unittest.TestCase):
             self.assertEqual(oct((Path(d) / 'logs').stat().st_mode & 0o777), '0o700')
 
 
+class Folders(unittest.TestCase):
+    def test_private_dir_refuses_links_above_and_narrows_its_mode(self):
+        with tempfile.TemporaryDirectory() as d:
+            real = Path(d) / 'real'
+            (real / 'logs').mkdir(parents=True)
+            (Path(d) / 'link').symlink_to(real)
+            with self.assertRaises(OSError):
+                SAFE.private_dir(Path(d) / 'link' / 'logs')
+            (real / 'logs').chmod(0o777)
+            SAFE.private_dir(real / 'logs')
+            self.assertEqual(oct((real / 'logs').stat().st_mode & 0o777), '0o700')
+
+    def test_open_log_refuses_a_fifo_and_a_hard_link(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.mkfifo(str(Path(d) / 'fifo.log'))
+            with self.assertRaises(OSError):
+                SAFE.open_log(Path(d) / 'fifo.log')
+            (Path(d) / 'other').write_text('keep')
+            os.link(str(Path(d) / 'other'), str(Path(d) / 'hard.log'))
+            with self.assertRaises(OSError):
+                SAFE.open_log(Path(d) / 'hard.log')
+            self.assertEqual((Path(d) / 'other').read_text(), 'keep')
+            (Path(d) / 'old.log').write_text('x')
+            (Path(d) / 'old.log').chmod(0o644)
+            SAFE.open_log(Path(d) / 'old.log').close()
+            self.assertEqual(oct((Path(d) / 'old.log').stat().st_mode & 0o777), '0o600')
+
+    def test_logs_in_a_symlinked_folder_are_not_read(self):
+        with tempfile.TemporaryDirectory() as d:
+            real = Path(d) / 'protected'
+            real.mkdir()
+            (real / 'install-20991231-000000.json').write_text('{"secret": 1}')
+            (Path(d) / 'logs').symlink_to(real)
+            self.assertIsNone(REP.last_log([Path(d) / 'logs'], env={}))
+            self.assertIsNotNone(REP.last_log([real], env={}))
+
+
+class AsUser(unittest.TestCase):
+    @unittest.skipUnless(os.geteuid() == 0, 'needs root (sudo)')
+    def test_root_writes_a_report_as_the_sudo_user(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.chmod(d, 0o700)                  # root's folder: the user may not write here
+            with self.assertRaises(OSError):
+                SAFE.as_user((65534, 65534), lambda: str(SAFE.create(Path(d) / 'r.txt', 'x')))
+            self.assertFalse((Path(d) / 'r.txt').exists())
+
+    def test_errors_come_back(self):
+        if os.geteuid() == 0:
+            self.skipTest('as root the child could change user')
+        with self.assertRaises(OSError):         # setuid to another user fails for a normal user, in the child
+            SAFE.as_user((0, 0), lambda: 'never')
+
+
+class Redaction(unittest.TestCase):
+    def test_secrets_in_fields_words_and_urls(self):
+        text = REP.scrub('{"password": "hunter2", "api_key": "k1"} token=abc Authorization: Bearer xyz '
+                         'https://h/p?q=1#zz9frag', {})
+        for secret in ('hunter2', 'k1', 'abc', 'xyz', 'q=1', 'zz9frag'):
+            self.assertNotIn(secret, text)
+
+
 class Environment(unittest.TestCase):
     def test_sudo_drops_developer_variables(self):
         env = {'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'HAO_STICK': '/tmp/s', 'TMPDIR': '/tmp/t',
@@ -78,10 +139,16 @@ class Environment(unittest.TestCase):
         self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
         self.assertEqual(env['HAO_THEME'], 'dark')
 
-    def test_recovery_root_and_users_keep_them(self):
-        env = {'HAO_STICK': '/Volumes/HAO', 'PATH': '/x'}
-        self.assertEqual(SAFE.harden_env(env, euid=0), [])
+    def test_sudo_home_comes_from_the_account_database(self):
+        env = {'HOME': '/tmp/elsewhere', 'SUDO_USER': 'u', 'SUDO_UID': '501'}
+        SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
+        self.assertEqual(env['HOME'], '/home-of-u')
+
+    def test_any_root_drops_them_but_the_recovery_keeps_its_drive(self):
+        env = {'HAO_STICK': '/Volumes/HAO', 'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'PATH': '/x'}
+        self.assertEqual(sorted(SAFE.harden_env(env, euid=0)), ['HAO_LAUNCHER', 'HAO_LOGS'])
         self.assertEqual(env['HAO_STICK'], '/Volumes/HAO')
+        self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
         env = {'HAO_LAUNCHER': '/tmp/x', 'SUDO_USER': 'u'}
         self.assertEqual(SAFE.harden_env(env, euid=501), [])
 
@@ -104,6 +171,8 @@ class Text(unittest.TestCase):
             r = PROG.Runner(c, 'install', log=Path(d) / 'l.log', popen=popen_of(text, 1), env={})
             r(['sh', 'golden-assemble.sh', 'K', 'L'])
         self.assertNotIn('\x1b', r.error)
+        # a JSON escape decodes to a control character: cleaned after decoding too
+        self.assertEqual(SAFE.clean({'unit': 'B\x1b[2J', 'n': [1, 'a\x07']}), {'unit': 'B\\x1b[2J', 'n': [1, 'a\\x07']})
         x = r.explain(CON.Stopped('failed'))
         self.assertEqual(x.what, 'x\\x1b[31my')
         self.assertEqual(x.options[0], 'a\\x1b]8;;z')
@@ -119,6 +188,17 @@ class Verify(unittest.TestCase):
             for bad in ('/etc/passwd', '../outside/x', 'usr/../../outside/x', './usr/x', 'usr//x', 'link/x'):
                 self.assertIsNone(VERIFY.inside(root, None, bad), bad)
             self.assertEqual(VERIFY.inside(root, None, 'usr/x'), root / 'usr' / 'x')
+
+    def test_a_folder_swapped_after_the_check_is_not_hashed(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / 'root'
+            root.mkdir()
+            (Path(d) / 'outside').mkdir()
+            (Path(d) / 'outside' / 'x').write_text('secret')
+            (root / 'link').symlink_to(Path(d) / 'outside')
+            self.assertEqual(VERIFY.hash_inside(root / 'link' / 'x', root), 'outside')
+            (root / 'y').write_text('ok')
+            self.assertEqual(len(VERIFY.hash_inside(root / 'y', root)), 64)
 
 
 if __name__ == '__main__':

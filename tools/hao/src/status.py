@@ -23,20 +23,17 @@ def _out(host, *argv):
 
 def last_stop(folders):
     """(command, when, what) of the newest command log that ended stopped, or None."""
-    logs = sorted((p for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')),
-                  key=lambda p: p.lstat().st_mtime, reverse=True)
-    for path in logs[:REP.KEEP]:
-        import safety as SAFE
-        text = SAFE.read_small(path, owners=REP.log_owners())     # plain files of root or this user only
+    import safety as SAFE
+    for _, path in REP.candidates(folders)[:REP.KEEP]:              # plain files in plain folders of their owners
+        text = SAFE.read_small(path, owners=REP.owners_of(path.parent))
         try:
             data = json.loads(text) if text is not None else None
-        except ValueError:
+        except (ValueError, RecursionError):
             data = None
         if not isinstance(data, dict) or not isinstance(data.get('events', []), list):
             continue
         ends = [e for e in data.get('events', []) if isinstance(e, dict) and e.get('ev') == 'run.end']
         if ends and ends[-1].get('ok') is False:
-            import safety as SAFE
             when = datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
             return SAFE.text(data.get('command')), when, SAFE.text(ends[-1].get('what'))
         if ends:
@@ -97,6 +94,8 @@ def show(c, d):
     """The status on console C: a panel on a Rich terminal, else labelled lines; --log json gets the event only."""
     c.event('status', **d)
     d = dict(d, where=FD.PLACES.get(d['where'], d['where']))
+    import safety as SAFE
+    d = SAFE.clean(d)                       # values come from files and other programs: shown as text
     plain = ['%-13s%s' % (label, d[key]) for label, key in ROWS]
 
     def panel():

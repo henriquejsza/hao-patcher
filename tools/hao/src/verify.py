@@ -70,6 +70,35 @@ def inside(root, data, path):
     return target
 
 
+def hash_inside(target, base):
+    """sha256 of TARGET read through one descriptor (no link followed), or None when it is not a plain file, or
+    'outside' when the file that descriptor opened is not under BASE (a folder swapped after the path was checked)."""
+    import fcntl
+    import hashlib
+    import stat
+    try:
+        fd = os.open(str(target), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        if hasattr(fcntl, 'F_GETPATH'):
+            where = fcntl.fcntl(fd, fcntl.F_GETPATH, bytes(1024)).split(b'\0', 1)[0].decode(errors='replace')
+            real = os.path.realpath(str(base)).rstrip('/') + '/'
+            if not where.startswith(real):
+                return 'outside'
+        h = hashlib.sha256()
+        while True:
+            block = os.read(fd, 1 << 20)
+            if not block:
+                break
+            h.update(block)
+        return h.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def verify(root, found, attributes=None, on_file=None):
     """{'ok': n, 'problems': [{path, pack, problem, ...}], 'packs': {pack: files}}; ON_FILE(row) per file."""
     root = Path(root)
@@ -90,10 +119,12 @@ def verify(root, found, attributes=None, on_file=None):
                 if on_file:
                     on_file(row)
                 continue
-            if target.is_symlink() or not target.is_file():
+            have = hash_inside(target, data if data is not None and target.is_relative_to(data) else root)
+            if have == 'outside':
+                row['problem'] = 'outside'
+            elif have is None:
                 row['problem'] = 'missing'
             else:
-                have = LP.sha256_file(target)
                 if have != meta['sha256']:
                     row.update(problem='content', want=meta['sha256'], have=have)
                 else:
