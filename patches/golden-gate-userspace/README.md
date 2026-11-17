@@ -390,6 +390,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r82 2026-11-16 src/corewifi/make takes cache-dylib from this repository's tools/cache-dylib (was a separate checkout next to it; dsc.py is the same bytes) and its build record's commit from pipeline/source_commit.py. corewifi_compat unchanged.
 - r81 2026-11-16 Merges r80 (this branch) with main's r79: both row changes below, no other change.
 - r80 2026-11-16 Input row `golden_gate_userspace` (26B131) leaves the producer's record `userspace.json` out of its sha256, so a remake from the same IPSW matches (the five images are byte-identical); `build/make` runs the pinned ipsw 3.1.737 (input row `ipsw_tool`, or `--ipsw-tool`, or ipsw on PATH at that version) and stops with what to install when there is none. Installed bytes unchanged but the record's producer commit.
 - r79 2026-11-16 Row `codeid_carrier`: its sha256 leaves out build.json (16120d97), so a source build of the same carrier.o and libhao_codeid.a (tools/asset-build) matches. Same artifact; installed bytes unchanged.
