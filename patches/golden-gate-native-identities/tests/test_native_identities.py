@@ -14,6 +14,7 @@ sys.path.insert(0, str(HERE/'src'))
 import native_identities as ni
 
 TRUE, FALSE = Path('/usr/bin/true'), Path('/usr/bin/false')
+KEPT = {'usr/bin/kept': ('test', frozenset())}   # the fixture's programs.txt
 
 
 def cdhash(path):
@@ -72,7 +73,8 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertTrue(ni.x86_64(self.system/'usr/bin/kept')[0]['adhoc'])
 
     def test_scan(self):
-        rows, skipped = ni.scan(self.system, [self.source])
+        rows, skipped, refused = ni.scan(self.system, [self.source], KEPT)
+        self.assertEqual(refused, {})
         self.assertEqual([(r['path'], r['observed'], r['reference']) for r in rows],
                          [('usr/bin/kept', cdhash(self.system/'usr/bin/kept'), cdhash(TRUE))])
         self.assertEqual(sorted(skipped), ['usr/bin/orphan', 'usr/bin/other', 'usr/bin/renamed', 'usr/bin/stub'])
@@ -84,12 +86,12 @@ class NativeIdentitiesTests(unittest.TestCase):
     def test_first_source_with_the_original_wins(self):
         empty = Path(self.tmp.name)/'empty'
         empty.mkdir()
-        rows, _ = ni.scan(self.system, [empty, self.source])
+        rows, _, _ = ni.scan(self.system, [empty, self.source], KEPT)
         self.assertEqual([r['source'] for r in rows], [str(self.source/'usr/bin/kept')])
 
     def test_install(self):
         owner = (os.getuid(), os.getgid())
-        record = ni.install(self.system, [self.source], owner=owner)
+        record = ni.install(self.system, [self.source], owner=owner, programs=KEPT)
         copy = self.system/ni.ORIGINALS/'usr/bin/kept'
         self.assertEqual(copy.read_bytes(), TRUE.read_bytes())
         self.assertEqual(copy.stat().st_mode & 0o7777, 0o644)
@@ -102,8 +104,40 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertEqual(len(record['rows']), 1)
         # an installed original is not itself scanned, so a second run gives the same list
         before = (self.system/ni.LIST).read_bytes()
-        ni.install(self.system, [self.source], owner=owner)
+        ni.install(self.system, [self.source], owner=owner, programs=KEPT)
         self.assertEqual((self.system/ni.LIST).read_bytes(), before)
+
+    def test_unlisted_program_is_refused(self):
+        rows, _, refused = ni.scan(self.system, [self.source], {})
+        self.assertEqual(rows, [])
+        self.assertEqual(list(refused), ['usr/bin/kept'])
+        self.assertIn('not in programs.txt', refused['usr/bin/kept'])
+        with self.assertRaises(SystemExit) as stop:
+            ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs={})
+        self.assertIn('usr/bin/kept', str(stop.exception))
+        self.assertFalse((self.system/ni.LIST).exists())
+
+    def test_libraries_must_be_the_listed_ones(self):
+        wanted = {'usr/bin/kept': ('test', frozenset({'/usr/lib/libextra.dylib'}))}
+        rows, _, refused = ni.scan(self.system, [self.source], wanted)
+        self.assertEqual(rows, [])
+        self.assertIn("adds none", refused['usr/bin/kept'])
+        self.assertIn('/usr/lib/libextra.dylib', refused['usr/bin/kept'])
+
+    def test_dylibs(self):
+        sig, data = ni.x86_64(TRUE)
+        self.assertIn('/usr/lib/libSystem.B.dylib', ni.dylibs(data))
+
+    def test_programs_file(self):
+        programs = ni.load_programs()
+        self.assertEqual(len(programs), 3)
+        for path, (recipe, libs) in programs.items():
+            self.assertTrue(path.startswith('System/') and recipe.startswith('golden-gate-'), path)
+            self.assertTrue(all(lib.startswith('/') for lib in libs))
+        bad = Path(self.tmp.name)/'bad.txt'
+        bad.write_text('usr/bin/x  r  /no-plus\n')
+        with self.assertRaises(ValueError):
+            ni.load_programs(bad)
 
     def test_original_that_fails_anchor_apple_is_dropped(self):
         # a source whose slice carries a signature blob that is not Apple's: re-signed with a CMS-less but
@@ -126,11 +160,11 @@ def whole_file(path):
     return None
 
 
-def whole_scan(system, sources):
+def whole_scan(system, sources, programs=None):
     """scan() reading every candidate whole, as before the header-only read."""
     with mock.patch.object(ni, 'x86_64_signature', whole_file), \
             mock.patch.object(ni, 'slice_bytes', lambda path, found: Path(path).read_bytes()[found[1]:found[1] + found[2]]):
-        return ni.scan(system, sources)
+        return ni.scan(system, sources, KEPT if programs is None else programs)
 
 
 class HeaderOnlyRead(unittest.TestCase):
@@ -204,16 +238,18 @@ class HeaderOnlyRead(unittest.TestCase):
         shutil.copy(FALSE, system/'usr/bin/orphan')
         resign(system/'usr/bin/orphan', 'com.apple.false')
         (system/'usr/bin/link').symlink_to('kept')
-        self.assertEqual(ni.scan(system, [source]), whole_scan(system, [source]))
-        self.assertEqual(len(ni.scan(system, [source])[0]), 1)
+        self.assertEqual(ni.scan(system, [source], KEPT), whole_scan(system, [source]))
+        self.assertEqual(len(ni.scan(system, [source], KEPT)[0]), 1)
 
     @unittest.skipUnless(os.environ.get('NATIVE_IDENTITIES_SYSTEM') and os.environ.get('NATIVE_IDENTITIES_SOURCES'),
                          'set NATIVE_IDENTITIES_SYSTEM and NATIVE_IDENTITIES_SOURCES (a built image, read-only)')
     def test_real_system(self):
         system = Path(os.environ['NATIVE_IDENTITIES_SYSTEM'])
         sources = [Path(p) for p in os.environ['NATIVE_IDENTITIES_SOURCES'].split(':')]
-        rows, skipped = ni.scan(system, sources)
-        self.assertEqual((rows, skipped), whole_scan(system, sources))
+        programs = ni.load_programs()
+        rows, skipped, refused = ni.scan(system, sources, programs)
+        self.assertEqual((rows, skipped, refused), whole_scan(system, sources, programs))
+        self.assertEqual(refused, {})
         self.assertTrue(rows)
 
 

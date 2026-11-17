@@ -26,6 +26,11 @@ takes the first source root that has, at the same path, the program's original:
 - the same program: at least 90% of the original's signed bytes after the load commands are unchanged at the same
   offsets (compared in 64-byte pieces), which holds for an inserted load command or a replaced Info.plist section but
   not for a different program installed at that path (OCLP's own programs, for example);
+- listed in [src/programs.txt](src/programs.txt), the reviewed list of programs that may have an Apple identity, each with
+  the recipe that edits it. Its library load commands differ from the original's by exactly the libraries listed there:
+  none removed and no other added. A re-signed program that matches an original but is not listed, or that differs in
+  its libraries, stops `install`, so the build fails. `tests/test_programs.py` checks the list against the edit specs'
+  `macho.add-dylib` edits;
 - copied to `/usr/lib/hao/originals/<path>` (root:wheel, 0644, directories 0755), the copy passes
   `codesign --verify --arch x86_64 -R='anchor apple'`.
 
@@ -77,6 +82,9 @@ mounted read-only and its record's two sources), on a real System:
 `python3.14 -I -B -m unittest discover -s patches/golden-gate-native-identities/tests -k test_real_system`.
 
 ## Validation
+NEEDS VALIDATION (r8): the next image build's log shows "native-identities: 3 rows" (WindowServer, `corespotlightd`,
+`managedcorespotlightd`) and no refusal, and its `/usr/lib/hao/native-identities` equals r7's for the same inputs. Host:
+the unlisted-program and library-mismatch tests, and `tests/test_programs.py`.
 NEEDS VALIDATION: r4 reads headers and signatures instead of whole files. On the exported 26B131 image (System
 read-only, the record's two sources) its scan equals r3's byte for byte (rows and skips), the list it gives equals the
 image's `/usr/lib/hao/native-identities`, and all 11,517 Mach-O files of that System and the pristine 27.2.1 System
@@ -89,6 +97,7 @@ Earlier: Host tests pass and a host simulation of the 26B131 WindowServer and `c
 their rows. No image has been built with this recipe.
 
 ## Revisions
+- r8 2026-11-17 Only programs listed in `src/programs.txt` (with their recipe and inserted libraries) get an Apple identity; any other match, or a library difference, fails the build instead of being enrolled.
 - r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `filesystem.dmg` read-only, so the assembly reads the row where it is staged instead of copying its 22 GB into the work folder a second time (golden-gate-userspace already declares it). The hook and what it installs are unchanged.
 - r5 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.

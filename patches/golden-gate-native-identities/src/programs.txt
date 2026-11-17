@@ -1,0 +1,8 @@
+# The native programs that may get an Apple identity (a row in /usr/lib/hao/native-identities), each with the recipe
+# that edits and re-signs it and the libraries that recipe's edit spec inserts (+PATH). A program re-signed ad hoc that
+# is not here, but would match its Apple original, stops the build: a new one needs a line here, in review.
+# Its load commands may differ from the original's only by these libraries (none removed, no other added).
+# tests/test_programs.py checks this file against the edit specs in patches/.
+System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer  golden-gate-userspace  +/usr/lib/dss_shim.dylib
+System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd  golden-gate-corespotlight-compat  +/usr/lib/corespotlight_compat.dylib
+System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd  golden-gate-corespotlight-compat  +/usr/lib/corespotlight_compat.dylib

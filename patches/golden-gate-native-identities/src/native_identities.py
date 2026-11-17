@@ -21,6 +21,10 @@ was made from:
 - installed under /usr/lib/hao/originals/<path> (root:wheel 0644, directories 0755), the copy passes
   `codesign --verify --arch x86_64 -R='anchor apple'`.
 
+Only the programs in programs.txt (next to this file) get a row, and only when their load commands differ from the
+original's by exactly the libraries listed for them: an edited program gets an Apple identity only by a reviewed line.
+A program re-signed ad hoc that is not listed but would otherwise match its original stops `install`.
+
 Programs listed in hao's stub-identities, and any program for which no such original exists (OCLP's own programs, for
 example), get no row; `scan` says why. A program that is still Apple-signed needs no row and is not touched.
 """
@@ -41,6 +45,8 @@ LIST = 'usr/lib/hao/native-identities'
 STUBS = 'usr/lib/hao/stub-identities'
 ORIGINALS = 'usr/lib/hao/originals'
 RECORD = 'System/Library/CoreServices/golden-gate-native-identities.json'
+PROGRAMS = Path(__file__).resolve().parent/'programs.txt'
+DYLIB_COMMANDS = {0xc, 0x80000018, 0x8000001f, 0x20, 0x80000023}   # LOAD, LOAD_WEAK, REEXPORT, LAZY_LOAD, LOAD_UPWARD
 HASHES = {1: hashlib.sha1, 2: hashlib.sha256, 3: hashlib.sha256, 4: hashlib.sha384}
 RANK = {1: 1, 3: 2, 2: 3, 4: 4}                       # the kernel's preference among CodeDirectories
 CS_ADHOC = 0x2
@@ -188,6 +194,34 @@ def slice_bytes(path, found):
         return piece.read(0, piece.size)
 
 
+def load_programs(path=PROGRAMS):
+    """programs.txt -> {relative path: (recipe, frozenset of inserted library paths)}."""
+    out = {}
+    for line in Path(path).read_text().splitlines():
+        words = line.split('#', 1)[0].split()
+        if not words:
+            continue
+        if len(words) < 2 or any(not w.startswith('+/') for w in words[2:]) or words[0] in out:
+            raise ValueError(f'{path}: bad line: {line}')
+        out[words[0]] = (words[1], frozenset(w[1:] for w in words[2:]))
+    return out
+
+
+def dylibs(data):
+    """The library paths a thin 64-bit slice's load commands name (LC_LOAD_DYLIB and its kinds), as a sorted list."""
+    count, commands = struct.unpack_from('<II', data, 16)
+    at, out = 32, []
+    for _ in range(count):
+        command, length = struct.unpack_from('<II', data, at)
+        if length < 8:
+            raise ValueError('bad load command')
+        if command in DYLIB_COMMANDS:
+            name = struct.unpack_from('<I', data, at + 8)[0]
+            out.append(data[at + name:at + length].split(b'\0', 1)[0].decode(errors='replace'))
+        at += length
+    return sorted(out)
+
+
 def same_program(observed, reference, limit):
     """At least 90% of the reference's signed bytes after the load commands, compared in 64-byte pieces at the same
     offsets, are unchanged. The Mach-O header and load commands are left out: re-signing rewrites them, and an
@@ -238,10 +272,13 @@ def candidates(system):
     WALK['seconds'] += time.monotonic() - started
 
 
-def scan(system, sources):
-    """(rows, skipped): rows = [dict(path, observed, reference, source, same)], skipped = {path: reason}."""
+def scan(system, sources, programs=None):
+    """(rows, skipped, refused): rows = [dict(path, observed, reference, source, same)], skipped = {path: reason},
+    refused = {path: reason} (would match an original but is not in PROGRAMS, or inserts other libraries than listed).
+    PROGRAMS defaults to programs.txt."""
+    programs = load_programs() if programs is None else programs
     stubs = listed_stubs(system)
-    rows, skipped = [], {}
+    rows, skipped, refused = [], {}, {}
     system = Path(system)
     for rel, sig, found in candidates(system):
         if sig['cdhash'] in stubs:
@@ -263,17 +300,27 @@ def scan(system, sources):
             elif ref['cdhash'] == sig['cdhash']:
                 reasons.append(f'{source}: same cdhash')
             else:
-                same, measure = same_program(slice_bytes(system/rel, found), slice_bytes(original, ref_found),
-                                             ref['limit'])
+                observed, reference = slice_bytes(system/rel, found), slice_bytes(original, ref_found)
+                same, measure = same_program(observed, reference, ref['limit'])
                 if not same:
                     reasons.append(f'{source}: another program ({measure} code blocks unchanged)')
                     continue
+                if rel not in programs:
+                    refused[rel] = f'matches {original} ({measure} unchanged) but is not in programs.txt'
+                    break
+                have, had = dylibs(observed), dylibs(reference)
+                added = sorted(set(have) - set(had))
+                if sorted(set(had) - set(have)) or len(have) != len(set(have)) or set(added) != programs[rel][1]:
+                    refused[rel] = (f'its libraries differ from {original}: adds {added or "none"}, removes '
+                                    f'{sorted(set(had) - set(have)) or "none"}; programs.txt allows '
+                                    f'{sorted(programs[rel][1]) or "none"} ({programs[rel][0]})')
+                    break
                 rows.append(dict(path=rel, observed=sig['cdhash'], reference=ref['cdhash'], source=str(original),
                                  identifier=sig['identifier'], same=measure))
                 break
         else:
             skipped[rel] = '; '.join(reasons) or 'no original at this path in any source'
-    return rows, skipped
+    return rows, skipped, refused
 
 
 def verify(path):
@@ -282,10 +329,13 @@ def verify(path):
     return result.returncode == 0, result.stderr.strip()
 
 
-def install(system, sources, owner=(0, 0)):
+def install(system, sources, owner=(0, 0), programs=None):
     """Copy each row's original under usr/lib/hao/originals, check it, write the list and a record."""
     system = Path(system)
-    rows, skipped = scan(system, sources)
+    rows, skipped, refused = scan(system, sources, programs)
+    if refused:
+        raise SystemExit('native-identities: refused (no Apple identity without a programs.txt line):\n' +
+                         '\n'.join(f'  {p}: {why}' for p, why in sorted(refused.items())))
     hao = system/'usr/lib/hao'
     if not hao.is_dir():
         hao.mkdir(mode=0o755, parents=True)
@@ -330,8 +380,8 @@ def main():
     parser.add_argument('--record', type=Path, help='where install writes its record (default: SYSTEM/' + RECORD + ')')
     args = parser.parse_args()
     if args.command == 'scan':
-        rows, skipped = scan(args.system, args.source)
-        print(json.dumps(dict(rows=rows, skipped=skipped), indent=2))
+        rows, skipped, refused = scan(args.system, args.source)
+        print(json.dumps(dict(rows=rows, skipped=skipped, refused=refused), indent=2))
         return
     started = time.monotonic()
     record = install(args.system, args.source)
