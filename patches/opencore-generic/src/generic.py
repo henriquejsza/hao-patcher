@@ -14,6 +14,8 @@ tools/kernel-foundation vm_esp.py. This sets, in place:
   conflicts with a real Mac's SMC: this pack is never for Mac hardware.
 - The reference's Booter, Kernel and UEFI quirks: each quirk the reference turns on is set to its value (only quirks
   this OpenCore's config knows).
+- Lilu.kext replaced by OCLP's RELEASE payload (1.7.2, the pinned bytes): the reference carries another build, and
+  both images load the same Lilu.
 - CryptexFixup.kext (Acidanthera 1.0.5, OCLP's RELEASE payload from OCLP_SOURCE, the row oclp_source): without it APFS
   requires the image's modified OS cryptex's root hash and the boot stops at its graft (QEMU, bench 0726).
 
@@ -75,22 +77,31 @@ CRYPTEXFIXUP_ENTRY = dict(Arch='x86_64', BundlePath='CryptexFixup.kext', Comment
                           PlistPath='Contents/Info.plist')            # OCLP's own entry
 
 
-def add_cryptexfixup(config, esp, oclp_tar):
-    """CryptexFixup.kext from OCLP's RELEASE payload in the pinned OCLP source, loaded right after Lilu."""
+LILU_ZIP = 'payloads/Kexts/Acidanthera/Lilu-v1.7.2-RELEASE.zip'
+
+
+def oclp_kext(esp, oclp_tar, zip_path, bundle):
+    """Put BUNDLE from OCLP's RELEASE payload ZIP_PATH (in the pinned OCLP source) into EFI/OC/Kexts, replacing any
+    copy there: both images then carry the same bytes, the ones kext-provenance pins."""
     with tarfile.open(oclp_tar) as tar:
-        member = tar.extractfile(CRYPTEXFIXUP_ZIP)
+        member = tar.extractfile(zip_path)
         if member is None:
-            raise SystemExit('opencore-generic: %s is not in the OCLP source' % CRYPTEXFIXUP_ZIP)
+            raise SystemExit('opencore-generic: %s is not in the OCLP source' % zip_path)
         data = member.read()
-    dest = esp/'EFI/OC/Kexts/CryptexFixup.kext'
+    dest = esp/'EFI/OC/Kexts'/bundle
     if dest.exists():
         shutil.rmtree(dest)
     with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(io.BytesIO(data)) as z:
         z.extractall(tmp)
-        found = [p for p in Path(tmp).rglob('CryptexFixup.kext') if p.is_dir() and 'dSYM' not in str(p)]
+        found = [p for p in Path(tmp).rglob(bundle) if p.is_dir() and 'dSYM' not in str(p)]
         if len(found) != 1:
-            raise SystemExit('opencore-generic: expected one CryptexFixup.kext in the payload, found %d' % len(found))
+            raise SystemExit('opencore-generic: expected one %s in the payload, found %d' % (bundle, len(found)))
         shutil.copytree(found[0], dest)
+
+
+def add_cryptexfixup(config, esp, oclp_tar):
+    """CryptexFixup.kext from OCLP's RELEASE payload in the pinned OCLP source, loaded right after Lilu."""
+    oclp_kext(esp, oclp_tar, CRYPTEXFIXUP_ZIP, 'CryptexFixup.kext')
     add = config['Kernel']['Add']
     add[:] = [k for k in add if k['BundlePath'] != 'CryptexFixup.kext']
     add.insert([k['BundlePath'] for k in add].index('Lilu.kext') + 1, dict(CRYPTEXFIXUP_ENTRY))
@@ -120,6 +131,7 @@ def main(argv):
     reference = plistlib.loads((reference_root/'EFI/OC/config.plist').read_bytes())
     changed = quirks(config, reference)
     add_smc(config, esp, reference_root)
+    oclp_kext(esp, oclp_tar, LILU_ZIP, 'Lilu.kext')     # the reference's Lilu is another build
     add_cryptexfixup(config, esp, oclp_tar)
     fresh = platform(config)
     path.write_bytes(plistlib.dumps(config))

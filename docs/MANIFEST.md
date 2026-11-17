@@ -53,7 +53,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | metal-compiler-compat | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
-| opencore-generic | r2 | experiment | post | undeclared | - | qemu_reference_efi 989cb871 qemu-reference-20261022; oclp_source ff509df0 oclp-source.tar |
+| opencore-generic | r3 | experiment | post | undeclared | - | qemu_reference_efi 989cb871 qemu-reference-20261022; oclp_source ff509df0 oclp-source.tar |
 | opencore-mbp92 | r3 | product | post | undeclared | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | - |
 | rec-audio | r4 | product | recovery | yes | recovery | - |
 | rec-bluetooth-input | r4 | product | recovery | yes | recovery | - |
