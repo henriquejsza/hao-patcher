@@ -745,7 +745,7 @@ def install(a, c, host, run=subprocess.call):
     work = assemble_onto(a, c, host, path, info, 'internal', run)
     write_install_record(c, host, DISKS.normalize(a.disk),
                          install_record(a, c, profile, path, asm, groups, DISKS.normalize(a.disk), a.kit))
-    blessed = set_startup_disk(c, host, DISKS.normalize(a.disk))
+    blessed = start_up(c, host, profile, DISKS.normalize(a.disk))
     # no automatic restart when the start-up disk was not set: the Mac could start something else
     wait = None if getattr(a, 'no_restart', False) or not blessed else (key_within if sys.stdin.isatty() else None)
     if wait is None:
@@ -868,6 +868,15 @@ def write_install_record(c, host, disk, record):
 
 RESTART_SECONDS = 10
 BOOTSTRAP = 'System/Library/CoreServices/boot.efi'     # OpenCore's Bootstrap on the EFI partition (as OCLP installs it)
+
+
+def start_up(c, host, profile, disk):
+    """Make DISK the one the machine starts: bless OpenCore's Bootstrap on a Mac; on a VM or PC (the generic image) the
+    firmware starts EFI/BOOT/BOOTx64.efi by itself, and bless (Apple firmware only) is not run. True when set."""
+    if is_generic_target(profile.get('target')):
+        c.item('start-up disk  the firmware starts EFI/BOOT/BOOTx64.efi (no bless on a VM or PC)', 'files', ok=True)
+        return True
+    return set_startup_disk(c, host, disk)
 
 
 def set_startup_disk(c, host, disk):

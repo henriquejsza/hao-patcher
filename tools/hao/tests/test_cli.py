@@ -553,6 +553,13 @@ class BuilderTest(unittest.TestCase):
                            '/Volumes/EFI/System/Library/CoreServices/boot.efi', '--setBoot'], host.calls)
             self.assertNotIn('restart.countdown', [e['ev'] for e in c.events])
 
+    def test_generic_image_is_not_blessed(self):
+        with GenericTree():
+            host = FakeMac(root_device='disk9s1', **self.RELAXED)
+            c, _ = console('quiet')
+            self.assertTrue(BUILD.start_up(c, host, {'target': 'generic'}, 'disk0'))
+            self.assertFalse([x for x in host.calls if x and x[0] == 'bless'])
+
     def test_install_writes_the_install_record_on_the_data_volume(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
