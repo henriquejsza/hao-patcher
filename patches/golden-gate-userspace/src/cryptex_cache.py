@@ -5,7 +5,8 @@ Building and sealing the two images (src/cryptex.py) is most of this recipe's ti
 - the code that builds them: cryptex.py, every module of this folder it imports, and build/ (the native cache repairs
   make.sh copies in), source_files(),
 - tools/tahoe-donors (install-driverkit puts Tahoe's x86_64 DriverKit cache into the image),
-- the builder's tools: its macOS build, newfs_apfs, apfs_prepare_cryptex and Python (guest_lines()).
+- the builder's tools: its macOS build, newfs_apfs, apfs_prepare_cryptex and Python, and the target's model and
+  platform data (guest_lines()).
 A key over all of them names one image pair. The host (pipeline/golden-run) writes the first three as `host_lines`
 into SHARE/cryptex-cache/key.json and clones each stored entry whose host key matches into in/KEY/; here the guest
 adds its own lines, so the key is complete. On a match the images are copied to Preboot and their sha256 checked
@@ -121,13 +122,21 @@ def host_lines(folder, rows, driverkit, donor_tool):
     return lines
 
 
+def target_lines():
+    """The target the images are made for: its model and its platform data (HAO_TARGET_MODEL, HAO_TARGET_DATA), which
+    decide the model-gate edits (src/model_gates.py), so a cached image pair is reused only for the same target."""
+    path = os.environ.get('HAO_TARGET_DATA')
+    data = sha256(path) if path else 'none'
+    return [f'target model {os.environ.get("HAO_TARGET_MODEL") or "none"}', f'target data {data}']
+
+
 def guest_lines():
-    """The builder's tools that format, fill and seal the images."""
+    """The builder's tools that format, fill and seal the images, and the target (target_lines())."""
     build = subprocess.run(['sw_vers', '-buildVersion'], capture_output=True, text=True, check=True).stdout.strip()
     lines = [f'builder macOS {build}', f'builder python {sys.version.split()[0]}']
     for tool in ('newfs_apfs', 'apfs_prepare_cryptex'):
         lines.append(f'builder {tool} {sha256(Path(APFS_RESOURCES)/tool)}')
-    return lines
+    return lines + target_lines()
 
 
 def key_of(lines):

@@ -286,7 +286,8 @@ def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, dono
         for path, changes in audio.items():
             trackpad_plan.setdefault(path, []).extend(changes)
         # Sidecar, AirPlay to Mac and Continuity Camera: this Mac's entry in their unsupported-model lists is renamed
-        # (src/model_gates.py, data src/model-gates.json), in place of a FeatureUnlock kext.
+        # (src/model_gates.py, data src/model-gates.json; the Mac is the target's platform_data model_gates, none for a
+        # target without it), in place of a FeatureUnlock kext.
         gates = model_gates_plan(mount/'System/Library/dyld')
         counts['model_gates'] = {
             path.name: [reason for _, _, _, reason in changes]

@@ -8,7 +8,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| darwin27-kernel | r14 | oclp-hook | product |  | x | x |  |  | **needs** | r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only. |
 | darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
 | dev-access | r7 | post | dev |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware |
 | dev-diagnostics | r8 | post | dev |  |  |  |  |  | **needs** | r8 2026-11-17 Its declared boot-args carry hao-opencore r72's `amfi_force_policy=8`; nothing this recipe adds  |
@@ -29,19 +29,20 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-framebuffer | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
 | golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (app |
+| golden-gate-model-gates-mbp92 | r1 | oclp-hook | product |  | x |  |  |  | **needs** | r1 2026-11-17 New (GEN1): golden-gate-userspace's model-gates edit, declared for pack mbp92; the 9,2 and its n |
 | golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-root-launchservices | r4 | post | experiment | boot-seeds |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): seed harvested from 26B131. Nothing it instal |
+| golden-gate-root-launchservices | r5 | post | experiment | boot-seeds |  |  |  |  | **needs** | r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes. |
 | golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-shared-cache | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-shared-cache-catalog | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it |
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | golden-gate-user-template | r10 | post | product | caches | x |  |  |  | **needs** | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
-| golden-gate-userspace | r87 | oclp-hook | product |  | x | x |  |  | **needs** | r87 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| golden-gate-userspace | r88 | oclp-hook | product |  | x | x |  |  | **needs** | r88 2026-11-17 Model-neutral (GEN1, S15): the model gates rename the target's model, read from HAO_TARGET_MODE |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| hao-opencore | r74 | post | product |  | x | x |  |  | **needs** | r74 2026-11-17 Status product (was experiment): every end-user set ships it, AMFI relaxed by the owner's decis |
+| hao-opencore | r75 | post | product |  | x | x |  |  | **needs** | r75 2026-11-17 The edit spec's origin names the target's model generically (GEN1, S15). Declaration only. |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |

@@ -1,7 +1,7 @@
 # golden-gate-root-launchservices: root's LaunchServices store and authd's auth.db, as the image's own lsd and authd
 # wrote them in a builder boot of this image (input root_launchservices_golden_gate, made by
 # tools/first-boot-seeds/rootls collect; no laptop, no account). Without them lsd builds root's store at the first
-# boot (26B131 on the MacBookPro9,2: lsd 38.2 -> 122.6 s, loginwindow blocked until 94.4 s, fskitd until 122.6 s)
+# boot (26B131 on the test laptop: lsd 38.2 -> 122.6 s, loginwindow blocked until 94.4 s, fskitd until 122.6 s)
 # and authd imports 204 rules. The store holds the image's file and volume IDs: it fits only the image that booted.
 A="$P/inputs/root_launchservices_golden_gate"
 B=$(/usr/libexec/PlistBuddy -c 'Print :ProductBuildVersion' "$SYS/System/Library/CoreServices/SystemVersion.plist")

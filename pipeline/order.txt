@@ -4,6 +4,7 @@
 darwin27-kernel                    # Boot/System kernel collections around the 27 x86_64 kernel and the Intel kexts. First: everything after edits on top of them
 golden-gate-userspace              # combined OS cryptex (x86_64 dyld cache, Tahoe DriverKit, cache repairs, code identity carrier in Security), CoreWiFi compat, display shim. Second, same reason
 golden-gate-wifi-compat            # IO80211/WiFiPeerToPeer compat in front of OCLP's Modern Wireless wrappers; split out of golden-gate-userspace, right after it (its old place in that recipe's steps)
+golden-gate-model-gates-mbp92      # MacBookPro9,2 off the unsupported-model lists: declares the edit golden-gate-userspace's cryptex build makes from the target's platform_data; after golden-gate-userspace (and wifi-compat, which stays right after userspace)
 hao-runtime-fold                   # fold-in only, in hao-runtime's place: the same installation with the payload built for the rebuilt family (row hao_runtime_fold, its cache UUID)
 darwin27-sandbox-disk-space        # 26A428's system.sb lacks the vfs.disk-space rule (27.2 has it): one Sandbox report per statfs without it
 hao-runtime                        # hao, plus an x86_64 launch slice in every arm64-only 27 program so it runs on Intel

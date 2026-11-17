@@ -3,7 +3,7 @@
  "path": "EFI/OC/config.plist",
  "origin": {
   "kind": "oclp",
-  "name": "OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it",
+  "name": "OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it",
   "note": "in the image's EFI partition, not in the System volume. Not declared here (no edit kind for it yet): the HaoExec.kext entry appended to Kernel.Add (plist.set cannot append), the Kernel.Patch that keeps AMFI's dyld environment policy for hardened programs (src/amfi_dyld.py binds it to the linked BootKC, as kc.bind does the repairs), and removal of bootercfg and bootercfg-once from NVRAM.Add (OCLP's config has neither). The boot-args value is the end-user one; dev-diagnostics (pack dev) adds the measurement switches in dev images"
  },
  "applied_by": "installer",

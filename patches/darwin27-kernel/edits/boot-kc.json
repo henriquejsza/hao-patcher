@@ -32,7 +32,7 @@
     "boot_collection": "BootKernelExtensions.kc (-B, in the build directory)",
     "prelinked": "an installer kit carries prelinked/: the three files a builder VM build linked from the same tree (pipeline/prelinked_kc.py, key over the rows and sources that shape System up to this hook); the hook checks each against prelinked/prelinked.json and installs them instead of linking, because the stick's Recovery links a kernel-only collection (its kmutil reads no kext of the target volume)"
    },
-   "reason": "the Intel Mac boots Apple's own Darwin 27 kernel with Tahoe's Intel drivers (Ethernet, HD 4000, and the rest of the boot-time set) linked into one boot collection"
+   "reason": "the Intel Mac boots Apple's own Darwin 27 kernel with Tahoe's Intel drivers (Ethernet, graphics, and the rest of the boot-time set) linked into one boot collection"
   }
  ],
  "sign": null
