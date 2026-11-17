@@ -385,6 +385,7 @@ class Live(unittest.TestCase):
         self.assertLessEqual(len(CON.plain(t.render())), 80)
         q = c.task('Installing macOS 27', 'quiet', total=1000, unit='%')
         q.width, q.bar_at = 30, 0
+        q.update(done=500)
         self.assertIn('█' * 15, CON.plain(q.render()))                 # the --quiet bar keeps its 30 cells
         q.drop()
         t.drop()
