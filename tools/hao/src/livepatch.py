@@ -151,8 +151,9 @@ class Attributes:
     @staticmethod
     def current(path):
         st = os.lstat(path)
+        # UF_COMPRESSED (0x20) is how a file is stored, not an install attribute: never compared
         return {'mode': stat.S_IMODE(st.st_mode), 'uid': st.st_uid, 'gid': st.st_gid,
-                'flags': getattr(st, 'st_flags', 0) & (SYSTEM_FLAGS | 0xffff)}
+                'flags': getattr(st, 'st_flags', 0) & (SYSTEM_FLAGS | 0xffff) & ~0x20}
 
     def settable(self, key, want, have):
         """Whether this run can make HAVE[KEY] what WANT says (owners and system flags need root)."""

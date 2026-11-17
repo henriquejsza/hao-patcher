@@ -1964,7 +1964,8 @@
     "recovery": "disk71s5",
     "system": "disk71s2",
     "vm": "disk71s6"
-   }
+   },
+   "manifests": {}
   }
  },
  "full": {
@@ -3870,7 +3871,8 @@
     "recovery": "disk71s5",
     "system": "disk71s2",
     "vm": "disk71s6"
-   }
+   },
+   "manifests": {}
   }
  },
  "hardware-failure": {
@@ -5136,7 +5138,8 @@
     "recovery": "disk71s5",
     "system": "disk71s2",
     "vm": "disk71s6"
-   }
+   },
+   "manifests": {}
   }
  },
  "unmount-failure": {
@@ -7027,7 +7030,8 @@
     "recovery": "disk71s5",
     "system": "disk71s2",
     "vm": "disk71s6"
-   }
+   },
+   "manifests": {}
   }
  }
 }

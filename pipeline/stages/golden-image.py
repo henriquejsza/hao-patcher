@@ -349,6 +349,7 @@ class Assembler:
         self.environment['OCLP_PYTHON'] = config['python']
         self.steps = []
         self.owners = {}
+        self.manifests = {}
         self.plan = None
         if config.get('overlays'):
             self.plan = {s['name']: s for s in json.loads(Path(config['overlays']['plan']).read_text())['steps']}
@@ -627,7 +628,38 @@ class Assembler:
                       env=dict(environment,P=p['folder'],PATCH_OUTPUT_DIR=str(o))))
         self.run('rm','-rf',self.mounts['data']/'.Spotlight-V100')
         self.fix_owners('posts',('data','preboot','recovery'))
+        self.write_manifests()
         self.run('sync')
+
+    def write_manifests(self):
+        """One manifest per recipe (verify.py's format 1) of the files it declares, as they are installed now that the
+        System is sealed: Data/private/var/db/hao/manifests/RECIPE.json, root:wheel 0644. `hao verify` reads them."""
+        path = self.config.get('declared')
+        if not path or not Path(path).is_file():
+            return
+        declared = json.loads(Path(path).read_text())
+        folder = self.mounts['data']/MANIFESTS
+        folder.mkdir(mode=0o755,parents=True,exist_ok=True)
+        counts = {}
+        for name, entry in sorted(declared.items()):
+            files = {}
+            for rel in entry.get('files', []):
+                found = manifest_entry([self.mounts['system'], self.mounts['data']], rel)
+                if found:
+                    files[rel] = found
+            target = folder/(name+'.json')
+            target.write_text(json.dumps(dict(format=1, recipe=name, pack=entry.get('pack'), files=files, dirs={}),
+                                         indent=1, sort_keys=True)+'\n')
+            if os.geteuid() == 0:
+                os.chown(target, 0, 0)
+            os.chmod(target, 0o644)
+            counts[name] = len(files)
+        if os.geteuid() == 0:
+            os.chown(folder, 0, 0)
+        os.chmod(folder, 0o755)
+        self.manifests = counts
+        print('golden-image: manifests for %d recipes (%d files) in %s' % (len(counts), sum(counts.values()), MANIFESTS),
+              flush=True)
 
     def export_efi(self):
         """Deliver the final ESP separately for installation after OS restoration."""
@@ -689,6 +721,25 @@ def check_set_id(expected, system):
             bad.append('/%s is %04o %d:%d, not %04o %d:%d' % (rel, stat.S_IMODE(st.st_mode), st.st_uid, st.st_gid,
                                                            mode, uid, gid))
     return bad
+
+
+MANIFESTS = 'private/var/db/hao/manifests'
+FLAG_NAMES = {0x80000: 'restricted', 0x20000: 'schg', 0x100000: 'sunlnk', 0x2: 'uchg', 0x8000: 'hidden', 0x1: 'nodump'}
+
+
+def manifest_entry(roots, rel):
+    """{sha256, mode, owner, flags} of REL under the first of ROOTS that has it as a regular file, else None."""
+    for root in roots:
+        p = Path(root)/rel
+        if p.is_file() and not p.is_symlink():
+            st = os.lstat(p)
+            h = hashlib.sha256()
+            with open(p, 'rb') as f:
+                for block in iter(lambda: f.read(1 << 20), b''):
+                    h.update(block)
+            return dict(sha256=h.hexdigest(), mode='%04o' % stat.S_IMODE(st.st_mode), owner='%d:%d' % (st.st_uid, st.st_gid),
+                        flags=sorted(n for bit, n in FLAG_NAMES.items() if getattr(st, 'st_flags', 0) & bit))
+    return None
 
 
 # The fixed order of every Golden Gate image: (step, Assembler method, why).
@@ -771,7 +822,7 @@ def _assemble(config, commands=None, target=None, prior=None):
             record.update(status='failed',cleanup_errors=cleanup)
             if error is None: error=RuntimeError('; '.join(cleanup))
         record.update(volumes=image.devices,group_uuid=image.group,steps=image.steps,commands=commands.entries,
-                      owners_fixed=image.owners,
+                      owners_fixed=image.owners, manifests=image.manifests,
                       attached_device=target.attached,**target.record())
         (work/'build.json').write_text(json.dumps(record,indent=2)+'\n')
     if error is not None: raise error

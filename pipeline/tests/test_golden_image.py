@@ -415,3 +415,34 @@ class SetIDCheckTests(unittest.TestCase):
             os.chmod(root/'usr/bin/login',0o4555)
             self.assertEqual(golden.check_set_id(expected,root),[])
             self.assertTrue(golden.check_set_id([['usr/bin/sudo',0o4511,uid+1,gid]],root))
+
+
+class ManifestTests(unittest.TestCase):
+    """item 2050: golden-image writes one manifest per recipe after the seal; `hao verify` reads them and passes."""
+    def test_manifests_verify_and_catch_a_change(self):
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'hao' / 'src'))
+        import verify as V
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            system, data = root/'system', root/'data'
+            (system/'usr/lib').mkdir(parents=True); (data/'private/var').mkdir(parents=True)
+            (system/'usr/lib/a.dylib').write_bytes(b'a'); (system/'usr/lib/a.dylib').chmod(0o755)
+            (data/'private/var/b.plist').write_bytes(b'b')
+            declared = root/'declared.json'
+            declared.write_text(json.dumps({'r1': {'pack': 'base', 'files': ['usr/lib/a.dylib', 'private/var/b.plist',
+                                                                              'usr/lib/gone']}}))
+
+            class A: pass
+            a = A(); a.config = {'declared': str(declared)}; a.mounts = {'system': system, 'data': data}; a.manifests = {}
+            golden.Assembler.write_manifests(a)
+            self.assertEqual(a.manifests, {'r1': 2})
+            m = json.loads((data/golden.MANIFESTS/'r1.json').read_text())
+            self.assertEqual(m['files']['usr/lib/a.dylib']['mode'], '0755')
+            # an installed Mac sees System and Data as one tree
+            merged = root/'merged'
+            shutil.copytree(system, merged); shutil.copytree(data, merged, dirs_exist_ok=True)
+            found = V.manifests([], merged)
+            self.assertEqual(V.verify(merged, found)['problems'], [])
+            (merged/'usr/lib/a.dylib').write_bytes(b'changed')
+            self.assertEqual([p['problem'] for p in V.verify(merged, V.manifests([], merged))['problems']], ['content'])
