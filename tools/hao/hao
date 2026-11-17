@@ -696,8 +696,11 @@ def cmd_verify(a, c):
 
 def cmd_verify_release(a, c, opener=None):
     """hao verify-release [vX.Y.Z | PATH]: PASS, FAIL or SKIP per check (src/releasecheck.py); exit 4 on any FAIL."""
+    if getattr(a, 'keys', None) and not (REPO / '.git').exists():
+        raise CON.Stopped('--keys is refused: this hao is a release, not a checkout',
+                          why='a release is verified against the owner\'s keys, which come with hao', code=5)
     try:
-        keys = SIGN.load_keys()
+        keys = SIGN.load_keys(getattr(a, 'keys', None))
     except SIGN.SignatureError as x:
         raise CON.Stopped(str(x), why='a release is verified against the owner\'s keys, which come with hao', code=4)
     target, stick = a.target, os.environ.get('HAO_STICK')
@@ -724,6 +727,9 @@ def cmd_verify_release(a, c, opener=None):
         where = p
     c.banner('hao verify-release  %s  (%s)' % (target or where, 'USB installer' if kind == 'drive' else 'release files'),
              target=str(target or where), kind=kind)
+    if getattr(a, 'keys', None):
+        c.item('keys from %s (--keys, a checkout): not the owner\'s unless that file is theirs' % a.keys, ok=False,
+               ev='release.keys', keys=str(a.keys))
     if kind == 'drive':
         import stick as STICK
         checks = RC.check_drive(where, keys, STICK)
@@ -973,6 +979,8 @@ def main():
                    'USB installer (e.g. /Volumes/HAO); default: the release beside hao, or this USB installer')
     q.add_argument('--cache', type=Path, default=CACHE, help='downloads to check as well (default %s)' % CACHE)
     q.add_argument('--offline', action='store_true', help='no network: the public tag is not looked up (SKIP)')
+    q.add_argument('--keys', help='(developers, in a hao checkout only) public key lines to verify against instead '
+                   'of the owner\'s (data/release-keys.pub), e.g. a test key')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_verify_release, log='verify-release'))
     q = sub.add_parser('doctor', help='is this Mac ready: Python, Xcode, macOS, disk, download URLs, mirrors')

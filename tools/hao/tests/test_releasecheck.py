@@ -212,6 +212,15 @@ class Command(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(self.run_cmd(release_folder(d, sign=False)), 4)
 
+    def test_keys_from_a_file_in_a_checkout(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
+            (Path(k) / 'test.pub').write_text(sshsig_files(SECRET, b'')[0])
+            r = __import__('subprocess').run([sys.executable, '-I', '-B', str(TOOL / 'hao'), 'verify-release',
+                                              str(release_folder(d)), '--offline', '--keys', str(Path(k) / 'test.pub')],
+                                             capture_output=True, text=True, env=dict(os.environ, HAO_LOGS=k))
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn('PASS', r.stdout + r.stderr)
+
     def test_without_keys_it_refuses(self):
         with tempfile.TemporaryDirectory() as d:
             r = __import__('subprocess').run([sys.executable, '-I', '-B', str(TOOL / 'hao'), 'verify-release',
