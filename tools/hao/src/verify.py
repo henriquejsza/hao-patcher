@@ -6,6 +6,7 @@ from overlay folders, manifest files, or ROOT/private/var/db/hao/manifests (wher
 manifests of what they installed). For each file: missing, different content, or different mode/owner/flags.
 """
 import json
+import os
 from pathlib import Path
 
 import livepatch as LP
@@ -13,10 +14,25 @@ import livepatch as LP
 INSTALLED = 'private/var/db/hao/manifests'
 
 
+def data_root(root):
+    """The Data volume of an unbooted install whose System volume is mounted at ROOT ("macOS" -> "macOS - Data", as
+    the Recovery mounts them), or None. Firmlinked paths (Library, private/var, Users ...) live there; on a booted
+    system "/" reaches them through the firmlinks."""
+    root = Path(root)
+    if str(root) == '/':
+        return None
+    data = root.parent / (root.name + ' - Data')
+    return data if data.is_dir() else None
+
+
 def manifests(sources, root):
     """[(where, manifest)] from overlay folders or manifest files; ROOT's installed manifests when none are given."""
     paths = []
-    for s in sources or [Path(root) / INSTALLED]:
+    if not sources:
+        data = data_root(root)
+        sources = [d for d in ([Path(root) / INSTALLED] + ([data / INSTALLED] if data else [])) if d.is_dir()] or \
+            [Path(root) / INSTALLED]
+    for s in sources:
         s = Path(s)
         if s.is_file():
             paths.append(s)
@@ -40,6 +56,7 @@ def manifests(sources, root):
 def verify(root, found, attributes=None, on_file=None):
     """{'ok': n, 'problems': [{path, pack, problem, ...}], 'packs': {pack: files}}; ON_FILE(row) per file."""
     root = Path(root)
+    data = data_root(root)
     attributes = attributes or LP.Attributes(root, privileged=True)
     out = {'ok': 0, 'problems': [], 'packs': {}}
     for where, m in found:
@@ -47,6 +64,8 @@ def verify(root, found, attributes=None, on_file=None):
         out['packs'][pack] = len(m['files'])
         for path, meta in sorted(m['files'].items()):
             target = root / path
+            if data is not None and not os.path.lexists(target) and os.path.lexists(data / path):
+                target = data / path            # a firmlinked path of an unbooted install: on its Data volume
             row = {'path': path, 'pack': pack}
             if target.is_symlink() or not target.is_file():
                 row['problem'] = 'missing'

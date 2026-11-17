@@ -463,14 +463,16 @@ def finish_line(c, command):
     """Replace the backends' last line with the mockups' ("Installed ... in 41m 18s · ...", "Done in ...")."""
     done = c.done
 
-    def wrapped(text, **fields):
+    def wrapped(text, more=(), **fields):
         took = CON.elapsed(c.clock() - c.started)
         log = getattr(getattr(c, 'run', None), 'log', None)
-        more = ['Log: %s' % log] if log else []
-        if command in ('install', 'build-disk') and 'installed on' in text and c.level == 'quiet':
+        more = list(more) + (['Log: %s' % log] if log else [])
+        low = text.lower()
+        installed = command in ('install', 'build-disk') and ('installed on ' in low or low.startswith('installed macos 27 on '))
+        if installed and c.level == 'quiet':
             return done('Installed in %s. Details are in the log%s.' % (took, ': %s' % log if log else ''), **fields)
-        if command in ('install', 'build-disk') and 'installed on' in text:
-            disk = text.split('installed on ', 1)[1].split(';')[0]
+        if installed:
+            disk = text.split(' on ', 1)[1].split(';')[0]
             s = getattr(c.run, 'summary', {}) if getattr(c, 'run', None) else {}
             parts = ['macOS 27 on %s in %s' % (disk, took)]
             if s.get('files'):
@@ -480,8 +482,8 @@ def finish_line(c, command):
             if s.get('repairs'):
                 parts.append('%d kernel repairs' % s['repairs'])
             parts.append('no notes' if not s.get('notes') else '%d notes' % s['notes'])
-            return done(' · '.join(parts), lead=c.paint('ok', 'Installed'), more=more + ['Restart to use it.'],
-                        **fields)
+            return done(' · '.join(parts), lead=c.paint('ok', 'Installed'),
+                        more=more + (['Restart to use it.'] if 'restart to use it' in text else []), **fields)
         if command == 'create-installer' and not text.startswith('dry run'):
             text = text.replace('USB stick', 'USB installer').replace('stick image', 'USB installer image')
             return done('in %s. %s' % (took, text[:1].upper() + text[1:]), lead=c.paint('ok', 'Done'), more=more,
@@ -690,14 +692,20 @@ def main():
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
     q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
     q.add_argument('--image', help='(development) write a raw stick image FILE instead of a disk; no root needed')
-    q.add_argument('--link-on-target', action='store_true',
-                   help='the kit carries no prelinked kernel collections: hao install links them as root on the target')
+    q.add_argument('--prelinked', action='store_true',
+                   help='(development) the kit must carry prelinked kernel collections; by default it carries none and '
+                        'hao install links them as root on the target Mac')
+    q.add_argument('--link-on-target', action='store_true', help=argparse.SUPPRESS)   # the default since v0.0.2
+    q.add_argument('--keep-kit', action='store_true',
+                   help='keep the kit staged on this Mac (default: removed once the USB installer is written and checked)')
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
     q.set_defaults(fn=guarded(lambda a, c: INST.create_installer(a, c, MAC.SystemHost(), acquire=PROG.download_view(
         c, runpy.run_path(str(INST.ACQUIRE)), INST.origin_of)), log='create-installer'))
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
     q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
+    q.add_argument('--no-restart', action='store_true',
+                   help='stay in the Recovery when the install is done (default: restart after a 10 s countdown)')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
     q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')

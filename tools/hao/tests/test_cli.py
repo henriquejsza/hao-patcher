@@ -63,6 +63,7 @@ class FakeMac:
         self.root_device = root_device
         self.df = {}
         self.calls = []
+        self.data_mount = None      # where the installed Data volume (disk1s2) is mounted, if anywhere
 
     def run(self, argv, check=True, timeout=120):
         argv = [str(a) for a in argv]
@@ -96,11 +97,23 @@ class FakeMac:
         if argv[:3] == ['diskutil', 'info', '-plist']:
             if argv[3] == '/':
                 return plistlib.dumps({'DeviceIdentifier': self.root_device})
+            if argv[3] == 'disk1s2':
+                return plistlib.dumps({'MountPoint': self.data_mount} if self.data_mount else {})
             info = DISKS_INFO.get(argv[3])
+            if info is None and argv[3].endswith('s1'):
+                info = {'MountPoint': '/Volumes/EFI'}
             return None if info is None else plistlib.dumps(dict(info, DeviceIdentifier=argv[3]))
+        if argv[:3] == ['diskutil', 'list', '-plist']:      # the install's end: the target's EFI partition
+            return plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': [
+                {'DeviceIdentifier': argv[3] + 's1', 'Content': 'EFI'}]}]})
+        if argv[:2] == ['diskutil', 'mount'] or argv[0] == 'bless':
+            return b''
         if argv[:4] == ['diskutil', 'apfs', 'list', '-plist']:
             return plistlib.dumps({'Containers': [
-                {'ContainerReference': 'disk1', 'PhysicalStores': [{'DeviceIdentifier': 'disk0s2'}]}]})
+                {'ContainerReference': 'disk1', 'PhysicalStores': [{'DeviceIdentifier': 'disk0s2'}],
+                 'Volumes': [{'DeviceIdentifier': 'disk1s1', 'Roles': ['System']},
+                             {'DeviceIdentifier': 'disk1s2', 'Roles': ['Data']}]}]})
+
         if argv[:2] == ['df', '-P']:
             lines = ['Filesystem 512-blocks Used Available Capacity Mounted on']
             for s in argv[2:]:
@@ -116,7 +129,7 @@ def console(level='steps', answer='ERASE'):
 
 def ns(**kw):
     base = dict(model=None, profile=None, assembly=None, dry_run=True, disk=None, confirm=None, quiet=False,
-                show=False, show_edits=False, log=None, sources=[])
+                show=False, show_edits=False, log=None, sources=[], no_restart=True)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -284,6 +297,19 @@ class VerifyTest(unittest.TestCase):
         with self.assertRaises(LP.PatchError):
             VERIFY.manifests([], self.root)
 
+    def test_unbooted_install_reads_its_data_volume(self):
+        # the Recovery mounts the System volume at ROOT and its Data volume at "ROOT - Data": the manifests and the
+        # firmlinked files (here usr/lib/c.dylib stands for one) are there
+        data = self.root.parent / (self.root.name + ' - Data')
+        (data / 'usr/lib').mkdir(parents=True)
+        os.replace(self.root / 'usr/lib/c.dylib', data / 'usr/lib/c.dylib')
+        inst = data / VERIFY.INSTALLED
+        inst.mkdir(parents=True)
+        (inst / '06-metal.json').write_text((self.ovl / 'manifest.json').read_text())
+        r = VERIFY.verify(self.root, VERIFY.manifests([], self.root))
+        self.assertEqual((r['ok'], r['problems']), (3, []))
+        self.assertIsNone(VERIFY.data_root('/'))
+
 
 class BuilderTest(unittest.TestCase):
     def test_build_image_dry_run(self):
@@ -423,6 +449,34 @@ class BuilderTest(unittest.TestCase):
             # nothing collects a stick's kit: the sealed cryptex images are not stored (they filled the stick)
             self.assertEqual(assemble[4], '--no-cryptex-cache')
             self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'hao-install-')))
+            # the start-up disk is set to OpenCore on the internal disk's EFI partition; --no-restart: no countdown
+            self.assertIn(['bless', '--mount', '/Volumes/EFI', '--file',
+                           '/Volumes/EFI/System/Library/CoreServices/boot.efi', '--setBoot'], host.calls)
+            self.assertNotIn('restart.countdown', [e['ev'] for e in c.events])
+
+    def test_install_writes_the_install_record_on_the_data_volume(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{"schema": 1}')
+            host.data_mount = str(Path(d) / 'Data')
+            c, out = console('files')
+            ran, run = self.fake_run()
+            self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
+            path = Path(d) / 'Data/private/var/db/hao/install-record.json'
+            r = json.loads(path.read_text())
+            self.assertEqual(oct(path.stat().st_mode & 0o777), '0o644')
+            for key in ('date', 'release', 'golden_build', 'donor_build', 'model', 'board_id', 'packs', 'recipes', 'kit',
+                        'disk'):
+                self.assertIn(key, r)
+            self.assertEqual((r['schema'], r['model'], r['disk'], r['command']), (1, 'MacBookPro9,2', 'disk0', 'install'))
+            self.assertEqual(r['board_id'], 'Mac-6F01561E16C75D06')
+            self.assertEqual(r['kit']['kit_json_sha256'], hashlib.sha256(b'{"schema": 1}').hexdigest())
+            self.assertTrue(r['recipes'] and all(isinstance(v, int) for v in r['recipes'].values()), r['recipes'])
+            self.assertEqual(sorted(sum(r['recipes_by_pack'].values(), [])), sorted(r['recipes']))
+            self.assertIn('install record', out.getvalue())
+            host.data_mount = None                  # no Data volume mounted (and mounting does not help): a warning
+            c, _ = console('quiet')
+            self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
 
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
@@ -462,6 +516,80 @@ class BuilderTest(unittest.TestCase):
                 BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), work=str(work)), c, host, run=run)
             self.assertIn('in step boot-and-esp', x.exception.what)
             self.assertTrue(any('--resume %s' % work.resolve() in o for o in x.exception.options))
+
+    def test_install_end_blesses_the_internal_esp(self):
+        esp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__('shutil').rmtree(esp))
+        listing = plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': [
+            {'DeviceIdentifier': 'disk0s1', 'Content': 'EFI'}, {'DeviceIdentifier': 'disk0s2', 'Content': 'Apple_APFS'}]}]})
+
+        class Host:
+            calls = []
+            def run(self, argv, check=True, timeout=120):
+                argv = [str(x) for x in argv]
+                self.calls.append(argv)
+                out = (listing if argv[:2] == ['diskutil', 'list'] else
+                       plistlib.dumps({'MountPoint': str(esp)}) if argv[:2] == ['diskutil', 'info'] else b'')
+                return subprocess.CompletedProcess(argv, 0, out, b'')
+        host = Host()
+        c, out = console('steps')
+        self.assertTrue(BUILD.set_startup_disk(c, host, 'disk0'))
+        self.assertEqual(host.calls[-1], ['bless', '--mount', str(esp), '--file',
+                                          '%s/System/Library/CoreServices/boot.efi' % esp, '--setBoot'])
+        self.assertIn('start-up disk', out.getvalue())
+        c, out = console('steps')
+        listing = plistlib.dumps({'AllDisksAndPartitions': [{'Partitions': []}]})
+        self.assertFalse(BUILD.set_startup_disk(c, host, 'disk0'))    # no EFI partition: a warning, not a stop
+
+    def test_restart_counts_down_and_a_key_cancels(self):
+        class Host:
+            calls = []
+            def run(self, argv, check=True, timeout=120):
+                self.calls.append(list(argv))
+                return subprocess.CompletedProcess(argv, 0, b'', b'')
+        host, c = Host(), console('steps')[0]
+        self.assertTrue(BUILD.restart(c, host, lambda s: False, seconds=3))
+        evs = [e['ev'] for e in c.events]
+        self.assertEqual(evs, ['restart.countdown', 'restart.tick', 'restart.tick', 'restart.tick', 'restart.now'])
+        self.assertEqual(host.calls, [['/sbin/reboot']])
+        host.calls.clear()
+        c, out = console('steps')
+        presses = iter([False, True])
+        self.assertFalse(BUILD.restart(c, host, lambda s: next(presses), seconds=3))
+        self.assertEqual(c.events[-1], dict(c.events[-1], ev='restart.cancelled', left=2))
+        self.assertEqual(host.calls, [])
+        self.assertIn('Not restarting', out.getvalue())
+
+    def test_install_record_names_a_dev_drives_commit(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / 'stick.json').write_text(json.dumps({'hao_commit': 'd02484f8aa' + '0' * 30}))
+            old = os.environ.get('HAO_STICK'); os.environ['HAO_STICK'] = d
+            try:
+                release, commit, runtime = BUILD.release_of()
+            finally:
+                os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+            self.assertEqual((release, commit[:10], runtime), ('dev d02484f8', 'd02484f8aa', None))
+            (Path(d) / 'release.json').write_text(json.dumps({'version': 'v0.0.1', 'hao_patcher': 'abc', 'hao_runtime': 'def'}))
+            os.environ['HAO_STICK'] = d
+            try:
+                self.assertEqual(BUILD.release_of(), ('v0.0.1', 'abc', 'def'))
+            finally:
+                os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+
+    def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
+        hao = __import__('runpy').run_path(str(TOOL / 'hao'), run_name='hao_module')
+        def last(command, text):
+            out = io.StringIO()
+            c = CON.Console('steps', out=out, colour=False)
+            hao['finish_line'](c, command)
+            c.done(text, more=['backend line'])
+            return out.getvalue()
+        self.assertIn('Restart to use it.', last('install', 'Installed macOS 27 on /dev/disk0; restart to use it'))
+        text = last('install', 'Installed macOS 27 on /dev/disk0')        # the countdown follows: no restart hint
+        self.assertTrue(text.startswith('Installed macOS 27 on /dev/disk0 in '), text)
+        self.assertNotIn('Restart to use it.', text)
+        self.assertIn('backend line', text)
+        self.assertIn('backend line', last('create-installer', 'stick image written: /tmp/x'))
 
     def test_resumable_steps_are_the_assemblers(self):
         spec = importlib.util.spec_from_file_location('gi', BUILD.TOP / 'pipeline' / 'stages' / 'golden-image.py')

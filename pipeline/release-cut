@@ -570,7 +570,8 @@ def write_sums(stage, release_json):
     """STAGE/SHA256SUMS (owner: every release ships a checksum file): `shasum -a 256` lines for each file at STAGE's top,
     release.json included when it is written there; STAGE/external/ (hosted by another repository) gets its own."""
     def sums(folder, extra=()):
-        files = sorted({p for p in Path(folder).iterdir() if p.is_file() and p.name != 'SHA256SUMS'} | set(extra))
+        by_name = {p.name: p for p in list(Path(folder).iterdir()) + list(extra) if p.is_file() and p.name != 'SHA256SUMS'}
+        files = [by_name[n] for n in sorted(by_name)]
         if files:
             (Path(folder) / 'SHA256SUMS').write_text(''.join('%s  %s\n' % (sha256_file(p), p.name) for p in files))
     rel = Path(release_json).resolve()

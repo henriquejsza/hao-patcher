@@ -1,5 +1,6 @@
 """stick.py with a fake diskutil: partitioning makes two folders as the stick's mounted volumes; no real disk."""
 import io
+import json
 import os
 from pathlib import Path
 import plistlib
@@ -22,8 +23,10 @@ IAS = '4D1EDE05-38C7-4A6A-9CC6-4BCCA8B38C14'
 
 def oclp_config():
     return {'Misc': {'Security': {'DmgLoading': 'Signed', 'ScanPolicy': 0x10F0103}, 'Boot': {'LauncherOption': 'Full',
-                                                                                            'HideAuxiliary': True}},
-            'UEFI': {'Quirks': {'RequestBootVarRouting': True}},
+                                                                                            'HideAuxiliary': True},
+                     'Tools': [{'Name': 'OpenShell.efi', 'Enabled': True, 'Auxiliary': True}]},
+            'UEFI': {'Quirks': {'RequestBootVarRouting': True},
+                     'Drivers': [{'Path': 'OpenCanopy.efi', 'Enabled': True}, {'Path': 'ResetNvramEntry.efi', 'Enabled': True}]},
             'Kernel': {'Add': [{'BundlePath': 'Lilu.kext', 'Enabled': True},
                                {'BundlePath': 'AutoPkgInstaller.kext', 'Enabled': True}], 'Patch': []},
             'NVRAM': {'Add': {NV: {'boot-args': 'keepsyms=1 -lilubetaall'},
@@ -123,7 +126,13 @@ class StickTest(unittest.TestCase):
         self.assertFalse((boot / 'EFI').exists())
         self.assertEqual((boot / 'com.apple.recovery.boot/BaseSystem.dmg').read_bytes(), self.bs.read_bytes())
         c = plistlib.loads((esp / 'EFI/OC/config.plist').read_bytes())
-        self.assertEqual(c['Misc']['Debug']['Target'], 0x41)
+        self.assertEqual(c['Misc']['Debug']['Target'], 0)
+        # something on screen at once: OpenCore's picker, the Recovery its only entry, started after a few seconds
+        self.assertEqual((c['Misc']['Boot']['ShowPicker'], c['Misc']['Boot']['Timeout']), (True, STICK.PICKER_TIMEOUT))
+        self.assertEqual([x['Enabled'] for x in c['Misc']['Tools']], [False])
+        self.assertEqual([(d['Path'], d['Enabled']) for d in c['UEFI']['Drivers']],
+                         [('OpenCanopy.efi', True), ('ResetNvramEntry.efi', False)])
+        self.assertEqual((boot / 'com.apple.recovery.boot/.contentDetails').read_text(), 'hao Installer')
         self.assertEqual(c['Misc']['Security']['DmgLoading'], 'Any')
         self.assertEqual(c['NVRAM']['Add'][NV]['boot-args'], 'keepsyms=1 -lilubetaall amfi=0x80')
         self.assertEqual(rec['boot_args'], 'keepsyms=1 -lilubetaall amfi=0x80')
@@ -151,6 +160,78 @@ class StickTest(unittest.TestCase):
         self.assertTrue((kit / 'reports').is_dir())
         self.assertIn('erased /dev/disk4', steps[0])
         self.assertEqual(len(steps), 4)
+
+    def written(self, host):
+        STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top, record={'model': 'MacBookPro9,2'})
+        return self.mnt / 'EFI', self.mnt / 'HAOBOOT', self.mnt / 'HAO'
+
+    def test_rewrite_boot_only_touches_efi_and_haoboot(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        (esp / 'opencore-2026-11-16-132000.txt').write_text('00:000 00:000 OC: Starting OpenCore...')
+        (esp / 'EFI/OC/stale.efi').write_bytes(b'old')
+        kit_file = top / 'kit/hooks/02-userspace/inputs/u/filesystem.dmg'
+        before = (kit_file.stat().st_ino, kit_file.stat().st_mtime_ns)
+        dmg = boot / 'com.apple.recovery.boot/BaseSystem.dmg'
+        dmg_mtime = dmg.stat().st_mtime_ns
+        host.calls.clear()
+        steps = []
+        rec = STICK.rewrite_boot(host, 'disk4', self.esp, log=True, on_step=steps.append)
+        self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in host.calls))
+        self.assertEqual(host.calls[-1], ['diskutil', 'unmountDisk', '/dev/disk4'])
+        # the old log is kept on HAO, the ESP is OpenCore's tree again (nothing stale), logging on as asked
+        self.assertEqual((top / 'reports/opencore-2026-11-16-132000.txt').read_text()[:6], '00:000')
+        self.assertEqual(list(esp.glob('opencore-*.txt')), [])
+        self.assertFalse((esp / 'EFI/OC/stale.efi').exists())
+        c = plistlib.loads((esp / 'EFI/OC/config.plist').read_bytes())
+        self.assertEqual(c['Misc']['Debug']['Target'], STICK.LOG_TARGET)
+        # the same Recovery is not copied again; the kit is untouched
+        self.assertEqual(dmg.stat().st_mtime_ns, dmg_mtime)
+        self.assertEqual((kit_file.stat().st_ino, kit_file.stat().st_mtime_ns), before)
+        saved = json.loads((top / 'stick.json').read_text())
+        self.assertEqual(saved, rec)
+        self.assertEqual((saved['opencore_logs_kept'], saved['opencore_log'], saved['model']),
+                         (['opencore-2026-11-16-132000.txt'], STICK.LOG_TARGET, 'MacBookPro9,2'))
+        self.assertIn('kept 1 OpenCore log in HAO/reports', steps[0])
+
+    def test_rewrite_boot_with_a_new_recovery(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        new = self.d / 'BaseSystem-new.dmg'
+        new.write_bytes(b'koly2' * 1000)
+        rec = STICK.rewrite_boot(host, 'disk4', self.esp, new)
+        self.assertEqual((boot / 'com.apple.recovery.boot/BaseSystem.dmg').read_bytes(), new.read_bytes())
+        self.assertEqual(rec['basesystem_sha256'], STICK.sha256(new))
+
+    def test_rewrite_boot_takes_opencore_from_the_kit_on_the_drive(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        with self.assertRaisesRegex(STICK.StickError, 'has no ESP'):
+            STICK.rewrite_boot(host, 'disk4', None)
+        kit_esp = top / STICK.KIT_ESP
+        for rel, data in (('EFI/OC/OpenCore.efi', b'MZ kit opencore'), ('EFI/OC/config.plist', plistlib.dumps(oclp_config())),
+                          ('System/Library/CoreServices/boot.efi', b'kit boot')):
+            (kit_esp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (kit_esp / rel).write_bytes(data)
+        STICK.rewrite_boot(host, 'disk4')
+        self.assertEqual((esp / 'EFI/OC/OpenCore.efi').read_bytes(), b'MZ kit opencore')
+        self.assertEqual((esp / 'EFI/BOOT/BOOTX64.EFI').read_bytes(), b'kit boot')
+
+    def test_rewrite_boot_refuses_a_disk_hao_did_not_write(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        (top / 'stick.json').unlink()
+        with self.assertRaisesRegex(STICK.StickError, 'not a hao USB installer'):
+            STICK.rewrite_boot(host, 'disk4', self.esp)
+        self.assertTrue((esp / 'EFI/OC/OpenCore.efi').is_file())
+
+    def test_the_kit_on_the_drive_is_checked_file_by_file(self):
+        host = FakeHost(self.mnt)
+        rec = STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)
+        self.assertEqual(rec['kit_files_verified'], 6)      # cryptex-cache/in left out, the python3 link not compared
+        (self.mnt / 'HAO/kit/hooks/15-identities/inputs/u/other.dmg').write_bytes(b'short')
+        with self.assertRaisesRegex(STICK.StickError, '1 files .*other.dmg'):
+            STICK.verify_kit(self.kit, self.mnt / 'HAO/kit')
 
     def test_launcher_runs_hao_with_the_kits_python(self):
         host = FakeHost(self.mnt)

@@ -442,7 +442,8 @@ def create_installer(a, c, host, acquire=None):
     c.step(STEPS[2])
     record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
                   target=asm['target'], assembly=path.stem, golden_build=asm['golden_build'],
-                  donor_build=asm['donor_build'], basesystem=Path(basesystem).name)
+                  donor_build=asm['donor_build'], basesystem=Path(basesystem).name,
+                  hao_commit=BUILD.release_of()[1])      # the install record names it (a dev drive has no git)
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)
@@ -455,16 +456,42 @@ def create_installer(a, c, host, acquire=None):
         if image:
             host.run(['hdiutil', 'detach', '/dev/' + disk], check=False, timeout=300)
     c.event('stick.written', stick=rec)
+    left = finish_kit(a, c, kit)
     if image:
-        c.done('stick image written: %s' % image, disk=disk)
+        c.done('stick image written: %s' % image, disk=disk, more=left)
         return 0
     # the writer leaves the stick unmounted; eject it, so the last line can say it may be unplugged
     ejected = host.run(['diskutil', 'eject', '/dev/' + disk], check=False, timeout=300).returncode == 0
     c.done('the USB stick is ready%s. On the Intel Mac: hold Option while it starts, choose EFI Boot, then in the '
            'Recovery open Terminal and run /Volumes/HAO/install' % (
                ' and ejected: you can unplug it' if ejected else
-               ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected)
+               ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected,
+           more=left)
     return 0
+
+
+def finish_kit(a, c, kit):
+    """After the drive is written and its kit checked file by file (stick.verify_kit): remove the kit staged on this
+    Mac (its folder WORK/stage; the record stays), unless --keep-kit or the kit was given with --kit. Returns the
+    summary lines."""
+    if getattr(a, 'kit', None):
+        return []
+    stage = Path(kit).parent
+    if stage.name != 'stage' or not (stage / 'share' / 'kit.json').is_file():
+        return []
+    if getattr(a, 'keep_kit', False):
+        c.event('kit.kept', path=str(stage))
+        return ['The staged kit stays on this Mac (--keep-kit): %s' % stage]
+    before = shutil.disk_usage(stage).free        # what removing it frees: clones and hard links of the store free little
+    shutil.rmtree(stage, ignore_errors=True)
+    if stage.exists():
+        c.warning('the staged kit could not be removed: %s' % stage)
+        return ['The staged kit is still on this Mac: %s' % stage]
+    freed = max(0, shutil.disk_usage(stage.parent).free - before)
+    c.event('kit.removed', path=str(stage), freed=freed)
+    c.item('removed the staged kit from this Mac (the USB installer has it)', 'steps', ok=True)
+    return ['%s on this Mac: the staged kit is on the USB installer now (--keep-kit keeps it)'
+            % ('%s freed' % human_size(freed) if freed >= 1 << 20 else 'Space freed')]
 
 
 def lock_path(*argv):
@@ -534,6 +561,12 @@ def kit_assembly(kit):
         return None
 
 
+def link_on_target(a):
+    """Whether hao install links the kernel collections on the target (the default, the release path) rather than
+    the kit carrying prelinked ones (--prelinked, development: they come from a builder-VM build)."""
+    return not getattr(a, 'prelinked', False)
+
+
 def prepare_kit(a, c, path, run=subprocess.call):
     """The kit the stick carries: --kit, else staged now (golden-run --stage-kit) from the checkout's store."""
     if getattr(a, 'kit', None):
@@ -541,7 +574,7 @@ def prepare_kit(a, c, path, run=subprocess.call):
     else:
         work = Path(getattr(a, 'work', None) or BUILD.BUILDS / datetime.datetime.now().strftime('%Y%m%d-%H%M%S')).resolve()
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit'] + (
-            ['--link-on-target'] if getattr(a, 'link_on_target', False) else []) + (
+            ['--link-on-target'] if link_on_target(a) else []) + (
             [] if getattr(a, 'cryptex_cache', False) else ['--no-cryptex-cache']) + [
                '--work', str(work / 'stage'), '--record', str(work / 'record')]
         c.event('command', argv=cmd)
@@ -556,14 +589,15 @@ def prepare_kit(a, c, path, run=subprocess.call):
     if not (kit / 'kit.json').is_file():
         raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
     prelinked = prelinked_kc(kit)
-    if prelinked is None and getattr(a, 'link_on_target', False):
+    if prelinked is None and link_on_target(a):
         c.item('kit  %s  (kernel collections linked by the install, as root)' % c.paint('dim', str(kit)), 'files',
                ok=True)
         return kit
     if prelinked is None:
-        raise Stopped('the kit has no prelinked kernel collections',
-                      why='the stick\'s Recovery cannot link them: its kmutil reads no kext of the disk it installs',
-                      options=['build this image once in the builder VM (hao build-image, or golden-run ASSEMBLY '
+        raise Stopped('the kit has no prelinked kernel collections (--prelinked)',
+                      why='--prelinked asks for collections linked in advance, and this kit has none',
+                      options=['leave out --prelinked: hao install then links them on the target Mac',
+                               'or build this image once in the builder VM (hao build-image, or golden-run ASSEMBLY '
                                '--repo REPO): it stores them, and a kit staged afterwards carries them',
                                'the kit record names the key it looked for: %s' % (kit.parent.parent / 'record')],
                       untouched='the stick was not touched')

@@ -202,6 +202,34 @@ class InstallQuestionTest(unittest.TestCase):
 
 
 class CreateInstallerTest(unittest.TestCase):
+    def test_staged_kit_is_removed_after_the_write_unless_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            def staged():
+                kit = Path(d) / 'work/stage/share'
+                kit.mkdir(parents=True, exist_ok=True)
+                (kit / 'kit.json').write_text('{}')
+                (kit / 'big.dmg').write_bytes(b'x' * 4096)
+                return kit
+            kit = staged()
+            c, out, _ = console([])
+            left = INST.finish_kit(ns(), c, kit)
+            self.assertFalse((Path(d) / 'work/stage').exists())
+            self.assertIn('freed on this Mac', left[0])
+            self.assertIn('removed the staged kit', out.getvalue())
+            self.assertEqual(c.events[-1]['ev'], 'kit.removed')
+            kit = staged()
+            self.assertIn('--keep-kit', INST.finish_kit(ns(keep_kit=True), c, kit)[0])
+            self.assertTrue(kit.is_dir())
+            self.assertEqual(INST.finish_kit(ns(kit=str(kit)), c, kit), [])     # a kit given with --kit is not ours
+            self.assertTrue(kit.is_dir())
+
+    def test_the_plan_counts_the_staged_kit_and_its_removal(self):
+        import space as SPACE
+        p = SPACE.plan({'downloads': [], 'assets': []})
+        stages = {name: (mac, drive) for name, mac, drive, _ in p['stages']}
+        self.assertAlmostEqual(stages['write'][0] - stages['after'][0], SPACE.load()['measured']['kit_stage_mac_gb'])
+        self.assertEqual(p['mac_peak'], max(m for m, _ in stages.values()))
+
     def test_dry_run_asks_and_shows_the_plan(self):
         host = FakeMac()
         with Release() as r:
@@ -534,13 +562,34 @@ class CommandLineTest(unittest.TestCase):
 
 
 class PrelinkedKit(unittest.TestCase):
-    """A stick's kit must carry darwin27-kernel's prelinked collections: the stick's Recovery cannot link them."""
-    def test_kit_without_prelinked_collections_is_refused(self):
+    """By default the install links the kernel collections on the target; --prelinked (development) needs a kit that
+    carries darwin27-kernel's prelinked collections."""
+    def test_link_on_target_is_the_default(self):
         with tempfile.TemporaryDirectory() as d:
             kit = Path(d) / 'share'; (kit / 'hooks/01-darwin27-kernel').mkdir(parents=True)
             (kit / 'kit.json').write_text('{}')
             c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
-            a = argparse.Namespace(kit=str(kit))
+            self.assertEqual(kit.resolve(), INST.prepare_kit(argparse.Namespace(kit=str(kit)), c, None))
+            ran = []
+            with self.assertRaises(CON.Stopped):        # staging: golden-run is asked for a kit without them
+                INST.prepare_kit(argparse.Namespace(work=d + '/w'), c, Path(d) / 'asm.json', run=lambda cmd: ran.append(cmd) or 0)
+            self.assertIn('--link-on-target', ran[0])
+
+    def test_staging_with_prelinked_does_not_ask_for_linking(self):
+        with tempfile.TemporaryDirectory() as d:
+            c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
+            ran = []
+            with self.assertRaises(CON.Stopped):
+                INST.prepare_kit(argparse.Namespace(work=d + '/w', prelinked=True), c, Path(d) / 'asm.json',
+                                 run=lambda cmd: ran.append(cmd) or 0)
+            self.assertNotIn('--link-on-target', ran[0])
+
+    def test_kit_without_prelinked_collections_is_refused_with_prelinked(self):
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'share'; (kit / 'hooks/01-darwin27-kernel').mkdir(parents=True)
+            (kit / 'kit.json').write_text('{}')
+            c = CON.Console(out=io.StringIO(), err=io.StringIO(), level='quiet')
+            a = argparse.Namespace(kit=str(kit), prelinked=True)
             with self.assertRaises(CON.Stopped) as x:
                 INST.prepare_kit(a, c, None)
             self.assertIn('no prelinked kernel collections', x.exception.what)

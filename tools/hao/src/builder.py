@@ -21,6 +21,7 @@ it: the command stops before writing. create-installer writes the stick (install
 """
 import json
 import os
+import plistlib
 from pathlib import Path
 import runpy
 import subprocess
@@ -415,6 +416,8 @@ def build_disk(a, c, host, run=subprocess.call):
     if not c.confirm('Erase %s to build macOS 27 on it?' % DISKS.label(info), DISKS.normalize(a.disk), a.confirm):
         raise Stopped('not confirmed', untouched='nothing was written')
     work = assemble_onto(a, c, host, path, info, 'external', run)
+    write_install_record(c, host, DISKS.normalize(a.disk),
+                         install_record(a, c, profile, path, asm, groups, DISKS.normalize(a.disk), getattr(a, 'kit', None)))
     c.done('macOS 27 built on /dev/%s; start the Intel Mac from it (hold Option)' % DISKS.normalize(a.disk),
            work=str(work))
     return 0
@@ -436,7 +439,7 @@ def install(a, c, host, run=subprocess.call):
                           why='its OpenCore configuration and kernel collections are not described yet',
                           untouched='nothing was written')
         a.profile_data = profile
-    _, path, asm, groups = resolve(a, c, 'install')
+    profile, path, asm, groups = resolve(a, c, 'install')
     if getattr(a, 'kit', None) and not getattr(a, 'sources', None):
         a.sources = [str(Path(a.kit).resolve())]       # never the disk the kit (the stick) is on
     if not a.disk:
@@ -468,5 +471,191 @@ def install(a, c, host, run=subprocess.call):
     if not getattr(a, 'local', None) and not getattr(a, 'work', None):
         a.work = str(Path(a.kit).resolve().parent / ('hao-install-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))
     work = assemble_onto(a, c, host, path, info, 'internal', run)
-    c.done('macOS 27 installed on /dev/%s; restart to use it' % DISKS.normalize(a.disk), work=str(work))
+    write_install_record(c, host, DISKS.normalize(a.disk),
+                         install_record(a, c, profile, path, asm, groups, DISKS.normalize(a.disk), a.kit))
+    set_startup_disk(c, host, DISKS.normalize(a.disk))
+    wait = None if getattr(a, 'no_restart', False) else (key_within if sys.stdin.isatty() else None)
+    if wait is None:
+        c.done('Installed macOS 27 on /dev/%s; restart to use it' % DISKS.normalize(a.disk), work=str(work))
+        return 0
+    c.done('Installed macOS 27 on /dev/%s' % DISKS.normalize(a.disk), work=str(work))
+    restart(c, host, wait)
     return 0
+
+
+RECORD = Path('private/var/db/hao/install-record.json')     # on the installed Data volume; hao status, verify, update
+MANIFESTS = Path('private/var/db/hao/manifests')            # verify.py's INSTALLED: per-pack file manifests
+
+
+def _sha256(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def release_of():
+    """(release, hao_patcher commit, hao_runtime commit) of the hao that runs: the USB installer's release.json
+    ($HAO_STICK), else release.json beside hao, else the checkout's commit as "dev COMMIT"."""
+    stick = Path(os.environ['HAO_STICK']) if os.environ.get('HAO_STICK') else None
+    for rel in ([stick / 'release.json'] if stick else []) + [TOP / 'tools' / 'hao' / 'release.json']:
+        try:
+            r = json.loads(rel.read_text())
+            return r.get('version') or r.get('release'), r.get('hao_patcher'), r.get('hao_runtime')
+        except (OSError, ValueError):
+            continue
+    try:                                            # a development USB installer: the commit create-installer recorded
+        commit = json.loads((stick / 'stick.json').read_text()).get('hao_commit') if stick else None
+        if commit:
+            return 'dev %s' % commit[:8], commit, None
+    except (OSError, ValueError):
+        pass
+    try:
+        commit = subprocess.run(['git', '-C', str(TOP), 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
+    except OSError:
+        commit = ''
+    return ('dev %s' % commit[:8]) if commit else None, commit or None, None
+
+
+def install_record(a, c, profile, path, asm, groups, disk, kit=None, now=None):
+    """The install record (schema 1) hao status, hao verify and hao update read: what was installed, from what."""
+    release, patcher, runtime = release_of()
+    recipes = {}
+    for names in groups.values():
+        for name in names:
+            try:
+                recipes[name] = json.loads((TOP / 'patches' / name / 'patch.json').read_text()).get('revision')
+            except (OSError, ValueError):
+                recipes[name] = None
+    kit_json = Path(kit) / 'kit.json' if kit else None
+    return dict(schema=1, date=(now or datetime.datetime.now().astimezone()).isoformat(timespec='seconds'),
+                release=release, hao_patcher=patcher, hao_runtime=runtime, assembly=path.stem,
+                patch_set=asm.get('patch_set'), golden_build=asm.get('golden_build'), donor_build=asm.get('donor_build'),
+                model=profile.get('model'), board_id=profile.get('board_id'), packs=list(profile.get('packs') or []),
+                recipes=recipes, recipes_by_pack={k: list(v) for k, v in groups.items()},
+                kit=dict(kit_json_sha256=_sha256(kit_json)) if kit_json and kit_json.is_file() else None,
+                disk=disk, command='install' if getattr(a, 'kit', None) else 'build-disk',
+                manifests=str(MANIFESTS))
+
+
+def data_volume(host, disk):
+    """The device of the Data volume (APFS role Data) in the container on DISK, or None."""
+    try:
+        listing = plistlib.loads(host.run(['diskutil', 'apfs', 'list', '-plist'], check=False).stdout or b'')
+    except ValueError:
+        return None
+    for row in listing.get('Containers', []):
+        stores = [s.get('DeviceIdentifier', '') for s in row.get('PhysicalStores', [])]
+        if any(s == disk or s.startswith(disk + 's') for s in stores):
+            for v in row.get('Volumes', []):
+                if 'Data' in (v.get('Roles') or []):
+                    return v.get('DeviceIdentifier')
+    return None
+
+
+def write_install_record(c, host, disk, record):
+    """RECORD on the installed Data volume (root:wheel 0644), mounted for it when it is not; a warning, not a stop,
+    when that fails (the system is installed). Returns the path written, or None."""
+    dev = data_volume(host, disk)
+    mount, mounted_here = None, False
+    if dev:
+        info = lambda: plistlib.loads(host.run(['diskutil', 'info', '-plist', dev], check=False).stdout or b'{}')
+        try:
+            mount = info().get('MountPoint')
+            if not mount:
+                host.run(['diskutil', 'mount', dev], check=False)
+                mount, mounted_here = info().get('MountPoint'), True
+        except ValueError:
+            mount = None
+    if not mount:
+        c.warning('the install record was not written (no Data volume found on /dev/%s): hao status will not know '
+                  'this install' % disk)
+        return None
+    out = Path(mount) / RECORD
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        tmp = out.with_suffix('.tmp')
+        tmp.write_text(json.dumps(record, indent=1, sort_keys=True) + '\n')
+        tmp.chmod(0o644)
+        if os.geteuid() == 0:
+            os.chown(tmp, 0, 0)
+        os.replace(tmp, out)
+    except OSError as x:
+        c.warning('the install record was not written (%s)' % x)
+        return None
+    finally:
+        if mounted_here:
+            host.run(['diskutil', 'unmount', dev], check=False)
+    c.event('install-record', path=str(out), device=dev, release=record.get('release'))
+    c.item('install record  %s' % c.paint('dim', '/' + str(RECORD)), 'files', ok=True)
+    return out
+
+
+RESTART_SECONDS = 10
+BOOTSTRAP = 'System/Library/CoreServices/boot.efi'     # OpenCore's Bootstrap on the EFI partition (as OCLP installs it)
+
+
+def set_startup_disk(c, host, disk):
+    """Bless the OpenCore Bootstrap on DISK's EFI partition as the startup disk, so a Mac with another bootable disk
+    starts hao's macOS. A Mac with only this disk finds the Bootstrap by itself (owner, laptop 1 after an NVRAM reset),
+    so a failure here is a warning, not a stop. Returns True when blessed."""
+    esp = None
+    try:
+        listing = plistlib.loads(host.run(['diskutil', 'list', '-plist', disk], check=False).stdout or b'')
+        parts = (listing.get('AllDisksAndPartitions') or [{}])[0].get('Partitions', [])
+        esp = next((p['DeviceIdentifier'] for p in parts if p.get('Content') == 'EFI'), None)
+    except (ValueError, KeyError, IndexError):
+        pass
+    if esp is None:
+        c.warning('the start-up disk was not set (no EFI partition found on /dev/%s): choose it in the Option picker' % disk)
+        return False
+    host.run(['diskutil', 'mount', esp], check=False)
+    try:
+        mount = plistlib.loads(host.run(['diskutil', 'info', '-plist', esp], check=False).stdout or b'').get('MountPoint')
+    except ValueError:
+        mount = None
+    r = host.run(['bless', '--mount', mount, '--file', '%s/%s' % (mount, BOOTSTRAP), '--setBoot'], check=False) \
+        if mount else None
+    c.event('startup-disk', disk=disk, esp=esp, mount=mount, ok=bool(r and r.returncode == 0))
+    if not (r and r.returncode == 0):
+        c.warning('the start-up disk was not set (bless on /dev/%s failed): choose it in the Option picker' % esp)
+        return False
+    c.item('start-up disk  OpenCore on /dev/%s' % esp, 'steps', ok=True)
+    return True
+
+
+def key_within(seconds):
+    """True when a key is pressed on the terminal within SECONDS (read without Return; the terminal is restored)."""
+    import select
+    import termios
+    import tty
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        if select.select([fd], [], [], seconds)[0]:
+            os.read(fd, 64)
+            return True
+        return False
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def restart(c, host, wait, seconds=RESTART_SECONDS):
+    """Restart the Mac after a visible countdown that any key cancels (events restart.countdown, restart.tick,
+    restart.cancelled or restart.now: cli renders them). WAIT(1) is True when a key was pressed in that second."""
+    c.event('restart.countdown', seconds=seconds)
+    c.print('Restarting in %d s. Press any key to stay in the Recovery.' % seconds, 'quiet')
+    for left in range(seconds, 0, -1):
+        c.event('restart.tick', left=left)
+        if wait(1):
+            c.event('restart.cancelled', left=left)
+            c.print('Not restarting. Restart from the Apple menu when you are ready.', 'quiet')
+            return False
+    c.event('restart.now')
+    if host.run(['/sbin/reboot'], check=False).returncode:
+        c.warning('the Mac did not restart: restart it from the Apple menu')
+        return False
+    return True
