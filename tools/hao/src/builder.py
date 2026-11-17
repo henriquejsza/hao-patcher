@@ -493,7 +493,7 @@ def check_drive(a, c):
     kit = Path(a.kit).resolve()
     if os.environ.get('HAO_STICK'):             # run by the USB installer's launcher: the check is not optional
         top = Path(os.environ['HAO_STICK']).resolve()
-        if top not in kit.parents:
+        if kit != top / 'kit':                  # only the kit the manifest covers
             raise Stopped('the kit %s is not on the USB installer %s' % (kit, top), code=4,
                           untouched='nothing was erased')
     else:
@@ -532,8 +532,8 @@ def _manifest_bytes(path):
     """The bytes the check reads (each hard-linked file once), for its progress bar."""
     try:
         m = json.loads(Path(path).read_text())
-        return m.get('bytes') or sum(f.get('size', 0) for f in m.get('files', {}).values())
-    except (OSError, ValueError, AttributeError):
+        return int(m.get('bytes') or sum(int(f.get('size') or 0) for f in m.get('files', {}).values()))
+    except Exception:                       # only the progress bar's total: the check itself judges the manifest
         return None
 
 

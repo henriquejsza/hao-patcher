@@ -297,7 +297,10 @@ class StickTest(unittest.TestCase):
         (top / 'hao-install-20261117-090000').mkdir(); (top / 'hao-install-20261117-090000' / 'run.sh').write_text('x')
         self.assertEqual(STICK.check_manifest(top), [])
         # an AppleDouble-looking file inside the kit is not exempt (Python could read a ._x.pth); .DS_Store is
-        (top / 'kit' / '.DS_Store').write_bytes(b'finder')
+        (top / 'kit' / '.DS_Store').write_bytes(b'\x00\x00\x00\x01Bud1' + b'\x00' * 64)      # Finder's
+        (top / 'hao' / '.DS_Store').write_text('import os')            # not Finder's: covered like any file
+        self.assertEqual(dict(STICK.check_manifest(top)), {'hao/.DS_Store': 'a file that is not in the manifest'})
+        os.unlink(top / 'hao' / '.DS_Store')
         (top / 'kit' / '._extra.pth').write_text('import os')
         self.assertEqual(dict(STICK.check_manifest(top)), {'kit/._extra.pth': 'a file that is not in the manifest'})
         os.unlink(top / 'kit' / '._extra.pth')

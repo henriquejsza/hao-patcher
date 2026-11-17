@@ -516,6 +516,15 @@ class BuilderTest(unittest.TestCase):
             evs = [e['ev'] for e in c.events]
             self.assertLess(evs.index('drive.check'), evs.index('statement'))
             self.assertLess(evs.index('statement'), evs.index('confirm'))
+            os.environ['HAO_STICK'] = str(top)                       # a kit elsewhere on the drive is not the covered one
+            try:
+                other = top / 'reports' / 'kit'; other.mkdir(parents=True); (other / 'kit.json').write_text('{}')
+                c, _ = console('quiet')
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(other)), c, host, run=run)
+                self.assertEqual(x.exception.code, 4)
+            finally:
+                del os.environ['HAO_STICK']
             (top / 'stick.json').unlink()                            # launched from the drive: the check is not optional
             os.environ['HAO_STICK'] = str(top)
             try:

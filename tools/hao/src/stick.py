@@ -281,7 +281,10 @@ def read_plain(path):
     with os.fdopen(fd, 'rb') as f:
         if not __import__('stat').S_ISREG(os.fstat(f.fileno()).st_mode):
             raise StickError('%s is not a regular file' % path)
-        return f.read()
+        try:
+            return f.read()
+        except OSError as x:
+            raise StickError('%s: not read (%s)' % (path, x.strerror)) from None
 
 
 def real_folder(path):
@@ -325,7 +328,7 @@ def _manifest_walk(top):
             dirs[:] = [d for d in dirs if not _skipped_top(d)]
         dirs.sort()
         for name in sorted(files) + [d for d in dirs if (r / d).is_symlink()]:
-            if (rel_root == Path('.') and _skipped_top(name)) or name == '.DS_Store':
+            if (rel_root == Path('.') and _skipped_top(name)) or (name == '.DS_Store' and _finder_file(r / name)):
                 continue
             p = r / name
             st = os.lstat(p)
@@ -333,6 +336,18 @@ def _manifest_walk(top):
                 st.st_mode) else 'other'
             yield str(p.relative_to(top)), st, kind
         dirs[:] = [d for d in dirs if not (r / d).is_symlink()]
+
+
+def _finder_file(path):
+    """A real Finder .DS_Store (a small regular file with its header), the one name left out inside hao/ and kit/."""
+    try:
+        st = os.lstat(path)
+        if not __import__('stat').S_ISREG(st.st_mode) or st.st_size > 1 << 20:
+            return False
+        with open(path, 'rb') as f:
+            return f.read(8) == b'\x00\x00\x00\x01Bud1'
+    except OSError:
+        return False
 
 
 def _link_ok(top, rel, target):
