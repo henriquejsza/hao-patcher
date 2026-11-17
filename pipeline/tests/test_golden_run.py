@@ -155,6 +155,34 @@ class GoldenRun(unittest.TestCase):
             self.assertEqual('/guest/job/tmp',config['environment']['TMPDIR'])
             self.assertEqual('golden-pristine.sh',Path(config['pristine_script']).name)
 
+    def test_hooks_get_the_target_model_and_its_platform_data(self):
+        rows=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('post','post-one')]
+        with tempfile.TemporaryDirectory() as folder:
+            share=self.share(folder,rows)
+            recipe=dict(size_bytes=80,name='GG',golden_build='26B131',donor_build='25G342',target='mbp92')
+            RUN['stage_target'](recipe,share)
+            config=RUN['guest_config'](recipe,share,'/guest/job')
+            self.assertEqual('MacBookPro9,2',config['environment']['HAO_TARGET_MODEL'])
+            self.assertEqual(RUN['GUEST']+'/target-data.json',config['environment']['HAO_TARGET_DATA'])
+            # mbp92 has no platform_data yet: hooks read {} (and see nothing else new)
+            target=json.loads((TOP/'pipeline/targets/mbp92.json').read_text())
+            self.assertEqual(target.get('platform_data',{}),json.loads((share/'target-data.json').read_text()))
+            plain=RUN['guest_config']({k:v for k,v in recipe.items() if k!='target'},share,'/guest/job')
+            self.assertEqual({k:v for k,v in config['environment'].items() if not k.startswith('HAO_TARGET_')},plain['environment'])
+            self.assertEqual({k:v for k,v in config.items() if k!='environment'},{k:v for k,v in plain.items() if k!='environment'})
+
+    def test_target_data_of_a_fixture_target(self):
+        with tempfile.TemporaryDirectory() as folder:
+            targets=Path(folder)/'pipeline/targets';targets.mkdir(parents=True)
+            (targets/'gen.json').write_text(json.dumps({'model':'iMac20,1','platform_data':{'model_gates':{'renamed':'X'}}}))
+            (targets/'bad.json').write_text(json.dumps({'model':'iMac20,1','platform_data':[1]}))
+            share=Path(folder)/'share';share.mkdir()
+            with mock.patch.dict(RUN['stage_target'].__globals__,TOP=Path(folder)):
+                RUN['stage_target'](dict(target='gen'),share)
+                self.assertEqual({'model_gates':{'renamed':'X'}},json.loads((share/'target-data.json').read_text()))
+                self.assertEqual('iMac20,1',RUN['target_environment'](dict(target='gen'),'/k')['HAO_TARGET_MODEL'])
+                with self.assertRaises(ValueError):RUN['stage_target'](dict(target='bad'),share)
+
     def test_skipped_optional_groups_merge_assembly_and_flag(self):
         self.assertEqual(RUN['skipped_groups']({}),[])
         self.assertEqual(RUN['skipped_groups']({'skip_optional':['caches']},['caches','other']),['caches','other'])

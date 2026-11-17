@@ -163,7 +163,9 @@ In layer 7, `darwin27-kernel` links the Boot and System KCs (the record keeps th
 Security.framework) and installs the Wi-Fi compat libraries and the display shim;
 `golden-gate-native-identities` runs last, after every recipe that re-signs a program ad hoc, and
 lists those programs with their Apple originals for the carrier. Recipes get `TAHOE_DRIVERKIT_ARTIFACT`,
-`TAHOE_DONOR_TOOL` and `TAHOE_NATIVE_ARTIFACT` from the runner. Each set entry has a comment saying
+`TAHOE_DONOR_TOOL` and `TAHOE_NATIVE_ARTIFACT` from the runner. Every hook and post also gets the target:
+`HAO_TARGET_MODEL` (its `model`) and `HAO_TARGET_DATA` (the kit's `target-data.json`, its `platform_data`, `{}` when
+none; [layout.md](layout.md#target-platform-data)). Each set entry has a comment saying
 what it adds and why.
 
 The sealed OS and App cryptex images are kept between builds in `store/cache/cryptex` (the two newest, about 13 GB

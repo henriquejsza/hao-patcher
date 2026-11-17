@@ -177,6 +177,16 @@ class GoldenImageTests(unittest.TestCase):
         self.assertIn('GRP=DATA-UUID',(work/'uuids.env').read_text())
         self.assertEqual(a[-1],['hdiutil','detach','/dev/disk70'])
 
+    def test_every_hook_and_post_sees_the_target(self):
+        # golden-run puts the target in the configuration's environment (target_environment)
+        self.config['environment'].update(HAO_TARGET_MODEL='MacBookPro9,2',HAO_TARGET_DATA='/kit/target-data.json')
+        golden.assemble(self.config,self.fake)
+        scripts=[h['kc_hook'] for h in self.config['hooks']]+[p['script'] for p in self.config['posts']]
+        for script in scripts:
+            row=next(r for r in self.fake.entries if script in r['command'])
+            self.assertEqual(row['environment']['HAO_TARGET_MODEL'],'MacBookPro9,2',script)
+            self.assertEqual(row['environment']['HAO_TARGET_DATA'],'/kit/target-data.json',script)
+
     def test_overlay_plan_replaces_those_hooks_at_their_turn(self):
         # golden-run --from-overlays: selectors and the esp post install from the overlays, every other recipe runs
         plan=self.root/'overlay-plan.json'
