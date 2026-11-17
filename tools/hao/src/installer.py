@@ -481,14 +481,16 @@ def finish_kit(a, c, kit):
     if getattr(a, 'keep_kit', False):
         c.event('kit.kept', path=str(stage))
         return ['The staged kit stays on this Mac (--keep-kit): %s' % stage]
-    size = STICK.kit_bytes(stage)
+    before = shutil.disk_usage(stage).free        # what removing it frees: clones and hard links of the store free little
     shutil.rmtree(stage, ignore_errors=True)
     if stage.exists():
         c.warning('the staged kit could not be removed: %s' % stage)
         return ['The staged kit is still on this Mac: %s' % stage]
-    c.event('kit.removed', path=str(stage), bytes=size)
-    c.item('removed the staged kit from this Mac (%s; the USB installer has it)' % human_size(size), 'steps', ok=True)
-    return ['%s freed on this Mac: the staged kit is on the USB installer now (--keep-kit keeps it)' % human_size(size)]
+    freed = max(0, shutil.disk_usage(stage.parent).free - before)
+    c.event('kit.removed', path=str(stage), freed=freed)
+    c.item('removed the staged kit from this Mac (the USB installer has it)', 'steps', ok=True)
+    return ['%s on this Mac: the staged kit is on the USB installer now (--keep-kit keeps it)'
+            % ('%s freed' % human_size(freed) if freed >= 1 << 20 else 'Space freed')]
 
 
 def lock_path(*argv):
