@@ -172,6 +172,8 @@ def generate(profile, root=os.path.join(TOP, 'patches'), packs=None, order=ORDER
     prof = json.load(open(profile)) if isinstance(profile, (str, os.PathLike)) else profile
     packs = load_packs(root=root) if packs is None else packs
     target = os.path.join(TOP, 'pipeline', 'targets', prof['target'] + '.json')
+    if not os.path.isfile(target):
+        raise ValueError('profile names unknown target %s (no pipeline/targets/%s.json)' % (prof['target'], prof['target']))
     selected = set(detect_packs(target, packs)) | set(prof.get('packs', []))
     unknown = [p for p in prof.get('packs', []) if p not in packs]
     if unknown:
@@ -225,13 +227,26 @@ def detect_packs(target, packs=None):
     packs = load_packs() if packs is None else packs
     with open(target) as f:
         t = json.load(f)
-    profile = os.path.join(TOP, 'tools', 'oclp-hardware', 'profiles',
-                           os.path.splitext(os.path.basename(target))[0] + '.json')
-    patchsets = set()
-    if os.path.isfile(profile):
-        with open(profile) as f:
-            patchsets = set(json.load(f).get('patchset_order', []))
-    return select_packs(patchsets, t.get('board_id'), packs)
+    return select_packs(oclp_patchsets(target), t.get('board_id'), packs)
+
+
+def oclp_profile(target):
+    """tools/oclp-hardware/profiles/NAME.json of TARGET (pipeline/targets/NAME.json)."""
+    return os.path.join(TOP, 'tools', 'oclp-hardware', 'profiles', os.path.splitext(os.path.basename(str(target)))[0] + '.json')
+
+
+def oclp_patchsets(target):
+    """The OCLP patch sets of TARGET's hardware profile. A target without its profile, or a profile without
+    "patchset_order", stops: without it every platform pack goes undetected and the image would get base only."""
+    profile = oclp_profile(target)
+    if not os.path.isfile(profile):
+        raise ValueError('target %s has no OCLP hardware profile (%s): make it with tools/oclp-hardware before building'
+                         % (os.path.basename(str(target)), os.path.relpath(profile, TOP)))
+    with open(profile) as f:
+        order = json.load(f).get('patchset_order')
+    if not isinstance(order, list):
+        raise ValueError('%s has no "patchset_order" list' % os.path.relpath(profile, TOP))
+    return set(order)
 
 
 def select_packs(patchsets, board_id, packs=None):
@@ -420,6 +435,12 @@ def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=OR
             bad.append('pack %s: needs "layer": %s' % (name, ' | '.join(LAYERS)))
         if d.get('layer') == 'platform' and (d.get('kind') not in KINDS or not d.get('platform')):
             bad.append('pack %s: a platform pack needs "kind" (%s) and "platform"' % (name, ', '.join(KINDS)))
+    for f in sorted(os.listdir(os.path.join(TOP, 'pipeline', 'targets'))):
+        if f.endswith('.json'):
+            try:
+                oclp_patchsets(os.path.join(TOP, 'pipeline', 'targets', f))
+            except (ValueError, OSError) as x:
+                bad.append(str(x))
     ordered = order_names(order)
     image = []
     for name in patch_names(root):
