@@ -74,6 +74,7 @@ def base_of(path, oclp, tahoe):
 
 
 def build(setfile, target, build_name, root=os.path.join(TOP, 'patches'), layer_data=None):
+    # BUILD_NAME: the donor build, or OS/DONOR (26B131/25G342) so plan checks recipes' requires.os too
     """{path: entry} for every path the applied recipes declare, in set order. LAYER_DATA (oclp entries, tahoe
     roots) replaces the target's own, for tests."""
     patches = runpy.run_path(os.path.join(TOP, 'pipeline', 'patches.py'))

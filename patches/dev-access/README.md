@@ -50,6 +50,7 @@ In use (FACT, from the build manifests in store/runs): r3 is in 12 image builds,
 including the benched dev images (store/runs/bench-mbp92-25G332-dev-*) and the owner's beta. No open item.
 
 ## Revisions
+- r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware dependence. Nothing it installs changes.
 - r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 Newest first: revision, date, change (commit). `revision` in patch.json is the newest; bump it
 and add a line here with every change to this patch or its input rows.

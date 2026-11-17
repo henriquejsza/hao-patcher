@@ -1,8 +1,7 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "recovery",
  "stage": "recovery",
- "applies": "any",
  "status": "product",
  "validated": false,
  "files": [
@@ -28,5 +27,6 @@
     "note": "built from src/lcfast.m by make.sh (x86_64, ad hoc signed); ends the fake progress so the list shows at once"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

@@ -1,14 +1,9 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "base",
  "variant": "cache-catalog",
  "replaces": "golden-gate-shared-cache",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "inputs": [
   "rebuilt_cache_catalog"
  ],
@@ -350,5 +345,6 @@
     "owner": "root:wheel"
    }
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

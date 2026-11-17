@@ -1,8 +1,7 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "recovery-mbp92",
  "stage": "recovery",
- "applies": "any",
  "status": "product",
  "validated": false,
  "files": [
@@ -34,5 +33,6 @@
    "path": "System/Library/KernelCollections/BaseSystemKernelExtensions.kc",
    "edits": "edits/kc.json"
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

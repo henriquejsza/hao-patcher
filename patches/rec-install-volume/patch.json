@@ -1,8 +1,7 @@
 {
- "revision": 6,
+ "revision": 7,
  "pack": "os-extras",
  "stage": "post",
- "applies": "any",
  "inputs": [
   "enduser_recovery"
  ],
@@ -27,5 +26,6 @@
     "note": "its unsigned chunklist made by pipeline/stages/chunklist.py: BaseSystem.chunklist from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there)"
    }
   }
- ]
+ ],
+ "requires": {"os": ["26A428"], "donor": ["25G332"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

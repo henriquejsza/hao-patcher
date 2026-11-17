@@ -1,13 +1,7 @@
 {
- "revision": 87,
+ "revision": 88,
  "pack": "base",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G332",
-   "25G342"
-  ]
- },
  "inputs": [
   "hao_runtime"
  ],
@@ -178,5 +172,6 @@
     "owner": "root:wheel"
    }
   }
- ]
+ ],
+ "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": ["ssse3", "sse4.1", "sse4.2", "popcnt"], "gpu": "any", "firmware": "any"}
 }

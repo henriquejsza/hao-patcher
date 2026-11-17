@@ -1,8 +1,7 @@
 {
-  "revision": 8,
+  "revision": 9,
   "pack": "base",
   "stage": "oclp-hook",
-  "applies": {"builds": ["25G332", "25G342"]},
   "inputs": ["windowserver_filter_shim"],
   "status": "experiment",
   "validated": true,
@@ -15,5 +14,7 @@
      "origin": {"kind": "hao", "row": "windowserver_filter_shim",
                 "note": "new file: the Siri-filter inversion and backdrop-clip adapters (src/filter_shim.c, built by make)"},
      "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}}
-  ]
+  ],
+  "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"},
+  "proven_on": [{"model": "MacBookPro9,2", "os": "26B131", "donor": "25G342", "revision": 5, "evidence": "laptop boot 2026-11-11, image 4d1c48c: desktop, menus, Dock and login window draw correctly"}]
 }

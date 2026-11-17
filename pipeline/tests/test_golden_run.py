@@ -186,9 +186,9 @@ class GoldenRun(unittest.TestCase):
         import importlib.util
         spec=importlib.util.spec_from_file_location('patches_module',TOP/'pipeline/patches.py')
         patches=importlib.util.module_from_spec(spec);spec.loader.exec_module(patches)
-        for name in ('golden-gate-26B131','golden-gate','dev-bs-test','dev-golden-bootstrap','dev-metal27'):
+        for name in ('golden-gate-26B131','dev-bs-test','dev-golden-bootstrap','dev-metal27'):
             rows=[(stage,patch) for stage,patch,_ in patches.plan(str(TOP/'pipeline/sets'/(name+'.txt')),
-                                                                  str(TOP/'pipeline/targets/mbp92.json'),'25G342')]
+                                                                  str(TOP/'pipeline/targets/mbp92.json'),'26B131/25G342')]
             with self.subTest(set=name),tempfile.TemporaryDirectory() as folder:
                 share=self.share(folder,rows)
                 for stage,patch in rows:

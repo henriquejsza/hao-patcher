@@ -66,6 +66,7 @@ Earlier: The host getter and donor Mach-O tests pass and the dylib builds with `
 a built image and stable daemons on the MacBookPro9,2 are not yet proven.
 
 ## Revisions
+- r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): shim rows for both builds. `proven_on` records the laptop boot of 2026-11-11. Nothing it installs changes.
 - r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemons and the library), as the hook sets them, so overlays carry them; the hook is unchanged. Keeps r4's validation: what it installs is unchanged (validated_digest).
 - r5 2026-11-12 Declare the daemons' load command and the installed library in edits/*.json and patch.json files; the hook is unchanged. Keeps r4's validation: what it installs is unchanged (validated_digest).

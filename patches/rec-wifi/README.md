@@ -18,6 +18,7 @@ NEEDS VALIDATION: the framework copy is part of every Recovery build; Wi-Fi in a
 tested.
 
 ## Revisions
+- r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's IO80211 stack. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is unchanged.
 - r1 2026-11-10 Initial public release.

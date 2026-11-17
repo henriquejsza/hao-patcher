@@ -8,21 +8,21 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
-| darwin27-sandbox-disk-space | r4 | oclp-hook | experiment |  |  | x |  |  | **needs** | r4 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
-| dev-access | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
+| darwin27-kernel | r12 | oclp-hook | experiment |  | x | x |  |  | **needs** | r12 2026-11-17 Declares its scope (`requires`, docs/requires.md): its rows are the 26A428 (25G332) and 26B131  |
+| darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
+| dev-access | r7 | post | dev |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware |
 | dev-diagnostics | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `diagnostic-boot-args` names a reason for each boot argument (`arg_reasons`), as edit specs now  |
-| dev-keepawake | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
+| dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | golden-gate-appstore-slices | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
-| golden-gate-av1-encoder-x86 | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
-| golden-gate-corespotlight-compat | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-dyld-internal | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-font-registry | r8 | post | experiment | caches | x |  |  |  | ok (r3) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-hd4000-planes | r5 | oclp-hook | product |  | x |  |  |  | **needs** | r5 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| golden-gate-av1-encoder-x86 | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): only a CPU without AVX2 needs the arm64-only  |
+| golden-gate-corespotlight-compat | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): shim rows for both builds. `proven_on` record |
+| golden-gate-dyld-internal | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): edits the 26B131 runtime's dyld. Nothing it i |
+| golden-gate-font-registry | r9 | post | experiment | caches | x |  |  |  | ok (r3) | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): registries harvested from 26B131. `proven_on` |
+| golden-gate-hd4000-planes | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): changes the HD 4000's Metal driver. Nothing i |
 | golden-gate-hello | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
-| golden-gate-icon-caches | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-ids | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
-| golden-gate-launchd-warm | r4 | oclp-hook | experiment |  | x |  |  |  | **needs** | r4 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-icon-caches | r8 | post | experiment | caches | x |  |  |  | ok (r3) | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): caches harvested from 26B131. `proven_on` rec |
+| golden-gate-ids | r3 | oclp-hook | product |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
+| golden-gate-launchd-warm | r5 | oclp-hook | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): launchd job edits used on both builds. Nothin |
 | golden-gate-live-text-service | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
 | golden-gate-live-text-shared | r11 | oclp-hook | experiment |  | x |  |  |  | **needs** | r11 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
 | golden-gate-metal-argbuf | r7 | oclp-hook | product |  | x |  |  |  | **needs** | r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
@@ -30,33 +30,33 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
 | golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (app |
 | golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-root-launchservices | r3 | post | experiment | boot-seeds |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
+| golden-gate-root-launchservices | r4 | post | experiment | boot-seeds |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): seed harvested from 26B131. Nothing it instal |
 | golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
-| golden-gate-shared-cache | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261117-2b471bea (cache UUID 954aa5de), made  |
-| golden-gate-shared-cache-catalog | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-store | r5 | oclp-hook | product |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
+| golden-gate-shared-cache | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 cache family. Nothing it i |
+| golden-gate-shared-cache-catalog | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it |
+| golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
-| golden-gate-user-template | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| golden-gate-userspace | r84 | oclp-hook | experiment |  | x | x |  |  | **needs** | r84 2026-11-16 The IO80211 and WiFiPeerToPeer compat installs, their two inputs, files and edit specs move to  |
-| golden-gate-wifi-compat | r1 | oclp-hook | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: golden-gate-userspace's IO80211 and WiFiPeerToPeer steps, files and edit specs, unchanged,  |
-| golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-user-template | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it  |
+| golden-gate-userspace | r85 | oclp-hook | experiment |  | x | x |  |  | **needs** | r85 2026-11-17 Declares its scope (`requires`, docs/requires.md): userspace rows for both builds. Nothing it i |
+| golden-gate-wifi-compat | r2 | oclp-hook | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): compat rows for both builds. Nothing it insta |
+| golden-gate-windowserver-filter | r9 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): profiles for 26A428 and 26B131 in src/profile |
+| hao-command | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): bundled CPython and tools/hao: no build or ha |
 | hao-opencore | r68 | post | experiment |  | x | x |  |  | **needs** | r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refus |
-| hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
-| hao-runtime-fold | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83 |
+| hao-runtime | r88 | oclp-hook | experiment |  | x | x |  |  | **needs** | r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): hao refuses a CPU below x86-64-v2 (hao-runti |
+| hao-runtime-fold | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the fold payload for the rebuilt 26B131 famil |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
 | metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; its pack decides the machines  |
 | metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
-| opencore-mbp92 | r1 | post | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: hao-opencore's early Tahoe kext step (src/early_kexts.py, src/early-kexts.txt and its test) |
-| rec-audio | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
-| rec-bluetooth-input | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
-| rec-brightness-keys | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
-| rec-display-ethernet | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
-| rec-install-volume | r6 | post | product |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
-| rec-language-list | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
-| rec-power | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
-| rec-progress-phase | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
-| rec-reinstall | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
-| rec-startup-guard | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
-| rec-wifi | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
-| rec-wifi-autojoin | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
+| opencore-mbp92 | r2 | post | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): this Mac's display and Ethernet kexts. Nothin |
+| rec-audio | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it  |
+| rec-bluetooth-input | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. |
+| rec-brightness-keys | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID system. Nothing it i |
+| rec-display-ethernet | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the HD 4000 framebuffer in the Tahoe Recovery |
+| rec-install-volume | r7 | post | product |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row (enduser_recovery) exists for 25G332  |
+| rec-language-list | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): Language Chooser's methods in the Tahoe Recov |
+| rec-power | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery. Nothing it installs chang |
+| rec-progress-phase | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery. Nothing it installs chang |
+| rec-reinstall | r6 | recovery | product |  |  |  | x |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery. Nothing it installs chang |
+| rec-startup-guard | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery. Nothing it installs chang |
+| rec-wifi | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's IO80211 stack. Nothing i |
+| rec-wifi-autojoin | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): airportd's methods in the Tahoe Recovery. Not |

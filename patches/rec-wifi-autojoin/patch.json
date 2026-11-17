@@ -1,8 +1,7 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "recovery-mbp92",
  "stage": "recovery",
- "applies": "any",
  "status": "product",
  "validated": false,
  "files": [
@@ -27,5 +26,6 @@
     "note": "new file, copied from src/local.wifijoin.plist: runs wifijoin.sh once at boot"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

@@ -1,13 +1,8 @@
 {
- "revision": 7,
+ "revision": 8,
  "pack": "base",
  "variant": "cache-fold",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "inputs": [
   "rebuilt_cache"
  ],
@@ -349,5 +344,6 @@
     "owner": "root:wheel"
    }
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

@@ -1,8 +1,7 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "dev",
  "stage": "post",
- "applies": "any",
  "inputs": [],
  "status": "dev",
  "validated": false,
@@ -21,5 +20,6 @@
     "note": "Data volume; src/dev.hao.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
 }

@@ -53,6 +53,7 @@ Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 
 (kernel file no longer copied by the hook) has not been built.
 
 ## Revisions
+- r12 2026-11-17 Declares its scope (`requires`, docs/requires.md): its rows are the 26A428 (25G332) and 26B131 (25G342) kernel collections. Nothing it installs changes.
 - r11 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r10 2026-11-14 With `prelinked/prelinked.json` in its folder (a kit for the USB installer: golden-run `--stage-kit` copies the collections a builder VM build linked from the same tree, `pipeline/prelinked_kc.py`), the hook checks that prelinked.json lists exactly the three files, that they were linked around this kernel (`kernel_sha256` against `inputs/darwin27_kernel`, which equals the target's) and each file's sha256, and installs them instead of running kmutil: in the USB installer's Recovery kmutil links a kernel-only collection. Without that folder it links as before; a kernel-only BootKC now stops it with a message (it used to end on grep's status, silently). Both ways the build folder is removed first, so a resumed install finds none from the failed run. Builds in the builder VM install the same bytes as r9.
 - r9 2026-11-13 Documentation only: Inputs lists `tahoe_kc_builder` (added in r8). The hook is unchanged.

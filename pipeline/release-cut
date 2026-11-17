@@ -73,7 +73,7 @@ def rows_for(assembly):
     setfile = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))['set_path'](a['patch_set'])
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
-        plan = patches['plan'](setfile, target, a['donor_build'], locks=None)
+        plan = patches['plan'](setfile, target, '%s/%s' % (a['golden_build'], a['donor_build']), locks=None)
     wanted = []
     for _, _, inputs in plan:
         wanted += inputs
@@ -415,7 +415,8 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
         plan = patches['plan'](patches['set_path'](a['patch_set']),
-                               TOP / 'pipeline/targets' / (a['target'] + '.json'), a['donor_build'], locks=None)
+                               TOP / 'pipeline/targets' / (a['target'] + '.json'),
+                               '%s/%s' % (a['golden_build'], a['donor_build']), locks=None)
     packs = patches['load_packs']()
     data = classes()
     data_settings = settings()
@@ -576,11 +577,18 @@ def public_provenance(row, repo, commit, notes):
     return None, ''
 
 
+# D5: the owner signs release.json and SHA256SUMS offline after the cut (minisign -S -m release.json SHA256SUMS); hao
+# checks release.json.minisig against tools/hao/data/release-keys.pub. SHA256SUMS does not list the signatures.
+SIGNED = ('release.json', 'SHA256SUMS')
+SIGNATURES = tuple(n + '.minisig' for n in SIGNED)
+
+
 def write_sums(stage, release_json):
     """STAGE/SHA256SUMS (owner: every release ships a checksum file): `shasum -a 256` lines for each file at STAGE's top,
     release.json included when it is written there; STAGE/external/ (hosted by another repository) gets its own."""
     def sums(folder, extra=()):
-        by_name = {p.name: p for p in list(Path(folder).iterdir()) + list(extra) if p.is_file() and p.name != 'SHA256SUMS'}
+        by_name = {p.name: p for p in list(Path(folder).iterdir()) + list(extra) if p.is_file() and p.name != 'SHA256SUMS'
+                   and p.name not in SIGNATURES and not p.name.startswith('.')}
         files = [by_name[n] for n in sorted(by_name)]
         if files:
             (Path(folder) / 'SHA256SUMS').write_text(''.join('%s  %s\n' % (sha256_file(p), p.name) for p in files))
@@ -591,7 +599,8 @@ def write_sums(stage, release_json):
 
 
 def check_stage(rel, stage):
-    """Problems: every asset staged with its size and sha256, nothing else staged but release.json and dotfiles."""
+    """Problems: every asset staged with its size and sha256, nothing else staged but release.json, SHA256SUMS, their
+    signatures (SIGNATURES) and dotfiles."""
     stage = Path(stage)
     bad = []
     names = {x['file'] for x in rel['assets'] if x.get('url', ASSET_URL).startswith(ASSET_URL.split('%s')[0])}
@@ -602,7 +611,7 @@ def check_stage(rel, stage):
         elif f.stat().st_size != x['size'] or sha256_file(f) != x['sha256']:
             bad.append('staged %s is not the file release.json pins' % x['file'])
     bad += ['%s is staged but not an asset' % p.name for p in sorted(stage.iterdir())
-            if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') and not p.name.startswith('.')]
+            if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') + SIGNATURES and not p.name.startswith('.')]
     return bad
 
 
@@ -678,6 +687,8 @@ def main(argv):
             len(rel['harvested']), len(rel['pending'])))
         for p in problems:
             print('  ' + p)
+        if stage is not None and not bad:
+            print('release-cut: to sign (owner, offline): cd %s && minisign -S -m %s' % (stage, ' '.join(SIGNED)))
         return 1 if bad else 0
     if '--dry-run' not in argv or len([a for a in argv if not a.startswith('--')]) != 1:
         sys.exit(__doc__)
