@@ -23,6 +23,7 @@ On the installed Mac: `hao`, `hao status`, `hao --help`.
 NEEDS VALIDATION: not yet run in an image build, a QEMU install or on a laptop.
 
 ## Revisions
+- r7 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): bundled CPython and tools/hao: no build or hardware dependence. Nothing it installs changes.
 - r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 

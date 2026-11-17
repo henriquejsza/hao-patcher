@@ -93,6 +93,7 @@ predate main's. The fold sets take row `hao_runtime_fold` (recipe hao-runtime-fo
 family's cache UUID.
 
 ## Revisions
+- r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 cache family. Nothing it installs changes.
 - r7 2026-11-17 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261117-2b471bea (cache UUID 954aa5de), made from
   main's providers: libhelloblur (golden-gate-hello) and gpu-client (live-text f479d6c7) had changed, so step 2 refused

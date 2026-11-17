@@ -1,11 +1,11 @@
 {
- "revision": 9,
+ "revision": 10,
  "pack": "base",
  "stage": "post",
  "inputs": [
   "font_registry_golden_gate"
  ],
- "status": "experiment",
+ "status": "product",
  "validated": true,
  "optional": "caches",
  "validated_revision": 3,

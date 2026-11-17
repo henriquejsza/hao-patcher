@@ -1,11 +1,11 @@
 {
- "revision": 9,
+ "revision": 10,
  "pack": "base",
  "stage": "post",
  "inputs": [
   "user_template_golden_gate"
  ],
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "optional": "caches",
  "files": [

@@ -1,8 +1,8 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "wifi-broadcom-modern",
  "stage": "oclp-hook",
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "inputs": [
   "io80211_compat",

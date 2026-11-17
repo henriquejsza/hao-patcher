@@ -11,7 +11,7 @@ A file made on the target lists what it is made *after* there.
 
 ## darwin27-kernel
 
-Revision r12, status experiment. [Recipe](../patches/darwin27-kernel/README.md)
+Revision r13, status product. [Recipe](../patches/darwin27-kernel/README.md)
 
 - `System/Library/Kernels/kernel`: whole file from Apple (row darwin27_kernel). Golden Gate's own x86_64 kernel from the IPSW, unchanged; installed once by the base layer (golden-pristine.sh finalize) and only checked by the kc-hook. Installed mode 0644, owner root:wheel.
 - `System/Library/KernelCollections/BootKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
@@ -82,7 +82,7 @@ Revision r4, status diagnostic. [Recipe](../patches/golden-gate-appstore-slices/
 
 ## golden-gate-av1-encoder-x86
 
-Revision r3, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/README.md)
+Revision r4, status product. [Recipe](../patches/golden-gate-av1-encoder-x86/README.md)
 
 - `System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `av1-encoder-arm64-only`: plist.set CMClassImplementations:0:CMExecutableArchitectures = ["arm64"].
@@ -90,7 +90,7 @@ Revision r3, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/
 
 ## golden-gate-corespotlight-compat
 
-Revision r8, status experiment. [Recipe](../patches/golden-gate-corespotlight-compat/README.md)
+Revision r9, status product. [Recipe](../patches/golden-gate-corespotlight-compat/README.md)
 
 - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: from Apple; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-corespotlight-compat`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/corespotlight_compat.dylib.
@@ -102,7 +102,7 @@ Revision r8, status experiment. [Recipe](../patches/golden-gate-corespotlight-co
 
 ## golden-gate-dyld-internal
 
-Revision r3, status experiment. [Recipe](../patches/golden-gate-dyld-internal/README.md)
+Revision r4, status product. [Recipe](../patches/golden-gate-dyld-internal/README.md)
 
 - `usr/lib/dyld`: from hao · hao-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime); 1 edit, applied by the installer, then signed: ad hoc, once, identifier com.apple.darwin.ignition. Installed mode 0755, owner root:wheel, flags restricted.
   1. `internal-install-in-dyld-only`: literal near __ZNK5dyld415SyscallDelegate15internalInstallEv (within 32 bytes), 21 bytes, `55 48 89 E5 BF 10 00 00 00 E8 00 00 00 00 85 C0 0F 94 C0 5D C3` → `55 48 89 E5 BF 10 00 00 00 31 C0 0F 1F 00 85 C0 0F 94 C0 5D C3` (`call _csr_check(CSR_ALLOW_APPLE_INTERNAL); test eax,eax; sete al` → `xor eax,eax; nop dword [rax]; test eax,eax; sete al`).
@@ -110,7 +110,7 @@ Revision r3, status experiment. [Recipe](../patches/golden-gate-dyld-internal/RE
 
 ## golden-gate-font-registry
 
-Revision r9, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
+Revision r10, status product. [Recipe](../patches/golden-gate-font-registry/README.md)
 
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
 - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
@@ -140,7 +140,7 @@ Revision r10, status experiment. [Recipe](../patches/golden-gate-hello/README.md
 
 ## golden-gate-icon-caches
 
-Revision r8, status experiment. [Recipe](../patches/golden-gate-icon-caches/README.md)
+Revision r9, status product. [Recipe](../patches/golden-gate-icon-caches/README.md)
 
 - 673 whole files from hao (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
 - `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
@@ -155,7 +155,7 @@ Revision r3, status product. [Recipe](../patches/golden-gate-ids/README.md)
 
 ## golden-gate-launchd-warm
 
-Revision r5, status experiment. [Recipe](../patches/golden-gate-launchd-warm/README.md)
+Revision r6, status product. [Recipe](../patches/golden-gate-launchd-warm/README.md)
 
 - `System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist`: from Apple · Golden Gate System volume; 2 edits, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `helper-run-at-load`: plist.set RunAtLoad = true.
@@ -270,7 +270,7 @@ Revision r15, status experiment. [Recipe](../patches/golden-gate-shader-caches/R
 
 ## golden-gate-shared-cache
 
-Revision r8, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
+Revision r9, status product. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
 - 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -322,7 +322,7 @@ Revision r10, status experiment. [Recipe](../patches/golden-gate-user-seed/READM
 
 ## golden-gate-user-template
 
-Revision r9, status experiment. [Recipe](../patches/golden-gate-user-template/README.md)
+Revision r10, status product. [Recipe](../patches/golden-gate-user-template/README.md)
 
 - `Library/User Template/Non_localized/Library/Containers`: whole file from every file under it from hao (row user_template_golden_gate). App and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
 - `Library/User Template/Non_localized/Library/Group Containers`: whole file from every file under it from hao (row user_template_golden_gate). Group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
@@ -330,7 +330,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-user-template/RE
 
 ## golden-gate-userspace
 
-Revision r86, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r87, status product. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from hao (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -488,7 +488,7 @@ Revision r86, status experiment. [Recipe](../patches/golden-gate-userspace/READM
 
 ## golden-gate-wifi-compat
 
-Revision r2, status experiment. [Recipe](../patches/golden-gate-wifi-compat/README.md)
+Revision r3, status product. [Recipe](../patches/golden-gate-wifi-compat/README.md)
 
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (golden-gate-userspace src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: whole file from hao (row wifip2p_compat). The WiFiPeerToPeer compatibility library (golden-gate-userspace src/wifip2p), installed under the framework's own name over OCLP's wrapper; it re-exports the wrapper, kept as WiFiPeerToPeerOCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -501,7 +501,7 @@ Revision r2, status experiment. [Recipe](../patches/golden-gate-wifi-compat/READ
 
 ## golden-gate-windowserver-filter
 
-Revision r9, status experiment. [Recipe](../patches/golden-gate-windowserver-filter/README.md)
+Revision r10, status product. [Recipe](../patches/golden-gate-windowserver-filter/README.md)
 
 - `usr/lib/dss_shim.dylib`: from hao (row display_state_shim); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-windowserver-filter`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/windowserver_filter.dylib.
@@ -510,7 +510,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-windowserver-fil
 
 ## hao-command
 
-Revision r6, status experiment. [Recipe](../patches/hao-command/README.md)
+Revision r7, status product. [Recipe](../patches/hao-command/README.md)
 
 - `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython.
 - `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
@@ -547,7 +547,7 @@ Revision r68, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r88, status experiment. [Recipe](../patches/hao-runtime/README.md)
+Revision r89, status product. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -565,7 +565,7 @@ Revision r88, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 ## hao-runtime-fold
 
-Revision r8, status experiment. [Recipe](../patches/hao-runtime-fold/README.md)
+Revision r9, status product. [Recipe](../patches/hao-runtime-fold/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime_fold). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
