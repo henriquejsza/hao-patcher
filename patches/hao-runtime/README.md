@@ -49,6 +49,7 @@ Earlier: earlier payloads booted Golden Gate through translated launchd to the d
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
+- r90 2026-11-17 Row hao_runtime (26B131, A family) is hao-runtime af5aa59, release/v0.0.1's security batch: AOT format 8 (older caches refused, baseline CPU), hardened stubs for library-validated programs, libhao by absolute path, launch constraints carried; hao-install installs exactly the manifest and stages about 3.5 GB in TMPDIR first.
 - r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): hao refuses a CPU below x86-64-v2 (hao-runtime's release notes). Nothing it installs changes.
 - r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
