@@ -8,14 +8,17 @@ pipeline/inputs/golden/BUILD, then the donor build, then common; first lock fold
 row's PATH: a file as an APFS clone of CACHE/sha256/SHA256 (a copy elsewhere), a folder row's tar asset unpacked into
 PATH, and an archive whose release class says `unpack` ({"strip": N, "into": "parent"}) unpacked with its first N path
 parts dropped, into PATH's parent when `into` is parent (hao-runtime's public archive: its payload/ is the row). Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
-and matching is left alone; one in place that does not match is refused, never overwritten.
+and matching is left alone; one in place that does not match is refused, never overwritten. Before it is used, each
+cached file is checked against the release's size and sha256 (64 lower-case hex digits) on an open file, never
+through a link: an archive is unpacked from that same open file, and a file is cloned into a private folder beside
+PATH, checked there and then moved to PATH.
 
 Rows made on the Mac (the producers) and harvested rows are not downloads: they are listed as still missing. A placed
 row that waits for files made on this Mac is listed as waiting; a made-on-Mac file that is a plain copy out of another
 row (from_row + path_in_row, no producer) is copied here once that row is in place and checks, so running place again
 after the producers completes such rows.
 """
-import argparse, json, os, shutil, subprocess, sys, tarfile
+import argparse, hashlib, json, os, re, shutil, stat, subprocess, sys, tarfile, tempfile
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
@@ -53,17 +56,93 @@ def clone(src, dest):
         dest.chmod(0o755 if f.read(4) in MACHO else 0o644)
 
 
+HEX = re.compile(r'[0-9a-f]{64}')
+CHUNK = 1 << 20
+
+
+class PlaceError(RuntimeError):
+    pass
+
+
+def sha256_fd(fd):
+    h, off = hashlib.sha256(), 0
+    while block := os.pread(fd, CHUNK, off):
+        h.update(block)
+        off += len(block)
+    return h.hexdigest()
+
+
+def check_fd(fd, entry, what):
+    """Refuse the open file FD unless it is a regular file with ENTRY's size and sha256."""
+    st = os.fstat(fd)
+    if not stat.S_ISREG(st.st_mode):
+        raise PlaceError('%s is not a regular file' % what)
+    if st.st_size != entry['size']:
+        raise PlaceError('%s has %d bytes; the release pins %d' % (what, st.st_size, entry['size']))
+    digest = sha256_fd(fd)
+    if digest != entry['sha256']:
+        raise PlaceError('%s has sha256 %s; the release pins %s' % (what, digest, entry['sha256']))
+
+
+def open_checked(path, entry):
+    """PATH open for reading (never through a link), checked against ENTRY's size and sha256."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError as x:
+        raise PlaceError('%s: %s' % (path, x.strerror))
+    try:
+        check_fd(fd, entry, str(path))
+    except BaseException:
+        os.close(fd)
+        raise
+    return os.fdopen(fd, 'rb')
+
+
+def entry_problem(entry):
+    """What is wrong with a release entry's row name, size or sha256, or None."""
+    row = entry.get('row')
+    if not isinstance(row, str) or not row or row in ('.', '..') or any(c in row for c in '/\\\0'):
+        return 'row %r is not a plain name' % (row,)
+    if entry.get('stream'):
+        return None
+    if not isinstance(entry.get('sha256'), str) or not HEX.fullmatch(entry['sha256']):
+        return '%s: sha256 %r is not 64 lower-case hex digits' % (row, entry.get('sha256'))
+    if not isinstance(entry.get('size'), int) or isinstance(entry['size'], bool) or entry['size'] < 0:
+        return '%s: size %r is not a whole number of bytes' % (row, entry.get('size'))
+    return None
+
+
+def place_copy(src, dest, entry):
+    """Clone SRC into a private folder beside DEST, check the copy on its open file, then move it to DEST."""
+    if not stat.S_ISREG(os.lstat(src).st_mode):
+        raise PlaceError('%s is not a regular file' % src)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix='.place-', dir=dest.parent))
+    try:
+        copy = stage / dest.name
+        clone(src, copy)
+        open_checked(copy, entry).close()
+        os.rename(copy, dest)
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+
+
+def tar_open(src):
+    return tarfile.open(src) if isinstance(src, (str, Path)) else tarfile.open(fileobj=src, mode='r:*')
+
+
 def unpack(src, dest):
     dest.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(src) as t:
+    with tar_open(src) as t:
         t.extractall(dest, filter='data')
 
 
 def unpack_archive(src, dest, how):
-    """Unpack SRC (any tar, compressed or not) with its first `strip` path parts dropped, into DEST or its parent."""
+    """Unpack SRC (any tar, compressed or not; a path or an open file) with its first `strip` path parts dropped,
+    into DEST or its parent."""
     strip, into = int(how.get('strip', 0)), dest.parent if how.get('into') == 'parent' else dest
     into.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(src) as t:
+    with tar_open(src) as t:
         members = []
         for m in t.getmembers():
             parts = Path(m.name).parts
@@ -122,6 +201,10 @@ def place(release_path, cache, dry_run=False, out=print):
     entries = [(d, 'file') for d in release.get('downloads', [])] + \
               [(a, a.get('format', 'file')) for a in release.get('assets', [])]
     for entry, form in entries:
+        bad = entry_problem(entry)
+        if bad:
+            problems.append(bad)
+            continue
         name = entry['row']
         found = find_row(folders, name)
         if found is None:
@@ -148,10 +231,18 @@ def place(release_path, cache, dry_run=False, out=print):
             continue
         if not dry_run:
             how = CLASSES.get(name, {}).get('unpack')
-            if how:
-                unpack_archive(src, dest, how)
-            else:
-                (unpack if form == 'tar' else clone)(src, dest)
+            try:
+                if how or form == 'tar':
+                    with open_checked(src, entry) as f:
+                        if how:
+                            unpack_archive(f, dest, how)
+                        else:
+                            unpack(f, dest)
+                else:
+                    place_copy(src, dest, entry)
+            except PlaceError as x:
+                problems.append('%s: %s; not placed' % (name, x))
+                continue
             if not check_or_wait(folders, folder, name, dest, waiting, problems):
                 continue
         placed.append(name)

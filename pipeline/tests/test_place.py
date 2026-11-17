@@ -1,5 +1,6 @@
 """pipeline/place: a made-on-Mac file that is a plain copy out of another row is copied once that row checks."""
 from pathlib import Path
+import os
 import runpy
 import tempfile
 import types
@@ -71,6 +72,102 @@ class Unpack(unittest.TestCase):
             self.assertEqual((dest / 'bin/hao').read_bytes(), b'h')
             self.assertEqual((dest.parent / 'GENERATE.md').read_bytes(), b'g')
             self.assertFalse((dest.parent / 'top').exists())
+
+
+class Verified(unittest.TestCase):
+    """place checks each cached file on the open file it uses, never by reopening a path that may have changed."""
+
+    def setUp(self):
+        import hashlib, io, json, tarfile
+        self.d = tempfile.TemporaryDirectory()
+        self.root = Path(self.d.name)
+        self.cache, self.store = self.root / 'cache', self.root / 'store'
+        (self.cache / 'sha256').mkdir(parents=True)
+        self.blob = b'pinned file'
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode='w') as t:
+            info = tarfile.TarInfo('ok.txt'); info.size = 2; t.addfile(info, io.BytesIO(b'ok'))
+        self.tar = buf.getvalue()
+        sha = lambda b: hashlib.sha256(b).hexdigest()
+        self.entries = {'blob': {'row': 'blob', 'size': len(self.blob), 'sha256': sha(self.blob)},
+                        'shim': {'row': 'shim', 'size': len(self.tar), 'sha256': sha(self.tar), 'format': 'tar'}}
+        for e, data in ((self.entries['blob'], self.blob), (self.entries['shim'], self.tar)):
+            (self.cache / 'sha256' / e['sha256']).write_bytes(data)
+        self.release = self.root / 'release.json'
+        self.json = json
+        self.write_release()
+        g = P['place'].__globals__
+        self.saved = {k: g[k] for k in ('CLASSES', 'find_row', 'lock', 'lock_folders', 'sha256_fd')}
+        g['CLASSES'] = {}
+        g['lock_folders'] = lambda release: [self.root]
+        g['find_row'] = lambda folders, name: (self.root, 'x', self.store / name)
+        g['lock'] = types.SimpleNamespace(path=lambda folder, name: None)
+
+    def tearDown(self):
+        P['place'].__globals__.update(self.saved)
+        self.d.cleanup()
+
+    def write_release(self, **over):
+        e = {k: dict(v, **over.get(k, {})) for k, v in self.entries.items()}
+        self.release.write_text(self.json.dumps({'downloads': [e['blob']], 'assets': [e['shim']]}))
+
+    def place(self):
+        return P['place'](self.release, self.cache, out=lambda line: None)
+
+    def test_good_files_are_placed(self):
+        placed, kept, problems, missing = self.place()
+        self.assertEqual((placed, problems), (['blob', 'shim'], []))
+        self.assertEqual((self.store / 'blob').read_bytes(), self.blob)
+        self.assertEqual((self.store / 'shim' / 'ok.txt').read_bytes(), b'ok')
+        self.assertEqual([p.name for p in self.store.iterdir() if p.name.startswith('.')], [])
+
+    def test_a_cache_entry_changed_after_it_was_fetched_is_refused(self):
+        for e in self.entries.values():
+            (self.cache / 'sha256' / e['sha256']).write_bytes(b'swapped')
+        placed, kept, problems, missing = self.place()
+        self.assertEqual(placed, [])
+        self.assertEqual(len(problems), 2)
+        self.assertTrue(all('not placed' in p for p in problems), problems)
+        self.assertEqual(sorted(p.name for p in self.store.iterdir()), [])
+
+    def test_a_cache_entry_swapped_after_the_check_is_not_what_is_unpacked(self):
+        g = P['place'].__globals__
+        real, path = g['sha256_fd'], self.cache / 'sha256' / self.entries['shim']['sha256']
+
+        def swap_after(fd):
+            digest = real(fd)
+            other = self.root / 'other'
+            other.write_bytes(b'not a tar')
+            os.replace(other, path)
+            return digest
+        g['sha256_fd'] = swap_after
+        self.entries = {'shim': self.entries['shim']}
+        self.release.write_text(self.json.dumps({'assets': [self.entries['shim']]}))
+        placed, kept, problems, missing = self.place()
+        self.assertEqual((placed, problems), (['shim'], []))
+        self.assertEqual((self.store / 'shim' / 'ok.txt').read_bytes(), b'ok')
+        self.assertEqual(path.read_bytes(), b'not a tar')
+
+    def test_a_cache_entry_that_is_a_link_is_refused(self):
+        for e, data in ((self.entries['blob'], self.blob), (self.entries['shim'], self.tar)):
+            p = self.cache / 'sha256' / e['sha256']
+            elsewhere = self.root / ('elsewhere-' + e['row'])
+            elsewhere.write_bytes(data)
+            p.unlink()
+            p.symlink_to(elsewhere)
+        placed, kept, problems, missing = self.place()
+        self.assertEqual(placed, [])
+        self.assertEqual(len(problems), 2, problems)
+        self.assertFalse(self.store.exists() and any(self.store.iterdir()))
+
+    def test_a_digest_that_is_not_hex_is_refused_before_any_path_is_made(self):
+        for bad in ('/' + 'a' * 63, '../' + 'a' * 61, 'A' * 64):
+            self.write_release(blob={'sha256': bad}, shim={'row': '../x'})
+            placed, kept, problems, missing = self.place()
+            self.assertEqual(placed, [])
+            self.assertTrue(any('not 64 lower-case hex' in p for p in problems), problems)
+            self.assertTrue(any('not a plain name' in p for p in problems), problems)
+            self.assertFalse(self.store.exists())
 
 
 if __name__ == '__main__':
