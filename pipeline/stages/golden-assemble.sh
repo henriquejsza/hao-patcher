@@ -68,7 +68,7 @@ stay_awake
 # The copies the assembly runs are made fresh from the kit each run (a fresh install, a resume, a reused --work): nothing
 # left in them from before is ever run. The kit is the one hao install checked against the USB installer's manifest;
 # the resume records (work/) and tmp stay. -B on every start of the kit's CPython: no __pycache__ is written into the kit.
-rm -rf "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" || exit $?
+rm -rf "${W:?}/source" "${W:?}/hooks" "${W:?}/post" "${W:?}/py" "${W:?}/site" || exit $?
 # mkdir, not install: a macOS Recovery has no /usr/bin/install (nor shasum, cmp, readlink: see recovery_tools below)
 mkdir -p "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
 chmod 755 "$W/source" "$W/hooks" "$W/post" "$W/py" "$W/site" "$W/tmp" || exit $?
