@@ -28,7 +28,7 @@ Not argument buffers, same with and without the shim: Maps (explore, satellite, 
 thanks to cache/metallib's VectorKit repair, although VectorKit contains argument-buffer encoders; Safari never shows WebGL/WebGPU canvases on screen, and
 WebGL draws are dropped; SceneKit's `default.metallib` (macOS and iOSSupport) is missing from the metallib repair
 profile (the 31001 downgrader crashes on its depth sampler-form reads); RealityKit needs placement heaps
-(`MTLHeapTypePlacement`, which MetalOld refuses).
+(`MTLHeapTypePlacement`, which MetalOld refuses): libargbuf emulates them (below; host-tested, not yet shown on the laptop).
 
 | Piece | Where |
 |---|---|
@@ -71,6 +71,23 @@ What VFX 233 uses (selector references, x86_64 26B131 cache; the cache's selrefs
   `constant VirtualEnvironmentProbeLighting::TextureArgumentBuffer&`); `re_entity_argument_buffer` at buffer 18
   (texture2d_array<half>, `constant BreakthroughGPUData*`, texture2d<ushort>, texture2d<half>). These are render
   shaders. VFX also ships `*_no_argument_buffer` kernels.
+
+## Placement heaps (diag#0019)
+
+RealityKit (Quick Look of a `.usdz`, 27.2.1) aborted at engine init: CoreRE
+`re::RenderGraphResourceAllocationManager::allocateNewHeap` -> `MetalPlacementHeap::init` builds a Private heap
+descriptor with `setType:1` (placement) whenever `usePlacementHeaps()` (a defaults key, true by default) and calls
+`-[MTLIGAccelDevice newHeapWithDescriptor:]`; MetalOld's `-[MTLHeapDescriptorInternal validateWithDevice:]` aborts
+("Placement heap type is not supported."). MetalOld's base heap has no offset placement either.
+
+[src/device/heap.m](src/device/heap.m) answers a placement descriptor with an emulated heap: each resource placed at an
+offset (`newBufferWithLength:options:offset:`, `newTextureWithDescriptor:offset:`, what CoreRE calls) is an ordinary
+device resource with the heap's storage and CPU cache modes, hazard-tracked by MetalOld. The heap keeps the resources it
+made by byte range: the same offset and descriptor again returns the same object (the same memory, as on real
+hardware); a resource placed over a range drops the heap's hold on what it overlaps, so the heap never holds more than
+its size. `useHeap(s)` on an encoder becomes `useResources:usage:Read` for the emulated heaps' live resources (MetalOld's
+compute `useHeap:` is `doesNotRecognizeSelector:`). Other heap types go to the driver. `AGB_KEEP_PLACEMENT_HEAPS` turns
+it off (A/B), `AGB_TRACE_HEAPS=1` logs every placement. Host test: `tests/test_placement_heap.py`.
 
 ## The HD 4000 Metal stack, as measured
 

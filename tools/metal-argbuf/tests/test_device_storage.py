@@ -22,7 +22,7 @@ class Storage(unittest.TestCase):
             lib, probe = Path(t) / 'libargbuf.dylib', Path(t) / 'storage_probe'
             subprocess.run(['xcrun', 'clang', *X86, '-fobjc-arc', '-O1', '-Wall', '-Wextra', '-Wno-unused-parameter',
                             '-Wno-protocol', '-Wno-mismatched-parameter-types', '-Wl,-no_warn_inits', '-dynamiclib',
-                            str(SRC / 'argbuf.m'), str(SRC / 'astc.m'), str(SRC / 'argbuf_tramp.s'),
+                            str(SRC / 'argbuf.m'), str(SRC / 'astc.m'), str(SRC / 'heap.m'), str(SRC / 'argbuf_tramp.s'),
                             '-framework', 'Foundation', '-framework', 'Metal', '-late', '-o', str(lib)], check=True)
             subprocess.run(['xcrun', 'clang', *X86, '-fobjc-arc', str(HERE / 'storage_probe.m'), str(lib),
                             '-framework', 'Foundation', '-framework', 'Metal', '-o', str(probe)], check=True)
@@ -51,7 +51,7 @@ class Storage(unittest.TestCase):
             lib, probe = Path(t) / 'libargbuf.dylib', Path(t) / 'weather_stencil_probe'
             subprocess.run(['xcrun', 'clang', *X86, '-fobjc-arc', '-O1', '-Wall', '-Wextra', '-Wno-unused-parameter',
                             '-Wno-protocol', '-Wno-mismatched-parameter-types', '-Wl,-no_warn_inits', '-dynamiclib',
-                            str(SRC / 'argbuf.m'), str(SRC / 'astc.m'), str(SRC / 'argbuf_tramp.s'),
+                            str(SRC / 'argbuf.m'), str(SRC / 'astc.m'), str(SRC / 'heap.m'), str(SRC / 'argbuf_tramp.s'),
                             '-framework', 'Foundation', '-framework', 'Metal', '-late', '-o', str(lib)], check=True)
             subprocess.run(['xcrun', 'clang', *X86, '-fobjc-arc', str(HERE / 'weather_stencil_probe.m'), str(lib),
                             '-framework', 'Foundation', '-framework', 'Metal', '-o', str(probe)], check=True)
