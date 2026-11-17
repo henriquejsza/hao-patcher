@@ -170,6 +170,7 @@ class RecoveryCommands(unittest.TestCase):
             kit, local = Path(tmp) / 'kit', Path(tmp) / 'local'
             py = kit / ('py' if os.uname().machine == 'arm64' else 'py-x86_64') / 'bin'
             py.mkdir(parents=True)
+            (py.parent / 'lib/python3.12/site-packages').mkdir(parents=True)   # where the copy gets its sitecustomize
             (py / 'python3.12').symlink_to(sys.executable)
             for d in ('assembly-source', 'site', 'hooks', 'post'):
                 (kit / d).mkdir()
@@ -203,6 +204,11 @@ class RecoveryCommands(unittest.TestCase):
             self.assertTrue((local / 'source' / 'recovery-tools.py').is_file())
             self.assertTrue((local / 'work' / 'build.json').is_file())
             self.assertEqual([p for p in kit.rglob('__pycache__')], [])
+            # every start of the work copy's Python (even with -I, which ignores PYTHONDONTWRITEBYTECODE) writes no
+            # bytecode: a failed install leaves the USB installer as its manifest says, so --resume passes the check
+            site = local / 'py/lib/python3.12/site-packages/sitecustomize.py'
+            self.assertIn('sys.dont_write_bytecode = True', site.read_text())
+            self.assertFalse((py.parent / 'lib/python3.12/site-packages/sitecustomize.py').exists())   # not the kit's
 
     def test_a_work_folder_with_a_space_is_reached_through_a_link_without_one(self):
         # a second USB drive mounts as "HAO 1": recipe hooks and posts (plain sh, some paths unquoted) must not see it
