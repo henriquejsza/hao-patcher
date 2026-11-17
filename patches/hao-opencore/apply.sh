@@ -87,3 +87,6 @@ d['Misc']['Debug']['AppleDebug'] = False
 with open(p,'wb') as f:plistlib.dump(d,f)
 PYCONFIG
 plutil -lint "$ESP/EFI/OC/config.plist"
+# Every enabled kext, kernel patch, quirk, security value and NVRAM key of the finished config has a recorded reason
+# (src/config-reasons.json, PROTOCOL S18); an unexplained one stops the build here.
+"$PY" -I "$P/src/config_reasons.py" check "$ESP/EFI/OC/config.plist"

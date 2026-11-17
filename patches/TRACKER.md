@@ -41,7 +41,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r1 | oclp-hook | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: golden-gate-userspace's IO80211 and WiFiPeerToPeer steps, files and edit specs, unchanged,  |
 | golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| hao-opencore | r69 | post | experiment |  | x | x |  |  | **needs** | r69 2026-11-17 Row `kernel_repair_efi` -> kernel-repairs-26B131-r44 (kernel-foundation r44): IntelCommpage no  |
+| hao-opencore | r70 | post | experiment |  | x | x |  |  | **needs** | r70 2026-11-17 Every enabled element of the finished config.plist has a recorded reason (`src/config-reasons.j |
 | hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | hao-runtime-fold | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83 |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
