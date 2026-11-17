@@ -20,6 +20,7 @@ COMMANDS = (
     ('install', ('installer',), 'install macOS 27 on this Mac'),
     ('verify', ('installed',), 'check every installed file against its manifest'),
     ('explain', ('installed', 'build'), 'where a file comes from and every edit to it'),
+    ('status', ('build', 'installer', 'installed'), 'hao on this Mac: release, macOS, SIP, install, last stop'),
     ('report', ('build', 'installer', 'installed'), 'one file with what a developer needs, for a GitHub issue'),
 )
 DEVELOPER = (
@@ -47,6 +48,15 @@ def where(env=None, top=None, record=Path('/private/var/db/hao/install-record.js
     if record.is_file() or (mac.split('.')[0] == '27' and machine == 'x86_64'):
         return 'installed'
     return 'build'
+
+
+def dev_label(described):
+    """"dev 73b28ae2" (and "+" when the checkout has changes) from git describe's "v0.1.0-alpha.1-78-g73b28ae2e743"."""
+    if not described:
+        return None
+    import re
+    m = re.search(r'(?:^|-g)([0-9a-f]{7,})(-dirty)?$', described)
+    return 'dev %s%s' % (m.group(1)[:8], '+' if m.group(2) else '') if m else 'dev ' + described
 
 
 def runs_in(command):

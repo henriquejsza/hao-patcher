@@ -85,6 +85,7 @@ import installer as INST  # noqa: E402
 import report as REP     # noqa: E402
 import progress as PROG  # noqa: E402
 import frontdoor as FD   # noqa: E402
+import status as STATUS  # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -309,13 +310,7 @@ def guarded(fn, log=None):
     return run
 
 
-def dev_label(described):
-    """"dev 73b28ae2" (and "+" when the checkout has changes) from git describe's "v0.1.0-alpha.1-78-g73b28ae2e743"."""
-    if not described:
-        return None
-    import re
-    m = re.search(r'(?:^|-g)([0-9a-f]{7,})(-dirty)?$', described)
-    return 'dev %s%s' % (m.group(1)[:8], '+' if m.group(2) else '') if m else 'dev ' + described
+dev_label = FD.dev_label
 
 
 def hook_backends(a, c, build=BUILD, inst=INST):
@@ -796,6 +791,9 @@ def main():
     q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.install(a, c, MAC.SystemHost(), run=c.run), log='install'))
+    q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
     q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')
     CON.add_level_flags(q)
