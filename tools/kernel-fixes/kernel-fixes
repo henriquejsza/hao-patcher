@@ -202,9 +202,16 @@ def main(argv=None):
     finished = sub.add_parser('complete-profile', help='finish a kernel recipe with this build’s Boot KC and Tahoe kexts')
     for flag in ('profile', 'kernel', 'boot-kc', 'dyld-cache', 'donor-sandbox', 'donor-iosurface', 'out'):
         finished.add_argument('--'+flag, type=Path, required=True)
+    donors = sub.add_parser('kdk-donors', help="Tahoe's AMFI, Sandbox, EndpointSecurity and IOSurface (x86_64) from a KDK")
+    donors.add_argument('kdk_root', type=Path, help='the mounted or unpacked Kernel Debug Kit (row kdk)')
+    donors.add_argument('out', type=Path, help='a new folder')
+    donors.add_argument('--build', required=True, help="the KDK's macOS build, e.g. 25G342")
     args = parser.parse_args(argv)
     try:
-        if args.command == 'build-repairs':
+        if args.command == 'kdk-donors':
+            module('kdk_donors', ROOT/'kdk_donors.py').make(args.kdk_root, args.out, args.build)
+            print(args.out)
+        elif args.command == 'build-repairs':
             build_repairs(args.capture, args.boot_kc, args.commpage_artifact, args.output)
             print(args.output)
         elif args.command == 'port-profile':
