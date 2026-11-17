@@ -36,7 +36,7 @@ class PlacementHeap(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         got = dict(line.split(None, 1) for line in r.stdout.splitlines() if ' ' in line)
         self.assertEqual(got, {
-            'automatic_passthrough': 'yes', 'placement_class': 'AGBPlacementHeap', 'placement_type': '1',
+            'libargbuf': 'loaded', 'automatic_passthrough': 'yes', 'placement_class': 'AGBPlacementHeap', 'placement_type': '1',
             'placement_size': 'ok', 'placement_storage': '2', 'placement_hazard': '1', 'max_available': 'ok',
             'no_offset_buffer_nil': 'yes', 'texture_made': 'yes', 'texture_storage': '2',
             # aliasing: the same (offset, descriptor) is the same memory; another resource over the range replaces it

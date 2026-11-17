@@ -1,10 +1,12 @@
 // Host probe for libargbuf's placement-heap emulation (diag#0019), CoreRE's MetalPlacementHeap pattern: a Private
 // placement heap (type 1), heapTextureSizeAndAlign + newTextureWithDescriptor:offset:, maxAvailableSizeWithAlignment:,
 // usedSize, newBufferWithLength:options:offset:, useHeap:stages: on a render encoder and useHeap: on a compute encoder.
-// The emulation is installed on the host GPU's classes (agb_placement_install). Prints "name value" lines.
+// On the host it is linked against libargbuf and installs the emulation on the host GPU's classes (agb_placement_install);
+// built without libargbuf and run on the laptop, the HD 4000 driver has loaded libargbuf already (the call is then a
+// no-op, or absent). Prints "name value" lines.
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
-void agb_placement_install(Class device, Class render, Class compute, void (*log)(const char *, ...));
+#import <dlfcn.h>
 static void logf_(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
 #define P(name, fmt, ...) printf("%s " fmt "\n", name, ##__VA_ARGS__)
 int main(void) { @autoreleasepool {
@@ -14,7 +16,9 @@ int main(void) { @autoreleasepool {
     MTLTextureDescriptor *t0 = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:4 height:4 mipmapped:NO];
     t0.usage = MTLTextureUsageRenderTarget; t0.storageMode = MTLStorageModePrivate; rp0.colorAttachments[0].texture = [d newTextureWithDescriptor:t0];
     id<MTLRenderCommandEncoder> re0 = [c0 renderCommandEncoderWithDescriptor:rp0]; Class rc = [(id)re0 class]; [re0 endEncoding];
-    agb_placement_install([(id)d class], rc, cc, logf_);
+    void (*install)(Class, Class, Class, void (*)(const char *, ...)) = dlsym(RTLD_DEFAULT, "agb_placement_install");
+    P("libargbuf", "%s", install ? "loaded" : "absent");
+    if (install) install([(id)d class], rc, cc, logf_);
 
     // an automatic heap still goes to the driver
     MTLHeapDescriptor *ad = [MTLHeapDescriptor new]; ad.size = 1 << 20; ad.storageMode = MTLStorageModePrivate;
