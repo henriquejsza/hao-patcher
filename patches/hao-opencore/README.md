@@ -268,6 +268,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r81 2026-11-17 Reason and provenance for opencore-mbp92's HIDProxyKernelMatch.kext (fixes #79). Nothing it installs changes.
 - r80 2026-11-17 Leftover settings removed (QEMU batch boot): `-nokcmismatchpanic` and `-pmap_pcid_disable` dropped from boot-args; RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet disabled; bootercfg and bootercfg-once no longer deleted. CryptexFixup stays.
 - r79 2026-11-17 CryptexFixup's reason is traced: without it the modified OS cryptex does not graft and the boot stops (QEMU). It stays. Declaration only.
 - r78 2026-11-17 Reasons for the generic image's run-efi-updater (Add No, and its Delete), from the QEMU reference: no firmware updater on a VM or PC. Generic-only, so a Mac image still refuses them. Declaration only.
