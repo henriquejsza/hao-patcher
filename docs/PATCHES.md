@@ -259,7 +259,7 @@ Revision r15, status experiment. [Recipe](../patches/golden-gate-shader-caches/R
 
 ## golden-gate-shared-cache
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
 - 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.

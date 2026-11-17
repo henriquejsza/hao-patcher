@@ -11,8 +11,9 @@ reads false, 113 descriptor slots nulled) stays as it is.
 
 ## Input
 
-`rebuilt_cache` (`pipeline/inputs/25G342/`): the shared-cache generator's artifact, made from a dev-bs-test image's
-OS cryptex and System (`rebuilt-cache-fold-in-26B131-20261114-86dd72e`, cache UUID 7c4bc5cb, from image 8fb92d5).
+`rebuilt_cache` (`pipeline/inputs/25G342/`): the shared-cache generator's artifact
+(`rebuilt-cache-fold-in-26B131-20261117-2b471bea`, cache UUID 954aa5de), made from the System of an alpha-v0.1.0 image
+of main 2b471bea and its OS cryptex's x86_64 cache with the two later edit groups of step 3 taken back out.
 The recipe reads:
 - `dyld_shared_cache_x86_64*`: the family (main, subcaches, `.map`, `.atlas`);
 - `retired-roots.txt`: the providers' install paths, one per line;
@@ -84,13 +85,17 @@ cryptex build that step 3 compares against. The compat libraries (`io80211_compa
 
 ## Validation
 
-NEEDS VALIDATION: not built or booted. Host tests pass, with the real B and B+catalog artifacts read. Read against
-the System of image 8fb92d5 (the artifacts' source): roots and the 22 System providers match; the 4 Live Text
-providers match golden-gate-live-text-shared's fold-in build (row `live_text_framework` at live-text 679d5b1b, metal's),
-not main's older one, so a fold build needs that row; after retirement only the 14 AGXMetal drivers stay on disk.
-Both fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), one payload for both families.
+NEEDS VALIDATION: r7 not built or booted. Host tests pass, with the real B and B+catalog artifacts read. Read against
+the System of an alpha-v0.1.0 image of main 2b471bea (the r7 artifact's source): steps 1 and 2 pass (all 26 providers);
+step 3 matches that image's cache with the prespecialization edits and model gates taken out, and the gates plan on the
+new family (3 sites in `.01`). The B+catalog row is still the 2026-11-14 family, whose libhelloblur and gpu-client
+predate main's. The fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), whose payload must name this
+family's cache UUID.
 
 ## Revisions
+- r7 2026-11-17 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261117-2b471bea (cache UUID 954aa5de), made from
+  main's providers: libhelloblur (golden-gate-hello) and gpu-client (live-text f479d6c7) had changed, so step 2 refused
+  the 2026-11-14 family. Same input cache, roots and other 24 providers.
 - r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r5 2026-11-16 Row `rebuilt_cache` hashes the artifact without its build.json (`# hash: without build.json`), so a
   producer run elsewhere matches it. Installed bytes unchanged.

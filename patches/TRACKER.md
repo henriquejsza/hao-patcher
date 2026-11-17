@@ -32,7 +32,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | golden-gate-root-launchservices | r3 | post | experiment | boot-seeds |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
 | golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
-| golden-gate-shared-cache | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-shared-cache | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261117-2b471bea (cache UUID 954aa5de), made  |
 | golden-gate-shared-cache-catalog | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | golden-gate-store | r5 | oclp-hook | product |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
 | golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
