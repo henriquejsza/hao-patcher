@@ -79,6 +79,7 @@ sys.path.insert(0, str(HERE / 'src'))
 import safety as SAFE    # noqa: E402
 SAFE.harden_env()        # as root: no developer variables, the system PATH, the sudo user's real home; before any
 #                          module below (or CACHE) computes a path from the environment
+SAFE.ca_bundle()         # python.org's Python before "Install Certificates": macOS's own CA bundle
 import livepatch as LP   # noqa: E402
 import macos as MAC      # noqa: E402
 import console as CON    # noqa: E402

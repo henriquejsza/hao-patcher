@@ -52,7 +52,8 @@ def harden_env(env=None, euid=None, home_of=None, here=HERE):
         return []
     by_sudo = elevated(env, 0)
     keep_stick = not by_sudo and runs_from(env.get('HAO_STICK'), here)
-    gone = [k for k in DEVELOPER + ('TMPDIR',) if k in env and not (k == 'HAO_STICK' and keep_stick)]
+    gone = [k for k in DEVELOPER + ('TMPDIR', 'SSL_CERT_FILE', 'SSL_CERT_DIR')     # root picks its own CA bundle
+            if k in env and not (k == 'HAO_STICK' and keep_stick)]
     for k in gone:
         del env[k]
     env['PATH'] = SYSTEM_PATH
@@ -63,6 +64,26 @@ def harden_env(env=None, euid=None, home_of=None, here=HERE):
         else:
             env.pop('HOME', None)
     return gone
+
+
+SYSTEM_CA = '/etc/ssl/cert.pem'
+
+
+def ca_bundle(env=None, paths=None, system=SYSTEM_CA):
+    """The CA bundle for this run's HTTPS: python.org's Python has none until its "Install Certificates" runs (every
+    download would fail with CERTIFICATE_VERIFY_FAILED), so when the Python carries no bundle and none is named,
+    SSL_CERT_FILE is set to macOS's own (SYSTEM, the system's, root-owned) for hao and everything it starts. Returns the
+    bundle set, or None when nothing was changed."""
+    env = os.environ if env is None else env
+    if env.get('SSL_CERT_FILE') or env.get('SSL_CERT_DIR'):
+        return None                                   # named by the user (as root harden_env dropped them)
+    if paths is None:
+        import ssl
+        paths = ssl.get_default_verify_paths()
+    if paths.cafile or paths.capath or not os.path.isfile(system):
+        return None
+    env['SSL_CERT_FILE'] = system
+    return system
 
 
 def _home_of(env):
