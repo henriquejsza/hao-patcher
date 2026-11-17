@@ -16,7 +16,7 @@
 | A USB drive | at least 64 GB; everything on it is erased |
 | An internet connection | for Apple's and the project's files, each checked by size and sha256 |
 | A Mac to make the USB installer on | any Mac; it can be the Intel Mac itself |
-| Xcode Command Line Tools | for their Python 3, which runs `hao`: `xcode-select --install` |
+| Python 3.14 | python.org's. `./hao` runs the first `python3.14` (else `python3`) on PATH; `sudo ./hao` runs only python.org's, and only while it and its folders are root's alone (checked before Python starts; `hao doctor` prints the fix) |
 
 Not built yet: making the macOS 27 files from Apple's downloads on your Mac. Until then `create-installer` writes
 the USB installer only on a developer's Mac that has the project's files.

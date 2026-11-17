@@ -46,7 +46,7 @@ kit on `HAO`. It ends with what to do on the Intel Mac.
 hao doctor [--for create-installer | ci | release] [--offline]
 ```
 
-Read only. Checks the Python running hao (python.org's 3.14 on the Mac that makes the installer), Xcode and its Metal
+Read only. Checks the Python running hao (python.org's 3.14 on the Mac that makes the installer; `sudo ./hao` runs only that Python, and only while it is root's alone), Xcode and its Metal
 toolchain, the macOS version, the free disk against the release's peak, that each download URL answers, and that each
 download has a mirror. A failing check names its fix; any failure exits 5. `--for release` also requires the exact Xcode
 version and a mirror for every download; `--offline` skips the network checks.

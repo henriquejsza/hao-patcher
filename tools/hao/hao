@@ -1,5 +1,42 @@
-#!/usr/bin/env -S python3 -I
-"""hao: user commands of the hao builder (workflow plan step 9a and on).
+#!/bin/sh
+""":"
+# Started by sh. As a user: the first python3.14 (else python3) on PATH runs hao, isolated (-I). As root (sudo): only
+# python.org's Python 3.14, and only when it, every folder above it and everything it loads are root's alone; checked
+# here, before any Python starts (a Python the user's account can change would run as root). -S keeps site-packages out.
+ROOT_PY=/Library/Frameworks/Python.framework/Versions/3.14
+if [ "$(id -u)" = 0 ]; then
+    bad=
+    if [ ! -f "$ROOT_PY/bin/python3.14" ] || [ -L "$ROOT_PY/bin/python3.14" ]; then
+        bad="python.org's Python 3.14 is not installed ($ROOT_PY/bin/python3.14)"
+    else
+        d=$ROOT_PY
+        while [ "$d" != / ]; do
+            if [ -L "$d" ]; then bad="$d is a link"; break; fi
+            m=$(stat -f '%u %Lp' "$d") || { bad="$d cannot be read"; break; }
+            if [ "${m%% *}" != 0 ] || [ $(( 0${m##* } & 022 )) != 0 ]; then bad="$d is not root's alone"; break; fi
+            d=$(dirname "$d")
+        done
+        if [ -z "$bad" ]; then
+            sp="$ROOT_PY/lib/python3.14/site-packages"
+            w=$(find "$ROOT_PY" -path "$sp" -prune -o '(' ! -user root -o -perm -g+w -o -perm -o+w ')' -print | head -1)
+            [ -z "$w" ] || bad="$w can be changed by others than root"
+        fi
+    fi
+    if [ -n "$bad" ]; then
+        echo "hao: under sudo hao runs only python.org's Python 3.14, root's alone: $bad." >&2
+        echo "  Install it from python.org, or make it root's alone:" >&2
+        echo "  sudo chown -R root:wheel $ROOT_PY && sudo chmod -R go-w $ROOT_PY" >&2
+        exit 5
+    fi
+    exec "$ROOT_PY/bin/python3.14" -I -S "$0" "$@"
+fi
+for py in python3.14 python3; do
+    if command -v "$py" >/dev/null 2>&1; then exec "$py" -I "$0" "$@"; fi
+done
+echo "hao: no python3 on PATH (install Python 3.14 from python.org)" >&2
+exit 127
+":"""
+HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on).
 
   hao patch OVERLAY... --root ROOT [--state DIR] [--installer] [--dry-run] [--quiet | --show | --log json]
         apply pack overlays to ROOT: only files whose sha256 differs are written, each checked before and
@@ -887,7 +924,7 @@ def cmd_help(a):
 def main():
     import signal
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
-    p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(prog='hao', description=HAO_DOC, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='action')
     q = sub.add_parser('help', help='the commands for where hao runs')
     q.add_argument('--all', action='store_true', help='also the developer commands')

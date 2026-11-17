@@ -14,7 +14,7 @@ MacBook Pro.
 | Part | Requirement |
 |---|---|
 | Target | MacBook Pro (13-inch, Mid 2012), the first supported model. Its internal disk is erased. |
-| Build Mac | Any Mac, Intel or Apple silicon, on its normal macOS, with no SIP or AMFI changes. It needs Xcode with its Metal toolchain and Python 3.14 (python.org's build: run its Install Certificates once). |
+| Build Mac | Any Mac, Intel or Apple silicon, on its normal macOS, with no SIP or AMFI changes. It needs Xcode with its Metal toolchain and Python 3.14 (python.org's build: run its Install Certificates once). `sudo ./hao` runs only that Python, and only while it is root's alone; `./hao doctor` checks this and prints the fix. |
 | USB drive | 64 GB or larger. It is erased. |
 | Free disk | About 26 GB on the build Mac at the peak. hao downloads about 3.6 GB and reads about 35 GB of Apple's IPSW and installer in parts. |
 | Time | On the build Mac about 25-30 minutes when Apple's servers are fast (over an hour when they are slow); the install about 1-2 hours, most of it one quiet step. |

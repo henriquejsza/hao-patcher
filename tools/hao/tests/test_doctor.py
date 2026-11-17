@@ -107,5 +107,21 @@ class Shebangs(unittest.TestCase):
         self.assertIn('1 name /usr/bin/python3', r[0]['detail'])
 
 
+class RootPython(unittest.TestCase):
+    """The launcher's rule (sudo runs only python.org's 3.14, root's alone), checked the same way by doctor."""
+    def test_missing_or_user_owned_fails(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            r = D.check_interpreter(Path(d) / 'Versions' / '3.14')
+            self.assertEqual((r[0]['state'], 'missing' in r[0]['detail']), ('fail', True))
+            py = Path(d) / 'Versions' / '3.14' / 'bin'
+            py.mkdir(parents=True)
+            (py / 'python3.14').write_text('')
+            r = D.check_interpreter(Path(d) / 'Versions' / '3.14')
+            self.assertEqual(r[0]['state'], 'fail')
+            self.assertIn("not root's alone", r[0]['detail'])
+            self.assertIn('chmod -R go-w', r[0]['fix'])
+
+
 if __name__ == '__main__':
     unittest.main()

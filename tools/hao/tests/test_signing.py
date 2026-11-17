@@ -193,6 +193,22 @@ class SSHSig(unittest.TestCase):
                 SIGN.verified_release(Path(d) / 'release.json', self.keys)
 
 
+class Rotation(unittest.TestCase):
+    """Two allowed signers in release-keys.pub: a plain ssh-ed25519 key (a key file, or a Ledger through ledger-agent,
+    which signs as ssh-ed25519) and a YubiKey's sk-ssh-ed25519; either one's signature is accepted."""
+    def test_either_key_of_two_verifies(self):
+        data = b'{"release": "test"}\n'
+        plain_pub, plain_sig = sshsig_files(b'\31' * 32, data)
+        sk_pub, sk_sig = sk_sshsig_files(b'\32' * 32, data)
+        keys = SIGN.parse_keys('# key 1 (Ledger)\n' + plain_pub + '# key 2 (YubiKey)\n' + sk_pub)
+        self.assertEqual(len(keys), 2)
+        self.assertEqual(SIGN.verify(data, plain_sig, keys)[1], 'sha512')
+        self.assertEqual(SIGN.verify(data, sk_sig, keys)[1], 'sha512')
+        other_pub, other_sig = sshsig_files(b'\33' * 32, data)
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.verify(data, other_sig, keys)
+
+
 class SecurityKey(unittest.TestCase):
     """sk-ssh-ed25519@openssh.com: a YubiKey's ed25519-sk key."""
     data = b'{"release": "test"}\n'
