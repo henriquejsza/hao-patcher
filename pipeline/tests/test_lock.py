@@ -343,3 +343,35 @@ class HashWithout(unittest.TestCase):
             lock.mkdir()
             (lock / 'r').write_text('# hash: without build.json build  # records\n- %s\n' % a)
             self.assertEqual(L['without'](str(lock), 'r'), ('build.json', 'build'))
+
+
+class VerifyStore(unittest.TestCase):
+    """lock.py verify-store: a pinned store row that changed is named with its newest files; unchanged rows are not
+    rehashed again (fingerprint state)."""
+
+    def test_changed_folder_row_is_named(self):
+        import json, os, runpy, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            store = d / 'store'; (store / 'art' / 'site').mkdir(parents=True)
+            (store / 'art' / 'site' / 'm.py').write_text('x = 1\n')
+            locks = d / 'inputs' / 'common'; locks.mkdir(parents=True)
+            L = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
+            g = L['verify_store'].__globals__
+            saved = dict(TOP=g['TOP'])
+            g['TOP'] = str(d)
+            try:
+                h = L['row_sha256'](str(store / 'art' / 'site'))
+                (locks / 'site_row').write_text('%s store/art/site\n' % h)
+                g['store_locks'] = lambda inputs=None: [str(locks)]
+                state = str(d / 'state.json')
+                self.assertIn('1 rehashed, 0 unchanged, 0 changed', L['verify_store']('--state', state))
+                self.assertIn('0 rehashed, 1 unchanged', L['verify_store']('--state', state))
+                (store / 'art' / 'site' / '__pycache__').mkdir()
+                (store / 'art' / 'site' / '__pycache__' / 'm.cpython-312.pyc').write_bytes(b'pyc')
+                with self.assertRaises(SystemExit) as e:
+                    L['verify_store']('--state', state)
+                self.assertIn('common/site_row', str(e.exception))
+                self.assertIn('__pycache__', str(e.exception))
+            finally:
+                g.update(saved)
