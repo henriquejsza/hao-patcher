@@ -673,7 +673,7 @@ def cmd_verify(a, c):
                                                                           len(r['problems']) + r['ok']),
                           why='these files are not the ones the packs installed',
                           options=['see which: hao verify --show', 'put them back: hao patch OVERLAY... (or the '
-                                   'installer for installer-phase packs)'])
+                                   'installer for installer-phase packs)'], code=4)
     c.done('%d files match their manifests' % r['ok'])
     return 0
 
