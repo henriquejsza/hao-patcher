@@ -48,7 +48,7 @@ STEPS = {
     'build-image': ('Prepare packs', 'Assemble in the builder VM', 'Commit the image'),
     'build-image-here': ('Prepare the kit', 'Assemble the image on this Mac', 'Keep the reusable parts'),
     'build-disk': HOST_STEPS + DISK_STEPS,
-    'create-installer': HOST_STEPS + ('Write the USB stick',),
+    'create-installer': HOST_STEPS + ('Write the USB installer',),
     'install': DISK_STEPS,
 }
 # What each disk step is, in golden-image.py's terms (LAYERS, then the set, then snapshot/posts/EFI).
@@ -461,7 +461,7 @@ def install(a, c, host, run=subprocess.call):
         c.done('dry run: the disk passed every check; nothing was written')
         return 0
     if not getattr(a, 'kit', None):
-        raise Stopped('no kit named', why='install assembles the kit the installer stick carries',
+        raise Stopped('no kit named', why='install assembles the kit the USB installer carries',
                       options=['name it: hao install /dev/diskN --kit /Volumes/HAO/kit'], untouched='nothing was written')
     question, word = (('Continue the install on %s? The steps it completed are kept.' % DISKS.label(info), 'RESUME')
                       if prior else

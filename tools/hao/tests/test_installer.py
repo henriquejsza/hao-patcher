@@ -241,15 +241,15 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertIn('Which Mac is the installer for?', text)
         self.assertIn('    1  MacBookPro9,2', text)
         self.assertIn('2  This Mac (', text)           # an Intel Mac may detect itself
-        self.assertIn('Which disk is the USB stick?', text)
+        self.assertIn('Which disk is the USB drive?', text)
         self.assertIn('    1  disk4  SanDisk Ultra 62.0 GB', text)
-        self.assertIn('-  disk6  Small Stick 16.0 GB  it is too small: a stick of at least 64 GB is needed', text)
+        self.assertIn('-  disk6  Small Stick 16.0 GB  it is too small: a USB drive of at least 64 GB is needed', text)
         for never in ('disk0', 'disk1', 'disk3'):      # internal, the running system's, a disk image
             self.assertNotIn(never, text)
         self.assertEqual(asked, ['Choice [1]: ', 'Choice: '])
         self.assertIn('[1/3] Download', text)
         self.assertIn('2 files, 9 B, each checked by size and sha256', text)
-        self.assertIn('[3/3] Write the USB stick', text)
+        self.assertIn('[3/3] Write the USB installer', text)
         self.assertIn('dry run: nothing was downloaded or written', text)
         self.assertNotIn('Type disk4', text)             # no confirmation in a dry run
         self.assertEqual(a.disk, 'disk4')
@@ -297,9 +297,9 @@ class CreateInstallerTest(unittest.TestCase):
         c, out, asked = console(['', 'q'])
         with self.assertRaises(CON.Stopped) as x:
             INST.create_installer(ns(model='MacBookPro9,2'), c, host)
-        self.assertEqual(x.exception.what, 'no USB stick chosen')
+        self.assertEqual(x.exception.what, 'no USB drive chosen')
         self.assertEqual(len(asked), 2)
-        self.assertEqual(out.getvalue().count('No USB stick found. Plug in a stick of at least 64 GB.'), 2)
+        self.assertEqual(out.getvalue().count('No USB drive found. Plug in a USB drive of at least 64 GB.'), 2)
         self.assertIn('disk6  Small Stick 16.0 GB: it is too small', out.getvalue())
 
     def test_stick_holding_hao_is_not_offered(self):
@@ -355,7 +355,7 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertIn('2 files, 9 B', text)
         self.assertIn('[2/3] Prepare packs', text)
         self.assertIn('6 packs', text)
-        self.assertIn('[3/3] Write the USB stick', text)
+        self.assertIn('[3/3] Write the USB installer', text)
         self.assertIn('/Volumes/HAO/install', text)
         self.assertIn('ejected: you can unplug it', text)
         self.assertIn(['diskutil', 'eject', '/dev/disk4'], host.calls)
@@ -368,7 +368,7 @@ class CreateInstallerTest(unittest.TestCase):
             with self.assertRaises(CON.Stopped) as x:
                 INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c, host,
                                       acquire=FakeAcquire().api)
-        self.assertEqual(x.exception.what, 'writing the USB stick failed')
+        self.assertEqual(x.exception.what, 'writing the USB installer failed')
         self.assertIn('busy', x.exception.cause)
         self.assertIn(INST.REPORT, x.exception.options)
 

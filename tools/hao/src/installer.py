@@ -41,9 +41,9 @@ TOP = Path(__file__).resolve().parents[3]
 ACQUIRE = TOP / 'tools' / 'acquire' / 'acquire'
 STICK_GB = 64                      # what the README asks for: a stick sold as 64 GB
 MINIMUM_BYTES = 60 * 10 ** 9       # sticks sold as 64 GB hold 60 to 64 * 10^9 bytes
-STEPS = ('Download', 'Prepare packs', 'Write the USB stick')
+STEPS = ('Download', 'Prepare packs', 'Write the USB installer')
 # the stick's launchers export HAO_STICK (the HAO volume): there the report command is the stick's own
-REPORT = ('save a report for developers: %s/report (it writes the file into the stick\'s reports folder; attach it to '
+REPORT = ('save a report for developers: %s/report (it writes the file into the USB installer\'s reports folder; attach it to '
           'a GitHub issue)' % os.environ['HAO_STICK'] if os.environ.get('HAO_STICK') else
           'save a report for developers: ./hao report (attach the file it writes to a GitHub issue)')
 
@@ -141,10 +141,10 @@ def plain_refusal(why):
     for start, words in (('not a whole disk name', 'it is not a whole disk; name the whole disk, like disk4'),
                          ('diskutil info failed', 'there is no such disk'),
                          ('not a whole disk', 'it is part of a disk; name the whole disk, like disk4'),
-                         ('virtual', 'it is a disk image, not a USB stick'),
+                         ('virtual', 'it is a disk image, not a USB drive'),
                          ('internal', 'it is this Mac\'s internal disk'),
                          ('holds the running system', 'it holds the macOS you are running'),
-                         ('too small', 'it is too small: a stick of at least %d GB is needed' % STICK_GB),
+                         ('too small', 'it is too small: a USB drive of at least %d GB is needed' % STICK_GB),
                          ('holds this command', 'it holds this hao folder or its downloads')):
         if why.startswith(start):
             return words
@@ -176,9 +176,9 @@ def ask_disk(a, c, host, minimum, sources):
         why = DISKS.refusal(host, a.disk, 'external', minimum, sources=sources)
         if why:
             raise Stopped('hao will not erase %s: %s' % (DISKS.normalize(a.disk), plain_refusal(why)),
-                          why='hao erases only an external disk it can tell is the USB stick you mean',
+                          why='hao erases only an external disk it can tell is the USB drive you mean',
                           untouched='nothing was downloaded or written',
-                          options=['run it again and choose the stick from the list'])
+                          options=['run it again and choose the USB drive from the list'])
         return DISKS.describe(host, a.disk)[0]
     while True:
         found = sticks(host, minimum, sources)
@@ -189,13 +189,13 @@ def ask_disk(a, c, host, minimum, sources):
             c.print('  %s: %s' % (DISKS.label(info), plain_refusal(why)), 'quiet')
         c.event('question', key='plug-in')
         c.print('', 'quiet')
-        c.print('No USB stick found. Plug in a stick of at least %d GB.' % STICK_GB, 'quiet')
+        c.print('No USB drive found. Plug in a USB drive of at least %d GB.' % STICK_GB, 'quiet')
         if _answer(c, 'Press Return to look again, or type q to quit: ').lower().startswith('q'):
-            raise Stopped('no USB stick chosen', untouched='nothing was downloaded or written',
-                          options=['plug in a USB stick of at least %d GB and run it again' % STICK_GB])
+            raise Stopped('no USB drive chosen', untouched='nothing was downloaded or written',
+                          options=['plug in a USB drive of at least %d GB and run it again' % STICK_GB])
     choices = [(DISKS.label(info) + ('  ' + plain_refusal(why) if why else ''), None if why else disk)
                for disk, info, why in found]
-    a.disk = choose(c, 'disk', 'Which disk is the USB stick?', choices, default=None)
+    a.disk = choose(c, 'disk', 'Which disk is the USB drive?', choices, default=None)
     return dict(usable)[a.disk]
 
 
@@ -366,12 +366,12 @@ def create_installer(a, c, host, acquire=None):
             raise no_release(release_path)
         show_plan(c, release, cache)
         return 0
-    c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which stick, then works on '
+    c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which USB drive, then works on '
             'its own.', 'quiet')
     image = getattr(a, 'image', None)
     if not a.dry_run and not image:
         if host.euid() != 0:
-            raise Stopped('hao create-installer needs administrator rights to erase the USB stick',
+            raise Stopped('hao create-installer needs administrator rights to erase the USB drive',
                           options=['run it again as: sudo ./hao create-installer'],
                           untouched='nothing was downloaded or written')
         if release is None and not getattr(a, 'kit', None):
@@ -390,9 +390,9 @@ def create_installer(a, c, host, acquire=None):
     c.print('', 'quiet')
     profile, path, asm, groups = BUILD.resolve(a, c, 'create-installer')
     if image:
-        c.print('Stick  image file %s (%s, sparse)' % (image, human_size(a.image_size)))
+        c.print('Drive  image file %s (%s, sparse)' % (image, human_size(a.image_size)))
     else:
-        c.print('Stick  %s  external, big enough %s' % (DISKS.label(info), c.ok))
+        c.print('Drive  %s  external, big enough %s' % (DISKS.label(info), c.ok))
         c.event('disk', disk=disk, policy='external', size=info.get('TotalSize') or info.get('Size'))
     if not a.dry_run and not image:
         c.print('')
@@ -448,9 +448,9 @@ def create_installer(a, c, host, acquire=None):
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)
     except (STICK.StickError, OSError, LP.PatchError) as x:
-        raise Stopped('writing the USB stick failed', cause=str(x).splitlines()[0],
-                      why='the stick is erased and incomplete; it will not start',
-                      options=['run the same command again: it starts from an empty stick; the downloads are kept',
+        raise Stopped('writing the USB installer failed', cause=str(x).splitlines()[0],
+                      why='the USB drive is erased and incomplete; it will not start',
+                      options=['run the same command again: it starts from an empty USB drive; the downloads are kept',
                                REPORT])
     finally:
         if image:
@@ -458,11 +458,11 @@ def create_installer(a, c, host, acquire=None):
     c.event('stick.written', stick=rec)
     left = finish_kit(a, c, kit)
     if image:
-        c.done('stick image written: %s' % image, disk=disk, more=left)
+        c.done('USB installer image written: %s' % image, disk=disk, more=left)
         return 0
     # the writer leaves the stick unmounted; eject it, so the last line can say it may be unplugged
     ejected = host.run(['diskutil', 'eject', '/dev/' + disk], check=False, timeout=300).returncode == 0
-    c.done('the USB stick is ready%s. On the Intel Mac: hold Option while it starts, choose EFI Boot, then in the '
+    c.done('the USB installer is ready%s. On the Intel Mac: hold Option while it starts, choose EFI Boot, then in the '
            'Recovery open Terminal and run /Volumes/HAO/install' % (
                ' and ejected: you can unplug it' if ejected else
                ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected,
@@ -500,7 +500,7 @@ def lock_path(*argv):
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if r.returncode:
         raise Stopped('an input is missing or has the wrong sha256', cause=r.stderr.decode(errors='replace').strip()[:300],
-                      untouched='the stick was not touched')
+                      untouched='the USB drive was not touched')
     return Path(r.stdout.decode().strip())
 
 
@@ -538,11 +538,11 @@ def stick_inputs(a, asm):
     else:
         basesystem = lock_path(TOP / 'pipeline' / 'inputs' / asm['donor_build'], 'tahoe_basesystem')
     if not basesystem.is_file():
-        raise Stopped('no BaseSystem.dmg at %s' % basesystem, untouched='the stick was not touched')
+        raise Stopped('no BaseSystem.dmg at %s' % basesystem, untouched='the USB drive was not touched')
     if getattr(a, 'opencore', None):
         opencore = Path(a.opencore).expanduser().resolve()
         if not opencore.is_file():
-            raise Stopped('no OpenCore ESP file at %s' % opencore, untouched='the stick was not touched')
+            raise Stopped('no OpenCore ESP file at %s' % opencore, untouched='the USB drive was not touched')
         return basesystem, opencore
     opencore = opencore_input(a, asm)
     if opencore is None and getattr(a, 'kit_dir', None):
@@ -584,10 +584,10 @@ def prepare_kit(a, c, path, run=subprocess.call):
                    HAO_DISK_FLOOR_GB=os.environ.get('HAO_DISK_FLOOR_GB', '1')) if drive else None
         if (run(cmd, env=env) if env else run(cmd)):
             raise Stopped('preparing the kit failed', options=['the record is in %s' % (work / 'record'), REPORT],
-                          untouched='the stick was not touched')
+                          untouched='the USB drive was not touched')
         kit = work / 'stage' / 'share'
     if not (kit / 'kit.json').is_file():
-        raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the stick was not touched')
+        raise Stopped('%s is no kit (no kit.json)' % kit, untouched='the USB drive was not touched')
     prelinked = prelinked_kc(kit)
     if prelinked is None and link_on_target(a):
         c.item('kit  %s  (kernel collections linked by the install, as root)' % c.paint('dim', str(kit)), 'files',
@@ -600,7 +600,7 @@ def prepare_kit(a, c, path, run=subprocess.call):
                                'or build this image once in the builder VM (hao build-image, or golden-run ASSEMBLY '
                                '--repo REPO): it stores them, and a kit staged afterwards carries them',
                                'the kit record names the key it looked for: %s' % (kit.parent.parent / 'record')],
-                      untouched='the stick was not touched')
+                      untouched='the USB drive was not touched')
     c.item('kit  %s  (kernel collections prelinked, key %s)' % (c.paint('dim', str(kit)), prelinked['key']),
            'files', ok=True)
     return kit
