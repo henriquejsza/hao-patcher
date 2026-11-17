@@ -112,8 +112,9 @@ work; the dependency split above does not claim those paths are complete.
 
 A few rows feed only the fix builders and QEMU tests, not the image itself:
 `darwin27_boot_kc`, `sandbox_op_layout_26A428`, `tahoe_amfi_25G330`,
-`tahoe_sandbox_25G330`, `qemu_reference_efi` and `qemu_esp_hao`. Their READMEs
-in `tools/` describe them.
+`tahoe_sandbox_25G330` and `qemu_esp_hao`. Their READMEs in `tools/` describe
+them. `qemu_reference_efi` feeds QEMU tests and the generic image's ESP; it is
+made by `pipeline/unpack/qemu-reference` (see [Building](building.md)).
 
 `pipeline/patches.py plan` lists every row a patch set needs (see
 [Building an image](building.md#1-prepare-the-inputs)). The assembly recipe

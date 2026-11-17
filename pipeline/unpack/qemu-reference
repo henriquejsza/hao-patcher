@@ -1,0 +1,154 @@
+#!/usr/bin/env python3.14
+"""Make row qemu_reference_efi: the OpenCore tree tested on OVMF (QEMU's UEFI), from its downloads.
+
+  qemu-reference OUTPUT --opencore ZIP --oclp-source TAR --hfsplus EFI --virtualsmc ZIP [--config PLIST]
+
+The base of pipeline/stages/build-efi.py (base qemu_reference) and tools/kernel-foundation vm_esp.py. OUTPUT (new) gets
+the layout of the tree tested on 2026-10-22, each file from a pinned source:
+
+  EFI/BOOT/BOOTx64.efi, EFI/BOOT/.contentVisibility,     row opencore_release (X64/EFI/... of the OpenCore RELEASE zip)
+  EFI/OC/OpenCore.efi, EFI/OC/Drivers/OpenRuntime.efi
+  EFI/OC/Drivers/apfs_aligned.efi                        row oclp_source (payloads/Drivers)
+  EFI/OC/Kexts/AppleIntelCPUPowerManagement(Client).kext row oclp_source (payloads/Kexts/Misc, v1.0.0)
+  EFI/OC/Kexts/Lilu.kext                                 row oclp_source (payloads/Kexts/Acidanthera, 1.7.2 RELEASE)
+  EFI/OC/Drivers/HfsPlus.efi                             row ocbinarydata_hfsplus (acidanthera/OcBinaryData)
+  EFI/OC/Kexts/VirtualSMC.kext                           row virtualsmc_release (Kexts/ of the VirtualSMC RELEASE zip)
+  EFI/OC/config.plist                                    --config (default: qemu-reference.plist beside this tool:
+                                                         the tested config with no machine identity)
+
+Deterministic: folders 0755, files 0644, no dates. OUTPUT/build.json records each input's sha256 and each file's
+(the row's hash leaves it out). Exit 1 when an input lacks a member.
+"""
+import argparse
+import hashlib
+import io
+import json
+import os
+import plistlib
+import shutil
+import sys
+import tarfile
+import zipfile
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+CONFIG = HERE/'qemu-reference.plist'
+OPENCORE = {'EFI/BOOT/BOOTx64.efi': 'X64/EFI/BOOT/BOOTx64.efi',
+            'EFI/BOOT/.contentVisibility': 'X64/EFI/BOOT/.contentVisibility',
+            'EFI/OC/OpenCore.efi': 'X64/EFI/OC/OpenCore.efi',
+            'EFI/OC/Drivers/OpenRuntime.efi': 'X64/EFI/OC/Drivers/OpenRuntime.efi'}
+OCLP_FILES = {'EFI/OC/Drivers/apfs_aligned.efi': 'payloads/Drivers/apfs_aligned.efi'}
+OCLP_KEXTS = {'AppleIntelCPUPowerManagement.kext': 'payloads/Kexts/Misc/AppleIntelCPUPowerManagement-v1.0.0.zip',
+              'AppleIntelCPUPowerManagementClient.kext':
+                  'payloads/Kexts/Misc/AppleIntelCPUPowerManagementClient-v1.0.0.zip',
+              'Lilu.kext': 'payloads/Kexts/Acidanthera/Lilu-v1.7.2-RELEASE.zip'}
+IDENTITY = ('SystemSerialNumber', 'MLB', 'SystemUUID', 'ROM')
+
+
+class Failed(Exception):
+    pass
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def put(out, rel, data):
+    p = out/rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(data)
+
+
+def kext_files(z, bundle, where):
+    """{path inside BUNDLE: bytes} of the one BUNDLE in zip Z (no dSYM, no __MACOSX resource forks)."""
+    roots = sorted({n[:n.index(bundle) + len(bundle)] for n in z.namelist()
+                    if bundle + '/' in n and not n.startswith('__MACOSX/') and '.dSYM/' not in n})
+    if len(roots) != 1:
+        raise Failed('%s: expected one %s, found %d' % (where, bundle, len(roots)))
+    root = roots[0] + '/'
+    return {n[len(root):]: z.read(n) for n in z.namelist() if n.startswith(root) and not n.endswith('/')}
+
+
+def identity(config):
+    """The PlatformInfo identity values a config carries that are not blank (empty, or all zero bytes)."""
+    generic = plistlib.loads(config).get('PlatformInfo', {}).get('Generic', {})
+    return [k for k in IDENTITY if generic.get(k) and (not isinstance(generic[k], bytes) or any(generic[k]))]
+
+
+def make(out, opencore, oclp_source, hfsplus, virtualsmc, config=CONFIG):
+    out = Path(out)
+    if out.exists():
+        raise Failed('%s exists' % out)
+    config_bytes = Path(config).read_bytes()
+    if identity(config_bytes):
+        raise Failed('%s carries a machine identity (%s)' % (config, ', '.join(identity(config_bytes))))
+    files = {'EFI/OC/config.plist': config_bytes, 'EFI/OC/Drivers/HfsPlus.efi': Path(hfsplus).read_bytes()}
+    with zipfile.ZipFile(opencore) as z:
+        names = set(z.namelist())
+        for rel, member in OPENCORE.items():
+            if member not in names:
+                raise Failed('%s has no %s' % (opencore, member))
+            files[rel] = z.read(member)
+    with tarfile.open(oclp_source) as t:
+        def member(name):
+            try:
+                f = t.extractfile(name)
+            except KeyError:
+                f = None
+            if f is None:
+                raise Failed('%s has no %s' % (oclp_source, name))
+            return f.read()
+        for rel, name in OCLP_FILES.items():
+            files[rel] = member(name)
+        for bundle, name in OCLP_KEXTS.items():
+            with zipfile.ZipFile(io.BytesIO(member(name))) as z:
+                for rel, data in kext_files(z, bundle, name).items():
+                    files['EFI/OC/Kexts/%s/%s' % (bundle, rel)] = data
+    with zipfile.ZipFile(virtualsmc) as z:
+        for rel, data in kext_files(z, 'VirtualSMC.kext', Path(virtualsmc).name).items():
+            files['EFI/OC/Kexts/VirtualSMC.kext/' + rel] = data
+    work = out.with_name(out.name + '.partial')
+    if work.exists():
+        shutil.rmtree(work)
+    for rel in sorted(files):
+        put(work, rel, files[rel])
+    for d, dirs, names in os.walk(work):
+        for n in dirs:
+            os.chmod(os.path.join(d, n), 0o755)
+        for n in names:
+            os.chmod(os.path.join(d, n), 0o644)
+    os.chmod(work, 0o755)
+    record = dict(schema=1, row='qemu_reference_efi', producer='pipeline/unpack/qemu-reference',
+                  producer_sha256=sha(Path(__file__).read_bytes()),
+                  inputs={'opencore_release': sha(Path(opencore).read_bytes()),
+                          'oclp_source': sha(Path(oclp_source).read_bytes()),
+                          'ocbinarydata_hfsplus': sha(files['EFI/OC/Drivers/HfsPlus.efi']),
+                          'virtualsmc_release': sha(Path(virtualsmc).read_bytes()),
+                          'config': sha(config_bytes)},
+                  files={rel: sha(files[rel]) for rel in sorted(files)})
+    (work/'build.json').write_text(json.dumps(record, indent=1, sort_keys=True) + '\n')
+    os.chmod(work/'build.json', 0o644)
+    work.rename(out)
+    return record
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    p.add_argument('output', type=Path)
+    p.add_argument('--opencore', type=Path, required=True, help='row opencore_release (OpenCore RELEASE zip)')
+    p.add_argument('--oclp-source', type=Path, required=True, help='row oclp_source (oclp-source.tar)')
+    p.add_argument('--hfsplus', type=Path, required=True, help='row ocbinarydata_hfsplus (HfsPlus.efi)')
+    p.add_argument('--virtualsmc', type=Path, required=True, help='row virtualsmc_release (VirtualSMC RELEASE zip)')
+    p.add_argument('--config', type=Path, default=CONFIG, help='EFI/OC/config.plist (default: %(default)s)')
+    args = p.parse_args(argv)
+    try:
+        record = make(args.output, args.opencore, args.oclp_source, args.hfsplus, args.virtualsmc, args.config)
+    except (Failed, OSError, zipfile.BadZipFile, tarfile.TarError) as e:
+        print('qemu-reference: %s' % e, file=sys.stderr)
+        return 1
+    print('qemu-reference: %d files in %s' % (len(record['files']), args.output))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

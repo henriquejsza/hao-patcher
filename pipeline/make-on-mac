@@ -185,6 +185,14 @@ def steps(r, fs, a):
         r.sh(*PY, 'tools/oclp-hardware/make', 'build', '--psp-root', psp, '--psp-archive', P('psp_2.0.5'),
              '--rsr-repair', tools / 'payloads/Tools/RSRRepair', '--out', P('oclp_hardware'))
 
+    def qemu_reference():
+        out = P('qemu_reference_efi')
+        if out.exists() and not r.dry:
+            shutil.rmtree(out)
+        r.sh(*PY, 'pipeline/unpack/qemu-reference', out, '--opencore', P('opencore_release'),
+             '--oclp-source', P('oclp_source'), '--hfsplus', P('ocbinarydata_hfsplus'),
+             '--virtualsmc', P('virtualsmc_release'))
+
     def donors():
         """One x86_64 pass of donor-inputs over the installer (by URL when the release streams it), target-first
         (the Golden Gate System and Rosetta cache decide which Tahoe roots are needed); then the build tool, the OS
@@ -309,7 +317,7 @@ def steps(r, fs, a):
     if (TOP / 'tools/live-text/on-mac').is_file():      # a checkout before metal's producers lists those rows as waiting
         completions += [(['live_text_framework'], live_text), (['metal_compiler_compat'], compiler_service)]
     return [(['golden_gate_userspace'], gg_userspace), (['darwin27_kernel'], kernel), (['python_site'], python_site),
-            (['oclp_hardware'], oclp_hardware), (DONOR_ROWS, donors), (['tahoe_kc_builder'], kc_builder),
+            (['oclp_hardware'], oclp_hardware), (['qemu_reference_efi'], qemu_reference), (DONOR_ROWS, donors), (['tahoe_kc_builder'], kc_builder),
             (['hello_metallib_golden_gate', 'metallib_repairs_golden_gate'], metallibs),
             (['metal_quad_runtime_golden_gate'], quad)] + completions
 

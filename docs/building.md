@@ -126,6 +126,9 @@ assembly whose `hardware` input disagrees with its target's patch sets is refuse
 target's is `"base": "qemu_reference"`, the `qemu_reference_efi` tree (OpenCore tested on OVMF, started from
 `EFI/BOOT/BOOTx64.efi`) with the pinned OpenCore release's binaries, not OCLP's iMac20,1 build (the 5K iMac's
 Apple-firmware boot layout, which non-Apple firmware cannot start). See [layout](layout.md#target-esp-base).
+`qemu_reference_efi` is made on the user's Mac by `pipeline/unpack/qemu-reference` from the rows `opencore_release`,
+`oclp_source`, `ocbinarydata_hfsplus` and `virtualsmc_release`, with the tracked `pipeline/unpack/qemu-reference.plist`
+(the tested config without a machine identity: opencore-generic makes one per image).
 
 Before writing anything, `golden-run`, `hao build-image --here`, `tools/qemu-vm` and the builder VM's start check the
 free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the
