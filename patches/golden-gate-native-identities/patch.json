@@ -1,13 +1,7 @@
 {
-  "revision": 10,
+  "revision": 11,
   "pack": "base",
   "stage": "oclp-hook",
-  "applies": {
-    "builds": [
-      "25G332",
-      "25G342"
-    ]
-  },
   "inputs": [
     "golden_gate_userspace"
   ],
@@ -84,5 +78,6 @@
         "overlays"
       ]
     }
-  ]
+  ],
+  "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

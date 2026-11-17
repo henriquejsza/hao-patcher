@@ -18,6 +18,4 @@ metalold-selectors
 # patcher
 dev-diagnostics
 golden-gate-appstore-slices
-golden-gate-native-identities
-golden-gate-user-seed
 hao-opencore
