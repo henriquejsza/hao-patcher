@@ -36,6 +36,7 @@ golden-gate-live-text-service's and this recipe's, applied to the base config of
 `tests/test_edits.py` with `HAO_OPENCORE_INPUT` and `HAO_OPENCORE_IMAGE_CONFIG`): bench images keep the same config.
 
 ## Revisions
+- r6 2026-11-17 `diagnostic-boot-args` names a reason for each boot argument (`arg_reasons`), as edit specs now require. Declaration only: nothing it installs changes.
 - r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 
 - r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestricted DTrace, so DTrace can attach to processes on a dev image. End-user images are unchanged (hao-opencore still writes 0x803).

@@ -60,10 +60,14 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
 
 ## Boot arguments
 
+Every argument's reason is also in [edits/config.json](edits/config.json) (`arg_reasons`), and `patches.py check`
+refuses a boot-args value with an argument that has none. `keepsyms=1`, `ipc_control_port_options=0` and
+`-nokcmismatchpanic` come from OCLP's config (reasons there).
+
 | Argument | Why |
 |---|---|
 | `-lilubetaall` | Lets Lilu-based OCLP kexts load on an unknown kernel version. |
-| `-pmap_pcid_disable` | Disables PCID in the target kernel's pmap; part of the boot configuration known to work. |
+| `-pmap_pcid_disable` | Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it; the QEMU boots that worked did not) while the first hardware boots stalled. The next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. The kernel logs `PMAP: PCID feature disabled` (without it: `PMAP: PCID enabled`). It stays until a laptop boot without it shows the same result. |
 | `amfi_get_out_of_my_way=1` | `hao-runtime` signs each program's x86_64 slice ad hoc with its own entitlements, including Apple-private ones (launchd: Preboot, graftdmg, trust caches). With AMFIPass alone, AMFI rejects `/sbin/launchd` and the kernel panics. |
 | `hao_crash=1` | hao's crash lines on the console. |
 | `auxKCAtBoot=false` | kernelmanagerd skips building an auxiliary kernel collection at boot and loads the System collection at once. 27's kmutil cannot build an x86_64 collection ("unsupported arch: x86_64 / Unsupported collection kind"), so the build of the only candidate, 27's codeless `AppleMobileDevice.kext` (from 27's Data template), failed at every boot and held the System collection, and with it the Capri framebuffer and WindowServer, back 18.5 s (23 s on the first boot). The codeless kext's personality still loads. Details: [Aux KC gate](#aux-kc-gate). |
@@ -185,6 +189,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refuse a boot-args value without one); `-pmap_pcid_disable` is recorded as not known to be needed (a 2026-11-02 isolation test that did not change the stall). Declaration only: nothing it installs changes.
 - r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the new recipe opencore-mbp92 (pack mbp92), which runs just before this one; it adds no kext on any recorded build, so the config is the same.
 - r66 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime c66997a (hao-runtime-26B131-20261114-c66997a2a0bb; libhao b8f0480f, the bytes proven on the test laptop): native SwiftUI.View modifiers lend guest-made self with native nils (diag#0038). Dev images only until c66997a is pushed. No recipe change.

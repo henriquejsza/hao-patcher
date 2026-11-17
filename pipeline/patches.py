@@ -746,6 +746,8 @@ def catalog(root=os.path.join(TOP, 'patches')):
                 if e.get('asm'):
                     line += ' (`%s` → `%s`)' % (e['asm']['before'], e['asm']['after'])
                 md += [line + '.', '     ' + sentence(e['reason'])]
+                md += ['     - `%s`: %s' % (arg, why.rstrip('.').replace('|', '/') + '.')
+                       for arg, why in e.get('arg_reasons', {}).items()]
         md.append('')
     md += ['## Not declared yet', '', ', '.join(others) if others else 'None.', '']
     return '\n'.join(md)

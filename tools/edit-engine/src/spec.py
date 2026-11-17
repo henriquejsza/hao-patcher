@@ -36,8 +36,10 @@ COMMON_KEYS = {'id', 'kind', 'reason', 'evidence', 'asm'}
 KIND_KEYS = {
     'literal': {'find', 'replace', 'mask', 'replace_mask', 'count', 'at', 'base', 'limit', 'section'},
     'matcher': {'fn', 'resolved'},
-    'op': {'op', 'args'},
+    'op': {'op', 'args', 'arg_reasons'},
 }
+# plist keys whose string value is a list of boot arguments: each argument needs its own reason (arg_reasons).
+ARG_LIST_KEYS = {'boot-args'}
 ID = re.compile(r'[a-z0-9][a-z0-9-]*\Z')
 SHA = re.compile(r'[0-9a-f]{64}\Z')
 FN = re.compile(r'[A-Za-z0-9_./-]+\.py:[A-Za-z_][A-Za-z0-9_]*\Z')
@@ -281,6 +283,36 @@ def _op_problems(e):
     if op == 'plist.set' and isinstance(args.get('key'), list) and (
             not args['key'] or not all(isinstance(k, (str, int)) and not isinstance(k, bool) for k in args['key'])):
         bad.append('plist.set: key is a non-empty list of dictionary keys and array indexes')
+    return bad + _arg_reason_problems(e)
+
+
+def _arg_reason_problems(e):
+    """A plist.set of a boot-args string names a reason for each argument: arg_reasons maps every argument of the
+    value, exactly as written, to a non-empty reason. Other edits carry no arg_reasons."""
+    args = e.get('args') if isinstance(e.get('args'), dict) else {}
+    key = args.get('key')
+    listed = e.get('op') == 'plist.set' and isinstance(key, list) and key and key[-1] in ARG_LIST_KEYS
+    reasons = e.get('arg_reasons')
+    if not listed:
+        return [] if reasons is None else ['arg_reasons only goes with a plist.set of %s' % ', '.join(sorted(ARG_LIST_KEYS))]
+    value = args.get('value')
+    if not isinstance(value, str):
+        return ['plist.set: %s must be a string' % key[-1]]
+    tokens = value.split()
+    if not isinstance(reasons, dict):
+        return ['arg_reasons is required: {ARGUMENT: REASON} for each argument of %s' % key[-1]]
+    bad = []
+    if len(set(tokens)) != len(tokens):
+        bad.append('%s repeats an argument' % key[-1])
+    missing = [t for t in tokens if t not in reasons]
+    if missing:
+        bad.append('arg_reasons has no reason for %s' % ', '.join(missing))
+    extra = sorted(set(reasons) - set(tokens))
+    if extra:
+        bad.append('arg_reasons names %s, not in %s' % (', '.join(extra), key[-1]))
+    empty = sorted(t for t, r in reasons.items() if not (isinstance(r, str) and r.strip()))
+    if empty:
+        bad.append('arg_reasons: empty reason for %s' % ', '.join(empty))
     return bad
 
 
@@ -342,6 +374,8 @@ def describe(spec):
         if e.get('asm'):
             lines.append('       asm    %s  ->  %s' % (e['asm']['before'], e['asm']['after']))
         lines.append('       why    %s' % e['reason'])
+        for arg, why in e.get('arg_reasons', {}).items():
+            lines.append('         %s  %s' % (arg, why))
         if e.get('evidence'):
             lines.append('       proof  %s' % e['evidence'])
     lines.append('  sign     %s' % sign_text(spec.get('sign')))

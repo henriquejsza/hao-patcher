@@ -11,7 +11,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | darwin27-kernel | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | darwin27-sandbox-disk-space | r4 | oclp-hook | experiment |  |  | x |  |  | **needs** | r4 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
 | dev-access | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
-| dev-diagnostics | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
+| dev-diagnostics | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `diagnostic-boot-args` names a reason for each boot argument (`arg_reasons`), as edit specs now  |
 | dev-keepawake | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
 | golden-gate-appstore-slices | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
 | golden-gate-av1-encoder-x86 | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
@@ -41,7 +41,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r1 | oclp-hook | experiment |  | x | x |  |  | **needs** | r1 2026-11-16 New: golden-gate-userspace's IO80211 and WiFiPeerToPeer steps, files and edit specs, unchanged,  |
 | golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| hao-opencore | r67 | post | experiment |  | x | x |  |  | **needs** | r67 2026-11-16 The early Tahoe kext step (`src/early_kexts.py`, `src/early-kexts.txt`, its test) moves to the  |
+| hao-opencore | r68 | post | experiment |  | x | x |  |  | **needs** | r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refus |
 | hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
 | hao-runtime-fold | r7 | oclp-hook | experiment |  |  |  |  |  | **needs** | r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83 |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
