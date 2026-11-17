@@ -95,6 +95,7 @@ import run as RUN        # noqa: E402
 import aot as AOT        # noqa: E402
 import doctor as DOCTOR  # noqa: E402
 import signing as SIGN   # noqa: E402
+import releasecheck as RC  # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -693,6 +694,62 @@ def cmd_verify(a, c):
     return 0
 
 
+def cmd_verify_release(a, c, opener=None):
+    """hao verify-release [vX.Y.Z | PATH]: PASS, FAIL or SKIP per check (src/releasecheck.py); exit 4 on any FAIL."""
+    try:
+        keys = SIGN.load_keys()
+    except SIGN.SignatureError as x:
+        raise CON.Stopped(str(x), why='a release is verified against the owner\'s keys, which come with hao', code=4)
+    target, stick = a.target, os.environ.get('HAO_STICK')
+    here = None
+    if target is None and stick:
+        kind, where = 'drive', Path(stick)
+    elif target is None:
+        kind, where, here = 'folder', HERE, RC.checkout_commit()
+    elif RC.TAG.match(target):
+        if a.offline:
+            raise CON.Stopped('verify-release %s downloads the release\'s signed files; --offline forbids it' % target,
+                              options=['hao verify-release FOLDER (a folder with the files you downloaded)'], code=5)
+        try:
+            where = RC.download(target, opener or RC.opener_default, beside=HERE)
+        except (OSError, ValueError) as x:
+            raise CON.Stopped('the signed files of %s could not be downloaded: %s' % (target, SAFE.text(str(x))),
+                              why='GitHub is not reachable from here', code=1,
+                              options=['hao verify-release FOLDER (a folder with the files you downloaded)'])
+        kind, here = 'folder', RC.checkout_commit()
+    else:
+        p = Path(target).expanduser()
+        p = p if p.is_dir() else p.parent
+        kind = 'drive' if (p / 'manifest.json').exists() and (p / 'stick.json').exists() else 'folder'
+        where = p
+    c.banner('hao verify-release  %s  (%s)' % (target or where, 'USB installer' if kind == 'drive' else 'release files'),
+             target=str(target or where), kind=kind)
+    if kind == 'drive':
+        import stick as STICK
+        checks = RC.check_drive(where, keys, STICK)
+    else:
+        tag = target if target and RC.TAG.match(target) else None
+        checks = RC.check_folder(where, keys, cache=a.cache, tag=tag, opener=opener or RC.opener_default,
+                                 offline=a.offline, here=here)
+        if tag and (where / 'assets').is_dir():
+            rel = where / 'release.json'
+            checks += RC.assets_checks(where / 'assets', keys, rel.read_bytes() if rel.is_file() else None)
+    for k in checks:
+        c.item('%-4s  %-9s  %s' % (k['state'], k['name'], SAFE.text(k['detail'])), 'quiet',
+               ok={'PASS': True, 'FAIL': False}.get(k['state']), ev='release.check', **{
+                   x: y for x, y in k.items() if x in ('name', 'state', 'file')})
+    n = RC.summary(checks)
+    if n['FAIL']:
+        raise CON.Stopped('%d of %d checks failed: this is not the release the owner signed, or it was changed'
+                          % (n['FAIL'], len(checks)), why='a signature, a file or the tag does not match',
+                          untouched='nothing was changed', options=[
+                              'download the release again from its GitHub release page',
+                              'report it: hao report'], code=4)
+    c.done('%d checks passed%s' % (n['PASS'], ', %d not made (SKIP: see why above)' % n['SKIP'] if n['SKIP'] else ''),
+           passed=n['PASS'], skipped=n['SKIP'])
+    return 0
+
+
 def builder_args(q, disk=True):
     if disk:
         q.add_argument('disk', nargs='?', help='the whole disk, /dev/diskN (asked when left out)')
@@ -910,6 +967,14 @@ def main():
     g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/hao (sudo)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: AOT.aot(a, c), log='aot'))
+    q = sub.add_parser('verify-release', help='check a release yourself: the owner\'s signatures, every file, the '
+                       'public tag; or a USB installer against its signed release')
+    q.add_argument('target', nargs='?', help='vX.Y.Z (downloads its signed files), a folder of release files, or a '
+                   'USB installer (e.g. /Volumes/HAO); default: the release beside hao, or this USB installer')
+    q.add_argument('--cache', type=Path, default=CACHE, help='downloads to check as well (default %s)' % CACHE)
+    q.add_argument('--offline', action='store_true', help='no network: the public tag is not looked up (SKIP)')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(cmd_verify_release, log='verify-release'))
     q = sub.add_parser('doctor', help='is this Mac ready: Python, Xcode, macOS, disk, download URLs, mirrors')
     q.add_argument('--for', dest='purpose', choices=DOCTOR.PURPOSES, default='create-installer',
                    help='what to check for (default create-installer)')
