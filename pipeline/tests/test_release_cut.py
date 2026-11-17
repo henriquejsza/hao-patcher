@@ -292,6 +292,13 @@ class Write(unittest.TestCase):
         with self.assertRaises(ValueError):
             R['build_release'](ASSEMBLY, '27.2.1')
 
+    def test_only_release_profiles_are_cut(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = Path(d) / 'a.json'
+            a.write_text(json.dumps(dict(json.loads(ASSEMBLY.read_text()), patch_set='dev-bs-test')))
+            rel, problems = R['build_release'](a, '27.2.1-26B131.0')
+        self.assertIn('profile dev-bs-test: not marked "release": true', problems)
+
 
 class Versions(unittest.TestCase):
     def test_a_release_version_may_carry_an_alpha_or_beta_number(self):

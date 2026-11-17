@@ -34,5 +34,4 @@ golden-gate-user-template          # first-login containers, chronod widget desc
 golden-gate-font-registry         # fontd registries of this build: Setup's in place, the user seed into PerUserSeed/fonts
 golden-gate-shader-caches         # HD 4000 Metal caches harvested from this build: system accounts in place, user trees into PerUserSeed/metal
 golden-gate-icon-caches           # IconServices store and root/Setup indexes harvested from this build; user index into PerUserSeed/is
-golden-gate-appstore-slices       # App Store slice guard: logs each Mach-O without x86_64 in a universal App Store app after install or update (Data: tool + LaunchDaemon)
 hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao

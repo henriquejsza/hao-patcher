@@ -244,8 +244,9 @@ class DevPack(unittest.TestCase):
         sets = TOP / 'pipeline/sets'
         dev = patches.load_packs()['dev']
         self.assertTrue(dev['opt_in'])
-        for bench, end_user, extra in (('dev-bs-test', 'golden-gate-26B131', ()),
-                                       ('dev-metal27', 'golden-gate-26B131', ('golden-gate-metal27',))):
+        diagnostic = ('golden-gate-appstore-slices',)          # reports only: bench sets keep it, releases do not
+        for bench, end_user, extra in (('dev-bs-test', 'golden-gate-26B131', diagnostic),
+                                       ('dev-metal27', 'golden-gate-26B131', ('golden-gate-metal27',) + diagnostic)):
             b, e = patches.names(sets / (bench + '.txt')), patches.names(sets / (end_user + '.txt'))
             self.assertEqual([n for n in b if n not in dev['recipes'] and n not in extra], e, bench)
             self.assertEqual(sorted(set(b) - set(e) - set(extra)), sorted(dev['recipes']), bench)

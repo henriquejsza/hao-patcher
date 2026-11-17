@@ -13,7 +13,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | dev-access | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
 | dev-diagnostics | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
 | dev-keepawake | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
-| golden-gate-appstore-slices | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| golden-gate-appstore-slices | r4 | post | diagnostic |  |  | x |  |  | **needs** | r4 2026-11-17 Status diagnostic: it only reports, so release profiles leave it out. |
 | golden-gate-av1-encoder-x86 | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
 | golden-gate-corespotlight-compat | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | golden-gate-dyld-internal | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |

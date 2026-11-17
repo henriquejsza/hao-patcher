@@ -64,7 +64,7 @@ Revision r2, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
 ## golden-gate-appstore-slices
 
-Revision r3, status product. [Recipe](../patches/golden-gate-appstore-slices/README.md)
+Revision r4, status diagnostic. [Recipe](../patches/golden-gate-appstore-slices/README.md)
 
 - `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
 - `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.

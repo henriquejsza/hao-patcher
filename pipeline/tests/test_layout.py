@@ -83,6 +83,28 @@ class Fixture(unittest.TestCase):
         (self.root / 'order.txt').write_text('os-a\nos-b\n')
         self.assertTrue(any('order.txt: gpu-a is missing' in x for x in layout()))
 
+    def test_release_profiles_refuse_dev_and_diagnostic_recipes(self):
+        profiles = self.root / 'profiles'
+        profiles.mkdir()
+        rel = lambda name: P['release_problems'](name, str(self.root / 'patches'), self.packs, str(profiles),
+                                                   str(self.root / 'order.txt'))
+        (profiles / 'plain.json').write_text(json.dumps({'target': 'mbp92', 'release': True}))
+        self.assertEqual(rel('plain'), [])
+        (profiles / 'unmarked.json').write_text(json.dumps({'target': 'mbp92'}))
+        self.assertIn('not marked "release": true', rel('unmarked')[0])
+        self.assertIn('not a profile', rel('nope')[0])
+        (profiles / 'devpack.json').write_text(json.dumps({'target': 'mbp92', 'recipes': ['dev-a'], 'release': True}))
+        self.assertEqual(rel('devpack'), ['profile devpack: dev-a is in a dev-layer pack'])
+        f = self.root / 'patches/os-a/patch.json'
+        f.write_text(json.dumps(dict(json.loads(f.read_text()), status='diagnostic')))
+        self.assertEqual(rel('plain'), ['profile plain: os-a has status diagnostic'])
+
+    def test_real_release_profiles_are_clean_and_marked(self):
+        self.assertEqual(P['release_profile_problems'](), [])
+        for name in ('alpha-v0.1.0', 'alpha-v0.1.0-fold', 'golden-gate-26B131'):
+            self.assertEqual(P['release_problems'](name), [], name)
+        self.assertTrue(P['release_problems']('dev-bs-test'))
+
 
 if __name__ == '__main__':
     unittest.main()

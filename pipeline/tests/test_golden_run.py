@@ -197,12 +197,12 @@ class GoldenRun(unittest.TestCase):
                         self.assertFalse((TOP/'patches'/patch/'src/hook.sh').exists(),patch)
                 RUN['set_order'](share)
 
-    def test_release_26B131_set_is_the_dev_set_without_dev_recipes(self):
+    def test_release_26B131_set_is_the_dev_set_without_dev_or_diagnostic_recipes(self):
         def names(name):
             return [l.split('#',1)[0].strip() for l in (TOP/'pipeline/sets'/(name+'.txt')).read_text().splitlines()
                     if l.split('#',1)[0].strip()]
         def dev(name):
-            return json.loads((TOP/'patches'/name/'patch.json').read_text()).get('status')=='dev'
+            return json.loads((TOP/'patches'/name/'patch.json').read_text()).get('status') in ('dev','diagnostic')
         self.assertEqual([n for n in names('dev-bs-test') if not dev(n)],names('golden-gate-26B131'))
         assembly=json.loads((TOP/'pipeline/assemblies/mbp92-26B131.json').read_text())
         developer=json.loads((TOP/'pipeline/assemblies/dev-26B131.json').read_text())

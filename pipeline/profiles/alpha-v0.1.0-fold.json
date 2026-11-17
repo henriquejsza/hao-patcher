@@ -6,5 +6,6 @@
  ],
  "variants": [
   "cache-fold"
- ]
+ ],
+ "release": true
 }
