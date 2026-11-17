@@ -4,9 +4,11 @@
   make ARTIFACTS --hao-runtime CHECKOUT [--cache DIR]
 
 Builds hao-runtime's build/libhao_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
-its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libhao_codeid.a, build.json}. With --cache
-(a folder holding an image's dyld_shared_cache_x86_64*, e.g. the build's RosettaOS System/Library/dyld) it also plans
-the cache edit, read-only, and records the summary, so an artifact that does not fit the cache is never made.
+its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libhao_codeid.a, build.json}. build.json holds
+only what the sources and objects decide (no date, no host path), so a rebuild from the same commits is byte-identical
+(tools/asset-build codeid_carrier). With --cache (a folder holding an image's dyld_shared_cache_x86_64*, e.g. the
+build's RosettaOS System/Library/dyld) it also plans the cache edit, read-only, and prints the summary, so an artifact
+that does not fit the cache is never made.
 """
 import argparse
 import datetime
@@ -57,11 +59,9 @@ def main():
                              sources={name: sha256(runtime/name) for name in RUNTIME_SOURCES}),
             carrier_c=sha256(HERE/'carrier.c'), carrier_o=sha256(tmp/'carrier.o'),
             linker=sha256(HERE.parent/'codeid_carrier.py'),
-            members=[obj.name for obj in objects],
-            date=datetime.datetime.now(datetime.timezone.utc).isoformat())
+            members=[obj.name for obj in objects])
         if args.cache:
             _, summary = carrier.plan_cache_family(args.cache, objects=objects)
-            record['planned'] = dict(cache=str(args.cache), summary=summary)
             print('planned:', json.dumps(summary), flush=True)
         key = hashlib.sha256((record['carrier_o'] + record['hao_runtime']['libhao_codeid_a']).encode()).hexdigest()
         out = args.artifacts/f'codeid-carrier-{datetime.date.today():%Y%m%d}-{key[:12]}'

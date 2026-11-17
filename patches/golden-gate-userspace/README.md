@@ -391,6 +391,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r86 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03: the same carrier.o and libhao_codeid.a (same row hash), with a build.json that `src/codeid/make` now writes without a date or cache plan, so `tools/asset-build codeid_carrier` rebuilds the asset byte for byte. Nothing installed changes.
 - r85 2026-11-17 Declares its scope (`requires`, docs/requires.md): userspace rows for both builds. Nothing it installs changes.
 - r84 2026-11-16 The IO80211 and WiFiPeerToPeer compat installs, their two inputs, files and edit specs move to the new recipe golden-gate-wifi-compat (pack wifi-broadcom-modern), which runs right after this one; the same steps and bytes. The display-state shim and CoreWiFi compat stay: both serve every Intel Mac.
 - r83 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

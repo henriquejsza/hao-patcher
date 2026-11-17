@@ -63,6 +63,13 @@ def slice_guard(tmp, out, args):
     return out
 
 
+def hd4000(tmp, out, args):
+    run(*PY, 'patches/golden-gate-hd4000-planes/build/make', tmp)
+    out.mkdir()
+    shutil.copy(one(Path(tmp)/'hd4000-planes-*/libhd4000-planes.dylib'), out/'libhd4000-planes.dylib')
+    return out
+
+
 def store(tmp, out, args):
     out.mkdir()
     runpy.run_path(str(TOP/'tools/appstore-policy/prepare.py'))['compile_library'](out/'libhao-appstore-policy.dylib')
@@ -104,6 +111,7 @@ ASSETS = {
     'fl': tool('pipeline/unpack/pristine-tools/build-fl', name='fl'),
     'ripatch': tool('pipeline/unpack/build-tools', 'ripatch', name='ripatch'),
     'oclp_source': tool('pipeline/unpack/build-tools', 'oclp-source-rebuild', name='oclp-source.tar'),
+    'hd4000_planes': hd4000,
 }
 
 
