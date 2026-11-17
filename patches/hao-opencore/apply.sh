@@ -43,6 +43,13 @@ ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EF
 "$PY" -I "$P/src/repairs.py" \
     "$ESP/EFI/OC/config.plist" "$REPAIR_WORK/bound" \
     "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc"
+# Hardened programs keep AMFI's dyld environment policy: with SIP's filesystem bit allowed AMFI treats no program as
+# hardened, so dyld honoured DYLD_INSERT_LIBRARIES in hardened platform programs. One Kernel.Patch, bound to this
+# BootKC's AMFI and kernel version, makes the hardened runtime count again inside the dyld policy only (src/amfi_dyld.py
+# says what it checks; it refuses unless the site is exactly once in AMFI and calls hardeningEnabled()).
+"$PY" -I "$P/src/amfi_dyld.py" --binder "$P/build" \
+    --boot-kc "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" \
+    --config "$ESP/EFI/OC/config.plist" --record "${PATCH_OUTPUT_DIR:-$P}/amfi-dyld.json"
 # The image's dyld counts as an internal install by itself (golden-gate-dyld-internal: internalInstall() answers true),
 # so it loads OCLP's on-disk Metal roots without the ic_csr_internal boot-arg, which made every process see an
 # Apple-internal build (mobileassetd then asked Apple's internal asset server: no Spotlight, Siri or language assets).
@@ -67,13 +74,15 @@ for key in ('bootercfg', 'bootercfg-once'):
 # Without it a panic reboots into the NetBoot default and the panic text stays in NVRAM (aapl,panic-info).
 # -v and startup_debug=1 (verbose text on screen, extra kernel startup logging) are off: the early-boot
 # evidence is the unified log (and, in bench images, OpenCore's file log from dev-diagnostics).
-args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'ic_csr_internal=1')]
+args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'hao_crash=1', 'ic_csr_internal=1')]
 # amfi_get_out_of_my_way=1: hao gives each arm64-only program an ad-hoc signed x86_64 slice carrying the
 # program's own (Apple-private) entitlements; AMFIPass alone kills such a PID 1 (experimental sets only).
-# hao_crash: hao's crash lines (cheap, every build). The measurement switches (hao_nx_stats, hao_bridge_stats,
-# hao_diag_time) are dev-diagnostics' (pack dev): bench images only.
-for arg in ('-lilubetaall', '-pmap_pcid_disable', 'amfi_get_out_of_my_way=1',
-            'hao_crash=1',
+# hao_crash=1 (crash lines on the console) and the measurement switches (hao_nx_stats, hao_bridge_stats,
+# hao_diag_time) are dev-diagnostics' (pack dev): dev images only (owner 2026-11-17, hao_crash: "Dev builds only").
+# amfi_force_policy=8: AMFI's dyld policy counts an entitled (CS_RESTRICT) program as restricted again, as with SIP on
+# (force_policy bit 0x8 is read only there; one that requires library validation keeps the path variables, as with SIP
+# on). Hardened programs are src/amfi_dyld.py's Kernel.Patch.
+for arg in ('-lilubetaall', '-pmap_pcid_disable', 'amfi_get_out_of_my_way=1', 'amfi_force_policy=8',
             # kernelmanagerd skips the boot-time Aux KC build. 27's kmutil cannot build an x86_64 collection, so the
             # build (of the codeless AppleMobileDevice) failed at every boot and held the System KC back ~18 s.
             'auxKCAtBoot=false'):
@@ -87,3 +96,7 @@ d['Misc']['Debug']['AppleDebug'] = False
 with open(p,'wb') as f:plistlib.dump(d,f)
 PYCONFIG
 plutil -lint "$ESP/EFI/OC/config.plist"
+# Every enabled kext, kernel patch, quirk, security value and NVRAM key of the finished config has a recorded reason
+# (src/config-reasons.json, PROTOCOL S18); an unexplained one stops the build here.
+# Every enabled third-party kext must be byte-identical to its pinned upstream release (src/kext-provenance.json).
+"$PY" -I "$P/src/config_reasons.py" check "$ESP/EFI/OC/config.plist" --kexts "$ESP/EFI/OC/Kexts"

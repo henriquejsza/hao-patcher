@@ -12,7 +12,7 @@
      {"at": 141118995, "before": "4a8b043b8b80c005000083c0e683f8f77744488b3ddcd09837e8639c1f00488b35f08957380f57c00f110424f20f1005e9131a004889c74c89f231c94531c04531c90f28c8ff152a56a537488b0d335ba93b4889040b", "after": "4a8b043b8b80c005000083c0e783f8f87744488b3ddcd09837e8639c1f00488b35f08957380f57c00f110424f20f1005e9131a004889c74c89f231c94531c04531c90f28c8ff152a56a537488b0d335ba93b4889040b", "reason": "initialize native MPSMatrix fallback for Intel device family 25"}
     ]
    },
-   "reason": "MPSMatrix works on the HD 4000: the native fallback initializer is used for Intel device family 25 (src: tools/metal-fixes mps-plan)"
+   "reason": "MPSMatrix works on the legacy Intel GPUs (device family 25): the native fallback initializer is used for Intel device family 25 (src: tools/metal-fixes mps-plan)"
   },
   {
    "id": "swift-conformance-types",

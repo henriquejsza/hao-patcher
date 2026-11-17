@@ -3,6 +3,7 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/tests -k 
 The real cache's sites are checked by test_edits (RealCaches, USERSPACE_X86_CACHE)."""
 import struct
 import sys
+import json
 import unittest
 from pathlib import Path
 
@@ -64,10 +65,25 @@ class Planner(unittest.TestCase):
         with self.assertRaises(ValueError):
             model_gates.checker('MacBookPro9,2', 'MacBookPro9,22')
 
-    def test_data_names_three_images_for_this_model(self):
-        self.assertEqual(model_gates.DATA['model'], 'MacBookPro9,2')
+    def test_data_names_three_images_and_no_mac(self):
         self.assertEqual(len(model_gates.DATA['images']), 3)
-        self.assertEqual(len(model_gates.DATA['renamed']), len(model_gates.DATA['model']))
+        self.assertNotIn('model', model_gates.DATA)          # the Mac is the target's (platform_data model_gates)
+        self.assertNotIn('MacBook', json.dumps(model_gates.DATA))
+
+    def test_the_gates_come_from_the_target(self):
+        self.assertEqual(model_gates.target_gates('MacBookPro9,2', {'model_gates': {'renamed': 'NacBookPro9,2'}}),
+                         ('MacBookPro9,2', 'NacBookPro9,2'))
+        self.assertIsNone(model_gates.target_gates('iMac20,1', {}))                 # e.g. the generic image
+        with self.assertRaises(ValueError):
+            model_gates.target_gates('', {'model_gates': {'renamed': 'X'}})
+        self.assertEqual(model_gates.plan_cache_family('/nonexistent', gates=()), {})  # no gates: nothing planned
+
+    def test_the_mbp92_target_carries_its_gates(self):
+        top = Path(__file__).resolve().parents[3]
+        target = json.loads((top/'pipeline/targets/mbp92.json').read_text())
+        model, renamed = model_gates.target_gates(target['model'], target['platform_data'])
+        self.assertEqual(len(model), len(renamed))
+        model_gates.checker(model, renamed)                    # a Mac model name of the same length
 
 
 if __name__ == '__main__':

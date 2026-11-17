@@ -1,0 +1,14 @@
+{
+ "format": 1,
+ "description": "Generic model for virtual machines and non-Apple PCs: OpenCore with SMBIOS iMac20,1, VirtualSMC and the non-Apple-firmware quirks, and no GPU, Wi-Fi or model kexts, so graphics run in software. Not for Mac hardware (VirtualSMC conflicts with a real SMC). Never detected: select it by name.",
+ "detect": {
+  "any_intel": true
+ },
+ "opt_in": true,
+ "oclp_patchsets": [],
+ "phase": "installer",
+ "proven_on": [],
+ "layer": "platform",
+ "kind": "model",
+ "platform": "generic-intel"
+}

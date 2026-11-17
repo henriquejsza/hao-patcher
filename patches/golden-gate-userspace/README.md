@@ -73,11 +73,14 @@ builds, stub embedding), so `tests/test_edits.py` proves those through the recip
 SystemVersion.plist (under the build's group folder) are not declared.
 
 ### Model gates
-27.x keeps unsupported-model lists for three features, and MacBookPro9,2 is on each (the x86_64 cache, image:
+27.x keeps unsupported-model lists for three features, and older Intel Macs are on them (the x86_64 cache, image:
 section): Sidecar (SidecarCore `__TEXT,__const`), AirPlay to Mac, i.e. this Mac as an AirPlay receiver
 (AirPlaySupport `__TEXT,__const`) and Continuity Camera (CMCapture `__TEXT,__cstring`). Each list is consecutive
-NUL-terminated model names. `src/model_gates.py` renames this Mac's entry in each (`MacBookPro9,2` -> `NacBookPro9,2`,
-one byte, same length; data `src/model-gates.json`), so the model check no longer finds it. It refuses unless the
+NUL-terminated model names. `src/model_gates.py` renames the target Mac's entry in each (one byte, same length; the
+model and its new name are the target's `platform_data` `model_gates`, read from `HAO_TARGET_MODEL` and
+`HAO_TARGET_DATA`; the images are `src/model-gates.json`), so the model check no longer finds it. A target without
+`model_gates` gets no edit; for each Mac with it, a recipe of its model pack declares the sites
+([golden-gate-model-gates-mbp92](../golden-gate-model-gates-mbp92/README.md)). It refuses unless the
 model is there exactly once, between other model names. Other images that name the model (CoreFoundation, ProductKit,
 ProductKitCore, ServerInformation) are name tables and stay. This is the same string edit acidanthera's FeatureUnlock
 makes, made once in the cache instead of by a kernel extension that searches every validated page at run time (the
@@ -391,6 +394,8 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r88 2026-11-17 Model-neutral (GEN1, S15): the model gates rename the target's model, read from HAO_TARGET_MODEL and HAO_TARGET_DATA's `model_gates` (none for a target without it, such as the generic image); `src/model-gates.json` names no Mac, the 9,2's edit is declared by golden-gate-model-gates-mbp92, and the target is part of the cryptex cache key. The MPSMatrix reason names the GPU family, not a product. The 9,2's bytes are unchanged.
+- r87 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r86 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03: the same carrier.o and libhao_codeid.a (same row hash), with a build.json that `src/codeid/make` now writes without a date or cache plan, so `tools/asset-build codeid_carrier` rebuilds the asset byte for byte. Nothing installed changes.
 - r85 2026-11-17 Declares its scope (`requires`, docs/requires.md): userspace rows for both builds. Nothing it installs changes.
 - r84 2026-11-16 The IO80211 and WiFiPeerToPeer compat installs, their two inputs, files and edit specs move to the new recipe golden-gate-wifi-compat (pack wifi-broadcom-modern), which runs right after this one; the same steps and bytes. The display-state shim and CoreWiFi compat stay: both serve every Intel Mac.

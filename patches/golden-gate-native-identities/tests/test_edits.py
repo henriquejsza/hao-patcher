@@ -22,12 +22,12 @@ class Declaration(unittest.TestCase):
 
     def test_originals_sit_where_the_script_puts_them(self):
         o = SCRIPT['ORIGINALS'] + '/'
-        self.assertEqual({p for p in FILES if p.startswith(o)},
-                         {o + WINDOWSERVER, o + SUPPORT + 'corespotlightd', o + SUPPORT + 'managedcorespotlightd'})
+        listed = runpy.run_path(str(PATCH / 'src/native_identities.py'))['load_programs']()
+        self.assertEqual({p for p in FILES if p.startswith(o)}, {o + path for path in listed})
         self.assertEqual(FILES[o + WINDOWSERVER]['kind'], 'tahoe')
         self.assertEqual(FILES[o + SUPPORT + 'corespotlightd']['kind'], 'apple')
         self.assertEqual(FILES[o + SUPPORT + 'managedcorespotlightd']['kind'], 'apple')
-        self.assertEqual(len(FILES), 5)
+        self.assertEqual(len(FILES), 2 + len(listed))
 
     def test_made_after_every_overlay_is_installed(self):
         """The list is keyed on the CDHashes of the installed programs, so every file is generated on the target

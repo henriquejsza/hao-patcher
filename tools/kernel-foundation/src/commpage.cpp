@@ -384,18 +384,6 @@ static void register_amfi(const unsigned char *donor) {
     *at<const void **>(addr_amfi)=amfi_interface;
     printf("IntelCommpage: Tahoe AMFI interface adapted; legacy trust query retained\n");
 }
-// Probe, only with boot-arg ic_csr_internal=1: report CSR_ALLOW_APPLE_INTERNAL (0x10) as set. Apple's booter drops
-// that bit from csr-active-config on customer Macs; 27.0's dyld honours on-disk roots of shared-cache dylibs only
-// when csr_check(0x10) succeeds (OCLP's legacy Metal stack). Offsets come from this kernel's csr_get_active_config.
-static void csr_internal_probe() {
-    int on=0;
-    if(!at<int (*)(const char *,void *,int)>(addr_PE_parse_boot_argn)("ic_csr_internal",&on,sizeof(on)) || !on) return;
-    uintptr_t args=*at<uintptr_t *>(addr_PE_state+pe_state_bootargs_offset);
-    if(!args) return;
-    volatile uint32_t *csr=reinterpret_cast<volatile uint32_t *>(args+boot_args_csr_offset);
-    *csr|=0x10;
-    printf("IntelCommpage: ic_csr_internal: csr config 0x%x (CSR_ALLOW_APPLE_INTERNAL)\n",*csr);
-}
 // Complete supported misaligned SSE operations inside this #GP. Signals and Mach exceptions
 // can only observe the original state or a completed instruction; no user-mode transaction.
 #include <mach/i386/thread_status.h>
@@ -529,7 +517,6 @@ extern "C" kern_return_t IntelCommpage_start(kmod_info_t *,void *) {
     IntelCommpage_policy_resume=hook_sites[6]+slide+register_prefix_length;
     route(hook_sites[6],reinterpret_cast<uintptr_t>(IntelCommpage_policy_register));
     route(hook_sites[7],reinterpret_cast<uintptr_t>(IntelCommpage_rename_return));
-    csr_internal_probe();
     install_sse_align();
     install_iosurface_snapshot();
     MachInfo::setKernelWriting(false,nullptr);

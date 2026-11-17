@@ -1,5 +1,5 @@
 {
-  "revision": 12,
+  "revision": 14,
   "pack": "base",
   "stage": "oclp-hook",
   "inputs": [
@@ -7,7 +7,7 @@
     "tahoe_kmutil",
     "tahoe_kc_builder"
   ],
-  "status": "experiment",
+  "status": "product",
   "validated": false,
   "files": [
     {

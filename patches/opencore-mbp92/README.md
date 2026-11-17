@@ -26,5 +26,6 @@ On every recorded build all three are in a collection, so it adds nothing and `c
 NEEDS VALIDATION: the split itself is not built yet. The same step was in hao-opencore until r66.
 
 ## Revisions
+- r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): this Mac's display and Ethernet kexts. Nothing it installs changes.
 - r1 2026-11-16 New: hao-opencore's early Tahoe kext step (src/early_kexts.py, src/early-kexts.txt and its test), unchanged, in pack mbp92.

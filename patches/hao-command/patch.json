@@ -1,9 +1,9 @@
 {
- "revision": 8,
+ "revision": 9,
  "pack": "base",
  "stage": "post",
  "inputs": ["python_x86_64"],
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "files": [
   {"path": "usr/local/bin/hao", "origin": {"kind": "hao", "note": "the hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython"}},

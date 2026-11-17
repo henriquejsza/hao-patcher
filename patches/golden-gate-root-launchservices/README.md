@@ -50,6 +50,7 @@ lsd keeps a store that a QEMU boot of the same image wrote when the laptop numbe
 re-reads each volume's ID at start: "Updating state of volume ... to mounted with volume ID ...").
 
 ## Revisions
+- r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): seed harvested from 26B131. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing installed changes.

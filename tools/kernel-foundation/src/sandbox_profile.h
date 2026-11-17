@@ -166,9 +166,23 @@ static inline unsigned sandbox_modifiers(unsigned char *p, size_t size, size_t n
         if (!(node[3] & 0x80)) {
             entries = node[4];
             if (!entries) continue;
-            size_t at = data + 8 * (size_t)sandbox_u16(node + 6);
+            unsigned unit = sandbox_u16(node + 6);
+            size_t at = data + 8 * (size_t)unit;
             if (at > size || 4 * (size_t)entries > size - at) return SANDBOX_REASON_MODIFIERS;
             list = p + at;
+            /* Terminals can share one list: rewrite it at its first reference only. A list that runs into another
+             * list's start (or another runs into it) would have a modifier rewritten twice: refused. */
+            int seen = 0;
+            for (unsigned m = 0; m < n && !seen; m++) {
+                if (sandbox_node_index(m, removed, removed_count) == ~0u) continue;
+                const unsigned char *earlier = p + nodes + 8 * (size_t)m;
+                if (earlier[0] != 1 || (earlier[3] & 0x80) || !earlier[4]) continue;
+                unsigned other = sandbox_u16(earlier + 6);
+                if (other == unit) { seen = 1; continue; }
+                size_t a0 = 2 * (size_t)unit, a1 = a0 + entries, b0 = 2 * (size_t)other, b1 = b0 + earlier[4];
+                if (a0 < b1 && b0 < a1) return SANDBOX_REASON_MODIFIERS;   /* in 4-byte modifier slots */
+            }
+            if (seen) continue;
         }
         for (unsigned m = 0; m < entries; m++) {
             unsigned char *modifier = list + 4 * m;
@@ -209,7 +223,9 @@ static inline int sandbox_profile_adapt(unsigned char *p, size_t size, const str
     unsigned removed_count = sandbox_removed_roots(p, ops, nodes, count, L, removed);
     *reason = sandbox_modifiers(p, size, nodes, count, data, L, 0, removed, removed_count);
     if (*reason) return SANDBOX_REFUSED;
-    sandbox_modifiers(p, size, nodes, count, data, L, 1, removed, removed_count);
+    /* Cannot fail after the check pass (each list is rewritten once); if it ever did, nothing may use the result. */
+    *reason = sandbox_modifiers(p, size, nodes, count, data, L, 1, removed, removed_count);
+    if (*reason) return SANDBOX_REFUSED;
     size_t w = ops;
     for (unsigned i = 0; i < L->target_ops; i++) {
         if (sandbox_donor_op(L, i) == ~0u) continue;

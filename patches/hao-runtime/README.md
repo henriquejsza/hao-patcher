@@ -49,6 +49,7 @@ Earlier: earlier payloads booted Golden Gate through translated launchd to the d
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
+- r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): hao refuses a CPU below x86-64-v2 (hao-runtime's release notes). Nothing it installs changes.
 - r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r86 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime main 1547dcb payload (89aa3ccc, manifest dded6037): libhao c7a162e2 (Dock, gamed, Freeform save, Books, Float16, `--aot --check`, `--auto`) and the new System/Library/LaunchDaemons/hao.aot.plist (declared), which runs `hao --aot --auto` after boot. Not yet run on a laptop.

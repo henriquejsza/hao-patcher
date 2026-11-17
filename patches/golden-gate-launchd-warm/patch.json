@@ -1,8 +1,8 @@
 {
- "revision": 5,
+ "revision": 6,
  "pack": "base",
  "stage": "oclp-hook",
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "files": [
   {

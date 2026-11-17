@@ -43,5 +43,6 @@ files); the compat libraries are whole files from their rows.
 NEEDS VALIDATION: the split itself is not built yet. The same steps were in golden-gate-userspace until r83.
 
 ## Revisions
+- r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): compat rows for both builds. Nothing it installs changes.
 - r1 2026-11-16 New: golden-gate-userspace's IO80211 and WiFiPeerToPeer steps, files and edit specs, unchanged, in pack wifi-broadcom-modern.

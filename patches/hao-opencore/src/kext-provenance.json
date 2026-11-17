@@ -1,0 +1,216 @@
+{
+ "AMFIPass.kext": {
+  "files": {
+   "Contents/Info.plist": "eb3fda04c0e8c8ce0ef4cfc984dcfb771db6aee476d379bd4bc3b7a74a00e4e9",
+   "Contents/MacOS/AMFIPass": "4c35bc196d35c69b5f9dca83fe733801211c7828716f51585c7f5450039ca884",
+   "Contents/_CodeSignature/CodeResources": "6686de10a28a2fe11b36cbb86dcbacc827cfc4ea116b4dabf1845e5aee629e9b"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/AMFIPass-v1.4.1-RELEASE.zip"
+ },
+ "AirPortBrcmNIC-Tahoe.kext": {
+  "files": {
+   "Contents/Info.plist": "545db395be05d1fa96c98e00fab1c8cacffa13e5f50ca832b6a5a79516d99514",
+   "Contents/MacOS/AirPortBrcmNIC": "0b6cf936e594d1372960a60c8f17b6cbf68e3535a191574bd91498da49713775",
+   "Contents/_CodeSignature/CodeResources": "71f08f6b787d6691df97fe1a0ad0670ba8d1e37d022422074b4bcd4cfcd84bc5",
+   "Contents/version.plist": "8e2d967e744d35653ff29269a81cffc2b0aaf5b8ce65aef0886b5e60c798b0e1"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Wifi/AirPortBrcmNIC-Tahoe-v1.0.0.zip"
+ },
+ "AirportBrcmFixup.kext": {
+  "files": {
+   "Contents/Info.plist": "505a59088a4dc26dad90271aada6c44efa5f093cd16eefb68cec059da63e07a4",
+   "Contents/MacOS/AirportBrcmFixup": "27df8d0ad2c9d74119179389f07df2b748c4f86bd6e59c7a70cbb1a0b64794dc",
+   "Contents/PlugIns/AirPortBrcmNIC_Injector.kext/Contents/Info.plist": "5276a26bed562a3f1365bb0c8ff598fedd50ca64a6ebe1b54a40c4334bd52265"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "release": "https://github.com/acidanthera/AirportBrcmFixup/releases/tag/2.2.1 (executable byte-identical to the release zip)",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/AirportBrcmFixup-v2.2.1-RELEASE.zip"
+ },
+ "AppleIntelCPUPowerManagement.kext": {
+  "files": {
+   "Contents/Info.plist": "03cc6a5f4deae96bdd9ea2089849e49824c0209ec4b43c7f72ca246d9d69b0d1",
+   "Contents/MacOS/AppleIntelCPUPowerManagement": "c8ddf53e3edac302d86469bde5978de00ba3a9098e3c27e5e02848fcd8dc9aa9"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Misc/AppleIntelCPUPowerManagement-v1.0.0.zip"
+ },
+ "AppleIntelCPUPowerManagementClient.kext": {
+  "files": {
+   "Contents/Info.plist": "1a51dea72a2f282b0b934a8b1942365da589a6c0a5d66ac54d8e13b1467e56a1",
+   "Contents/MacOS/AppleIntelCPUPowerManagementClient": "cbef547aa0f9940502d199ee7b30a0eea154526146c0192dd02ed096930c0054"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Misc/AppleIntelCPUPowerManagementClient-v1.0.0.zip"
+ },
+ "AppleUSBMultitouch.kext": {
+  "files": {
+   "Contents/Info.plist": "9fd5a65d4fc2ec7cc4e3e5df2b7ccd52079bb3d9d63ab620ce92f0b7a9b96d11",
+   "Contents/MacOS/AppleUSBMultitouch": "d011a99098017a3a573c9751553698ba8606c32c51cfc2a379159aed346a163e",
+   "Contents/_CodeSignature/CodeResources": "490be5a73107cc741d25f37d2ab8745a44ac9e736d1a5f4a4f69708ef9fee9cf",
+   "Contents/version.plist": "68a3d9afc676a59ab400c0158d6fe412c8e6d29f347fa3039990a66e292059c7"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Misc/AppleUSBMultitouch-v1.0.0.zip"
+ },
+ "AppleUSBTopCase.kext": {
+  "files": {
+   "Contents/Info.plist": "f5bf91e51902e196977f888761e23d566ed77c2571f6654bd6aef0c65609732f",
+   "Contents/PlugIns/AppleUSBTCButtons.kext/Contents/Info.plist": "8546c872111c6086dfd4aa3067a6ab1083620b62ce3f2f80340b60a4a645f5e7",
+   "Contents/PlugIns/AppleUSBTCButtons.kext/Contents/MacOS/AppleUSBTCButtons": "43a6387bfb2647b1029c1dcda5bf049303960b03f1db0e906c2d1bffda2661bd",
+   "Contents/PlugIns/AppleUSBTCButtons.kext/Contents/_CodeSignature/CodeResources": "27acb60aa14e2020773e04136aa13fadd8472f47702a77936ccccd545b762c06",
+   "Contents/PlugIns/AppleUSBTCButtons.kext/Contents/version.plist": "81affe868aeca1771f7a6ddcb7db86a52a2cff3b09f27c7accdb67d14ab7783e",
+   "Contents/PlugIns/AppleUSBTCKeyEventDriver.kext/Contents/Info.plist": "4749d07942fd8f7b7974c5c80e400f0233d1c06338a8b8b481ec403144781f87",
+   "Contents/PlugIns/AppleUSBTCKeyEventDriver.kext/Contents/MacOS/AppleUSBTCKeyEventDriver": "5973f61f9b94a46515cc4e74db984eb3d6d81623063cd3993068b728a015fcc6",
+   "Contents/PlugIns/AppleUSBTCKeyEventDriver.kext/Contents/_CodeSignature/CodeResources": "a02c6021a88d17fb5e079550cedd19d4a0b9fbe85a0bf68573a61aacd3f2eec7",
+   "Contents/PlugIns/AppleUSBTCKeyEventDriver.kext/Contents/version.plist": "81affe868aeca1771f7a6ddcb7db86a52a2cff3b09f27c7accdb67d14ab7783e",
+   "Contents/PlugIns/AppleUSBTCKeyboard.kext/Contents/Info.plist": "7c010c0dfb10c40a7d3934297665b54e4946c1753fb31cb0eb276fcc5842903a",
+   "Contents/PlugIns/AppleUSBTCKeyboard.kext/Contents/MacOS/AppleUSBTCKeyboard": "16a0612873c17b1b967dc9c30b8e05698eba8501034203dd96a1b741b8331426",
+   "Contents/PlugIns/AppleUSBTCKeyboard.kext/Contents/_CodeSignature/CodeResources": "0b1eb1baca7addfa866b38c1c8e99086e2bfc06c6b1d55630a5af01dd4d36ed0",
+   "Contents/PlugIns/AppleUSBTCKeyboard.kext/Contents/version.plist": "81affe868aeca1771f7a6ddcb7db86a52a2cff3b09f27c7accdb67d14ab7783e",
+   "Contents/Resources/English.lproj/InfoPlist.strings": "f830dd1c21667e7b4268d490be08d8e5cb1b7439e3381447b5261f0502b82197",
+   "Contents/_CodeSignature/CodeDirectory": "8840b31189ddb00d6d16a89f447d383cc42f84514825e39e410aa319361b4752",
+   "Contents/_CodeSignature/CodeRequirements": "5c332d591bbcbad6085911a65e55b1cc121d9b222720c1dfce99cc152b44075f",
+   "Contents/_CodeSignature/CodeResources": "32d34cac6cdb584d0eaa68b06a2b1a0179db168852d8916d67280d769547b134",
+   "Contents/_CodeSignature/CodeSignature": "863f6e011a6d38fa6f20e130b8be4a4213f1c8b9a8116018c82aaff8b49b834f",
+   "Contents/version.plist": "81affe868aeca1771f7a6ddcb7db86a52a2cff3b09f27c7accdb67d14ab7783e"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Misc/AppleUSBTopCase-v1.0.0.zip"
+ },
+ "BlueToolFixup.kext": {
+  "files": {
+   "Contents/Info.plist": "a0fcdb909add9c5201f1b188f0a8a70ded80a29f29b9b8a74960cc2aff8ed85a",
+   "Contents/MacOS/BlueToolFixup": "f3244382a43866138ff449b14f1e54fb069ad3e4b14cbc753858650efdbbce52"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "release": "https://github.com/acidanthera/BrcmPatchRAM/releases/tag/2.7.2 (executable byte-identical to the release zip)",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/BlueToolFixup-v2.7.2-RELEASE.zip"
+ },
+ "CatalinaIntelI210Ethernet.kext": {
+  "files": {
+   "Contents/Info.plist": "9671ec07f615b693fbdcb8680fb6b708916463a5840bb387362a5c265a6be814",
+   "Contents/MacOS/CatalinaIntelI210Ethernet": "f463ddcac30678cc5bf3d92bcb7856fafea898af3cd4e62894b4cf6c60ac3a70"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Ethernet/CatalinaIntelI210Ethernet-v1.0.0.zip"
+ },
+ "CryptexFixup.kext": {
+  "files": {
+   "Contents/Info.plist": "e386c05d7b41fefe2c9f9c6da2042ad1c95561adc1439b7f1c8a6ea0f987dc37",
+   "Contents/MacOS/CryptexFixup": "7d746c6a07f3afdd53235d7a7d5bb3a1f2ed94e8dd99eeeabb0e54c04e8444f7"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "release": "https://github.com/acidanthera/CryptexFixup/releases/tag/1.0.5 (executable byte-identical to the release zip)",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/CryptexFixup-v1.0.5-RELEASE.zip"
+ },
+ "ECM-Override.kext": {
+  "files": {
+   "Contents/Info.plist": "000c9df9b439fa2f66d5d1e76b5f375ecd0ee675f4bd59c9224f4a1688fc8b3c"
+  },
+  "kind": "oclp-generated",
+  "source": "generated by OCLP efi_builder (usb_map.py / misc.py) for MacBookPro9,2; codeless (no executable)"
+ },
+ "HaoExec.kext": {
+  "kind": "hao",
+  "source": "hao: row hao_runtime; its executable is stamped per image (hao.stamp), which repairs.py checks"
+ },
+ "IO80211FamilyLegacy.kext": {
+  "files": {
+   "Contents/Info.plist": "e3db7231dce8d4bb5430785ccb6049ef3e329abbac4f6fcbc878a6a3a0792257",
+   "Contents/MacOS/IO80211FamilyLegacy": "ac2dc15b77f8eaf97b71b34c5d0e1b59f862bfeac618396449306e1837e73894",
+   "Contents/PlugIns/AirPortBrcmNIC.kext/Contents/Info.plist": "545db395be05d1fa96c98e00fab1c8cacffa13e5f50ca832b6a5a79516d99514",
+   "Contents/PlugIns/AirPortBrcmNIC.kext/Contents/MacOS/AirPortBrcmNIC": "884e90b27cff151e432bb36275936f57b43e72419e95b51b3ac067d3f2ccd331",
+   "Contents/PlugIns/AirPortBrcmNIC.kext/Contents/_CodeSignature/CodeResources": "71f08f6b787d6691df97fe1a0ad0670ba8d1e37d022422074b4bcd4cfcd84bc5",
+   "Contents/PlugIns/AirPortBrcmNIC.kext/Contents/version.plist": "8e2d967e744d35653ff29269a81cffc2b0aaf5b8ce65aef0886b5e60c798b0e1"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Wifi/IO80211FamilyLegacy-v1.0.0.zip"
+ },
+ "IOSkywalkFamily.kext": {
+  "files": {
+   "Contents/Info.plist": "ca6a6329f2a69b6b656dcb6913531c904a28b9452cf267e055e1f8276a8a1bd3",
+   "Contents/MacOS/IOSkywalkFamily": "0484ecd97d1bdb8759aef72661c196cda4309697eea1945a4a3c4d5e6d7e5e5b",
+   "Contents/_CodeSignature/CodeResources": "6686de10a28a2fe11b36cbb86dcbacc827cfc4ea116b4dabf1845e5aee629e9b"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Wifi/IOSkywalkFamily-v1.2.0.zip"
+ },
+ "IntelCommpage.kext": {
+  "kind": "hao",
+  "source": "hao: row kernel_repair_efi (kernel-foundation); its address table is bound per image by kc-binder, which kc_bind.py checks"
+ },
+ "KDKlessWorkaround.kext": {
+  "files": {
+   "Contents/Info.plist": "8df300a0d7aa7d70414e045862339c95d661ccc9f9663e312a519c3727e15e6b",
+   "Contents/MacOS/KDKlessWorkaround": "c9154217439bdaabff3d3e81f52e54ac2c54d05f7037422ac378db0f4bc8b3c3"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Misc/KDKlessWorkaround-v1.0.0-RELEASE.zip"
+ },
+ "Lilu.kext": {
+  "files": {
+   "Contents/Info.plist": "b7798755a2dda3006783341efa5837444ceda21c7a743651276e1accbb8d4dd3",
+   "Contents/MacOS/Lilu": "ff98508b40a1eb5fb477029db8886412520f8e39965279ea331c99e3d2e3b274"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "release": "https://github.com/acidanthera/Lilu/releases/tag/1.7.2 (executable byte-identical to the release zip)",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/Lilu-v1.7.2-RELEASE.zip"
+ },
+ "RSRHelper.kext": {
+  "files": {
+   "Contents/Info.plist": "8bfc21e621119870fe26606e98f6c30f0d5ead5c2b59278e655ec78f6d888940",
+   "Contents/MacOS/RSRHelper": "fab664d8d1b8b2943c22ad445e414630b1239211937365252a570529b28fc4c7"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/RSRHelper-v1.0.2-RELEASE.zip"
+ },
+ "RestrictEvents.kext": {
+  "files": {
+   "Contents/Info.plist": "03335e3654acdfc4a47735e2024cb5b287f53fdd9c041269773e132d1f93ffe8",
+   "Contents/MacOS/RestrictEvents": "9d8e8664f2a3c2c4b7c076c372b506dd12272c83d596bc9ec294bbf3a8e68eb0"
+  },
+  "kind": "oclp-payload",
+  "note": "byte-identical to the zip in the pinned OCLP source, whose git blob equals upstream OCLP 3.0.0-rc.5 and main",
+  "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/RestrictEvents-v1.1.7-RELEASE.zip"
+ },
+ "USB-Map-Tahoe.kext": {
+  "files": {
+   "Contents/Info.plist": "2fc7e7c7d9282d222d9d97223242c0f32bf81b90f0516f0480e656ddb7cb3846"
+  },
+  "kind": "oclp-generated",
+  "source": "generated by OCLP efi_builder (usb_map.py / misc.py) for MacBookPro9,2; codeless (no executable)"
+ },
+ "USB-Map.kext": {
+  "files": {
+   "Contents/Info.plist": "113df3d5bd8d9e8ee7832e207f9e5236ff7bad4234af4797fcace83b0c412ad7"
+  },
+  "kind": "oclp-generated",
+  "source": "generated by OCLP efi_builder (usb_map.py / misc.py) for MacBookPro9,2; codeless (no executable)"
+ },
+ "VirtualSMC.kext": {
+  "files": {
+   "Contents/Info.plist": "6d3cf2e1ee61a428b3477cb332fbd285eba715ecfceb12a05cc7b3fda2b95f89",
+   "Contents/MacOS/VirtualSMC": "b55cd581b0127fe1a0ac050a69129ba5012b4547f6a9d1abfa3ad41849a2a246"
+  },
+  "kind": "acidanthera-release",
+  "note": "generic image only (opencore-generic): the qemu_reference_efi row's copy, byte-identical to the release zip (sha256 2e29a8aa...)",
+  "source": "https://github.com/acidanthera/VirtualSMC/releases/download/1.3.8/VirtualSMC-1.3.8-RELEASE.zip"
+ }
+}
