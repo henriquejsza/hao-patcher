@@ -1,12 +1,7 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "os-extras",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "status": "product",
  "validated": false,
  "inputs": [
@@ -37,5 +32,6 @@
     "owner": "root:wheel"
    }
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

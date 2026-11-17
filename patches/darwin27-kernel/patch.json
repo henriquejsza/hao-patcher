@@ -1,13 +1,7 @@
 {
-  "revision": 11,
+  "revision": 12,
   "pack": "base",
   "stage": "oclp-hook",
-  "applies": {
-    "builds": [
-      "25G332",
-      "25G342"
-    ]
-  },
   "inputs": [
     "darwin27_kernel",
     "tahoe_kmutil",
@@ -80,5 +74,6 @@
         "owner": "root:wheel"
       }
     }
-  ]
+  ],
+  "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

@@ -1,8 +1,7 @@
 {
- "revision": 6,
+ "revision": 7,
  "pack": "dev",
  "stage": "post",
- "applies": "any",
  "inputs": [
   "test_host_key",
   "test_authorized_key",
@@ -56,5 +55,6 @@
     "note": "Data volume; src/dev.hao.screensharing.plist: at every boot, the accounts in screensharing-users join com.apple.access_screensharing and Apple's Screen Sharing service is enabled and loaded (LAN, port 5900); root:wheel 0644; dev images only"
    }
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
 }

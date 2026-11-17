@@ -77,6 +77,7 @@ phase D passed all five cases through the driver, and the `HD4000_PLANES=0` cont
 recipe has booted.
 
 ## Revisions
+- r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): changes the HD 4000's Metal driver. Nothing it installs changes.
 - r5 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r3 2026-11-15 Row hd4000_planes hashes the published file only (`# hash: release-files`), so a store made from a release matches it. Installed bytes unchanged.

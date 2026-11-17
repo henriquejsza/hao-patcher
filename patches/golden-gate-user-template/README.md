@@ -104,6 +104,7 @@ the 26B131 sets; not built into an image or booted yet. Before that: the rule is
 cpio). Not built into an image or booted.
 
 ## Revisions
+- r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it installs changes.
 - r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its harvested row is not there. Installed bytes unchanged.
 - r6 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.

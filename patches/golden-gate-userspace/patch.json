@@ -1,13 +1,7 @@
 {
- "revision": 84,
+ "revision": 85,
  "pack": "base",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G332",
-   "25G342"
-  ]
- },
  "status": "experiment",
  "validated": false,
  "inputs": [
@@ -237,5 +231,6 @@
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
    "edits": "edits/embed-os-com-apple-webkit-webcontent-ios.json"
   }
- ]
+ ],
+ "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

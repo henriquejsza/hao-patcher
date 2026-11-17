@@ -29,6 +29,7 @@ NEEDS VALIDATION: `btpower` builds and the drivers enter the kernel collection; 
 a booted Recovery built from this repository.
 
 ## Revisions
+- r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare the four kext bundles, btpower, its plist and the kernel collection link in `patch.json` `files` and `edits/kc.json`; the recipe is unchanged.
 - r1 2026-11-10 Initial public release.

@@ -15,7 +15,7 @@ class Recipe(unittest.TestCase):
         self.assertIn('"$H/build/fold/fold.py" install "$S" "$H/inputs/rebuilt_cache_catalog"', hook)
         pj, base = (json.loads((p/'patch.json').read_text()) for p in (PATCH, BASE))
         self.assertEqual(pj['inputs'], ['rebuilt_cache_catalog'])
-        self.assertEqual((pj['stage'], pj['applies']), (base['stage'], base['applies']))
+        self.assertEqual((pj['stage'], pj['requires']), (base['stage'], base['requires']))
 
     def test_staging_is_the_b_recipe_byte_for_byte(self):
         # the hook stages src/ as the hook folder and make.sh's output as build/ (pipeline/stages/inputs.sh)

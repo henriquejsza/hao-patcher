@@ -1,8 +1,7 @@
 {
- "revision": 4,
+ "revision": 5,
  "pack": "base",
  "stage": "oclp-hook",
- "applies": {"builds": ["25G332", "25G342"]},
  "status": "experiment",
  "validated": false,
  "files": [
@@ -21,5 +20,6 @@
    "edits": "edits/launchd-job-cache.json",
    "install": {"mode": "0644", "owner": "root:wheel", "flags": ["restricted"]}
   }
- ]
+ ],
+ "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }

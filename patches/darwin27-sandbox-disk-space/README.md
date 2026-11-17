@@ -36,6 +36,7 @@ exact counts with the rule; the report count on a booted image with this patch h
 do not import `system.sb` keep reporting.
 
 ## Revisions
+- r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. Nothing it installs changes.
 - r4 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r3 2026-11-12 Declare the system.sb rule in `edits/system-sb.json` (edit-engine text.insert, unless already present); the hook is unchanged.
 - r2 2026-11-11 Leaves a `system.sb` that already has the rule untouched instead of reinstalling it; removed from the 26B131 set `dev-bs-test` (26B131's file has the rule; the build log said "rule already present"). Kept in `golden-gate` (26A428). README: 26A428 only. Build validation pending.

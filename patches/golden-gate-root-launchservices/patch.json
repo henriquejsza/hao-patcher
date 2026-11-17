@@ -1,12 +1,7 @@
 {
- "revision": 3,
+ "revision": 4,
  "pack": "os-extras",
  "stage": "post",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "inputs": [
   "root_launchservices_golden_gate"
  ],
@@ -41,5 +36,6 @@
    },
    "source": "ls/SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore"
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
 }
