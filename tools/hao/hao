@@ -36,16 +36,16 @@
   hao build-disk /dev/diskN (--model M | --profile F) [--kit KIT] [--work DIR] [--local DIR] [--dry-run]
         [--confirm diskN]   (sudo; an external SSD) stage the kit (or take KIT) and build macOS 27 onto the disk
   hao install /dev/diskN --kit KIT [--profile F] [--local DIR] [--dry-run] [--confirm ERASE]
-        (on the target, from the installer's Recovery) build macOS 27 from the stick's kit onto this Mac's disk
+        (on the target, from the installer's Recovery) build macOS 27 from the USB installer's kit onto this Mac's disk
         Both need root, SIP's filesystem protection off and AMFI relaxed, as the installer's Recovery starts; on a
         Mac's everyday macOS they stop before writing. LOCAL (default WORK/local) holds the assembly's copies and
         logs and must not be on the disk being erased.
-  hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; USB stick)
+  hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; a USB drive)
         [--kit DIR] [--basesystem DMG] [--opencore ESP.tar] [--image FILE [--image-size BYTES]]
-        asks which Mac (a proven model by default, this Mac, or a profile file) and which external disk is the stick,
+        asks which Mac (a proven model by default, this Mac, or a profile file) and which external disk is the USB drive,
         and for the disk's name typed; then downloads what release.json (beside hao) pins (nothing with --kit),
-        prepares the packs and the kit, and writes the stick: OpenCore + the Recovery on HAOBOOT, hao + the kit on
-        HAO (run /Volumes/HAO/install in the stick's Recovery). Not built yet: the kit made from the downloads, so
+        prepares the packs and the kit, and writes the USB installer: OpenCore + the Recovery on HAOBOOT, hao + the kit on
+        HAO (run /Volumes/HAO/install in its Recovery). Not built yet: the kit made from the downloads, so
         without --kit it stages one from this checkout's store. --dry-run asks and shows the plan, nothing more.
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
         its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
@@ -599,7 +599,7 @@ def cmd_detect(a, c, host=None):
     # the profile always goes to a file, named on screen, never printed (owner, 2026-11-13: "Reference the artifact")
     out = Path(a.out) if a.out else profile_output(p['model'])
     REP.write(out, json.dumps(p, indent=1) + '\n')
-    c.done('Profile written to %s  (use it with --profile on the Mac that makes the stick)' % out, profile=str(out))
+    c.done('Profile written to %s  (use it with --profile on the Mac that makes the USB installer)' % out, profile=str(out))
     return 0
 
 
@@ -680,11 +680,13 @@ def cmd_verify(a, c):
 
 def builder_args(q, disk=True):
     if disk:
-        q.add_argument('disk', nargs='?')
+        q.add_argument('disk', nargs='?', help='the whole disk, /dev/diskN (asked when left out)')
         q.add_argument('--confirm', help='the typed confirmation, given ahead (scripts)')
     g = q.add_mutually_exclusive_group()
-    g.add_argument('--model'); g.add_argument('--profile')
-    q.add_argument('--assembly'); q.add_argument('--dry-run', action='store_true')
+    g.add_argument('--model', help='the Mac model to build for, e.g. MacBookPro9,2 (a proven model)')
+    g.add_argument('--profile', help='a profile file from hao detect, for a Mac that is not a proven model')
+    q.add_argument('--assembly', help='(developers) an assembly in pipeline/assemblies instead of the release\'s')
+    q.add_argument('--dry-run', action='store_true', help='ask the questions and show the plan; write nothing')
     CON.add_level_flags(q)
 
 
@@ -707,7 +709,7 @@ def cmd_assets(a, c):
 
 
 def kit_args(q):
-    q.add_argument('--kit', help='a staged kit folder (golden-run --stage-kit; on the stick for install)')
+    q.add_argument('--kit', help='a staged kit folder (on the USB installer: /Volumes/HAO/kit)')
     q.add_argument('--work', help='build folder (default ~/Library/Caches/hao/builds/DATE)')
     q.add_argument('--local', help='the assembly\'s writable folder (default WORK/local), not on the erased disk')
 
@@ -743,20 +745,25 @@ def main():
     g.add_argument('--quiet', action='store_true'); g.add_argument('--show', action='store_true')
     g.add_argument('--log', choices=['json'])
     q.set_defaults(fn=cmd_patch)
-    q = sub.add_parser('explain'); q.add_argument('what', nargs='?')
+    q = sub.add_parser('explain', help='where a file comes from and every edit to it')
+    q.add_argument('what', nargs='?', help='a file path, a file name or a recipe name (all declared files when left out)')
     q.set_defaults(fn=lambda a: subprocess.call([sys.executable, '-I', str(REPO / 'pipeline/patches.py'), 'explain']
                                                 + ([a.what] if a.what else [])))
     q = sub.add_parser('inspect'); q.add_argument('store'); q.add_argument('path')
     q.set_defaults(fn=lambda a: subprocess.call([sys.executable, '-I', str(REPO / 'tools/edit-engine/edit-engine'),
                                                  'inspect', a.store, a.path]))
-    q = sub.add_parser('detect'); q.add_argument('--out'); CON.add_level_flags(q)
+    q = sub.add_parser('detect', help='this Mac\'s hardware, OCLP patch sets and packs, as a profile file')
+    q.add_argument('--out', help='the profile file to write (default hao-profile-MODEL-DATE.json here)')
+    CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_detect))
     q = sub.add_parser('fetch'); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
     q.add_argument('--verify', action='store_true'); q.add_argument('--host-check', action='store_true')
     q.add_argument('--assets-from', help='fetch the release assets from this folder or URL prefix first')
     CON.add_level_flags(q); q.set_defaults(fn=guarded(cmd_fetch))
-    q = sub.add_parser('verify'); q.add_argument('root', nargs='?', default='/')
-    q.add_argument('--manifests', action='append', default=[]); CON.add_level_flags(q)
+    q = sub.add_parser('verify', help='every installed pack file against its manifest')
+    q.add_argument('root', nargs='?', default='/', help='the system to check (default: this Mac)')
+    q.add_argument('--manifests', action='append', default=[], help='a manifest file or folder (repeatable)')
+    CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_verify))
     q = sub.add_parser('build-image'); q.add_argument('out', metavar='REPO'); builder_args(q, disk=False)
     q.add_argument('--overlay-system'); q.add_argument('--overlay-store')
@@ -777,14 +784,14 @@ def main():
     q = sub.add_parser('build-disk'); builder_args(q); kit_args(q)
     q.set_defaults(fn=guarded(lambda a, c: BUILD.build_disk(a, c, MAC.SystemHost(), run=c.run), log='build-disk'))
     q = sub.add_parser('create-installer'); builder_args(q)
-    q.add_argument('--minimum-bytes', type=int, help='smallest stick accepted (default %d)' % INST.MINIMUM_BYTES)
+    q.add_argument('--minimum-bytes', type=int, help='the smallest USB drive accepted, in bytes (default %d)' % INST.MINIMUM_BYTES)
     q.add_argument('--release', help='the release.json to download from (default: beside hao)')
-    q.add_argument('--cache', type=Path, default=CACHE)
-    q.add_argument('--kit', help='the kit to put on the stick (default: staged now with golden-run --stage-kit)')
+    q.add_argument('--cache', type=Path, default=CACHE, help='where downloads are kept (default %s)' % CACHE)
+    q.add_argument('--kit', help='(developers) a staged kit to put on the USB drive (default: staged now)')
     q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/hao/builds/DATE)')
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
     q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
-    q.add_argument('--image', help='(development) write a raw stick image FILE instead of a disk; no root needed')
+    q.add_argument('--image', help='(developers) write a raw USB installer image FILE instead of a drive; no root needed')
     q.add_argument('--link-on-target', action='store_true',
                    help='the kit carries no prelinked kernel collections: hao install links them as root on the target')
     q.add_argument('--image-size', type=int, default=INST.STICK_GB * 10 ** 9, help='--image: its size in bytes (sparse)')
@@ -799,8 +806,8 @@ def main():
     q.add_argument('--interp', action='store_true', help='the interpreter only')
     q.add_argument('--stats', action='store_true', help='statistics at exit')
     q.add_argument('--allow-unsigned', action='store_true', help='run an unsigned program')
-    q.add_argument('program')
-    q.add_argument('args', nargs=argparse.REMAINDER)
+    q.add_argument('program', help='the ARM program to run')
+    q.add_argument('args', nargs=argparse.REMAINDER, help='its arguments')
     q.set_defaults(fn=guarded(lambda a, c: RUN.run(a, c)))
     q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
     CON.add_level_flags(q)
