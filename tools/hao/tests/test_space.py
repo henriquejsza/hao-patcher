@@ -25,7 +25,8 @@ class Plan(unittest.TestCase):
         self.assertAlmostEqual(p['download'], 1.7, places=1)          # the IPSW and the installer are not fetched
         self.assertAlmostEqual(p['stages'][2][2], 23.4, places=1)       # images on the drive, not on this Mac
         self.assertLess(p['mac_peak'], 25)
-        self.assertEqual(space.drive_size_gb(p), 32)
+        self.assertEqual(space.drive_size_gb(p), 64)          # never below what create-installer accepts
+        self.assertIn('(a 64 GB drive or larger)', space.lines(p)[-1])
 
     def test_refusals(self):
         p = space.plan(RELEASE)
