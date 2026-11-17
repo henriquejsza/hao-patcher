@@ -183,8 +183,10 @@ class AppleMirror(unittest.TestCase):
             class Done:
                 returncode = 0
                 stdout = '%s 10 https://apple/a.dmg a file.dmg\nnot a line\n' % ('a' * 64)
-            got = D.mirror_needs(None, '/x/release.json', run=lambda *a, **k: Done(), top=d)
+            seen = []
+            got = D.mirror_needs(None, '/x/release.json', run=lambda argv, **k: seen.append(argv) or Done(), top=d)
             self.assertEqual(got, [('a' * 64, 10, 'https://apple/a.dmg', 'a file.dmg')])
+            self.assertEqual(seen[0][-2:], ['--release', '/x/release.json'])
 
 
 if __name__ == '__main__':

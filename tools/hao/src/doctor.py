@@ -236,11 +236,13 @@ def fetch(url, timeout, limit, opener=None):
 
 def mirror_needs(release, release_path=None, run=subprocess.run, top=TOP):
     """[(sha256, size, origin url, name)] the release needs from a mirror: pipeline/mirror-list's lines
-    ("SHA256 SIZE ORIGIN_URL NAME", given release.json's path) when it is there, else release.json's downloads."""
+    ("SHA256 SIZE ORIGIN_URL NAME", NAME may hold spaces; run with --release FILE) when it is there, else release.json's
+    downloads."""
     tool = Path(top) / 'pipeline' / 'mirror-list'
     if tool.is_file() and release_path:
         try:
-            r = run([sys.executable, '-I', str(tool), str(release_path)], capture_output=True, text=True, timeout=120)
+            r = run([sys.executable, '-I', str(tool), '--release', str(release_path)], capture_output=True, text=True,
+                    timeout=120)
             if r.returncode == 0:
                 out = []
                 for line in r.stdout.splitlines():
