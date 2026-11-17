@@ -74,6 +74,32 @@ class Files(unittest.TestCase):
             self.assertEqual(oct((Path(d) / 'logs').stat().st_mode & 0o777), '0o700')
 
 
+class CABundle(unittest.TestCase):
+    """python.org's Python before "Install Certificates" has no CA bundle: hao uses macOS's own."""
+    class Paths:
+        def __init__(self, cafile=None, capath=None):
+            self.cafile, self.capath = cafile, capath
+
+    def test_a_python_without_certificates_gets_the_systems(self):
+        with tempfile.TemporaryDirectory() as d:
+            system = Path(d) / 'cert.pem'
+            system.write_text('x')
+            env = {}
+            self.assertEqual(SAFE.ca_bundle(env, self.Paths(), system=str(system)), str(system))
+            self.assertEqual(env['SSL_CERT_FILE'], str(system))
+            env = {}
+            self.assertIsNone(SAFE.ca_bundle(env, self.Paths(cafile='/x/cert.pem'), system=str(system)))
+            self.assertNotIn('SSL_CERT_FILE', env)
+            env = {'SSL_CERT_DIR': '/mine'}                     # named by the user: left alone
+            self.assertIsNone(SAFE.ca_bundle(env, self.Paths(), system=str(system)))
+
+    def test_root_drops_inherited_ca_settings(self):
+        env = {'SSL_CERT_FILE': '/tmp/evil.pem', 'SSL_CERT_DIR': '/tmp/evil', 'SUDO_USER': 'u'}
+        gone = SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
+        self.assertIn('SSL_CERT_FILE', gone)
+        self.assertNotIn('SSL_CERT_DIR', env)
+
+
 class Folders(unittest.TestCase):
     def test_folder_refuses_links_at_and_above_it_and_narrows_its_mode(self):
         with tempfile.TemporaryDirectory() as d:

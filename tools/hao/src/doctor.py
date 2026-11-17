@@ -195,8 +195,12 @@ def check_urls(release, p, offline, opener=None):
         if not (isinstance(status, int) and status < 400):
             bad.append('%s (%s)' % (r['name'], status))
     if bad:
+        fix = 'check the network; a URL Apple moved needs a new release.json'
+        if any('CERTIFICATE_VERIFY_FAILED' in b for b in bad):
+            fix = ('this Python has no CA certificates: run "Install Certificates.command" in /Applications/Python 3.14, '
+                   'or set SSL_CERT_FILE=/etc/ssl/cert.pem')
         return [check('urls', 'fail', '%d of %d download URLs do not answer: %s' % (len(bad), len(rows), '; '.join(bad[:3])),
-                      'check the network; a URL Apple moved needs a new release.json')]
+                      fix)]
     return [check('urls', 'ok', 'all %d download URLs answer' % len(rows))]
 
 
