@@ -76,7 +76,7 @@ def gather(host, env=None, state=REP.STATE, folders=None, aot_dirs=AOT_DIRS):
         d['aot'] = AOT.summary(aot_dirs[0])
     else:
         d['aot'] = ('%d caches' % len(caches)) if caches else 'not on this Mac'
-    d['update'] = 'not checked (hao update comes in the next release)'
+    d['update'] = 'not checked'
     stop = last_stop(REP.log_dirs(env) if folders is None else folders)
     d['last_stop'] = ('%s on %s: %s' % stop) if stop else 'none'
     d['logs'] = str(REP.log_dir(env))

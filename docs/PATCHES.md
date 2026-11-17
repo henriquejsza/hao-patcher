@@ -486,7 +486,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-windowserver-fil
 
 ## hao-command
 
-Revision r3, status experiment. [Recipe](../patches/hao-command/README.md)
+Revision r4, status experiment. [Recipe](../patches/hao-command/README.md)
 
 - `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython.
 - `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.

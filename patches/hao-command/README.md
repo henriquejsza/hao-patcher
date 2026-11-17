@@ -24,6 +24,7 @@ NEEDS VALIDATION: not yet run in an image build, a QEMU install or on a laptop.
 
 ## Revisions
 
+- r4 2026-11-16 no du in apply.sh (the Recovery has none); in the dev, release and metal27 sets too
 - r3 2026-11-16 make.sh stages from a release archive too (no .git): files on disk, VERSION from pipeline/SOURCE_COMMIT
 - r2 2026-11-16 make.sh writes tools/hao/VERSION (the staged commit) for hao's version on a dev image
 - r1 2026-11-16 first recipe: CPython row and tools/hao under /usr/local/lib/hao, launcher at /usr/local/bin/hao

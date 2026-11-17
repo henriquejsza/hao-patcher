@@ -27,3 +27,4 @@ golden-gate-shader-caches         # HD 4000 Metal caches harvested from this bui
 golden-gate-icon-caches           # IconServices store and root/Setup indexes harvested from this build; user index into PerUserSeed/is
 golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
+hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao

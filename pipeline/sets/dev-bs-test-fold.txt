@@ -35,3 +35,4 @@ golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
 dev-diagnostics                   # dev only: hao-runtime measurement boot-args and the OpenCore file log (after hao-opencore)
 dev-keepawake                     # dev only: never sleeps, from the first boot on (system LaunchDaemons: caffeinate, power settings)
+hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao

@@ -13,4 +13,4 @@ printf '#!/bin/sh\nexec /usr/local/lib/hao/python/bin/python3.12 -I /usr/local/l
 chown -R root:wheel "$L" "$B/hao"
 chmod 755 "$B/hao"
 chmod -R go-w "$L"
-echo "hao-command: $(du -sk "$L" | cut -f1) KB under /usr/local/lib/hao; /usr/local/bin/hao"
+echo "hao-command: /usr/local/bin/hao, with CPython and tools/hao under /usr/local/lib/hao"
