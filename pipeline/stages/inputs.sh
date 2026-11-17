@@ -99,7 +99,7 @@ while read -r stage name ins; do
     # stick writer moves it into the kit on that drive.
     for n in ${=ins}; do
         src=$(row $n)
-        if [[ -n $KIT_ON_DRIVE && $(realpath $src) == $KIT_ON_DRIVE/* ]]; then ln -s $(realpath $src) $d/inputs/$n
+        if [[ -n ${KIT_ON_DRIVE:-} && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then ln -s $(realpath $src) $d/inputs/$n
         else cp -Rpc $src $d/inputs/$n; fi
     done
 done < $SHARE/patches.txt
