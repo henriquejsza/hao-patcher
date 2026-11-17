@@ -1,16 +1,11 @@
 {
- "revision": 15,
+ "revision": 16,
  "pack": "intel-hd4000",
  "stage": "post",
- "applies": {
-  "builds": [
-   "25G342"
-  ]
- },
  "inputs": [
   "shader_caches_golden_gate"
  ],
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "optional": "caches",
  "files": [
@@ -1076,5 +1071,6 @@
    },
    "source": "data.tar!private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservicesagent/com.apple.iconservicesagent/com.apple.metal/31001/libraries.list"
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": ["intel-ivb"], "firmware": "any"}
 }

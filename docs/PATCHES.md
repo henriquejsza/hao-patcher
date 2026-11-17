@@ -126,7 +126,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-hd4000-planes/READM
 
 ## golden-gate-hello
 
-Revision r10, status experiment. [Recipe](../patches/golden-gate-hello/README.md)
+Revision r11, status product. [Recipe](../patches/golden-gate-hello/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from OCLP · Metal 3802 Common; 3 edits, applied by the installer, then signed: ad hoc, once, identifier Metal. Installed mode 0755, owner root:wheel, flags restricted.
   1. `hello-not-skipped`: literal near _fake_LCAUtilities_shouldSkipHello (within 64 bytes), 11 bytes, `B0 01 0F BE C0 48 83 C4 10 5D C3` → `B0 00 0F BE C0 48 83 C4 10 5D C3` (`mov al,1` → `mov al,0`).
@@ -179,7 +179,7 @@ Revision r5, status experiment. [Recipe](../patches/golden-gate-launchd-warm/REA
 
 ## golden-gate-live-text-service
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-live-text-service/README.md)
+Revision r7, status product. [Recipe](../patches/golden-gate-live-text-service/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore; 1 edit, applied by the installer.
   1. `revblock-without-media`: plist.set NVRAM:Add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revblock = "none".
@@ -187,7 +187,7 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-live-text-servic
 
 ## golden-gate-live-text-shared
 
-Revision r11, status experiment. [Recipe](../patches/golden-gate-live-text-shared/README.md)
+Revision r12, status product. [Recipe](../patches/golden-gate-live-text-shared/README.md)
 
 - `usr/lib/libhelloblur.dylib`: from hao · libhelloblur; 1 edit, applied by the installer, then signed: ad hoc, once, identifier local.libhelloblur. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-live-text-runtime`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao-live-text/LiveText.dylib.
@@ -208,7 +208,7 @@ Revision r11, status experiment. [Recipe](../patches/golden-gate-live-text-share
 
 ## golden-gate-metal-argbuf
 
-Revision r7, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
+Revision r8, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
@@ -219,7 +219,7 @@ Revision r7, status product. [Recipe](../patches/golden-gate-metal-argbuf/README
 
 ## golden-gate-metal-framebuffer
 
-Revision r11, status experiment. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
+Revision r12, status product. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metal-framebuffer`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetal-framebuffer.dylib.
@@ -228,7 +228,7 @@ Revision r11, status experiment. [Recipe](../patches/golden-gate-metal-framebuff
 
 ## golden-gate-metal-libraries
 
-Revision r22, status experiment. [Recipe](../patches/golden-gate-metal-libraries/README.md)
+Revision r23, status product. [Recipe](../patches/golden-gate-metal-libraries/README.md)
 
 - 11 whole files from hao (row metallib_repairs_golden_gate), under `System/` (for example `Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/Resources/default.metallib`). The build's own library, already rewritten by cache/metallib (profiles/metallib-repairs-golden-gate.txt) so the HD 4000 compiler accepts it; installed whole, and only over the System library its SOURCES line names (or OCLP's copy on the same build). Listed by `patches.py explain golden-gate-metal-libraries`.
 - `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: whole file from hao (row metal_quad_runtime_golden_gate). OCLP's Intel shader runtime extended with the SIMD and quad helpers MPS and MetalFX kernels call (cache/metallib make runtime-build); installed whole.
@@ -236,7 +236,7 @@ Revision r22, status experiment. [Recipe](../patches/golden-gate-metal-libraries
 
 ## golden-gate-metal27
 
-Revision r5, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
+Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image (an on-disk root): tools/metal-adapter's stand-in, installed build; routes 27's in-process compiles to OCLP's 31001 and 3802. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
@@ -263,7 +263,7 @@ Revision r4, status experiment. [Recipe](../patches/golden-gate-root-launchservi
 
 ## golden-gate-shader-caches
 
-Revision r15, status experiment. [Recipe](../patches/golden-gate-shader-caches/README.md)
+Revision r16, status product. [Recipe](../patches/golden-gate-shader-caches/README.md)
 
 - 72 whole files from hao (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
 - 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Listed by `patches.py explain golden-gate-shader-caches`.
@@ -581,14 +581,14 @@ Revision r8, status experiment. [Recipe](../patches/hao-runtime-fold/README.md)
 
 ## metal-compiler-compat
 
-Revision r9, status experiment. [Recipe](../patches/metal-compiler-compat/README.md)
+Revision r10, status product. [Recipe](../patches/metal-compiler-compat/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: whole file from hao (row metal_compiler_compat). OCLP's legacy MTLCompilerService with a load command for libhaoMetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib`: whole file from hao (row metal_compiler_compat). New file: the shader repair library the service loads at startup. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## metal-metalold
 
-Revision r3, status unfinished. [Recipe](../patches/metal-metalold/README.md)
+Revision r4, status unfinished. [Recipe](../patches/metal-metalold/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`: from Apple macOS 13 · macOS 13.2.1 (22D68) Metal 306.3.5 (row metalold_22d68); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier. Installed mode 0755, owner root:wheel.
   1. `legacy-slice-for-any-device`: literal in __TEXT,__text, 12 bytes, `48 89 C3 48 85 C0 74 72 4D 85 E4 74` → `48 89 C3 48 85 C0 90 90 4D 85 E4 74` (`test rax,rax; je +0x72` → `test rax,rax; nop; nop`).
@@ -596,7 +596,7 @@ Revision r3, status unfinished. [Recipe](../patches/metal-metalold/README.md)
 
 ## metalold-selectors
 
-Revision r8, status product. [Recipe](../patches/metalold-selectors/README.md)
+Revision r9, status product. [Recipe](../patches/metalold-selectors/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metalold-selectors`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetalold-selectors.dylib.

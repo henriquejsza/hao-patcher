@@ -110,6 +110,7 @@ NEEDS VALIDATION: never installed as the system's Metal. The pieces passed on th
 (tools/metal-adapter r4); the installed builds passed the host replay (same requests as r4, silent).
 
 ## Revisions
+- r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`.
 - r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r4 2026-11-15 README: how to try it on a running image, at the level of commands; no file change.
 - r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.

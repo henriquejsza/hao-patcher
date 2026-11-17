@@ -1,17 +1,11 @@
 {
- "revision": 11,
+ "revision": 12,
  "pack": "metal-3802",
  "stage": "oclp-hook",
- "applies": {
-  "builds": [
-   "25G332",
-   "25G342"
-  ]
- },
  "inputs": [
   "live_text_framework"
  ],
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "files": [
   {
@@ -142,5 +136,6 @@
    },
    "source": "runtime/build.json"
   }
- ]
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": ["intel-ivb"], "firmware": "any"}
 }
