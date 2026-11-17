@@ -22,21 +22,21 @@ MacBook Pro.
 
 ## Install
 
-1. Get hao at the release tag:
+1. Get hao and the release's file list:
 
    ```sh
    git clone --branch v0.0.1 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/hao
+   curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json
    ```
 
 2. Plug in the USB drive and run:
 
    ```sh
-   ./hao create-installer --link-on-target
+   sudo ./hao create-installer --link-on-target
    ```
 
-   Choose the USB drive and confirm. This erases the drive; you may be asked for your password.
-   Today this step is still four commands (fetch, place, make-on-Mac, create-installer); [the developer
-   guide](building.md) lists them until `create-installer` does all four.
+   Choose the USB drive and confirm. This erases the drive. hao then downloads what the release lists, makes the parts
+   that must be made on this Mac, and writes the USB installer.
 3. On the MacBook Pro, hold Option at startup and choose **EFI Boot**. Expect a silent pause of several minutes
    before the Apple logo. In the Recovery, open Utilities > Terminal and run `/Volumes/HAO/install`.
 4. After the first start-up, run once:
@@ -64,5 +64,5 @@ To build hao and its kit yourself, follow [the developer guide](building.md):
 
 ```sh
 git clone https://github.com/lythka/hao-patcher && cd hao-patcher
-tools/hao/hao create-installer --link-on-target
+sudo tools/hao/hao create-installer --link-on-target
 ```
