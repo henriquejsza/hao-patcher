@@ -696,7 +696,7 @@ class Console:
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
                 grid.add_row(label, text)
-        parts = [Text(untouched)] if untouched else []
+        parts = [Text(untouched[:1].upper() + untouched[1:])] if untouched else []
         parts += [Text(''), grid] if parts else [grid]
         if x.options:
             todo = Table.grid(padding=(0, 2))

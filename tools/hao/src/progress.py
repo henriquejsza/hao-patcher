@@ -906,7 +906,9 @@ class Assembly:
                 self.bar.final_note = 'Done'
                 self.bar.end(None, timed=False)
             return
-        why = self.c.paint('bad', self.r.error[:56]) if self.r.error else ''
+        import console
+        room = max(20, self.c.width() - self.c.col() - 5) if self.c.animate else 56
+        why = self.c.paint('bad', console.fit(self.r.error, room)) if self.r.error else ''
         if self.task is None and self.c.at('steps'):
             # it stopped between lines (in a step that has no line of its own): mark that step
             import console
