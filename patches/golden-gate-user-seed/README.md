@@ -1,7 +1,7 @@
 # golden-gate-user-seed
 
 Gives every new account the seeded caches before its apps first need them: a launchd daemon runs
-`src/seed.zsh` (the earlier Tahoe image project's seed7, unchanged) as root at boot and whenever the local users folder changes, and for each account
+`src/seed.zsh` (the earlier Tahoe image project's seed7) as root at boot and whenever the local users folder changes, and for each account
 created less than 600 s ago copies what `PerUserSeed` holds into that account's cache folders. On its own it places
 nothing; the payloads come from the patches listed after it.
 
@@ -9,8 +9,23 @@ nothing; the payloads come from the patches listed after it.
 | Path | Content |
 |---|---|
 | `Library/LaunchDaemons/local.peruser-seed.plist` (root 644) | `/bin/zsh -c <seed.zsh>` (`src/plist.sh` escapes the script into the plist), WatchPaths the dslocal users folder, RunAtLoad, log `/private/var/log/peruser-seed.log` |
-| `Library/Application Support/PerUserSeed/` (root 700) | the seed folder |
+| `Library/Application Support/PerUserSeed/` (root 755) | the seed folder (readable: the account's own copy reads it) |
 | `.../PerUserSeed/build` | the System's ProductBuildVersion: seed.zsh places nothing on another build |
+
+## Who writes
+The daemon runs as root, but it never writes into an account's folders as root. Those folders belong to the account,
+so a link the account plants there could otherwise redirect a root write, chown or rename. Every step that writes
+there is a `*_as` function that `asuser` runs as the account (`sudo -u #uid`, uid 501 and up):
+- the LaunchServices store;
+- the icon index;
+- the font registry, including its sqlite3 update;
+- each Metal chunk;
+- the aerial still.
+
+The passd poke runs in the account's session as the account. Root still writes only its own folders: its records in
+`/private/var/db/peruser-seed`, and the wallpaper under `/private/var/db/Wallpapers` (root:wheel). It also still reads
+account folders and stops the account's `lsd`. `tests/test_as_account.py` runs the account path through a `sudo`
+stand-in and refuses a root-side function that writes.
 
 ## What seed.zsh places, from which patch
 | Payload | Into the new account | From |
@@ -44,6 +59,10 @@ account: `/private/var/log/peruser-seed.log` shows the icon index, the Metal tre
 the new uid before its desktop started.
 
 ## Validation
+NEEDS VALIDATION (r11): on an image with r11, a new account's first login shows these in /private/var/log/peruser-seed.log:
+"icon index placed", the font registry, "metal: N bundle trees placed" and "seeded". The placed folders are the
+account's (`ls -ln` in its `getconf DARWIN_USER_CACHE_DIR`), and the times are within the r5 laptop run's (account seen 2.3 s after
+creation, all placed before the first login). Host: `tests/test_as_account.py`.
 NEEDS VALIDATION (r6): a new account on an image with r6 has no `com.apple.metalfe` in its cache folder, and SceneKit
 in Preview draws a shaded scene. Host: the `place_chunk` test (fails on r5). r5 on the laptop:
 Laptop 2026-11-11, image 4d1c48c (26B131): seed.zsh saw the new account 2.3 s after creation and placed the icon index, font registry and 17 Metal trees before its first login.
@@ -52,6 +71,7 @@ placed trees (owner sessions 2026-11-06), not re-checked on 26B131.
 r5 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r4's, so the result above stands.
 
 ## Revisions
+- r12 2026-11-17 seed.zsh writes into an account's folders only as that account (`asuser`: `sudo -u #uid`), never as root; PerUserSeed is 755 so the account can read it. `tests/test_as_account.py` runs that path and refuses root-side writes.
 - r11 2026-11-17 Comments, README and tests name no private project or account; nothing it installs changes.
 - r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged.

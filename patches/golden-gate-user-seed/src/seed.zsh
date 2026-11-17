@@ -119,7 +119,21 @@ hms() { local t f=000; strftime -s t '%T' ${1%.*}; [[ $1 == *.* ]] && f=${${1#*.
 ms() { REPLY=$(( (EPOCHREALTIME - $1) * 1000 )); REPLY=${REPLY%.*} }        # ms since epoch[.frac] $1
 dsig() { local -a a f; zstat -A a +mtime "$USERS" 2>/dev/null; f=("$USERS"/*); REPLY="${a[1]:-0}:${#f}" }   # no fork
 nap() { zselect -t $1 2>/dev/null || : }                                       # $1 hundredths of a second, no fork
-own() { zf_chown -R "$1" "$2" }                                                # (the offline mock replaces this line)
+
+# Every write into an account's own folders (DARWIN_USER_DIR, DARWIN_USER_CACHE_DIR, its home) runs as that account,
+# never as root: the account owns those folders, so a link it plants there must not turn a root write, chown or
+# rename into one somewhere else. asuser runs one of the *_as functions below in `sudo -u #uid` zsh with this
+# script's helpers; its log lines go to the daemon's log (stderr), its result (if any) to stdout (fd 3 inside).
+ASFNS=(log hms ms nap ls_stage_as ls_swap_as is_place_as fonts_place_as chunk_place_as chunk_body_as bm_place_as)
+asuser() {   # $1 uid, $2 function, rest its arguments
+    local uid=$1 fn=$2; shift 2
+    [[ $uid == <-> ]] && (( uid >= 501 )) || { log "asuser: refused uid '$uid'"; return 1 }
+    sudo -u "#$uid" -- /bin/zsh -f -c "exec 3>&1 1>&2
+zmodload zsh/datetime && zmodload -F zsh/files b:zf_mv b:zf_rm b:zf_mkdir b:zf_chmod && zmodload -F zsh/stat b:zstat || exit 1
+SEED=${(q)SEED} LSN=${(q)LSN} BMSRC=${(q)BMSRC} FONTPH=${(q)FONTPH}
+$(functions $ASFNS)
+$fn \"\$@\"" seed "$@"
+}
 
 # ---- v7c: efilogin-helper re-enable (runs before the build gate) ---------------------------------------------------
 EFST=          # '' = nothing to do, wait = disabled and waiting for a new account's gui domain, done
@@ -231,6 +245,12 @@ bm_arm() {   # $1 uid $2 name: after the LS store of a new account is placed
     [[ $h == /* && -d $h ]] || { log "$2 ($1): home folder not found ('$h'); aerial still step skipped"; return 0 }
     BMST[$1]=wait; BMDL[$1]=$(( EPOCHREALTIME + BMWAIT )); BMHOME[$1]=$h; BMSIG[$1]=; BMSEEN[$1]=0; BMWHY[$1]="armed"
 }
+bm_place_as() {   # as the account: $1 cache dir $2 name. The still as $1/$2 (644), through a temp name
+    local X=$1 n=$2 e
+    if e=$(cp -c "$BMSRC" "$X/.$n.tmp" 2>&1 || cp "$BMSRC" "$X/.$n.tmp" 2>&1) && zf_chmod 644 "$X/.$n.tmp" &&
+       zf_mv "$X/.$n.tmp" "$X/$n"; then return 0; fi
+    zf_rm -f "$X/.$n.tmp"; log "aerial still: ${e//$'\n'/ }"; return 1
+}
 bm_end() { unset "BMST[$1]" "BMDL[$1]" "BMHOME[$1]" "BMSIG[$1]" "BMSEEN[$1]" "BMWHY[$1]" }
 bm_pass() {
     local uid u h V X n e
@@ -250,13 +270,12 @@ bm_pass() {
         [[ -d $X ]] || { BMWHY[$uid]="no cache dir $BMDIR (or not accessible)"; continue }
         f=("$X"/*.bmp(N))
         (( ${#f} )) && { log "$u ($uid): aerials cache already holds ${#f} .bmp (${f[1]:t}); left alone"; bm_end $uid; continue }
-        n=$("$BMNAME" "$V" 1280 800 0 2>&1)
+        n=$(sudo -u "#$uid" -- "$BMNAME" "$V" 1280 800 0 2>&1)
         [[ $n == [0-9a-f](#c64)-1280-800-0-[0-9a-f](#c16).bmp ]] || { log "$u ($uid): wpcache-name failed ($n); aerial still skipped"; bm_end $uid; continue }
-        if e=$(cp -c "$BMSRC" "$X/.$n.tmp" 2>&1 || cp "$BMSRC" "$X/.$n.tmp" 2>&1) &&
-           zf_chown "$uid:${UGID[$uid]}" "$X/.$n.tmp" && zf_chmod 644 "$X/.$n.tmp" && zf_mv "$X/.$n.tmp" "$X/$n"; then
+        if asuser $uid bm_place_as "$X" "$n"; then
             ms ${LSAT[$uid]}; log "$u ($uid): aerial still placed $BMDIR/$n (+$REPLY ms after the LS store; movie mtime ${st[mtime]})"
         else
-            zf_rm -f "$X/.$n.tmp"; log "$u ($uid): FAILED to place the aerial still in $X (${e//$'\n'/ })"
+            log "$u ($uid): FAILED to place the aerial still in $X"
         fi
         bm_end $uid
     done
@@ -266,22 +285,37 @@ metal_todo() {   # REPLY = number of <uid>.ls markers this run can still work on
     for m in $DONE/<->.ls; do [[ -n ${MFAIL[${${m:t}%.ls}]} ]] || (( ++REPLY )); done
 }
 
+ls_stage_as() {   # as the account: $1 name $2 D. ls/* cloned into D/com.apple.LaunchServices.dv as .NAME.tmp
+    local u=$1 V=${2}com.apple.LaunchServices.dv f
+    zf_mkdir -p "$V" && zf_chmod 700 "$V" || { log "$u: cannot create $V"; return 1 }
+    for f in "$SEED"/ls/*; do
+        zf_rm -f "$V/.${f:t}.tmp"
+        cp -c "$f" "$V/.${f:t}.tmp" && zf_chmod 600 "$V/.${f:t}.tmp" ||
+            { log "$u: FAILED to stage ${f:t}"; zf_rm -f "$V"/.*.tmp; return 1 }
+    done
+}
+ls_swap_as() {   # as the account: $1 name $2 D. The staged clones renamed into place
+    local u=$1 V=${2}com.apple.LaunchServices.dv f
+    for f in "$SEED"/ls/*; do zf_mv -f "$V/.${f:t}.tmp" "$V/${f:t}" || log "$u: FAILED to place ${f:t}"; done
+}
+is_place_as() {   # as the account: $1 name $2 C. The icon index into C/com.apple.iconservices (711, files 600)
+    local u=$1 I=${2}com.apple.iconservices f
+    zf_mkdir -p "$I" && zf_chmod 711 "$I" || { log "$u: cannot create $I"; return 1 }
+    for f in "$SEED"/is/*; do cp -c "$f" "$I/${f:t}" && zf_chmod 600 "$I/${f:t}"; done
+    log "$u: icon index placed"
+}
+
 # LS store placement + lsd check. $1 name $2 uid $3 gid $4 D. 0 placed, 1 failed (retry)
 place_ls() {
     local u=$1 uid=$2 gid=$3 D=$4 V f p r0 r1 t0 t1 st se k why
     local -a L0 L1
     V=${D}com.apple.LaunchServices.dv
-    zf_mkdir -p "$V" && zf_chown "$uid:$gid" "$V" && zf_chmod 700 "$V" || { log "$u: cannot create $V"; return 1 }
-    for f in "$SEED"/ls/*; do   # clones first, so the swap-in is only renames
-        zf_rm -f "$V/.${f:t}.tmp"
-        cp -c "$f" "$V/.${f:t}.tmp" && zf_chown "$uid:$gid" "$V/.${f:t}.tmp" && zf_chmod 600 "$V/.${f:t}.tmp" ||
-            { log "$u: FAILED to stage ${f:t}"; zf_rm -f "$V"/.*.tmp; return 1 }
-    done
+    asuser $uid ls_stage_as "$u" "$D" || return 1   # clones first, so the swap-in is only renames
     [[ -e $V/$LSN ]] && log "$u: $LSN already exists before placement (an lsd saved first); replacing it"
     L0=($(pgrep -u "$uid" -x lsd))
     /usr/bin/true & r0=$!
     t0=$EPOCHREALTIME
-    for f in "$SEED"/ls/*; do zf_mv -f "$V/.${f:t}.tmp" "$V/${f:t}" || log "$u: FAILED to place ${f:t}"; done
+    asuser $uid ls_swap_as "$u" "$D"
     t1=$EPOCHREALTIME
     /usr/bin/true & r1=$!
     L1=($(pgrep -u "$uid" -x lsd))
@@ -309,8 +343,9 @@ place_ls() {
 # cache/font-registry's placeholder in fontd's "not seen yet" state; sqlite3 writes this account's <home>/Library/Fonts
 # there (an UPDATE fires none of fontd's triggers). Never over a folder fontd made first.
 FONTPH=/var/empty/Library/Fonts
-place_fonts() {   # $1 name $2 uid $3 gid $4 C
-    local u=$1 uid=$2 gid=$3 C=$4 R S h e
+place_fonts() { asuser $2 fonts_place_as "$1" "$4" }   # $1 name $2 uid $3 gid $4 C
+fonts_place_as() {   # as the account: $1 name $2 C
+    local u=$1 C=$2 R S h e
     R=${C}com.apple.FontRegistry; S=${C}.peruser-seed.fonts
     [[ -s "$SEED/fonts/fontregistry.user" ]] || { log "$u: no font registry in the payload; font step skipped"; return 0 }
     [[ -e $R ]] && { log "$u: $R exists already (fontd first); left alone"; return 0 }
@@ -320,7 +355,7 @@ place_fonts() {   # $1 name $2 uid $3 gid $4 C
     if zf_mkdir -m 700 "$S" && cp -c "$SEED/fonts/fontregistry.user" "$S/fontregistry.user" &&
        e=$(/usr/bin/sqlite3 "$S/fontregistry.user" "UPDATE dir_table SET path_column = '${h//\'/''}/Library/Fonts' WHERE domain_column = 1 AND path_column = '$FONTPH'; PRAGMA wal_checkpoint(TRUNCATE);" 2>&1) &&
        zf_rm -f "$S/fontregistry.user-wal" "$S/fontregistry.user-shm" &&
-       zf_chmod 644 "$S/fontregistry.user" && own "$uid:$gid" "$S" && [[ ! -e $R ]] && zf_mv "$S" "$R"; then
+       zf_chmod 644 "$S/fontregistry.user" && [[ ! -e $R ]] && zf_mv "$S" "$R"; then
         if [[ -e $R/${S:t} ]]; then zf_rm -rf "$R/${S:t}"; log "$u: fontd made $R during the copy; left alone"   # mv went inside
         else log "$u: font registry placed (user font folder $h/Library/Fonts)"; fi
     else
@@ -357,10 +392,7 @@ try_ls() {
     if [[ -s "$SEED/ls/$LSN" ]]; then place_ls "$u" "$uid" "$gid" "$D" || return 1
     else LSAT[$uid]=$EPOCHREALTIME; log "$u: no LS store in the payload (BETA7: empty); LS step skipped"; fi
     if [[ -s "$SEED/is/store.index" && -s "$SEED/is/__cache_info__" ]]; then
-        I=${C}com.apple.iconservices
-        zf_mkdir -p "$I" && zf_chown "$uid:$gid" "$I" && zf_chmod 711 "$I"
-        for f in "$SEED"/is/*; do cp -c "$f" "$I/${f:t}" && zf_chown "$uid:$gid" "$I/${f:t}" && zf_chmod 600 "$I/${f:t}"; done
-        log "$u: icon index placed"
+        asuser $uid is_place_as "$u" "$C"
     else
         log "$u: no icon index in the payload; icon step skipped"
     fi
@@ -414,7 +446,7 @@ pk_chain() {   # $1 uid, in the background: prints "gui <epoch>" once Apple's pa
     print -r -- "gui $EPOCHREALTIME"
     e=$(( EPOCHREALTIME + PKHOLD ))
     while (( EPOCHREALTIME < e )); do
-        n+=1; r=$(launchctl asuser $uid "$POKE" $POKESVC $PKWAITS 2>&1)
+        n+=1; r=$(launchctl asuser $uid sudo -u "#$uid" -- "$POKE" $POKESVC $PKWAITS 2>&1)   # in its session, as the account
         [[ $r == *timeout* ]] || { print -r -- "poke $n: $r"; return 0 }
     done
     print -r -- "poke $n: $r"; return 3
@@ -480,8 +512,20 @@ pk_pass() {
 }
 
 # ---- phase 2: Metal trees for every account whose LS store is placed but that has no final marker ------------------
-place_chunk() {   # $1 u $2 uid $3 gid $4 C $5 metal start, rest = tree names. Sets NB NS (placed / kept counters)
-    local u=$1 uid=$2 gid=$3 C=$4 t0=$5 n S; shift 5
+place_chunk() {   # $1 u $2 uid $3 gid $4 C $5 metal start, rest = tree names. Adds to NB NS KEPT (placed / kept)
+    local r rc; local -a w
+    r=$(asuser $2 chunk_place_as "$1" "$4" "$5" "${@:6}"); rc=$?
+    w=(${=r}); (( NB += ${w[1]:-0}, NS += ${w[2]:-0} )); KEPT+=(${w[3,-1]})
+    return rc
+}
+chunk_place_as() {   # as the account: $1 u $2 C $3 metal start, rest = tree names. Prints "NB NS KEPT..." on fd 3
+    local NB=0 NS=0 rc; local -a KEPT
+    chunk_body_as "$@"; rc=$?
+    print -u3 -r -- "$NB $NS ${KEPT[*]}"
+    return rc
+}
+chunk_body_as() {
+    local u=$1 C=$2 t0=$3 n S; shift 3
     local -a todo src
     for n in "$@"; do
         if [[ -e $C$n ]]; then (( ++NS )); KEPT+=($n); else todo+=($n); src+=("$SEED/metal/$n"); fi
@@ -496,9 +540,6 @@ place_chunk() {   # $1 u $2 uid $3 gid $4 C $5 metal start, rest = tree names. S
     # artifacts carry them; cache/seeds r2 leaves them out.
     local -a fe; fe=("$S"/**/com.apple.metalfe(N/))
     (( ${#fe} )) && { zf_rm -rf "${fe[@]}"; log "$u: left out ${#fe} com.apple.metalfe tree(s)" }
-    if ! own "$uid:$gid" "$S"; then
-        log "$u: FAILED to own metal chunk (${todo[*]})"; zf_rm -rf "$S"; return 1
-    fi
     local -a i0 i1 i2
     for n in $todo; do
         if [[ -e $C$n ]]; then (( ++NS )); KEPT+=($n); continue; fi     # appeared during the copy: keep the app's

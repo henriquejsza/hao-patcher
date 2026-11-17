@@ -315,7 +315,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 ## golden-gate-user-seed
 
-Revision r11, status experiment. [Recipe](../patches/golden-gate-user-seed/README.md)
+Revision r12, status experiment. [Recipe](../patches/golden-gate-user-seed/README.md)
 
 - `Library/LaunchDaemons/local.peruser-seed.plist`: whole file from hao. Launchd daemon made at install by src/plist.sh, which escapes src/seed.zsh into the plist (root 644): places the seeded caches into each new account.
 - `Library/Application Support/PerUserSeed/build`: whole file from hao. The System's ProductBuildVersion written at install (root 644): seed.zsh places nothing on another build.
