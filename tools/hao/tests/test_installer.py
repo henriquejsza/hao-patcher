@@ -220,7 +220,7 @@ class GenericImageTest(unittest.TestCase):
             self.assertEqual(INST.create_installer(a, c, host), 0)
         text = out.getvalue()
         self.assertIn('    1  MacBookPro9,2', text)
-        self.assertIn('4  Another Intel Mac or a virtual machine: the generic image: software graphics', text)
+        self.assertIn('4  A virtual machine or a non-Apple PC (not a Mac): the generic image: software graphics', text)
         self.assertEqual((a.image_profile, a.assembly), ('generic', 'generic-26B131'))
         self.assertEqual(a.release_view['profile'], 'generic')
         self.assertIn('2 files, 13 B', text)             # the shared download and the generic asset, not the 9,2's
@@ -266,15 +266,19 @@ class GenericImageTest(unittest.TestCase):
         mini = dict(model='Macmini6,2', board=b'Mac-F65AE981FFA204ED\0')
         with TwoProfiles() as r:
             c, out, _ = console(['2', '2', '1'])         # This Mac, yes the generic image, the first stick
-            a = ns(release=str(r.path), cache=str(r.cache))
+            a = ns(release=str(r.path), cache=str(r.cache), unproven=True)     # a Mac: only with --unproven
             self.assertEqual(INST.create_installer(a, c, FakeMac(**mini)), 0)
             self.assertIn('This Mac (Macmini6,2) is not a model this release can install on', out.getvalue())
             self.assertEqual((a.image_profile, a.assembly, a.profile_data['model']),
                              ('generic', 'generic-26B131', 'Macmini6,2'))
             c, _, _ = console(['2', ''])                 # This Mac, then Return: the default is to stop
             with self.assertRaises(CON.Stopped) as x:
-                INST.create_installer(ns(release=str(r.path), cache=str(r.cache)), c, FakeMac(**mini))
+                INST.create_installer(ns(release=str(r.path), cache=str(r.cache), unproven=True), c, FakeMac(**mini))
             self.assertIn('not one this release can install on', x.exception.what)
+            c, out, _ = console(['2'])                   # without --unproven a Mac is not offered the generic image
+            with self.assertRaises(CON.Stopped) as x:
+                INST.create_installer(ns(release=str(r.path), cache=str(r.cache)), c, FakeMac(**mini))
+            self.assertNotIn('Make the generic image', out.getvalue())
 
     def test_a_release_without_the_profile_refuses_it(self):
         with Release() as r, GenericTree():

@@ -335,10 +335,17 @@ def proof_gate(a, c, profile, command):
     reasons = unproven(profile) if command in GATED else []
     image = getattr(a, 'image_profile', None)
     if command in GATED and image and is_generic_target(profile.get('target')):
-        # the generic image, chosen by name (--profile generic or its question): software graphics on a Mac hao has
-        # not proven. The choice is the consent; the install record and the stick's launcher keep it as unproven.
-        reasons = ['the generic image %s (software graphics) on %s, a Mac hao has not proven'
-                   % (image, profile.get('model'))] + reasons
+        # the generic image, chosen by name (--profile generic or its question), is for virtual machines and non-Apple
+        # PCs (its VirtualSMC conflicts with a Mac's SMC): for a Mac (Apple firmware, or a Mac model named) it needs
+        # --unproven. Otherwise the choice is the consent; the install record and the stick's launcher keep it.
+        if (profile.get('firmware_vendor') or '').startswith('Apple') or getattr(a, 'model', None):
+            if not getattr(a, 'unproven', False):
+                raise Stopped('the generic image is for virtual machines and non-Apple PCs, not a Mac',
+                              why=GENERIC_LINE, code=5, untouched='nothing was downloaded or written',
+                              options=['choose your Mac model instead', 'or add --unproven to make it anyway (kept in '
+                                       'the install record)'])
+        reasons = ['the generic image %s (software graphics) for %s, not a proven Mac'
+                   % (image, profile.get('model') or 'a virtual machine or non-Apple PC')] + reasons
         a.unproven_reasons = reasons
         c.event('unproven', reasons=reasons, allowed=True, image_profile=image)
         c.warning('making the generic image (software graphics, a test baseline): %s' % '; '.join(reasons))
@@ -363,8 +370,9 @@ def proof_gate(a, c, profile, command):
     raise Stopped('%s is not a Mac hao has proven' % profile.get('model'), why='; '.join(reasons), code=5,
                   untouched='nothing was downloaded or written',
                   options=['use a proven Mac (hao detect shows what it finds)'] + (
-                      ['or make the generic image instead (software graphics, a test baseline): the same command '
-                       'with --profile %s' % a.generic_offer] if getattr(a, 'generic_offer', None) else []) +
+                      ['or make the generic image (software graphics, a test baseline; for a Mac only with '
+                       '--unproven): the same command with --profile %s --unproven' % a.generic_offer]
+                      if getattr(a, 'generic_offer', None) else []) +
                           ['or, to try it anyway, run the same command with --unproven: the install record keeps it'])
 
 

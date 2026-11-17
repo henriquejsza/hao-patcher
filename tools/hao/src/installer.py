@@ -109,7 +109,7 @@ def proven_models(release):
     return out
 
 
-GENERIC_LABEL = 'the generic image: software graphics, no GPU acceleration; a test baseline, not proven on this Mac'
+GENERIC_LABEL = 'the generic image: software graphics, no GPU acceleration; a test baseline'
 
 
 def ask_mac(a, c, host, release):
@@ -129,7 +129,7 @@ def ask_mac(a, c, host, release):
     choices.append(('Another Mac, described by a profile file (`hao detect --out mac.json` run on that Mac)',
                     ('profile', None)))
     if a.generic_offer:
-        choices.append(('Another Intel Mac or a virtual machine: ' + GENERIC_LABEL, ('generic', a.generic_offer)))
+        choices.append(('A virtual machine or a non-Apple PC (not a Mac): ' + GENERIC_LABEL, ('generic', a.generic_offer)))
     kind, model = choose(c, 'mac', 'Which Mac is the installer for?  (its Model Identifier: Apple menu > About This '
                                    'Mac > More Info > System Report)', choices)
     if kind == 'model':
@@ -139,9 +139,10 @@ def ask_mac(a, c, host, release):
     elif kind == 'detect':
         profile = DETECT.profile(DETECT.facts(host))
         profile['target'], _ = DETECT.target_for_model(profile['model'])
-        if not profile['target'] and a.generic_offer:
+        if not profile['target'] and a.generic_offer and getattr(a, 'unproven', False):
+            # the generic image is for virtual machines and non-Apple PCs; on a Mac only with --unproven
             pick = choose(c, 'generic', 'This Mac (%s) is not a model this release can install on. Make the generic '
-                                        'image for it instead?' % profile['model'],
+                                        'image (for virtual machines and non-Apple PCs) for it anyway?' % profile['model'],
                           [('No, stop here', 'stop'), ('Yes, ' + GENERIC_LABEL, 'generic')])
             if pick == 'generic':
                 a.profile_data, a.profile = profile, a.generic_offer

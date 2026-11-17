@@ -393,6 +393,10 @@ class ImageProfileTest(unittest.TestCase):
             a = ns(profile='generic')
             a.profile_data = dict(DETECT.profile(DETECT.facts(FakeMac(model='Macmini6,2', board=b'Mac-F65AE981FFA204ED\0'))),
                                   target=None)
+            with self.assertRaises(CON.Stopped) as x:                            # a Mac: not without --unproven
+                BUILD.resolve(a, c, 'create-installer')
+            self.assertIn('not a Mac', x.exception.what)
+            a.unproven = True
             profile, path, _, _ = BUILD.resolve(a, c, 'create-installer')
             self.assertEqual((profile['model'], profile['target'], profile['packs']), ('Macmini6,2', 'generic', ['base']))
             self.assertIn('Macmini6,2', a.unproven_reasons[0])
