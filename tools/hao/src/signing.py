@@ -29,6 +29,10 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 KEYS = HERE.parent / 'data' / 'release-keys.pub'
+# a candidate cut's hao (release-cut --candidate) also carries this: the "hao-candidate (not a release key)" key, so
+# benches can test a cut before the owner signs it. It is never in the repository; a final cut has release-keys.pub only.
+CANDIDATE_KEYS = HERE.parent / 'data' / 'candidate-keys.pub'
+CANDIDATE = ' (CANDIDATE key, not a release key)'
 SIG_LIMIT = 4096
 RELEASE_LIMIT = 16 << 20
 
@@ -273,8 +277,23 @@ def parse_keys(text):
     return keys
 
 
-def load_keys(path=None):
-    path = path or KEYS
+def load_keys(path=None, candidates=None):
+    """{key blob: fingerprint} of the release keys (PATH, default data/release-keys.pub) and, in a candidate build, the
+    candidate keys (data/candidate-keys.pub, when present; their fingerprint carries CANDIDATE). An explicit PATH
+    (--keys) is used alone."""
+    keys = {}
+    if path is None:
+        try:
+            keys.update(parse_keys(Path(KEYS).read_text()))
+        except OSError:
+            pass
+        cand = Path(candidates or CANDIDATE_KEYS)
+        if cand.is_file():
+            for blob, fp in parse_keys(cand.read_text()).items():
+                keys.setdefault(blob, fp + CANDIDATE)
+        if not keys:
+            raise SignatureError('this hao carries no release key (%s is missing or empty)' % KEYS)
+        return keys
     try:
         text = Path(path).read_text()
     except OSError:
@@ -283,6 +302,11 @@ def load_keys(path=None):
     if not keys:
         raise SignatureError('this hao carries no release key (%s is empty)' % path)
     return keys
+
+
+def is_candidate(fingerprint):
+    """Whether a fingerprint verify() returned is a candidate key's."""
+    return isinstance(fingerprint, str) and fingerprint.endswith(CANDIDATE)
 
 
 def armored(text):

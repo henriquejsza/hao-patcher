@@ -245,6 +245,78 @@ class RealDrive(unittest.TestCase):
             self.assertIn(('drive', 'FAIL'), states(RC.check_drive(top, KEYS, STICK)))
 
 
+class Candidate(unittest.TestCase):
+    """Candidate cuts are signed with the candidate key: trusted only by a hao that carries candidate-keys.pub
+    (release-cut --candidate writes it into the cut); a final build has release-keys.pub only and refuses them."""
+    def setUp(self):
+        self.d = tempfile.TemporaryDirectory()
+        self.addCleanup(self.d.cleanup)
+        d = Path(self.d.name)
+        self.release_pub, _ = sshsig_files(b'\41' * 32, b'')
+        self.candidate_pub, _ = sshsig_files(b'\42' * 32, b'')
+        (d / 'release-keys.pub').write_text(self.release_pub)
+        (d / 'candidate-keys.pub').write_text(self.candidate_pub)
+        self.data = json.dumps({'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'hao_patcher': COMMIT}).encode()
+        self.sig = sshsig_files(b'\42' * 32, self.data)[1]
+
+    def keys(self, candidate):
+        d = Path(self.d.name)
+        real = SIGN.KEYS, SIGN.CANDIDATE_KEYS
+        SIGN.KEYS, SIGN.CANDIDATE_KEYS = d / 'release-keys.pub', d / ('candidate-keys.pub' if candidate else 'none')
+        try:
+            return SIGN.load_keys()
+        finally:
+            SIGN.KEYS, SIGN.CANDIDATE_KEYS = real
+
+    def test_a_final_build_refuses_a_candidate_signed_release(self):
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.verify(self.data, self.sig, self.keys(candidate=False))
+
+    def test_a_candidate_build_accepts_it_and_says_so(self):
+        fp, _ = SIGN.verify(self.data, self.sig, self.keys(candidate=True))
+        self.assertTrue(SIGN.is_candidate(fp))
+        release_sig = sshsig_files(b'\41' * 32, self.data)[1]
+        self.assertFalse(SIGN.is_candidate(SIGN.verify(self.data, release_sig, self.keys(candidate=True))[0]))
+
+    def test_verify_release_prints_candidate(self):
+        hao = runpy.run_path(str(TOOL / 'hao'), run_name='hao_module')
+        import console as CON
+        d = Path(self.d.name)
+        with tempfile.TemporaryDirectory() as rel:
+            f = Path(rel)
+            (f / 'release.json').write_bytes(self.data)
+            (f / 'release.json.sig').write_text(self.sig)
+            real = SIGN.KEYS, SIGN.CANDIDATE_KEYS
+            SIGN.KEYS, SIGN.CANDIDATE_KEYS = d / 'release-keys.pub', d / 'candidate-keys.pub'
+            out = io.StringIO()
+            try:
+                c = CON.Console('steps', out=out, err=out, env={})
+                hao['cmd_verify_release'](argparse.Namespace(target=str(f), cache=None, offline=True, keys=None), c)
+            finally:
+                SIGN.KEYS, SIGN.CANDIDATE_KEYS = real
+        self.assertIn('CANDIDATE, not a release', out.getvalue())
+
+    def test_a_checkouts_drive_gets_the_candidate_key(self):
+        import subprocess
+        import stick as STICK
+        with tempfile.TemporaryDirectory() as d:
+            top = Path(d)
+            (top / 'tools/hao/data').mkdir(parents=True)
+            (top / 'tools/hao/hao').write_text('x')
+            run = lambda *a: subprocess.run(['/usr/bin/git', '-C', d] + list(a), capture_output=True, check=True)  # noqa
+            run('init', '-q')
+            run('add', 'tools/hao/hao')
+            self.assertNotIn('tools/hao/data/candidate-keys.pub', STICK.hao_files(top))
+            (top / 'tools/hao/data/candidate-keys.pub').write_text(self.candidate_pub)
+            self.assertIn('tools/hao/data/candidate-keys.pub', STICK.hao_files(top))
+
+    @unittest.skipUnless((TOOL.parents[1] / '.git').exists(), 'not a checkout')
+    def test_the_repository_never_carries_candidate_keys(self):
+        r = __import__('subprocess').run(['/usr/bin/git', '-C', str(TOOL.parents[1]), 'ls-files',
+                                          'tools/hao/data/candidate-keys.pub'], capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), '')
+
+
 class Command(unittest.TestCase):
     def run_cmd(self, target, opener=None, offline=True):
         hao = runpy.run_path(str(TOOL / 'hao'), run_name='hao_module')

@@ -41,7 +41,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-userspace | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03-ae09c83d: the same objects (same r |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
-| hao-command | r9 | post | product |  | x |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| hao-command | r10 | post | product |  | x |  |  |  | **needs** | r10 2026-11-17 a candidate build's tools/hao/data/candidate-keys.pub is staged with hao (never tracked; releas |
 | hao-opencore | r78 | post | product |  | x | x |  |  | **needs** | r78 2026-11-17 Reasons for the generic image's run-efi-updater (Add No, and its Delete), from the QEMU referen |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
