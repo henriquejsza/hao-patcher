@@ -254,7 +254,7 @@ toolchain.
 - `dbg.py`/`dbg2.py`: capture / replace compute IGIL with lldb; `bt-render.py`: crash backtrace; `ids.py`: intrinsic
   ids from `IGILair_ldst_handling`; `dumpval.py`: raw words of an `llvm::Value` at an address; `annotate.py`: label
   selector refs in `otool -tV` output.
-- Wrapper switches (harness only, the environment does not reach the target's MTLCompilerService):
+- Wrapper switches, only in a wrapper built with `make --diagnostics` (the installed one reads none of them):
   `ICBE_WRAP_DUMP_DIR` (every IGIL program in/out), `ICBE_WRAP_INJECT_DIR` (replace a program by `DIR/NAME.igil`),
   `ARGBUF_IR_DUMP_DIR` (AIR before/after the hook), `ARGBUF_LLVM_OPTIONS` (e.g. `-print-after-all`),
   `ARGBUF_AIR_DISABLE`, `ARGBUF_TTE_DISABLE`.

@@ -1,5 +1,5 @@
 # run-wrap.py LIB FN OUT: compile compute function FN through the wrapped runtime (ARGBUF_RT_WRAP); with
-# ICBE_WRAP_DUMP=FILE the rewritten IGIL is saved
+# ICBE_WRAP_DUMP=FILE the rewritten IGIL is saved (a wrapper built with make --diagnostics)
 import os,sys,subprocess,shlex
 from pathlib import Path
 REPO=Path(__file__).resolve().parents[3]

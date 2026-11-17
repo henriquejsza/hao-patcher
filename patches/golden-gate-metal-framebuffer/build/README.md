@@ -38,7 +38,7 @@ Process-local probe controls:
   regression (attachment 0, RGBA32Float).
 - `FB_PROBE_SUBRESOURCE=mip` or `slice` renders into mip 1 or array slice 2 (single sample).
 
-`METAL_FRAMEBUFFER_LLVM` overrides the path of the LLVM library used for lowering.
+Lowering always uses the legacy stack's own `libLLVM.dylib` (GPUCompiler 32023); no environment variable changes it.
 
 ## Inputs and outputs
 

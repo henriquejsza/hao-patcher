@@ -69,9 +69,9 @@
    "result": "identical"
   },
   "metal_argbuf": {
-   "artifact": "metal-argbuf-26B131-20261115-d9fa28e7",
+   "artifact": "metal-argbuf-26B131-20261117-fe579412",
    "repo": "hao-patcher",
-   "commit": "d9fa28e7",
+   "commit": "fe579412",
    "result": "identical",
    "command": "tools/metal-argbuf/make OUT --icbe ICBE_REAL (iCBE-real.dylib is made on the Mac)",
    "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
@@ -123,9 +123,9 @@
    "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
   },
   "metal_framebuffer": {
-   "artifact": "metal-framebuffer-26B131-20261116-2845387bf09a",
+   "artifact": "metal-framebuffer-26B131-20261117-be8c1574",
    "repo": "hao-patcher",
-   "commit": "789a8c7d",
+   "commit": "fe579412",
    "result": "identical",
    "command": "patches/golden-gate-metal-framebuffer/build/metal-framebuffer build OUT",
    "toolchain": "Xcode 27.2 (27B52), python3.14 -I"

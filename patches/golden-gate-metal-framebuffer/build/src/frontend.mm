@@ -30,9 +30,8 @@ static std::once_flag llvmOnce;
 static std::string llvmError;
 static char variantsKey;
 static void loadLLVM() {
-    // FB_LLVM is a harness override. Installed use resolves the stack's own library.
-    const char *path=getenv("METAL_FRAMEBUFFER_LLVM");
-    if(!path)path="/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/32023/Libraries/libLLVM.dylib";
+    // Always the legacy stack's own library: no path from the environment.
+    const char *path="/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/32023/Libraries/libLLVM.dylib";
     void *h=dlopen(path,RTLD_NOW|RTLD_LOCAL);
     if(!h) {llvmError=dlerror();return;}
 #define LOAD(ret,name,args) L##name=(ret(*)args)dlsym(h,"LLVM" #name); if(!L##name)llvmError="Missing LLVM" #name;

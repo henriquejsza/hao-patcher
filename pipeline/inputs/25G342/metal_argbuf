@@ -6,5 +6,7 @@
 # MSAA stencil emulated; diag#0002 Weather precipitation). iCBE.dylib and iCBE-real are those of the d9cff656 folder.
 # d9fa28e7 (fix 26c6afc6): the texture and pipeline factory hooks return their +1 result without retaining it again
 # (textures and pipelines were never freed). Only libargbuf changes; tools at d9fa28e7.
+# fe579412: the wrapper reads no path from the environment (dump/replace switches only in a make --diagnostics build); a full
+# make at fe579412, whose libargbuf is the d9fa28e7 bytes (60ca7435), so only iCBE.dylib changes.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
-9de1894592e3f4699d77c033b37aef7fa175b9d609d0c03f3f291662949492af store/artifacts/metal-argbuf-26B131-20261115-d9fa28e7
+d58767059a403da8a858e379768ad0ef549febee567d81a22add992210c59306 store/artifacts/metal-argbuf-26B131-20261117-fe579412

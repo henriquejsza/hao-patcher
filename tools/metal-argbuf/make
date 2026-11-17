@@ -1,5 +1,5 @@
 #!/bin/bash
-# make OUT --icbe ORIGINAL_ICBE [--runtime STOCK_REPLAY_RUNTIME] [--driver ORIGINAL_MTL_DRIVER]
+# make OUT --icbe ORIGINAL_ICBE [--runtime STOCK_REPLAY_RUNTIME] [--driver ORIGINAL_MTL_DRIVER] [--diagnostics]
 #
 # Builds everything in this tool into the new folder OUT:
 #   OUT/igil_tool                 host build of the IGIL rewrite (tests, inspecting a rewrite)
@@ -11,20 +11,23 @@
 #   OUT/rt-wrap                   with --runtime: a replay runtime whose dl/iCBE.dylib is the wrapper
 #   OUT/AppleIntelHD4000GraphicsMTLDriver  with --driver: that driver binary plus LC_LOAD_WEAK_DYLIB of libargbuf
 #                                 (installed beside it in the MTL driver bundle's Contents/MacOS)
-# Everything x86_64 is ad hoc signed. Nothing is run.
+# Everything x86_64 is ad hoc signed. Nothing is run. --diagnostics builds a wrapper that also honours the harness
+# switches (ICBE_WRAP_*, ARGBUF_IR_DUMP_DIR, ARGBUF_LLVM_OPTIONS); it is never installed (row metal_argbuf pins the
+# release bytes).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
-out= icbe= rt= drv=
+out= icbe= rt= drv= diag=()
 while (($#)); do
     case $1 in
     --icbe) icbe=$2; shift 2 ;;
     --runtime) rt=$2; shift 2 ;;
     --driver) drv=$2; shift 2 ;;
+    --diagnostics) diag=(-DARGBUF_DIAGNOSTICS=1); shift ;;
     -*) echo "unknown option $1" >&2; exit 2 ;;
     *) out=$1; shift ;;
     esac
 done
-[[ -n $out && -n $icbe ]] || { sed -n 2,15p "$0" >&2; exit 2; }
+[[ -n $out && -n $icbe ]] || { sed -n 2,18p "$0" >&2; exit 2; }
 [[ -e $out ]] && { echo "$out exists; give a new folder" >&2; exit 2; }
 [[ -f $icbe ]] || { echo "no file $icbe" >&2; exit 2; }
 mkdir -p "$out/probes" "$out/kernels"; out=$(cd "$out" && pwd)
@@ -36,7 +39,7 @@ src=$here/src
 clang -O1 -Wall -Wextra "$src/compiler/igil_rewrite.c" "$src/compiler/igil_tool.c" -o "$out/igil_tool"
 
 cp "$icbe" "$out/iCBE-real.dylib"
-clang "${X86[@]}" -O1 -Wall -dynamiclib "$src/compiler/icbe_wrap.c" "$src/compiler/igil_rewrite.c" \
+clang "${X86[@]}" ${diag[@]+"${diag[@]}"} -O1 -Wall -dynamiclib "$src/compiler/icbe_wrap.c" "$src/compiler/igil_rewrite.c" \
     "$src/compiler/air_hook.c" "$src/compiler/air_pass.c" \
     -Wl,-not_for_dyld_shared_cache -Wl,-reexport_library,"$out/iCBE-real.dylib" -install_name "$T/iCBE.dylib" -o "$out/iCBE.dylib"
 old=$(otool -l "$out/iCBE.dylib" | grep -A2 LC_REEXPORT_DYLIB | awk '/name/{print $2}')

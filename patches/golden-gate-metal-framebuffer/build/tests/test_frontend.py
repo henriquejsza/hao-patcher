@@ -43,7 +43,7 @@ class Frontend(unittest.TestCase):
             (work/'cache').mkdir()
             for label, live in [('original', False), ('cold', True), ('warm', True)]:
                 out = work/label; out.mkdir()
-                extra = {'METAL_FRAMEBUFFER_LLVM': '/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/32023/Libraries/libLLVM.dylib'}
+                extra = {}
                 if live: extra['FB_LIVE'] = '1'
                 env = harness.env(str(runtime), None, str(work/'cache'), str(out), extra=extra)
                 run = subprocess.run([str(executable), *harness.cmd(str(runtime))[1:], str(jobs), '', 'render'],

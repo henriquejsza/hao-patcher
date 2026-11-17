@@ -54,6 +54,7 @@ Wi-Fi symbol correctly, and Setup renders with it installed. The full desktop
 remain open. Nothing has been checked on 26B131.
 
 ## Revisions
+- r13 2026-11-17 Row `metal_framebuffer`: lowering always uses the stack's own libLLVM (no environment override). Same command at fe579412, same bytes.
 - r12 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r10 2026-11-16 Rows `metal_framebuffer` are the 2845387b build of the current source, which the same command reproduces byte for byte; against f8ff3547 only internal argument and variable names differ.

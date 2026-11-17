@@ -30,8 +30,8 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-launchd-warm | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-live-text-service | r7 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-live-text-shared | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | live_text_framework 69126df9 framework (hao-patcher f479d6c7) |
-| golden-gate-metal-argbuf | r8 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_argbuf 9de18945 metal-argbuf-26B131-20261115-d9fa28e7 (hao-patcher d9fa28e7) |
-| golden-gate-metal-framebuffer | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 6dba1ab6 metal-framebuffer-26B131-20261116-2845387bf09a (hao-patcher 789a8c7d) |
+| golden-gate-metal-argbuf | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | metal_argbuf d5876705 metal-argbuf-26B131-20261117-fe579412 (hao-patcher fe579412) |
+| golden-gate-metal-framebuffer | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 107a877d metal-framebuffer-26B131-20261117-be8c1574 (hao-patcher fe579412) |
 | golden-gate-metal-libraries | r23 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
 | golden-gate-metal27 | r6 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
 | golden-gate-model-gates-mbp92 | r1 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate-26B131 | - |
@@ -140,12 +140,12 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `usr/lib/hao-live-text/libLiveTextPolicy.dylib`: from hao (row live_text_framework)
   - `usr/lib/hao-live-text/libhao_input_coherence.dylib`: from hao (row live_text_framework)
   - `usr/lib/hao-live-text/build.json`: from hao (row live_text_framework)
-- **golden-gate-metal-argbuf** r8
+- **golden-gate-metal-argbuf** r9
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: from hao (row metal_argbuf)
   - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from hao (row metal_argbuf)
   - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: from hao (row metal_argbuf)
-- **golden-gate-metal-framebuffer** r12
+- **golden-gate-metal-framebuffer** r13
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `usr/lib/libmetal-framebuffer.dylib`: from hao (row metal_framebuffer)
 - **golden-gate-metal-libraries** r23
@@ -415,9 +415,9 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | kernel_repair_efi | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* |
 | libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 | 9c273f39 |
 | live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9 | 69126df9 |
-| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945 | 9de18945 | 9de18945 | 9de18945 |
+| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945* | 9de18945* | 9de18945* | 9de18945* |
 | metal_compiler_compat | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | e4780509 | e4780509 |
-| metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6 | 6dba1ab6 |
+| metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6* | 6dba1ab6* |
 | metal_quad_runtime_golden_gate | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 |
 | metallib_repairs_golden_gate | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 |
 | metalold_selectors | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 |
@@ -494,8 +494,8 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-launchd-warm r6 is newer than every image built with it (newest r3).
 - golden-gate-live-text-service r7 is newer than every image built with it (newest r5).
 - golden-gate-live-text-shared r12 is newer than every image built with it (newest r10).
-- golden-gate-metal-argbuf r8 is newer than every image built with it (newest r6).
-- golden-gate-metal-framebuffer r12 is newer than every image built with it (newest r10).
+- golden-gate-metal-argbuf r9 is newer than every image built with it (newest r6).
+- golden-gate-metal-framebuffer r13 is newer than every image built with it (newest r10).
 - golden-gate-metal-libraries r23 is newer than every image built with it (newest r21).
 - golden-gate-native-identities r11 is newer than every image built with it (newest r6).
 - golden-gate-shader-caches r16 is newer than every image built with it (newest r14).
@@ -515,6 +515,8 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - row hao_runtime_fold 059bebad is in no image yet (images have 3e4feeb7).
 - row kernel_repair_binding 8f87fb25 is in no image yet (images have 461f3fc8).
 - row kernel_repair_efi acc92dff is in no image yet (images have da6f167f).
+- row metal_argbuf d5876705 is in no image yet (images have 9de18945, d43d2253).
+- row metal_framebuffer 107a877d is in no image yet (images have 166aa56b, 6dba1ab6).
 - row rebuilt_cache 2f5ee391 is in no image yet (images have a8a847b6).
 - row tahoe_boot_donors 02a2dd2a is in no image yet (images have 12e52f5a, 2bef5543).
 - row tahoe_recovery_donors 7e0517e9 is in no image yet (images have 9b21f27f, e0e5686e).
