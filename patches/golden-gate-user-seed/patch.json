@@ -1,5 +1,6 @@
 {
- "revision": 9,
+ "revision": 10,
+ "pack": "base",
  "stage": "post",
  "applies": {"models": ["MacBookPro9,2"], "builds": ["25G342"]},
  "inputs": [],

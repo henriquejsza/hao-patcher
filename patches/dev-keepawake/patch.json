@@ -1,5 +1,6 @@
 {
- "revision": 1,
+ "revision": 2,
+ "pack": "dev",
  "stage": "post",
  "applies": "any",
  "inputs": [],

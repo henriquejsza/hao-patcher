@@ -1,0 +1,11 @@
+{
+ "comment": "dev-metal27: dev-bs-test + golden-gate-metal27, an image variant of the laptop bench image in which every process",
+ "target": "mbp92",
+ "packs": [
+  "dev",
+  "metal27-trial"
+ ],
+ "recipes": [
+  "golden-gate-appstore-slices"
+ ]
+}

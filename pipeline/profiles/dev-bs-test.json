@@ -1,0 +1,10 @@
+{
+ "comment": "dev-bs-test: macOS 27.2.1 (26B131) laptop bench image = golden-gate's recipes for 26B131 + pack dev (root SSH, measurement settings).",
+ "target": "mbp92",
+ "packs": [
+  "dev"
+ ],
+ "recipes": [
+  "golden-gate-appstore-slices"
+ ]
+}

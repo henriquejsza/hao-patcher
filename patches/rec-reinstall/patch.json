@@ -1,5 +1,6 @@
 {
- "revision": 4,
+ "revision": 5,
+ "pack": "recovery",
  "stage": "recovery",
  "applies": "any",
  "status": "product",

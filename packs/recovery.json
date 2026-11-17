@@ -1,0 +1,14 @@
+{
+ "format": 1,
+ "description": "The installer's Recovery: recipes any Intel Mac's Recovery takes (pipeline/recovery).",
+ "detect": {
+  "any_intel": true
+ },
+ "opt_in": true,
+ "phase": "installer",
+ "proven_on": [
+  "MacBookPro9,2"
+ ],
+ "oclp_patchsets": [],
+ "layer": "os"
+}

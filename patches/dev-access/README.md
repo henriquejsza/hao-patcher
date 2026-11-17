@@ -50,6 +50,7 @@ In use (FACT, from the build manifests in store/runs): r3 is in 12 image builds,
 including the benched dev images (store/runs/bench-mbp92-25G332-dev-*) and the owner's beta. No open item.
 
 ## Revisions
+- r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 Newest first: revision, date, change (commit). `revision` in patch.json is the newest; bump it
 and add a line here with every change to this patch or its input rows.
 - r5 2026-11-14 Screen Sharing for the test account from the first boot (owner's decision): system LaunchDaemon dev.hao.screensharing adds the accounts of the new row `screensharing_users` to com.apple.access_screensharing by name and enables and loads com.apple.screensharing at every boot.

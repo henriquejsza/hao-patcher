@@ -1,0 +1,18 @@
+{
+ "format": 1,
+ "description": "The installer's Recovery: the MacBookPro9,2's drivers (pipeline/recovery).",
+ "detect": {
+  "board_ids": [
+   "Mac-6F01561E16C75D06"
+  ]
+ },
+ "opt_in": true,
+ "phase": "installer",
+ "proven_on": [
+  "MacBookPro9,2"
+ ],
+ "oclp_patchsets": [],
+ "layer": "platform",
+ "kind": "recovery",
+ "platform": "apple-intel"
+}

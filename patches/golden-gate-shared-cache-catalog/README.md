@@ -30,5 +30,6 @@ NEEDS VALIDATION: not built or booted. Host tests only. The set takes the same `
 (runtime: the two families' images have the same UUIDs).
 
 ## Revisions
+- r3 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
 - r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r1 2026-11-15 New: golden-gate-shared-cache's fold on the B+catalog family (row rebuilt_cache_catalog), for set dev-bs-test-fold-catalog.

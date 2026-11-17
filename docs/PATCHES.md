@@ -11,7 +11,7 @@ A file made on the target lists what it is made *after* there.
 
 ## darwin27-kernel
 
-Revision r10, status experiment. [Recipe](../patches/darwin27-kernel/README.md)
+Revision r11, status experiment. [Recipe](../patches/darwin27-kernel/README.md)
 
 - `System/Library/Kernels/kernel`: whole file from Apple (row darwin27_kernel). Golden Gate's own x86_64 kernel from the IPSW, unchanged; installed once by the base layer (golden-pristine.sh finalize) and only checked by the kc-hook. Installed mode 0644, owner root:wheel.
 - `System/Library/KernelCollections/BootKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
@@ -26,7 +26,7 @@ Revision r10, status experiment. [Recipe](../patches/darwin27-kernel/README.md)
 
 ## darwin27-sandbox-disk-space
 
-Revision r3, status experiment. [Recipe](../patches/darwin27-sandbox-disk-space/README.md)
+Revision r4, status experiment. [Recipe](../patches/darwin27-sandbox-disk-space/README.md)
 
 - `System/Library/Sandbox/Profiles/system.sb`: from Apple; 1 edit, applied by the installer.
   1. `disk-space-rule`: text.insert 4 lines after ";;; libmalloc requirements", unless already present.
@@ -34,7 +34,7 @@ Revision r3, status experiment. [Recipe](../patches/darwin27-sandbox-disk-space/
 
 ## dev-access
 
-Revision r5, status dev. [Recipe](../patches/dev-access/README.md)
+Revision r6, status dev. [Recipe](../patches/dev-access/README.md)
 
 - `private/var/root/.testssh/ssh_host_ed25519_key`: whole file from hao (row test_host_key). Data volume; the test host's private key, root:wheel 0600; dev images only.
 - `private/var/root/.testssh/authorized_keys`: whole file from hao (row test_authorized_key). Data volume; the bench host's public key, root:wheel 0600.
@@ -45,7 +45,7 @@ Revision r5, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-diagnostics
 
-Revision r4, status dev. [Recipe](../patches/dev-diagnostics/README.md)
+Revision r5, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
   1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
@@ -57,21 +57,21 @@ Revision r4, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 ## dev-keepawake
 
-Revision r1, status dev. [Recipe](../patches/dev-keepawake/README.md)
+Revision r2, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
 - `Library/LaunchDaemons/dev.hao.keepawake.plist`: whole file from hao. Data volume; src/dev.hao.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644.
 - `Library/LaunchDaemons/dev.hao.power.plist`: whole file from hao. Data volume; src/dev.hao.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644.
 
 ## golden-gate-appstore-slices
 
-Revision r2, status product. [Recipe](../patches/golden-gate-appstore-slices/README.md)
+Revision r3, status product. [Recipe](../patches/golden-gate-appstore-slices/README.md)
 
 - `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
 - `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
 
 ## golden-gate-av1-encoder-x86
 
-Revision r1, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/README.md)
+Revision r2, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/README.md)
 
 - `System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `av1-encoder-arm64-only`: plist.set CMClassImplementations:0:CMExecutableArchitectures = ["arm64"].
@@ -79,7 +79,7 @@ Revision r1, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/
 
 ## golden-gate-corespotlight-compat
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-corespotlight-compat/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-corespotlight-compat/README.md)
 
 - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: from Apple; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-corespotlight-compat`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/corespotlight_compat.dylib.
@@ -91,7 +91,7 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-corespotlight-co
 
 ## golden-gate-dyld-internal
 
-Revision r1, status experiment. [Recipe](../patches/golden-gate-dyld-internal/README.md)
+Revision r2, status experiment. [Recipe](../patches/golden-gate-dyld-internal/README.md)
 
 - `usr/lib/dyld`: from hao · hao-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime); 1 edit, applied by the installer, then signed: ad hoc, once, identifier com.apple.darwin.ignition. Installed mode 0755, owner root:wheel, flags restricted.
   1. `internal-install-in-dyld-only`: literal near __ZNK5dyld415SyscallDelegate15internalInstallEv (within 32 bytes), 21 bytes, `55 48 89 E5 BF 10 00 00 00 E8 00 00 00 00 85 C0 0F 94 C0 5D C3` → `55 48 89 E5 BF 10 00 00 00 31 C0 0F 1F 00 85 C0 0F 94 C0 5D C3` (`call _csr_check(CSR_ALLOW_APPLE_INTERNAL); test eax,eax; sete al` → `xor eax,eax; nop dword [rax]; test eax,eax; sete al`).
@@ -99,14 +99,14 @@ Revision r1, status experiment. [Recipe](../patches/golden-gate-dyld-internal/RE
 
 ## golden-gate-font-registry
 
-Revision r7, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
+Revision r8, status experiment. [Recipe](../patches/golden-gate-font-registry/README.md)
 
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
 - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
 
 ## golden-gate-hd4000-planes
 
-Revision r4, status product. [Recipe](../patches/golden-gate-hd4000-planes/README.md)
+Revision r5, status product. [Recipe](../patches/golden-gate-hd4000-planes/README.md)
 
 - `usr/lib/libhd4000-planes.dylib`: whole file from hao (row hd4000_planes). X86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
@@ -115,7 +115,7 @@ Revision r4, status product. [Recipe](../patches/golden-gate-hd4000-planes/READM
 
 ## golden-gate-hello
 
-Revision r9, status experiment. [Recipe](../patches/golden-gate-hello/README.md)
+Revision r10, status experiment. [Recipe](../patches/golden-gate-hello/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from OCLP · Metal 3802 Common; 3 edits, applied by the installer, then signed: ad hoc, once, identifier Metal. Installed mode 0755, owner root:wheel, flags restricted.
   1. `hello-not-skipped`: literal near _fake_LCAUtilities_shouldSkipHello (within 64 bytes), 11 bytes, `B0 01 0F BE C0 48 83 C4 10 5D C3` → `B0 00 0F BE C0 48 83 C4 10 5D C3` (`mov al,1` → `mov al,0`).
@@ -129,7 +129,7 @@ Revision r9, status experiment. [Recipe](../patches/golden-gate-hello/README.md)
 
 ## golden-gate-icon-caches
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-icon-caches/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-icon-caches/README.md)
 
 - 673 whole files from hao (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
 - `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
@@ -137,14 +137,14 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-icon-caches/READ
 
 ## golden-gate-ids
 
-Revision r1, status product. [Recipe](../patches/golden-gate-ids/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-ids/README.md)
 
 - `usr/lib/hao/libhao-imessage-wifi-test.dylib`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
 
 ## golden-gate-launchd-warm
 
-Revision r3, status experiment. [Recipe](../patches/golden-gate-launchd-warm/README.md)
+Revision r4, status experiment. [Recipe](../patches/golden-gate-launchd-warm/README.md)
 
 - `System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist`: from Apple · Golden Gate System volume; 2 edits, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `helper-run-at-load`: plist.set RunAtLoad = true.
@@ -168,7 +168,7 @@ Revision r3, status experiment. [Recipe](../patches/golden-gate-launchd-warm/REA
 
 ## golden-gate-live-text-service
 
-Revision r5, status experiment. [Recipe](../patches/golden-gate-live-text-service/README.md)
+Revision r6, status experiment. [Recipe](../patches/golden-gate-live-text-service/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore; 1 edit, applied by the installer.
   1. `revblock-without-media`: plist.set NVRAM:Add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revblock = "none".
@@ -176,7 +176,7 @@ Revision r5, status experiment. [Recipe](../patches/golden-gate-live-text-servic
 
 ## golden-gate-live-text-shared
 
-Revision r10, status experiment. [Recipe](../patches/golden-gate-live-text-shared/README.md)
+Revision r11, status experiment. [Recipe](../patches/golden-gate-live-text-shared/README.md)
 
 - `usr/lib/libhelloblur.dylib`: from hao · libhelloblur; 1 edit, applied by the installer, then signed: ad hoc, once, identifier local.libhelloblur. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-live-text-runtime`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao-live-text/LiveText.dylib.
@@ -197,7 +197,7 @@ Revision r10, status experiment. [Recipe](../patches/golden-gate-live-text-share
 
 ## golden-gate-metal-argbuf
 
-Revision r6, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
+Revision r7, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
@@ -208,7 +208,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-metal-argbuf/README
 
 ## golden-gate-metal-framebuffer
 
-Revision r10, status experiment. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
+Revision r11, status experiment. [Recipe](../patches/golden-gate-metal-framebuffer/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metal-framebuffer`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetal-framebuffer.dylib.
@@ -217,7 +217,7 @@ Revision r10, status experiment. [Recipe](../patches/golden-gate-metal-framebuff
 
 ## golden-gate-metal-libraries
 
-Revision r21, status experiment. [Recipe](../patches/golden-gate-metal-libraries/README.md)
+Revision r22, status experiment. [Recipe](../patches/golden-gate-metal-libraries/README.md)
 
 - 11 whole files from hao (row metallib_repairs_golden_gate), under `System/` (for example `Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/Resources/default.metallib`). The build's own library, already rewritten by cache/metallib (profiles/metallib-repairs-golden-gate.txt) so the HD 4000 compiler accepts it; installed whole, and only over the System library its SOURCES line names (or OCLP's copy on the same build). Listed by `patches.py explain golden-gate-metal-libraries`.
 - `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: whole file from hao (row metal_quad_runtime_golden_gate). OCLP's Intel shader runtime extended with the SIMD and quad helpers MPS and MetalFX kernels call (cache/metallib make runtime-build); installed whole.
@@ -225,7 +225,7 @@ Revision r21, status experiment. [Recipe](../patches/golden-gate-metal-libraries
 
 ## golden-gate-metal27
 
-Revision r4, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
+Revision r5, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image (an on-disk root): tools/metal-adapter's stand-in, installed build; routes 27's in-process compiles to OCLP's 31001 and 3802. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
@@ -234,7 +234,7 @@ Revision r4, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 ## golden-gate-native-identities
 
-Revision r6, status experiment. [Recipe](../patches/golden-gate-native-identities/README.md)
+Revision r7, status experiment. [Recipe](../patches/golden-gate-native-identities/README.md)
 
 - `usr/lib/hao/native-identities`: whole file from hao. Generated by src/native_identities.py install from the finished System: one row per re-signed native program (observed cdhash, Apple original's cdhash, x86_64, original's path); root:wheel 0644. Made after every overlay file installed first.
 - `System/Library/CoreServices/golden-gate-native-identities.json`: whole file from hao. Build record written by src/native_identities.py install: the rows, the programs skipped with the reason, the source roots and the list's sha256; root:wheel 0644. Made after every overlay file installed first.
@@ -244,7 +244,7 @@ Revision r6, status experiment. [Recipe](../patches/golden-gate-native-identitie
 
 ## golden-gate-root-launchservices
 
-Revision r2, status experiment. [Recipe](../patches/golden-gate-root-launchservices/README.md)
+Revision r3, status experiment. [Recipe](../patches/golden-gate-root-launchservices/README.md)
 
 - `private/var/db/auth.db`: whole file from hao (row root_launchservices_golden_gate). Authd's rule database as this image's authd wrote it in a builder boot (root 600).
 - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: whole file from hao (row root_launchservices_golden_gate). Root's LaunchServices store as this image's lsd wrote it in a builder boot (root 644); schema 35651614 is 26B131's.
@@ -252,14 +252,14 @@ Revision r2, status experiment. [Recipe](../patches/golden-gate-root-launchservi
 
 ## golden-gate-shader-caches
 
-Revision r14, status experiment. [Recipe](../patches/golden-gate-shader-caches/README.md)
+Revision r15, status experiment. [Recipe](../patches/golden-gate-shader-caches/README.md)
 
 - 72 whole files from hao (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
 - 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Listed by `patches.py explain golden-gate-shader-caches`.
 
 ## golden-gate-shared-cache
 
-Revision r5, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
+Revision r6, status experiment. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
 - 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -269,7 +269,7 @@ Revision r5, status experiment. [Recipe](../patches/golden-gate-shared-cache/REA
 
 ## golden-gate-shared-cache-catalog
 
-Revision r2, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
+Revision r3, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
 
 - 33 whole files from hao (row rebuilt_cache_catalog), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache-catalog`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -279,7 +279,7 @@ Revision r2, status experiment. [Recipe](../patches/golden-gate-shared-cache-cat
 
 ## golden-gate-store
 
-Revision r4, status product. [Recipe](../patches/golden-gate-store/README.md)
+Revision r5, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 - `usr/lib/hao/libhao-appstore-policy.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from Apple · appstored 26B131; 3 edits, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
@@ -304,14 +304,14 @@ Revision r4, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 ## golden-gate-user-seed
 
-Revision r9, status experiment. [Recipe](../patches/golden-gate-user-seed/README.md)
+Revision r10, status experiment. [Recipe](../patches/golden-gate-user-seed/README.md)
 
 - `Library/LaunchDaemons/local.peruser-seed.plist`: whole file from hao. Launchd daemon made at install by src/plist.sh, which escapes src/seed.zsh into the plist (root 644): places the seeded caches into each new account.
 - `Library/Application Support/PerUserSeed/build`: whole file from hao. The System's ProductBuildVersion written at install (root 644): seed.zsh places nothing on another build.
 
 ## golden-gate-user-template
 
-Revision r7, status experiment. [Recipe](../patches/golden-gate-user-template/README.md)
+Revision r8, status experiment. [Recipe](../patches/golden-gate-user-template/README.md)
 
 - `Library/User Template/Non_localized/Library/Containers`: whole file from every file under it from hao (row user_template_golden_gate). App and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
 - `Library/User Template/Non_localized/Library/Group Containers`: whole file from every file under it from hao (row user_template_golden_gate). Group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
@@ -319,7 +319,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-user-template/RE
 
 ## golden-gate-userspace
 
-Revision r82, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r83, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -485,7 +485,7 @@ Revision r82, status experiment. [Recipe](../patches/golden-gate-userspace/READM
 
 ## golden-gate-windowserver-filter
 
-Revision r7, status experiment. [Recipe](../patches/golden-gate-windowserver-filter/README.md)
+Revision r8, status experiment. [Recipe](../patches/golden-gate-windowserver-filter/README.md)
 
 - `usr/lib/dss_shim.dylib`: from hao (row display_state_shim); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-windowserver-filter`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/windowserver_filter.dylib.
@@ -494,7 +494,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-windowserver-fil
 
 ## hao-command
 
-Revision r4, status experiment. [Recipe](../patches/hao-command/README.md)
+Revision r5, status experiment. [Recipe](../patches/hao-command/README.md)
 
 - `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython.
 - `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
@@ -502,7 +502,7 @@ Revision r4, status experiment. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r65, status experiment. [Recipe](../patches/hao-opencore/README.md)
+Revision r66, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -523,7 +523,7 @@ Revision r65, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r86, status experiment. [Recipe](../patches/hao-runtime/README.md)
+Revision r87, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -541,7 +541,7 @@ Revision r86, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 ## hao-runtime-fold
 
-Revision r5, status experiment. [Recipe](../patches/hao-runtime-fold/README.md)
+Revision r6, status experiment. [Recipe](../patches/hao-runtime-fold/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime_fold). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -557,14 +557,14 @@ Revision r5, status experiment. [Recipe](../patches/hao-runtime-fold/README.md)
 
 ## metal-compiler-compat
 
-Revision r8, status experiment. [Recipe](../patches/metal-compiler-compat/README.md)
+Revision r9, status experiment. [Recipe](../patches/metal-compiler-compat/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: whole file from hao (row metal_compiler_compat). OCLP's legacy MTLCompilerService with a load command for libhaoMetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib`: whole file from hao (row metal_compiler_compat). New file: the shader repair library the service loads at startup. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## metal-metalold
 
-Revision r2, status unfinished. [Recipe](../patches/metal-metalold/README.md)
+Revision r3, status unfinished. [Recipe](../patches/metal-metalold/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`: from Apple macOS 13 · macOS 13.2.1 (22D68) Metal 306.3.5 (row metalold_22d68); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier. Installed mode 0755, owner root:wheel.
   1. `legacy-slice-for-any-device`: literal in __TEXT,__text, 12 bytes, `48 89 C3 48 85 C0 74 72 4D 85 E4 74` → `48 89 C3 48 85 C0 90 90 4D 85 E4 74` (`test rax,rax; je +0x72` → `test rax,rax; nop; nop`).
@@ -572,7 +572,7 @@ Revision r2, status unfinished. [Recipe](../patches/metal-metalold/README.md)
 
 ## metalold-selectors
 
-Revision r7, status product. [Recipe](../patches/metalold-selectors/README.md)
+Revision r8, status product. [Recipe](../patches/metalold-selectors/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metalold-selectors`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetalold-selectors.dylib.
@@ -581,7 +581,7 @@ Revision r7, status product. [Recipe](../patches/metalold-selectors/README.md)
 
 ## rec-audio
 
-Revision r2, status product. [Recipe](../patches/rec-audio/README.md)
+Revision r3, status product. [Recipe](../patches/rec-audio/README.md)
 
 - `System/Library/Extensions/AppleHDA.kext`: whole file from OCLP · AppleHDA 26.0 Beta 1. Bundle copied whole from the root-patched System by apply.sh (ditto); OCLP's AppleHDA, with its HAL plug-in inside.
 - `System/Library/Extensions/IOAudioFamily.kext`: whole file from Tahoe donor · Tahoe IOAudioFamily.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); the HDA chain's audio family.
@@ -592,7 +592,7 @@ Revision r2, status product. [Recipe](../patches/rec-audio/README.md)
 
 ## rec-bluetooth-input
 
-Revision r2, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
+Revision r3, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
 
 - `System/Library/Extensions/AppleHIDKeyboard.kext`: whole file from Tahoe donor · Tahoe AppleHIDKeyboard.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); external keyboards.
 - `System/Library/Extensions/AppleHIDMouse.kext`: whole file from Tahoe donor · Tahoe AppleHIDMouse.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); external mice.
@@ -606,14 +606,14 @@ Revision r2, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
 
 ## rec-brightness-keys
 
-Revision r2, status product. [Recipe](../patches/rec-brightness-keys/README.md)
+Revision r3, status product. [Recipe](../patches/rec-brightness-keys/README.md)
 
 - `usr/local/ssdtools/brightkeys`: whole file from hao. Built from src/brightkeys.m by make.sh (x86_64, ad hoc signed with src/brightkeys.entitlements); acts on the brightness, keyboard-light and volume keys and draws the bezel.
 - `System/Library/LaunchAgents/local.brightkeys.plist`: whole file from hao. Src/local.brightkeys.plist: starts brightkeys in the Recovery GUI session.
 
 ## rec-display-ethernet
 
-Revision r2, status product. [Recipe](../patches/rec-display-ethernet/README.md)
+Revision r3, status product. [Recipe](../patches/rec-display-ethernet/README.md)
 
 - `System/Library/Extensions/AppleIntelFramebufferCapri.kext`: whole file from OCLP · AppleIntelFramebufferCapri 11.7.10-23.4. Bundle copied whole from the root-patched System by apply.sh (ditto); OCLP's Ivy Bridge framebuffer.
 - `System/Library/Extensions/AppleIntelHD4000Graphics.kext`: whole file from OCLP · AppleIntelHD4000Graphics 11.7.10-23.4. Bundle copied whole from the root-patched System by apply.sh (ditto); OCLP's HD 4000 graphics kext.
@@ -623,14 +623,14 @@ Revision r2, status product. [Recipe](../patches/rec-display-ethernet/README.md)
 
 ## rec-install-volume
 
-Revision r5, status product. [Recipe](../patches/rec-install-volume/README.md)
+Revision r6, status product. [Recipe](../patches/rec-install-volume/README.md)
 
 - `<volume group UUID>/BaseSystem.dmg`: whole file from hao · BaseSystem.dmg (row enduser_recovery). The Recovery built by pipeline/recovery: BaseSystem.dmg from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there).
 - `<volume group UUID>/BaseSystem.chunklist`: whole file from hao · BaseSystem.chunklist (row enduser_recovery). Its unsigned chunklist made by pipeline/stages/chunklist.py: BaseSystem.chunklist from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there).
 
 ## rec-language-list
 
-Revision r2, status product. [Recipe](../patches/rec-language-list/README.md)
+Revision r3, status product. [Recipe](../patches/rec-language-list/README.md)
 
 - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: whole file from hao. Lcwrap, built from src/lcwrap.c by make.sh (x86_64, ad hoc signed); takes the path of the binary it starts.
 - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser.real`: whole file from Tahoe donor · Language Chooser. The Recovery's own binary, moved here unchanged by apply.sh (mv).
@@ -638,21 +638,21 @@ Revision r2, status product. [Recipe](../patches/rec-language-list/README.md)
 
 ## rec-power
 
-Revision r2, status product. [Recipe](../patches/rec-power/README.md)
+Revision r3, status product. [Recipe](../patches/rec-power/README.md)
 
 - `usr/local/ssdtools/power.sh`: whole file from hao. New file, copied from src/power.sh: sets the sleep policy at every boot.
 - `System/Library/LaunchDaemons/local.power.plist`: whole file from hao. New file, copied from src/local.power.plist: runs power.sh at load.
 
 ## rec-progress-phase
 
-Revision r2, status product. [Recipe](../patches/rec-progress-phase/README.md)
+Revision r3, status product. [Recipe](../patches/rec-progress-phase/README.md)
 
 - `usr/local/ssdtools/iasphase.sh`: whole file from hao. New file, copied from src/iasphase.sh: moves the install phase from Boot 1 to Language Chooser.
 - `System/Library/LaunchDaemons/local.iasphase.plist`: whole file from hao. New file, copied from src/local.iasphase.plist: runs iasphase.sh once at boot.
 
 ## rec-reinstall
 
-Revision r4, status product. [Recipe](../patches/rec-reinstall/README.md)
+Revision r5, status product. [Recipe](../patches/rec-reinstall/README.md)
 
 - `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: whole file from hao. Replaces Tahoe's whole InstallAssistant (the button's Path read from Utilities.plist; 25G332 shown), owner and mode kept; built by make.sh from src/Reinstall.m (x86_64, ad hoc signed).
 - `usr/local/ssdtools/ssdinstall`: whole file from hao. New file built by make.sh from tools/ssdpush/ssdinstall.c (x86_64, ad hoc signed).
@@ -661,7 +661,7 @@ Revision r4, status product. [Recipe](../patches/rec-reinstall/README.md)
 
 ## rec-startup-guard
 
-Revision r2, status product. [Recipe](../patches/rec-startup-guard/README.md)
+Revision r3, status product. [Recipe](../patches/rec-startup-guard/README.md)
 
 - `usr/local/ssdtools/bootguard`: whole file from hao. New file built by make.sh from src/bootguard.c (x86_64, ad hoc signed).
 - `usr/local/ssdtools/bootguard.sh`: whole file from hao. New file, copied from src/bootguard.sh: finds the internal OpenCore and runs bootguard.
@@ -670,13 +670,13 @@ Revision r2, status product. [Recipe](../patches/rec-startup-guard/README.md)
 
 ## rec-wifi
 
-Revision r2, status product. [Recipe](../patches/rec-wifi/README.md)
+Revision r3, status product. [Recipe](../patches/rec-wifi/README.md)
 
 - `System/Library/PrivateFrameworks/IO80211.framework`: whole file from OCLP · Modern Wireless IO80211.framework. A whole folder: replaces the BaseSystem's copy with the root-patched System's (ditto), which holds OCLP's framework; no byte is edited.
 
 ## rec-wifi-autojoin
 
-Revision r2, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
+Revision r3, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 - `usr/local/ssdtools/wifijoin.dylib`: whole file from hao. New file built by make.sh from src/wifijoin.m (x86_64, ad hoc signed).
 - `usr/local/ssdtools/wifijoin.sh`: whole file from hao. New file, copied from src/wifijoin.sh: restarts airportd with the dylib inserted.

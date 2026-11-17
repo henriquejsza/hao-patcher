@@ -1,5 +1,6 @@
 {
- "revision": 2,
+ "revision": 3,
+ "pack": "metal-3802-extras",
  "stage": "oclp-hook",
  "applies": {
   "models": [

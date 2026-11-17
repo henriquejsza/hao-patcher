@@ -18,4 +18,5 @@ Proof: these bytes on a test machine, owner 2026-11-15: "It fully works as far a
 NEEDS VALIDATION on an image built with this recipe.
 
 ## Revisions
+- r2 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes.
 - r1 2026-11-15 New.

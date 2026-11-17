@@ -18,5 +18,6 @@ NEEDS VALIDATION: the framework copy is part of every Recovery build; Wi-Fi in a
 tested.
 
 ## Revisions
+- r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes.
 - r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is unchanged.
 - r1 2026-11-10 Initial public release.

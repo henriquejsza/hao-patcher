@@ -1,5 +1,8 @@
 {
- "revision": 5,
+ "revision": 6,
+ "pack": "base",
+ "variant": "cache-fold",
+ "replaces": "hao-runtime",
  "stage": "oclp-hook",
  "applies": {
   "models": [

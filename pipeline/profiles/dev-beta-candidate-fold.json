@@ -1,0 +1,13 @@
+{
+ "comment": "dev-beta-candidate-fold: dev-bs-test-fold (family B, row rebuilt_cache) with dev-access as its only dev recipe.",
+ "target": "mbp92",
+ "recipes": [
+  "dev-access",
+  "golden-gate-ids",
+  "golden-gate-store",
+  "golden-gate-appstore-slices"
+ ],
+ "variants": [
+  "cache-fold"
+ ]
+}

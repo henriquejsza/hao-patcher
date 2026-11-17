@@ -7,9 +7,5 @@
  "opt_in": true,
  "phase": "installer",
  "proven_on": [],
- "recipes": [
-  "dev-access",
-  "dev-diagnostics",
-  "dev-keepawake"
- ]
+ "layer": "dev"
 }

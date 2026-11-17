@@ -178,12 +178,10 @@ def applies(want, ledger):
 def dev_recipes(packs_dir=os.path.join(TOP, 'packs')):
     """Recipes of opt-in packs (pack dev, dev trials): bench images only."""
     out = set()
-    for n in sorted(os.listdir(packs_dir)) if os.path.isdir(packs_dir) else []:
-        if n.endswith('.json'):
-            with open(os.path.join(packs_dir, n)) as f:
-                p = json.load(f)
-            if p.get('opt_in'):
-                out.update(p.get('recipes', []))
+    defs = runpy.run_path(os.path.join(TOP, 'pipeline', 'patches.py'))['load_packs'](packs_dir)
+    for p in defs.values():       # each recipe declares its pack (docs/layout.md); load_packs collects them
+        if p.get('opt_in'):
+            out.update(p.get('recipes', []))
     return out
 
 

@@ -1,5 +1,6 @@
 {
- "revision": 14,
+ "revision": 15,
+ "pack": "intel-hd4000",
  "stage": "post",
  "applies": {
   "models": [

@@ -1,0 +1,14 @@
+{
+ "comment": "dev-bs-test-fold-catalog: the B+catalog image of the shared-cache fold-in (macOS 27.2.1, 26B131) = dev-bs-test-fold",
+ "target": "mbp92",
+ "packs": [
+  "dev"
+ ],
+ "recipes": [
+  "golden-gate-appstore-slices"
+ ],
+ "variants": [
+  "cache-fold",
+  "cache-catalog"
+ ]
+}

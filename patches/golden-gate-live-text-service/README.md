@@ -64,6 +64,7 @@ NEEDS VALIDATION. Config tests pass on authored configs and on OCLP 3.0.0's MacB
 an image or booted; background analysis load on the HD 4000 is unmeasured.
 
 ## Revisions
+- r6 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes.
 
 - r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the rebuilt shared cache: golden-gate-shared-cache's record must list both, LiveText at its manifest hash. Config bytes unchanged.
 - r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, arm64 or x86_64), falling back to the builder VM's share copy; same Python version and bytes written.

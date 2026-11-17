@@ -32,6 +32,7 @@ caches, 963 embedded, 965 of 969 AOT caches; one CoreWiFi record bridges without
 have no definer on B (runtime's known limits).
 
 ## Revisions
+- r6 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
 - r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712).
 - r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r3 2026-11-15 Row `hao_runtime_fold`: the units set 2 payload (-B2: same hao-runtime 96870dd and libhao; 16 more B records typed). No recipe change.

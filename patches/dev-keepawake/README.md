@@ -25,4 +25,5 @@ PreventUserIdleSystemSleep.
 NEEDS VALIDATION: r1 is host-tested only; not built into an image or booted yet.
 
 ## Revisions
+- r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 - r1 2026-11-14 Two system LaunchDaemons: caffeinate -dimsu for good, and the power settings at every boot.

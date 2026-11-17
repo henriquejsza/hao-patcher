@@ -1,5 +1,6 @@
 {
- "revision": 4,
+ "revision": 5,
+ "pack": "intel-hd4000",
  "stage": "oclp-hook",
  "applies": {
   "models": [

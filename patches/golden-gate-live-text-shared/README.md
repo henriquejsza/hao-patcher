@@ -74,6 +74,7 @@ fixture on the laptop's HD 4000 on 2026-11-09 and Photos loaded the helpers, but
 Photos' Live Text was never seen working. Not yet built into an image or booted with 26B131.
 
 ## Revisions
+- r11 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes.
 - r10 2026-11-16 Row `live_text_framework` is the f479d6c7 build, reproducible from source with Xcode 27.2: runtime code identical, gpu-client.dylib linked with a fixed install name, build records hold content hashes only, libhelloblur is the 9c273f39 build (edits/libhelloblur.json `expect` follows it).
 - r9 2026-11-14 Input row `live_text_framework` names framework/ of live-text-26B131-20261114-679d5b1b, so the runtime can be folded into a rebuilt x86_64 shared cache. libLiveTextPolicy and libhao_input_coherence now import the hao symbols two-level, and the recognition flag lives in libLiveTextConfig; only their e5rt interpose originals stay flat. Installed bytes that change: those three libraries, `gpu-client.dylib` (LC_UUID and ad hoc signature only) and the two build.json files. Behaviour on disk is unchanged (host OCR test).
 - r8 2026-11-14 Input row `live_text_framework` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.

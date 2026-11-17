@@ -18,11 +18,7 @@
  "proven_on": [
   "MacBookPro9,2"
  ],
- "recipes": [
-  "golden-gate-metal-libraries",
-  "golden-gate-hello",
-  "metal-compiler-compat",
-  "golden-gate-live-text-shared",
-  "golden-gate-live-text-service"
- ]
+ "layer": "platform",
+ "kind": "gpu",
+ "platform": "apple-intel"
 }

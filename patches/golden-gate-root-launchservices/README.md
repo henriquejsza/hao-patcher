@@ -50,5 +50,6 @@ lsd keeps a store that a QEMU boot of the same image wrote when the laptop numbe
 re-reads each volume's ID at start: "Updating state of volume ... to mounted with volume ID ...").
 
 ## Revisions
+- r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes.
 - r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing installed changes.
 - r1 2026-11-12 New: install root's LaunchServices store and auth.db from a builder boot of the same image (row root_launchservices_golden_gate, tools/first-boot-seeds/rootls).

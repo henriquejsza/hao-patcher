@@ -1,5 +1,6 @@
 {
- "revision": 7,
+ "revision": 8,
+ "pack": "base",
  "stage": "post",
  "applies": {
   "models": [

@@ -36,6 +36,7 @@ golden-gate-live-text-service's and this recipe's, applied to the base config of
 `tests/test_edits.py` with `HAO_OPENCORE_INPUT` and `HAO_OPENCORE_IMAGE_CONFIG`): bench images keep the same config.
 
 ## Revisions
+- r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes.
 
 - r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestricted DTrace, so DTrace can attach to processes on a dev image. End-user images are unchanged (hao-opencore still writes 0x803).
 - r3 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, arm64 or x86_64), falling back to the builder VM's share copy; same Python version and bytes written.

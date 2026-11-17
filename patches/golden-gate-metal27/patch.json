@@ -1,5 +1,6 @@
 {
- "revision": 4,
+ "revision": 5,
+ "pack": "metal27-trial",
  "stage": "oclp-hook",
  "applies": {
   "models": [

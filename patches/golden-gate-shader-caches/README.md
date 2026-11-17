@@ -46,6 +46,7 @@ busiest processes during first boot (without the pack: 4:21 CPU at 9 min). The c
 golden-gate-metal-argbuf and has to be remade from an image with it.
 
 ## Revisions
+- r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes.
 - r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r13 2026-11-12 Declare where each installed file is inside its row ("source"; tar members as ARCHIVE!MEMBER) for pipeline/materialize.py; the hook is unchanged.
 - r12 2026-11-12 Declare the installed files in patch.json `files` (whole files from the row; test derives them from the artifact manifest); the hook is unchanged.

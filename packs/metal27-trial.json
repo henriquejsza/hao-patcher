@@ -9,7 +9,7 @@
  "opt_in": true,
  "phase": "live-capable",
  "proven_on": [],
- "recipes": [
-  "golden-gate-metal27"
- ]
+ "layer": "platform",
+ "kind": "gpu",
+ "platform": "apple-intel"
 }

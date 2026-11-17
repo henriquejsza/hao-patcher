@@ -13,10 +13,7 @@
  "proven_on": [
   "MacBookPro9,2"
  ],
- "recipes": [
-  "metalold-selectors",
-  "golden-gate-metal-framebuffer",
-  "golden-gate-shader-caches",
-  "golden-gate-av1-encoder-x86"
- ]
+ "layer": "platform",
+ "kind": "gpu",
+ "platform": "apple-intel"
 }

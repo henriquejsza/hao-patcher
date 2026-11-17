@@ -103,6 +103,7 @@ succeeds with it. Quick Look of USDZ files and WindowServer's desktop effects on
 built image remain open, and nothing has been checked on 26B131.
 
 ## Revisions
+- r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes.
 
 - r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged; validated_digest carried forward for that reason.
 - r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on the library and the driver), as the hook sets them, so overlays carry them; the hook is unchanged. Keeps r3's validation: what it installs is unchanged (validated_digest).

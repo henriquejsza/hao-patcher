@@ -8,53 +8,53 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-14 With `prelinked/prelinked.json` in its folder (a kit for the USB installer: golden-run `--stage |
-| darwin27-sandbox-disk-space | r3 | oclp-hook | experiment |  |  | x |  |  | **needs** | r3 2026-11-12 Declare the system.sb rule in `edits/system-sb.json` (edit-engine text.insert, unless already pr |
-| dev-access | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-14 Screen Sharing for the test account from the first boot (owner's decision): system LaunchDaemon  |
-| dev-diagnostics | r4 | post | dev |  |  |  |  |  | **needs** | r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestrict |
-| dev-keepawake | r1 | post | dev |  |  |  |  |  | **needs** | r1 2026-11-14 Two system LaunchDaemons: caffeinate -dimsu for good, and the power settings at every boot. |
-| golden-gate-appstore-slices | r2 | post | product |  | x | x |  |  | **needs** | r2 2026-11-15 Row hash scope. |
-| golden-gate-av1-encoder-x86 | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-16 New: AV1EncoderSW's Info.plist lists arm64 only, so x86_64 programs on a CPU without AVX2 no lon |
-| golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
-| golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
-| golden-gate-font-registry | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e |
-| golden-gate-hd4000-planes | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
-| golden-gate-hello | r9 | oclp-hook | experiment |  | x | x |  |  | **needs** | r9 2026-11-16 Row `libhelloblur` is the Xcode 27.2 build of `build/make.sh` (9c273f39), which the same command |
-| golden-gate-icon-caches | r6 | post | experiment | caches | x |  |  |  | ok (r3) | r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| golden-gate-ids | r1 | oclp-hook | product |  |  |  |  |  | **needs** | r1 2026-11-15 New. |
-| golden-gate-launchd-warm | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed change |
-| golden-gate-live-text-service | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the |
-| golden-gate-live-text-shared | r10 | oclp-hook | experiment |  | x |  |  |  | **needs** | r10 2026-11-16 Row `live_text_framework` is the f479d6c7 build, reproducible from source with Xcode 27.2: runt |
-| golden-gate-metal-argbuf | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-15 libargbuf from d9fa28e7 (fix 26c6afc6): the texture and render-pipeline factory hooks return the |
-| golden-gate-metal-framebuffer | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-16 Rows `metal_framebuffer` are the 2845387b build of the current source, which the same command r |
-| golden-gate-metal-libraries | r21 | oclp-hook | experiment |  | x | x |  |  | **needs** | r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their p |
-| golden-gate-metal27 | r4 | oclp-hook | dev |  |  |  |  |  | **needs** | r4 2026-11-15 README: how to try it on a running image, at the level of commands; no file change. |
-| golden-gate-native-identities | r6 | oclp-hook | experiment |  | x | x |  |  | **needs** | r6 2026-11-13 Declares `golden_gate_userspace` in `src/read-from-share.txt`: the hook only attaches its `files |
-| golden-gate-root-launchservices | r2 | post | experiment | boot-seeds |  |  |  |  | **needs** | r2 2026-11-13 Documentation only: the first-boot measurement is cited as a laptop test on an image. Nothing in |
-| golden-gate-shader-caches | r14 | post | experiment | caches | x |  |  |  | **needs** | r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artif |
-| golden-gate-shared-cache | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `rebuilt_cache` hashes the artifact without its build.json (`# hash: without build.json`), s |
-| golden-gate-shared-cache-catalog | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged. |
-| golden-gate-store | r4 | oclp-hook | product |  |  |  |  |  | **needs** | r4 2026-11-16 Row `store_service` carries its build record (hash without build.json). Installed bytes unchange |
-| golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
-| golden-gate-user-template | r7 | post | experiment | caches | x |  |  |  | **needs** | r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its |
-| golden-gate-userspace | r82 | oclp-hook | experiment |  | x | x |  |  | **needs** | r82 2026-11-16 src/corewifi/make takes cache-dylib from this repository's tools/cache-dylib (was a separate ch |
-| golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
-| hao-command | r4 | post | experiment |  | x |  |  |  | **needs** | r4 2026-11-16 no du in apply.sh (the Recovery has none); in the dev, release and metal27 sets too |
-| hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
-| hao-runtime | r86 | oclp-hook | experiment |  | x | x |  |  | **needs** | r86 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime main 1547dcb payload (89aa3ccc, manifest dded6037): l |
-| hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
-| metal-compiler-compat | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-16 Row `metal_compiler_compat` is the f479d6c7 build, reproducible from source with Xcode 27.2: com |
-| metal-metalold | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-15 edits/metalold.json's evidence line names the comparison instead of a private document; the edit |
-| metalold-selectors | r7 | oclp-hook | product |  | x | x |  |  | ok (r3) | r7 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| rec-audio | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the three kext bundles and the kernel collection link in `patch.json` `files` and `edits |
-| rec-bluetooth-input | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the four kext bundles, btpower, its plist and the kernel collection link in `patch.json` |
-| rec-brightness-keys | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare brightkeys and its plist in `patch.json` `files`; the recipe is unchanged. |
-| rec-display-ethernet | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the two kext bundles and the kernel collection link in `patch.json` `files` and `edits/k |
-| rec-install-volume | r5 | post | product |  |  |  |  |  | **needs** | r5 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifa |
-| rec-language-list | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the three files in the Language Chooser's folder in `patch.json` `files`; the recipe is  |
-| rec-power | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is un |
-| rec-progress-phase | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is un |
-| rec-reinstall | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is un |
-| rec-startup-guard | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is un |
-| rec-wifi | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is un |
-| rec-wifi-autojoin | r2 | recovery | product |  |  |  | x |  | **needs** | r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is un |
+| darwin27-kernel | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| darwin27-sandbox-disk-space | r4 | oclp-hook | experiment |  |  | x |  |  | **needs** | r4 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| dev-access | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
+| dev-diagnostics | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
+| dev-keepawake | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
+| golden-gate-appstore-slices | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| golden-gate-av1-encoder-x86 | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
+| golden-gate-corespotlight-compat | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-dyld-internal | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-font-registry | r8 | post | experiment | caches | x |  |  |  | ok (r3) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-hd4000-planes | r5 | oclp-hook | product |  | x |  |  |  | **needs** | r5 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
+| golden-gate-hello | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
+| golden-gate-icon-caches | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-ids | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| golden-gate-launchd-warm | r4 | oclp-hook | experiment |  | x |  |  |  | **needs** | r4 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-live-text-service | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
+| golden-gate-live-text-shared | r11 | oclp-hook | experiment |  | x |  |  |  | **needs** | r11 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
+| golden-gate-metal-argbuf | r7 | oclp-hook | product |  | x |  |  |  | **needs** | r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
+| golden-gate-metal-framebuffer | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
+| golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
+| golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; nothing it installs changes. |
+| golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-root-launchservices | r3 | post | experiment | boot-seeds |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
+| golden-gate-shared-cache | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-shared-cache-catalog | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-store | r5 | oclp-hook | product |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-user-template | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-userspace | r83 | oclp-hook | experiment |  | x | x |  |  | **needs** | r83 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| hao-opencore | r66 | post | experiment |  | x | x |  |  | **needs** | r66 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| hao-runtime-fold | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
+| metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; nothing it installs changes. |
+| metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
+| rec-audio | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| rec-bluetooth-input | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| rec-brightness-keys | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| rec-display-ethernet | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| rec-install-volume | r6 | post | product |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| rec-language-list | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
+| rec-power | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
+| rec-progress-phase | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
+| rec-reinstall | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
+| rec-startup-guard | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
+| rec-wifi | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| rec-wifi-autojoin | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |

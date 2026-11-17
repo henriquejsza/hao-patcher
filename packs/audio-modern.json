@@ -13,5 +13,7 @@
  "proven_on": [
   "MacBookPro9,2"
  ],
- "recipes": []
+ "layer": "platform",
+ "kind": "audio",
+ "platform": "apple-intel"
 }

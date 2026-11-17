@@ -1,0 +1,12 @@
+{
+ "format": 1,
+ "description": "OS recipes no image takes by default: selected by name in a profile.",
+ "detect": {
+  "any_intel": true
+ },
+ "opt_in": true,
+ "phase": "installer",
+ "proven_on": [],
+ "oclp_patchsets": [],
+ "layer": "os"
+}

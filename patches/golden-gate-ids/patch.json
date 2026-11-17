@@ -1,5 +1,6 @@
 {
- "revision": 1,
+ "revision": 2,
+ "pack": "os-extras",
  "stage": "oclp-hook",
  "applies": {
   "models": [

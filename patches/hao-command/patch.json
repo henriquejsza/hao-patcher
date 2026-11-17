@@ -1,5 +1,6 @@
 {
- "revision": 4,
+ "revision": 5,
+ "pack": "base",
  "stage": "post",
  "applies": "any",
  "inputs": ["python_x86_64"],

@@ -121,13 +121,65 @@ PACKS = os.path.join(TOP, 'packs')
 PHASES = ('installer', 'live-capable')
 
 
-def load_packs(packs_dir=PACKS):
+def load_packs(packs_dir=PACKS, root=os.path.join(TOP, 'patches')):
+    """{name: packs/NAME.json}, each with "recipes": the recipes whose patch.json names it ("pack"), in order.txt
+    order (a recipe declares its pack; the pack file lists none, docs/layout.md)."""
     out = {}
     for n in sorted(os.listdir(packs_dir)) if os.path.isdir(packs_dir) else []:
         if n.endswith('.json'):
             with open(os.path.join(packs_dir, n)) as f:
                 out[n[:-5]] = json.load(f)
+    rank = {name: i for i, name in enumerate(order_names())}
+    declared = {}
+    for name in patch_names(root) if os.path.isdir(root) else []:
+        f = os.path.join(directory(name, root), 'patch.json')
+        pk = json.load(open(f)).get('pack') if os.path.isfile(f) else None
+        if pk:
+            declared.setdefault(pk, []).append(name)
+    for pk, names in declared.items():
+        if pk in out:
+            listed = out[pk].get('recipes', [])
+            out[pk]['recipes'] = listed + sorted((x for x in names if x not in listed),
+                                                 key=lambda x: (rank.get(x, len(rank)), x))
     return out
+
+
+ORDER = os.path.join(TOP, 'pipeline', 'order.txt')
+PROFILES = os.path.join(TOP, 'pipeline', 'profiles')
+
+
+def order_names(path=ORDER):
+    """Every image recipe once, in build order (pipeline/order.txt)."""
+    return names(path) if os.path.isfile(path) else []
+
+
+def generate(profile, root=os.path.join(TOP, 'patches'), packs=None, order=ORDER):
+    """An image's recipe list from a profile (pipeline/profiles/NAME.json): order.txt filtered to the packs the target
+    detects (opt-in packs never), the packs and single opt-in recipes the profile names, and the recipes of the
+    profile's variants, each replacing the recipe it names ("replaces"). A set is not build-specific: plan() leaves out,
+    at build time, recipes whose applies exclude the model and build. {"target": T, "packs": [...], "recipes": [...],
+    "variants": [...]}"""
+    prof = json.load(open(profile)) if isinstance(profile, (str, os.PathLike)) else profile
+    packs = load_packs(root=root) if packs is None else packs
+    target = os.path.join(TOP, 'pipeline', 'targets', prof['target'] + '.json')
+    selected = set(detect_packs(target, packs)) | set(prof.get('packs', []))
+    unknown = [p for p in prof.get('packs', []) if p not in packs]
+    if unknown:
+        raise ValueError('profile names unknown packs: %s' % ', '.join(unknown))
+    variants, named = set(prof.get('variants', [])), set(prof.get('recipes', []))
+    out, replaced = [], set()
+    for name in order_names(order):
+        p = json.load(open(os.path.join(directory(name, root), 'patch.json')))
+        if p.get('stage') == 'recovery':
+            continue
+        if not (p.get('pack') in selected or name in named):
+            continue
+        if p.get('variant') and p['variant'] not in variants:
+            continue
+        if p.get('variant') and p.get('replaces'):
+            replaced.add(p['replaces'])
+        out.append(name)
+    return [n for n in out if n not in replaced]
 
 
 def pack_problems(packs, root=os.path.join(TOP, 'patches')):
@@ -137,7 +189,7 @@ def pack_problems(packs, root=os.path.join(TOP, 'patches')):
     for name, p in packs.items():
         where = 'packs/%s.json' % name
         unknown = set(p) - {'format', 'description', 'detect', 'oclp_patchsets', 'phase', 'proven_on', 'recipes',
-                            'opt_in'}
+                            'opt_in', 'layer', 'kind', 'platform'}
         if unknown:
             bad.append('%s: unknown keys %s' % (where, ', '.join(sorted(unknown))))
         if 'opt_in' in p and p['opt_in'] is not True:
@@ -210,9 +262,10 @@ def plan(setfile, target, build, root=os.path.join(TOP, 'patches'), locks=None, 
             print('patches: %s does not apply to %s %s; skipped' % (name, model, build), file=sys.stderr)
             continue
         if packs is not None:
-            owner = next((pn for pn, pd in (pack_defs if pack_defs is not None else load_packs()).items()
-                          if name in pd.get('recipes', [])), None)
-            if owner is not None and owner not in packs:
+            defs = pack_defs if pack_defs is not None else load_packs()
+            owner = next((pn for pn, pd in defs.items() if name in pd.get('recipes', [])), None)
+            # an opt-in pack's recipe runs when the set (its profile) names it; detection never selects those packs
+            if owner is not None and owner not in packs and not defs[owner].get('opt_in'):
                 print('patches: %s is in pack %s, not selected; skipped' % (name, owner), file=sys.stderr)
                 continue
         group = p.get('optional')
@@ -297,7 +350,7 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
         if 'needs_any' in p and 'optional' not in p:
             bad.append('%s: needs_any without optional (a patch that can be skipped must be optional)' % name)
         unknown = set(p) - {'revision', 'stage', 'applies', 'inputs', 'status', 'validated', 'optional', 'needs_any',
-                            'files', 'validated_revision', 'validated_digest'}
+                            'files', 'validated_revision', 'validated_digest', 'pack', 'variant', 'replaces'}
         if ('validated_revision' in p) != ('validated_digest' in p):
             bad.append('%s: validated_revision and validated_digest go together' % name)
         elif 'validated_revision' in p:
@@ -333,6 +386,59 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
     if os.path.abspath(str(root)) == os.path.join(TOP, 'patches'):
         bad += pack_problems(load_packs(), root)
         bad += dev_problems(load_packs(), root, sets_dir)
+        bad += layout_problems(root)
+    return bad
+
+
+LAYERS = ('os', 'platform', 'dev')
+KINDS = ('model', 'gpu', 'wifi', 'audio', 'input', 'recovery')
+
+
+def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=ORDER, profiles=PROFILES):
+    """docs/layout.md: every recipe declares one pack; a pack declares its layer (a platform pack its kind and
+    platform) and lists no recipes; order.txt holds every image recipe once; a variant replaces a recipe of the same
+    pack; every profile generates."""
+    bad = []
+    raw = {}
+    for n in sorted(os.listdir(packs_dir)) if os.path.isdir(packs_dir) else []:
+        if n.endswith('.json'):
+            raw[n[:-5]] = json.load(open(os.path.join(packs_dir, n)))
+    for name, d in raw.items():
+        if 'recipes' in d:
+            bad.append('pack %s: lists recipes; each recipe declares its pack ("pack" in patch.json)' % name)
+        if d.get('layer') not in LAYERS:
+            bad.append('pack %s: needs "layer": %s' % (name, ' | '.join(LAYERS)))
+        if d.get('layer') == 'platform' and (d.get('kind') not in KINDS or not d.get('platform')):
+            bad.append('pack %s: a platform pack needs "kind" (%s) and "platform"' % (name, ', '.join(KINDS)))
+    ordered = order_names(order)
+    image = []
+    for name in patch_names(root):
+        f = os.path.join(directory(name, root), 'patch.json')
+        if not os.path.isfile(f):
+            continue
+        p = json.load(open(f))
+        if p.get('pack') not in raw:
+            bad.append('%s: needs "pack" naming a packs/*.json (docs/layout.md)' % name)
+        if p.get('stage') != 'recovery':
+            image.append(name)
+        if 'replaces' in p and 'variant' not in p:
+            bad.append('%s: "replaces" goes with "variant"' % name)
+        if p.get('replaces'):
+            other = os.path.join(directory(p['replaces'], root), 'patch.json') if p['replaces'] in patch_names(root) else None
+            if other is None:
+                bad.append('%s: replaces unknown recipe %s' % (name, p['replaces']))
+            elif json.load(open(other)).get('pack') != p.get('pack'):
+                bad.append('%s: replaces %s of another pack' % (name, p['replaces']))
+    if ordered:
+        bad += ['order.txt: %s is not an image recipe' % n for n in ordered if n not in image]
+        bad += ['order.txt: %s is missing' % n for n in image if n not in ordered]
+        bad += ['order.txt: %s is listed twice' % n for n in sorted({n for n in ordered if ordered.count(n) > 1})]
+    for f in sorted(os.listdir(profiles)) if os.path.isdir(profiles) else []:
+        if f.endswith('.json'):
+            try:
+                generate(os.path.join(profiles, f), root)
+            except (ValueError, KeyError, OSError) as x:
+                bad.append('profile %s: %s' % (f, x))
     return bad
 
 
@@ -647,6 +753,13 @@ if __name__ == '__main__':
         defs = load_packs()
         for n in detect_packs(sys.argv[2], defs):
             print('%-22s %-13s %s' % (n, defs[n]['phase'], ', '.join(defs[n].get('recipes', [])) or '-'))
+        sys.exit(0)
+    if sys.argv[1:2] == ['set'] and len(sys.argv) in (3, 4):
+        text = ''.join(n + '\n' for n in generate(sys.argv[2]))
+        if len(sys.argv) == 4:
+            open(sys.argv[3], 'w').write(text)
+        else:
+            sys.stdout.write(text)
         sys.exit(0)
     if sys.argv[1:2] == ['digest'] and len(sys.argv) == 3:
         print(recipe_digest(sys.argv[2]))
