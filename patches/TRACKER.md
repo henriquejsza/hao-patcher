@@ -14,6 +14,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | dev-diagnostics | r4 | post | dev |  |  |  |  |  | **needs** | r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestrict |
 | dev-keepawake | r1 | post | dev |  |  |  |  |  | **needs** | r1 2026-11-14 Two system LaunchDaemons: caffeinate -dimsu for good, and the power settings at every boot. |
 | golden-gate-appstore-slices | r2 | post | product |  | x | x |  |  | **needs** | r2 2026-11-15 Row hash scope. |
+| golden-gate-av1-encoder-x86 | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-16 New: AV1EncoderSW's Info.plist lists arm64 only, so x86_64 programs on a CPU without AVX2 no lon |
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e |
@@ -36,10 +37,10 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-store | r4 | oclp-hook | product |  |  |  |  |  | **needs** | r4 2026-11-16 Row `store_service` carries its build record (hash without build.json). Installed bytes unchange |
 | golden-gate-user-seed | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged. |
 | golden-gate-user-template | r7 | post | experiment | caches | x |  |  |  | **needs** | r7 2026-11-16 Optional (group `caches`, like the other harvested cache recipes): skipped, not failed, when its |
-| golden-gate-userspace | r81 | oclp-hook | experiment |  | x | x |  |  | **needs** | r81 2026-11-16 Merges r80 (this branch) with main's r79: both row changes below, no other change. |
+| golden-gate-userspace | r82 | oclp-hook | experiment |  | x | x |  |  | **needs** | r82 2026-11-16 src/corewifi/make takes cache-dylib from this repository's tools/cache-dylib (was a separate ch |
 | golden-gate-windowserver-filter | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r7 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both libra |
 | hao-opencore | r65 | post | experiment |  | x | x |  |  | **needs** | r65 2026-11-14 Input row `hao_runtime` (26B131) now names the DEV payload built from a clean local hao-runtime |
-| hao-runtime | r85 | oclp-hook | experiment |  | x | x |  |  | **needs** | r85 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime 7b17cd8 payload (6d90370a, manifest 480619bc): the 5a |
+| hao-runtime | r86 | oclp-hook | experiment |  | x | x |  |  | **needs** | r86 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime main 1547dcb payload (89aa3ccc, manifest dded6037): l |
 | hao-runtime-fold | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-16 Row `hao_runtime_fold` -> hao-runtime 1a290d7 payload (manifest 721ec2eb, libhao d6b9b712). |
 | metal-compiler-compat | r8 | oclp-hook | experiment |  | x |  |  |  | **needs** | r8 2026-11-16 Row `metal_compiler_compat` is the f479d6c7 build, reproducible from source with Xcode 27.2: com |
 | metal-metalold | r2 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r2 2026-11-15 edits/metalold.json's evidence line names the comparison instead of a private document; the edit |

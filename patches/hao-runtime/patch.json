@@ -1,5 +1,5 @@
 {
- "revision": 85,
+ "revision": 86,
  "stage": "oclp-hook",
  "applies": {
   "models": [
@@ -136,6 +136,18 @@
     "note": "AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao"
    },
    "tree": true,
+   "install": {
+    "mode": "0644",
+    "owner": "root:wheel"
+   }
+  },
+  {
+   "path": "System/Library/LaunchDaemons/hao.aot.plist",
+   "origin": {
+    "kind": "hao",
+    "row": "hao_runtime",
+    "note": "the automatic AOT job: `hao --aot --auto` at load, background priority, log /private/var/log/hao/aot-auto.log (payload root)"
+   },
    "install": {
     "mode": "0644",
     "owner": "root:wheel"

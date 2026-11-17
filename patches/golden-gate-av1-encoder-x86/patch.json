@@ -1,0 +1,14 @@
+{
+ "revision": 1,
+ "stage": "oclp-hook",
+ "applies": {"models": ["MacBookPro9,2"], "builds": ["25G332", "25G342"]},
+ "status": "experiment",
+ "validated": false,
+ "files": [
+  {
+   "path": "System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist",
+   "edits": "edits/av1-encoder-info.json",
+   "install": {"mode": "0644", "owner": "root:wheel", "flags": ["restricted"]}
+  }
+ ]
+}

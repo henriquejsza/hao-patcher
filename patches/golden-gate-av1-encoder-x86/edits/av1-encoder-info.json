@@ -1,0 +1,17 @@
+{
+ "format": 1,
+ "path": "System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist",
+ "origin": {"kind": "apple", "name": "Golden Gate System volume"},
+ "applied_by": "installer",
+ "edits": [
+  {
+   "id": "av1-encoder-arm64-only",
+   "kind": "op",
+   "op": "plist.set",
+   "args": {"key": ["CMClassImplementations", 0, "CMExecutableArchitectures"], "value": ["arm64"]},
+   "reason": "VideoToolbox offers the AV1 software encoder to arm64 programs only: its x86_64 once-only table setup (+0x158b50) is AVX2 code without a CPU check (vpmovsxwd ymm at +0x158b7f), so on a CPU without AVX2 the first AV1 encode dies with SIGILL (diag#0053)"
+  }
+ ],
+ "sign": null,
+ "expect": {"6695f08fe4afb57e8d5aed2ce9b4f44888ab129e7a472fa19cc05beafd5ddd15": "bd6564870fb8190666bca5c9de159f5d0730088271422a63e9e2c7fbccb1f667"}
+}

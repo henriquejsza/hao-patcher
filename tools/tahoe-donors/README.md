@@ -29,7 +29,8 @@ Tahoe ships some libraries only inside its OS shared cache. The recipe's
 `cache_images` names them (today CoreWiFi, from the x86_64h OS cache: Tahoe's
 airportd needs the CoreWiFi it was built with). `native --cache DIR` cuts each
 one out of the cache family in `DIR` (donor-inputs' `out/os-cache/`) with
-the `cache-dylib` tool (r3, pinned in `cache-dylib/`), keeping its install name, signs it
+the `cache-dylib` tool (r3, pinned in `cache-dylib/`; do not edit it there: its tree is the one
+`cache-dylib.pin` names, checked by tests/test_pin.py, and tools/cache-dylib r9 cuts CoreWiFi differently), keeping its install name, signs it
 ad hoc, verifies it with cache-dylib's `check.py` (bound GOT slots, resolvable
 Swift references, no instruction Ivy Bridge lacks) and adds it to the `system`
 role at its own path, with the recipe's owner, mode and flags. The extraction

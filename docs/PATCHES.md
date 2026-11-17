@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-48 of 48 patches declare their files so far.
+49 of 49 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -68,6 +68,14 @@ Revision r2, status product. [Recipe](../patches/golden-gate-appstore-slices/REA
 
 - `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
 - `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
+
+## golden-gate-av1-encoder-x86
+
+Revision r1, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/README.md)
+
+- `System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
+  1. `av1-encoder-arm64-only`: plist.set CMClassImplementations:0:CMExecutableArchitectures = ["arm64"].
+     VideoToolbox offers the AV1 software encoder to arm64 programs only: its x86_64 once-only table setup (+0x158b50) is AVX2 code without a CPU check (vpmovsxwd ymm at +0x158b7f), so on a CPU without AVX2 the first AV1 encode dies with SIGILL (diag#0053).
 
 ## golden-gate-corespotlight-compat
 
@@ -311,7 +319,7 @@ Revision r7, status experiment. [Recipe](../patches/golden-gate-user-template/RE
 
 ## golden-gate-userspace
 
-Revision r81, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r82, status experiment. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -507,7 +515,7 @@ Revision r65, status experiment. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r85, status experiment. [Recipe](../patches/hao-runtime/README.md)
+Revision r86, status experiment. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -519,6 +527,7 @@ Revision r85, status experiment. [Recipe](../patches/hao-runtime/README.md)
 - `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime). Interface units (1895 in the 26B131 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
 - `usr/lib/hao/aot-list`: whole file from hao (row hao_runtime). The programs `hao --aot` with no FILE caches, one absolute path per line (payload root). Installed mode 0644, owner root:wheel.
 - `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
+- `System/Library/LaunchDaemons/hao.aot.plist`: whole file from hao (row hao_runtime). The automatic AOT job: `hao --aot --auto` at load, background priority, log /private/var/log/hao/aot-auto.log (payload root). Installed mode 0644, owner root:wheel.
 - `usr/lib/dyld`: whole file from hao (row hao_runtime). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 

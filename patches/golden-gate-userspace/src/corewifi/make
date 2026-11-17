@@ -29,6 +29,7 @@ import os
 from pathlib import Path
 import plistlib
 import re
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -41,8 +42,8 @@ FRAMEWORK = f'/System/Library/PrivateFrameworks/{LEAF}.framework/Versions/A'
 DONOR = f'System/Library/PrivateFrameworks/{LEAF}.framework/Versions/A'
 NAME = 'corewifi_compat.dylib'
 COVERAGE = HERE.parent/'io80211'/'coverage.py'
-# hao-tools' tools/cache-dylib: a hao-tools checkout next to this repository unless CACHE_DYLIB names the directory
-DSC = Path(os.environ.get('CACHE_DYLIB', TOP.parent/'hao-tools'/'tools'/'cache-dylib'))
+# tools/cache-dylib (this repository's copy) unless CACHE_DYLIB names another directory
+DSC = Path(os.environ.get('CACHE_DYLIB', TOP/'tools'/'cache-dylib'))
 PRIVATE = '/System/Library/PrivateFrameworks'
 MACHO = (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf')
 TABLE_ENTRY = re.compile(r'^\s*\{"(\w+)", "([\w:]+)", "([^"]+)", \(IMP\)(\w+)\},$', re.M)
@@ -204,7 +205,8 @@ def main(args):
     sources = {str(p.relative_to(TOP)): sha256(p) for p in sorted(HERE.iterdir()) if p.is_file()}
     for helper in (COVERAGE, COVERAGE.parent/'methods.py'):
         sources[str(helper.relative_to(TOP))] = sha256(helper)
-    sources['hao-tools/tools/cache-dylib/dsc.py'] = sha256(DSC/'dsc.py')
+    sources['tools/cache-dylib/dsc.py' if DSC.resolve() == (TOP/'tools'/'cache-dylib').resolve() else str(DSC/'dsc.py')] = \
+        sha256(DSC/'dsc.py')
     overrides = {}
     for leaf, compat in (('IO80211', args.io80211_compat), ('WiFiPeerToPeer', args.wifip2p_compat)):
         oclp = Path(args.oclp)/f'System/Library/PrivateFrameworks/{leaf}.framework/Versions/A'
@@ -227,6 +229,8 @@ def main(args):
         if errors:
             sys.exit('\n'.join(errors))
         digest = sha256(binary)
+        source = runpy.run_path(str(TOP/'pipeline'/'source_commit.py'))
+        inside = DSC.resolve().is_relative_to(TOP.resolve())
         now = datetime.datetime.now(datetime.timezone.utc)
         out = root/f'corewifi-compat-{macos_build}-{now:%Y%m%d}-{digest[:12]}'
         out.mkdir()
@@ -235,10 +239,10 @@ def main(args):
         (out/'build.json').write_text(json.dumps({
             'unit': 'patches/golden-gate-userspace/src/corewifi',
             'revision': json.loads((PATCH/'patch.json').read_text())['revision'],
-            'commit': run('git', 'rev-parse', 'HEAD'),
-            'dirty': bool(run('git', 'status', '--porcelain', '--', PATCH)
-                          or subprocess.check_output(['git', '-C', DSC, 'status', '--porcelain', '--', '.'], text=True).strip()),
-            'cache_dylib_commit': subprocess.check_output(['git', '-C', DSC, 'rev-parse', 'HEAD'], text=True).strip(),
+            'commit': source['commit'](TOP),
+            'dirty': source['dirty'](TOP, PATCH.relative_to(TOP), DSC) if inside else bool(
+                source['dirty'](TOP, PATCH.relative_to(TOP)) or source['_git'](DSC, 'status', '--porcelain', '--', '.')),
+            'cache_dylib_commit': source['commit'](TOP) if inside else source['_git'](DSC, 'rev-parse', 'HEAD') or '',
             'date': now.isoformat(), 'inputs': sources,
             'compiler': run('xcrun', 'clang', '--version'),
             'sha256': digest,
