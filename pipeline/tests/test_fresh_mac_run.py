@@ -281,13 +281,22 @@ class Run(unittest.TestCase):
         self.assertEqual(vm.calls, [])
         self.assertEqual(len(r['mirror_missing']), 2)
 
-    def test_missing_assets_are_filled_from_the_release(self):
+    def test_missing_files_are_filled_before_the_vm_starts(self):
         vm = FakeVM(commit=self.head)
-        rc, r = self.main(vm, {'2' * 64}, '--mirror-fill', '/bin/false')
+        rc, r = self.main(vm, set(), '--mirror-fill', '/bin/false')
         self.assertEqual(rc, 0, r.get('reasons'))
-        self.assertEqual(r['mirror_filled'], ['dss_shim.dylib'])
+        self.assertEqual(r['mirror_filled'], ['dss_shim.dylib', 'KDK.dmg'])
         self.assertEqual(self.filled[0][0], ['/bin/false', 'fill', '-', '--from', str(self.rel)])
-        self.assertNotIn('KDK.dmg', self.filled[0][1])      # only the release's own assets
+        self.assertEqual(vm.calls[0][0], 'start')
+
+    def test_a_file_without_an_origin_is_not_filled(self):
+        self.lines.append('%s 3 ? unknown.bin' % ('3' * 64))
+        vm = FakeVM(commit=self.head)
+        rc, r = self.main(vm, set(), '--mirror-fill', '/bin/false')
+        self.assertEqual(rc, 1)
+        self.assertNotIn('unknown.bin', self.filled[0][1])
+        self.assertEqual([l.split()[-1] for l in r['mirror_missing']], ['unknown.bin'])
+        self.assertEqual(vm.calls, [])
 
     def test_a_running_vm_is_left_alone(self):
         vm = FakeVM(commit=self.head)
