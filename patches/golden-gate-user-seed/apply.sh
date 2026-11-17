@@ -1,4 +1,4 @@
-# golden-gate-user-seed: the per-user seed runtime (mac-image user-seed, seed.zsh seed7, unchanged). launchd runs
+# golden-gate-user-seed: the per-user seed runtime (the Tahoe image project's user-seed, seed.zsh seed7, unchanged). launchd runs
 # src/seed.zsh as root at boot and whenever the local users folder changes; for each new account (uid >= 501, created
 # < 600 s ago) it copies what PerUserSeed holds into the account's cache folders before its apps start: is/ (icon
 # index, golden-gate-icon-caches), metal/ (shader trees, golden-gate-shader-caches), fonts/ (font registry,

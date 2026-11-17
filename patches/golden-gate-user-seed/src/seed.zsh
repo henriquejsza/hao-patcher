@@ -303,7 +303,7 @@ place_ls() {
     return 0
 }
 
-# fontd's font registry (mac-image user-seed r6): setup-caches' account-neutral copy into <C>com.apple.FontRegistry,
+# fontd's font registry (the Tahoe image project's user-seed r6): setup-caches' account-neutral copy into <C>com.apple.FontRegistry,
 # as fontd makes it (folder 700, file 644, the user's), before the user's fontd starts (record -> fontd ~18-24 s).
 # Without it that fontd scans every font while Setup Assistant waits on it. Its user-folder row (domain 1) holds
 # cache/font-registry's placeholder in fontd's "not seen yet" state; sqlite3 writes this account's <home>/Library/Fonts
@@ -393,7 +393,7 @@ maybe_ls() {   # between Metal chunks: rescan when the users dir changed, or eve
 }
 
 # ---- passd kick (a background chain from pk_arm on; the main loop and the Metal chunks only watch it) --------------
-# mac-image r7 (2026-11-02): the chain starts as soon as the account is seeded, waits for Apple's passd job in the
+# The Tahoe image project's r7 (2026-11-02): the chain starts as soon as the account is seeded, waits for Apple's passd job in the
 # user's gui domain ITSELF (every PKPOLL) and pokes at once. It is a forked subshell running pk_chain (no exec).
 # Before r7 the main loop polled gui/<uid> every 2 s between its other launchctl/pgrep forks and only then forked a
 # `zsh -fc` chain: bench 103949 (25G332) had gui/501 at 07:48:28.8, the poke logged at 07:48:35.7, `launchctl asuser`

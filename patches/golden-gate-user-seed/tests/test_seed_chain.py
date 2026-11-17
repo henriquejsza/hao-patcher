@@ -170,7 +170,7 @@ class SeedChainTest(unittest.TestCase):
                 'zmodload -F zsh/files b:zf_mv b:zf_rm b:zf_mkdir b:zf_chown b:zf_chmod', 'zmodload -F zsh/stat b:zstat',
                 'log() { print -r -- "$*" }', 'ms() { REPLY=0 }', 'own() { return 0 }',
                 'SEED=%s; typeset -a KEPT; NB=0; NS=0' % seed, body,
-                'place_chunk benchtest 501 20 %s/ 0 com.apple.Preview com.apple.Maps' % cache,
+                'place_chunk testuser 501 20 %s/ 0 com.apple.Preview com.apple.Maps' % cache,
                 'print "NB=$NB NS=$NS"'])
             r = subprocess.run(['/bin/zsh', '-f', '-c', script], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
