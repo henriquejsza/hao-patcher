@@ -231,7 +231,7 @@ def prepare_overlays(recipe, share, work, record, source, options):
     out=work/'overlays';store=Path(options['store']).resolve()
     results=lambda:sum(1 for _ in store.glob('results/*.json'))
     before=results();started=time.monotonic()
-    report,ledger=materialize['run'](str(TOP/'pipeline/sets'/(recipe['patch_set']+'.txt')),
+    report,ledger=materialize['run'](runpy.run_path(str(TOP/'pipeline/patches.py'))['set_path'](recipe['patch_set']),
                                      str(TOP/'pipeline/targets'/(recipe['target']+'.json')),recipe['donor_build'],
                                      str(out),str(store),str(system),golden=recipe['golden_build'])
     made=time.monotonic()
@@ -381,7 +381,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             def lock_of(row):
                 return next(d for d in (golden_lock,build_lock,common) if (d/row).is_file())
             command(['zsh',pipeline/'stages/inputs.sh',share,pipeline/'targets'/(recipe['target']+'.json'),
-                     build_lock,common,recipe['oclp'],pipeline/'sets'/(recipe['patch_set']+'.txt'),'golden-first'])
+                     build_lock,common,recipe['oclp'],runpy.run_path(str(TOP/'pipeline/patches.py'))['set_path'](recipe['patch_set']),'golden-first'])
             set_order(share)  # refuse a set whose order is not its run order before any further staging
             # Which optional patches (e.g. harvested caches) ran or were skipped, and why.
             state['optional']=json.loads((share/'optional.json').read_text());write(record/'build.json',state)

@@ -69,7 +69,7 @@ def rows_for(assembly):
                TOP / 'pipeline/inputs/common']
     tables = [(f, lock['rows'](str(f))) for f in folders if f.is_dir()]
     target = TOP / 'pipeline/targets' / (a['target'] + '.json')
-    setfile = TOP / 'pipeline/sets' / (a['patch_set'] + '.txt')
+    setfile = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))['set_path'](a['patch_set'])
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
         plan = patches['plan'](setfile, target, a['donor_build'], locks=None)
@@ -404,7 +404,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     a = json.loads(Path(assembly).read_text())
     import contextlib, io
     with contextlib.redirect_stderr(io.StringIO()):
-        plan = patches['plan'](TOP / 'pipeline/sets' / (a['patch_set'] + '.txt'),
+        plan = patches['plan'](patches['set_path'](a['patch_set']),
                                TOP / 'pipeline/targets' / (a['target'] + '.json'), a['donor_build'], locks=None)
     packs = patches['load_packs']()
     data = classes()

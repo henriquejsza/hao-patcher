@@ -73,6 +73,9 @@ INSTALL_FLAGS = ('restricted', 'schg', 'uchg', 'sunlnk', 'hidden', 'nodump')
 
 
 def names(setfile):
+    """A set's recipe names: a set file (one name per line), or a profile (pipeline/profiles/NAME.json), generated."""
+    if str(setfile).endswith('.json'):
+        return generate(setfile)
     out = []
     for line in open(setfile):
         line = line.split('#', 1)[0].strip()
@@ -146,6 +149,13 @@ def load_packs(packs_dir=PACKS, root=os.path.join(TOP, 'patches')):
 
 ORDER = os.path.join(TOP, 'pipeline', 'order.txt')
 PROFILES = os.path.join(TOP, 'pipeline', 'profiles')
+
+
+def set_path(name, top=TOP):
+    """The set NAME: its profile (pipeline/profiles/NAME.json, generated) when there is one, else pipeline/sets/NAME.txt
+    (the hand sets: legacy runners, the bootstrap and 26A428 sets)."""
+    profile = os.path.join(str(top), 'pipeline', 'profiles', name + '.json')
+    return profile if os.path.isfile(profile) else os.path.join(str(top), 'pipeline', 'sets', name + '.txt')
 
 
 def order_names(path=ORDER):

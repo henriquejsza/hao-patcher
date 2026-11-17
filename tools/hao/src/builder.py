@@ -207,7 +207,7 @@ def recipes_by_pack(asm, profile):
     patches = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
     defs = patches['load_packs']()
     owner = {r: n for n, d in defs.items() for r in d.get('recipes', [])}
-    rows = _quiet(lambda: list(patches['plan'](TOP / 'pipeline/sets' / (asm['patch_set'] + '.txt'),
+    rows = _quiet(lambda: list(patches['plan'](patches['set_path'](asm['patch_set']),
                                                TOP / 'pipeline/targets' / (asm['target'] + '.json'),
                                                asm['donor_build'], packs=profile['packs'])))
     out = {n: [] for n in profile['packs']}
