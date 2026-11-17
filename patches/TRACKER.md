@@ -14,6 +14,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | dev-diagnostics | r4 | post | dev |  |  |  |  |  | **needs** | r4 2026-11-14 Dev sets boot with `csr-active-config` 0x827: the image's 0x803 plus task-for-pid and unrestrict |
 | dev-keepawake | r1 | post | dev |  |  |  |  |  | **needs** | r1 2026-11-14 Two system LaunchDaemons: caffeinate -dimsu for good, and the power settings at every boot. |
 | golden-gate-appstore-slices | r2 | post | product |  | x | x |  |  | **needs** | r2 2026-11-15 Row hash scope. |
+| golden-gate-av1-encoder-x86 | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-16 New: AV1EncoderSW's Info.plist lists arm64 only, so x86_64 programs on a CPU without AVX2 no lon |
 | golden-gate-corespotlight-compat | r6 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r6 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on both daemo |
 | golden-gate-dyld-internal | r1 | oclp-hook | experiment |  | x |  |  |  | **needs** | r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13). |
 | golden-gate-font-registry | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e |

@@ -7,7 +7,7 @@ A file is installed with the attributes its declaration gives (*installed*: mode
 without them gets root:wheel, 0755 for a Mach-O, 0644 otherwise, no flags (a tar member keeps its own mode and owner).
 A file made on the target lists what it is made *after* there.
 
-48 of 48 patches declare their files so far.
+49 of 49 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -68,6 +68,14 @@ Revision r2, status product. [Recipe](../patches/golden-gate-appstore-slices/REA
 
 - `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
 - `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
+
+## golden-gate-av1-encoder-x86
+
+Revision r1, status experiment. [Recipe](../patches/golden-gate-av1-encoder-x86/README.md)
+
+- `System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
+  1. `av1-encoder-arm64-only`: plist.set CMClassImplementations:0:CMExecutableArchitectures = ["arm64"].
+     VideoToolbox offers the AV1 software encoder to arm64 programs only: its x86_64 once-only table setup (+0x158b50) is AVX2 code without a CPU check (vpmovsxwd ymm at +0x158b7f), so on a CPU without AVX2 the first AV1 encode dies with SIGILL (diag#0053).
 
 ## golden-gate-corespotlight-compat
 
