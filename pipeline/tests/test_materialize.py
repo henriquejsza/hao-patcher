@@ -61,14 +61,15 @@ class Materialize(unittest.TestCase):
             (d / 'edits' / fname).write_text(json.dumps(spec))
         self.order.append(name)
 
-    def run_all(self, packs=None):
+    def run_all(self, packs=None, platform_data=None):
         s = self.d / 'set.txt'; s.write_text('\n'.join(self.order) + '\n')
         t = self.d / 'mbp92.json'; t.write_text(json.dumps({'model': 'MacBookPro9,2'}))
         led = L['build'](s, t, '25G342', root=self.root, layer_data=(OCLP, []))
         packs = packs or {}
         out = self.d / 'out'
         report = M['materialize'](led, self.root, self.sources, out, self.d / 'store',
-                                  lambda r: packs.get(r, 'base'), lambda p: 'live-capable', repo=self.d)
+                                  lambda r: packs.get(r, 'base'), lambda p: 'live-capable', repo=self.d,
+                                  platform_data=platform_data)
         return {r['path']: r for r in report}, out
 
     def test_sources_edits_chain_and_manifest(self):
@@ -303,6 +304,57 @@ class Materialize(unittest.TestCase):
         report, out = self.run_all(packs={'a': 'metal-3802'})
         self.assertTrue((out / 'metal-3802/files/usr/lib/one.dylib').is_file())
         self.assertEqual(json.loads((out / 'metal-3802/manifest.json').read_text())['phase'], 'live-capable')
+
+    def gated(self):
+        """A path with an edit for every target and one for targets with platform_data model_gates; a path with only
+        the conditional edit."""
+        gate = dict(literal('gate', '0x1', '02', 'BB'), when_target='model_gates')
+        self.recipe('every', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': literal('one', '0x0', '01', 'AA')})
+        self.recipe('gates', [{'path': METAL, 'edits': 'edits/m.json'},
+                              {'path': 'usr/lib/libz.dylib', 'edits': 'edits/z.json'}],
+                    {'m.json': gate, 'z.json': {'format': 1, 'path': 'usr/lib/libz.dylib', 'origin': {'kind': 'apple'},
+                                                'when_target': 'model_gates',
+                                                'edits': [{'id': 'z', 'kind': 'literal', 'at': 0, 'find': '67',
+                                                           'replace': '47', 'reason': 'x'}]}})
+
+    def test_when_target_applies_on_a_target_with_the_key(self):
+        self.gated()
+        report, out = self.run_all(platform_data={'model_gates': {'renamed': 'NacBookPro9,2'}})
+        self.assertEqual((out / 'base/files' / METAL).read_bytes(), b'\xaa\xbb\x03\x04oclp-metal')
+        self.assertEqual((out / 'base/files/usr/lib/libz.dylib').read_bytes(), b'Golden gate libz')
+        self.assertNotIn('skipped_writers', report[METAL])
+
+    def test_when_target_is_skipped_on_a_target_without_it(self):
+        self.gated()
+        report, out = self.run_all(platform_data={})
+        self.assertEqual((out / 'base/files' / METAL).read_bytes(), b'\xaa\x02\x03\x04oclp-metal')   # only "every"
+        self.assertEqual(report[METAL]['outcome'], 'made')
+        self.assertEqual(report[METAL]['skipped_writers'],
+                         [{'recipe': 'gates', 'spec': 'edits/m.json',
+                           'reason': 'the target has no platform_data model_gates'}])
+        self.assertEqual(report['usr/lib/libz.dylib']['outcome'], 'skipped')
+        self.assertIn('no platform_data model_gates', report['usr/lib/libz.dylib']['reason'])
+        self.assertFalse((out / 'base/files/usr/lib/libz.dylib').exists())
+
+    def test_when_target_needs_a_known_target(self):
+        self.gated()
+        (self.d / 'out').mkdir()                  # nothing is made, so materialize makes no pack folder
+        report, _ = self.run_all()
+        self.assertEqual(report[METAL]['outcome'], 'unresolved')
+        self.assertIn('no target was given', report[METAL]['reason'])
+
+    def test_specs_without_when_target_are_the_same_on_any_target(self):
+        self.recipe('hello', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': literal('one', '0x0', '01', 'AA')})
+        made = [self.run_all(platform_data=pd)[1] / 'base/files' / METAL for pd in (None, {}, {'model_gates': 1})]
+        self.assertEqual({m.read_bytes() for m in made}, {b'\xaa\x02\x03\x04oclp-metal'})
+
+
+class ShippedTarget(unittest.TestCase):
+    def test_run_reads_the_targets_platform_data(self):
+        spec = runpy.run_path(str(TOP / 'tools/edit-engine/src/spec.py'))
+        for t in (TOP / 'pipeline/targets').glob('*.json'):
+            data = spec['load_platform_data'](target=str(t))
+            self.assertEqual(data, json.loads(t.read_text()).get('platform_data', {}), t.name)
 
 
 if __name__ == '__main__':
