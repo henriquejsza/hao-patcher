@@ -149,10 +149,10 @@ class SeedChainTest(unittest.TestCase):
         self.assertIn('after golden-gate-user-seed', r.stderr)
 
     def test_place_chunk_leaves_out_metalfe(self):
-        """place_chunk run as written in seed.zsh: an old seed's com.apple.metalfe (path-bound clang module caches)
+        """chunk_body_as (place_chunk's work, run as the account) as written in seed.zsh: an old seed's com.apple.metalfe (path-bound clang module caches)
         is not placed, com.apple.metal is, and an app's existing tree is kept."""
         text = (TOP / 'patches/golden-gate-user-seed/src/seed.zsh').read_text()
-        start = text.index('place_chunk() {')
+        start = text.index('chunk_body_as() {')
         body = text[start:text.index('\n}\n', start) + 3]
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
@@ -170,7 +170,7 @@ class SeedChainTest(unittest.TestCase):
                 'zmodload -F zsh/files b:zf_mv b:zf_rm b:zf_mkdir b:zf_chown b:zf_chmod', 'zmodload -F zsh/stat b:zstat',
                 'log() { print -r -- "$*" }', 'ms() { REPLY=0 }', 'own() { return 0 }',
                 'SEED=%s; typeset -a KEPT; NB=0; NS=0' % seed, body,
-                'place_chunk testuser 501 20 %s/ 0 com.apple.Preview com.apple.Maps' % cache,
+                'chunk_body_as seeduser %s/ 0 com.apple.Preview com.apple.Maps' % cache,
                 'print "NB=$NB NS=$NS"'])
             r = subprocess.run(['/bin/zsh', '-f', '-c', script], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

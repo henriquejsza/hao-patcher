@@ -4,6 +4,4 @@
 
 # patcher
 dev-diagnostics
-golden-gate-native-identities
-golden-gate-user-seed
 hao-opencore

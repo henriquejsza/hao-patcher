@@ -331,6 +331,26 @@ class Synthetic(unittest.TestCase, Checks):
             self.assert_adapted(before, after, self.layout)
             self.assertEqual(after[-20:-8], bytes([0x15, 201, 0, 0, 0x15, 202, 1, 0, 0x03, 0, 0, 0]))
 
+    def test_shared_modifier_list_is_renumbered_once(self):
+        # two terminals (allow, deny) share one message-filter list: renumbered at its first reference only
+        mods = bytes([0x15, 205, 0, 0, 0x15, 206, 1, 0])
+        nodes = (filter_node(6, 1, 2), terminal(0, count=2, offset=0), terminal(1, count=2, offset=0),
+                 terminal(inline=bytes([0x15, 208, 0, 0])))   # after the second reference: still renumbered
+        before = profile(nodes=nodes, data=mods+b'tail\0\0\0\0')
+        status, reason, after = adapt(before, self.layout)
+        self.assertEqual((status, reason), (1, 0))
+        self.assert_adapted(before, after, self.layout)
+        self.assertEqual(after[-16:-8], bytes([0x15, 201, 0, 0, 0x15, 202, 1, 0]))
+
+    def test_partly_overlapping_modifier_lists_refuse_without_writing(self):
+        # list A (3 entries, 12 bytes) at unit 0 runs into list B at unit 1: a modifier both would rewrite
+        mods = bytes([0x15, 205, 0, 0, 0x15, 206, 0, 0, 0x15, 207, 0, 0, 0, 0, 0, 0])
+        nodes = (filter_node(6, 1, 2), terminal(0, count=3, offset=0), terminal(1, count=2, offset=1))
+        before = profile(nodes=nodes, data=mods)
+        status, reason, after = adapt(before, self.layout)
+        self.assertEqual(status, 2)
+        self.assertEqual(after, before)
+
     def test_passes_collections_donor_count_and_short_input(self):
         for before in (profile(flags=0x8000, nodes=(terminal(),)), profile(ops=200, nodes=(terminal(),)), b'\0'*8):
             self.assertEqual(adapt(before, self.layout), (0, 0, before))
