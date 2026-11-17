@@ -71,7 +71,11 @@ def gather(host, env=None, state=REP.STATE, folders=None, aot_dirs=AOT_DIRS):
     d['live_patches'] = ('%d, newest %s (%s)' % (len(recs), recs[-1].get('id'), recs[-1].get('state'))
                          if recs else 'none')
     caches = [p for folder in aot_dirs if Path(folder).is_dir() for p in Path(folder).glob('*.aot')]
-    d['aot'] = ('%d caches' % len(caches)) if caches else ('none' if d['where'] == 'installed' else 'not on this Mac')
+    if d['where'] == 'installed':
+        import aot as AOT
+        d['aot'] = AOT.summary(aot_dirs[0])
+    else:
+        d['aot'] = ('%d caches' % len(caches)) if caches else 'not on this Mac'
     d['update'] = 'not checked (hao update comes in the next release)'
     stop = last_stop(REP.log_dirs(env) if folders is None else folders)
     d['last_stop'] = ('%s on %s: %s' % stop) if stop else 'none'

@@ -13,6 +13,7 @@ and macOS versions; `hao help --all` adds the developer commands; `hao COMMAND -
 | [`verify`](#hao-verify) | a Mac with hao | checks every installed pack file against its manifest |
 | [`explain`](#hao-explain) | a Mac with hao, or the Mac that made the installer | where a file comes from and every edit to it |
 | [`run`](#hao-run) | a Mac with hao | runs an ARM program with the runtime's diagnostics (new in v0.0.2) |
+| [`aot`](#hao-aot) | a Mac with hao | the runtime's ahead-of-time caches (new in v0.0.2) |
 
 A command started where it doesn't belong stops and says where it runs (exit code 5).
 
@@ -102,6 +103,19 @@ ARM-only programs run when you start them as usual; `hao run` is for the runtime
 what it does, `--stats` prints counts at exit, `--interp` uses the interpreter only, `--allow-unsigned` runs an
 unsigned program. The program's output and exit code are its own. Under `sudo`, `-v` is ignored.
 
+## hao aot
+
+```sh
+sudo hao aot                 # build the caches of the programs the release ships; valid ones are skipped
+hao aot --status             # valid, missing and stale caches, and the start-up job
+sudo hao aot --background    # the same build, detached, at background priority
+sudo hao aot --clear         # remove the caches; the start-up job builds them again
+```
+
+The runtime's ahead-of-time caches make ARM programs start faster. They are in `/private/var/db/hao`, which every user,
+root and the system's services read, so building and removing them needs your password. A start-up job (`hao.aot`)
+builds them once after the first start-up and again after each runtime update; `hao status` shows how far it is.
+
 ## Output
 
 Every command takes the same detail levels:
@@ -141,4 +155,3 @@ with the overall progress, and the run ends with a summary. In a pipe or a log, 
 
 - `hao update`: compare this Mac with the newest release, download only what changed, apply it and keep the previous
   state to go back to; also from a USB installer or a release folder without a network.
-- `hao aot`: build the runtime's ahead-of-time caches for the programs that ship with the release.

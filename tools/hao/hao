@@ -87,6 +87,7 @@ import progress as PROG  # noqa: E402
 import frontdoor as FD   # noqa: E402
 import status as STATUS  # noqa: E402
 import run as RUN        # noqa: E402
+import aot as AOT        # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -813,6 +814,13 @@ def main():
     q.add_argument('program', help='the ARM program to run')
     q.add_argument('args', nargs=argparse.REMAINDER, help='its arguments')
     q.set_defaults(fn=guarded(lambda a, c: RUN.run(a, c)))
+    q = sub.add_parser('aot', help='the runtime\'s ahead-of-time caches: build, --status, --background, --clear')
+    g = q.add_mutually_exclusive_group()
+    g.add_argument('--status', action='store_true', help='valid, missing and stale caches, and the hao.aot job')
+    g.add_argument('--background', action='store_true', help='build detached, at background priority (sudo)')
+    g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/hao (sudo)')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(lambda a, c: AOT.aot(a, c), log='aot'))
     q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))

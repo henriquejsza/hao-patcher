@@ -23,6 +23,7 @@ COMMANDS = (
     ('verify', ('installed',), 'check every installed file against its manifest'),
     ('explain', ('installed', 'build'), 'where a file comes from and every edit to it'),
     ('run', ('installed',), 'an ARM program through hao, with diagnostics (-v, --stats, --interp)'),
+    ('aot', ('installed',), 'the ahead-of-time caches: build (sudo), --status, --background, --clear'),
     ('status', ('build', 'installer', 'installed'), 'hao on this Mac: release, macOS, SIP, install, last stop'),
     ('report', ('build', 'installer', 'installed'), 'one file with what a developer needs, for a GitHub issue'),
 )
