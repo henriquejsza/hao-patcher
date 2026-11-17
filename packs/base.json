@@ -22,6 +22,5 @@
   "golden-gate-icon-caches",
   "golden-gate-font-registry",
   "golden-gate-user-seed",
-  "golden-gate-windowserver-filter"
- ]
+  "golden-gate-windowserver-filter", "hao-command"]
 }
