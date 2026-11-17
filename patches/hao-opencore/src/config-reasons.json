@@ -55,6 +55,7 @@
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:OCLP-Model": "OCLP: names the model the EFI was built for; OCLP's own tools read it",
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:OCLP-Settings": "OCLP: records which OCLP options the EFI was built with (-allow_fv, -allow_amfi); OCLP's root patcher reads it",
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:OCLP-Version": "OCLP: the OCLP version the EFI was built with",
+ "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revblock=media": "OCLP 3.0.0 (disable_mediaanalysisd): RestrictEvents keeps mediaanalysisd from starting. This is the value when hao-opencore checks the config; golden-gate-live-text-service (pack metal-3802), which runs after it, replaces it with none where Live Text ships, so an image without that recipe keeps OCLP's block",
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revblock=none": "golden-gate-live-text-service: lifts RestrictEvents' media block so mediaanalysisd runs (Live Text); metal's LS4 measures it",
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revpatch=f16c": "RestrictEvents: the Ivy Bridge CoreGraphics F16C fix (see kext:RestrictEvents.kext)",
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revpatch=sbvmm,f16c": "RestrictEvents: f16c (CoreGraphics on Ivy Bridge) and sbvmm (reports a VMM board so software update offers this Mac updates; OCLP adds it unless a serial is set)",
