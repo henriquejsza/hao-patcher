@@ -6,6 +6,7 @@ and macOS versions; `hao help --all` adds the developer commands; `hao COMMAND -
 
 | Command | Runs on | What it does |
 |---|---|---|
+| [`verify-release`](#hao-verify-release) | anywhere | checks a release is the one the project signed: run it before `create-installer` |
 | [`create-installer`](#hao-create-installer) | any Mac on its own macOS | makes the USB installer (asks for your password to write the drive) |
 | [`install`](#hao-install) | the USB installer's Recovery | installs macOS 27 on this Mac |
 | [`doctor`](#hao-doctor) | any Mac on its own macOS | checks this Mac is ready to make the USB installer (new in v0.0.2) |
@@ -18,11 +19,33 @@ and macOS versions; `hao help --all` adds the developer commands; `hao COMMAND -
 
 A command started where it doesn't belong stops and says where it runs (exit code 5).
 
+## hao verify-release
+
+```sh
+./hao verify-release [vX.Y.Z | FOLDER]
+```
+
+Checks that the release files are the ones the project signed, before anything runs with your password: the signatures
+on `SHA256SUMS` and `release.json` against the keys hao carries (`tools/hao/data/release-keys.pub`), every file present
+against its sha256 (with the downloads in `~/Library/Caches/hao`), and that the public tag is the commit `release.json`
+names. With `vX.Y.Z` it downloads that release's signed files first; with a folder it checks the files there, or a USB
+installer (`/Volumes/HAO`). On the USB installer, plain `hao verify-release` checks that drive. One line per check:
+PASS, FAIL, or SKIP with the reason (SKIP means not checked). Any FAIL exits 4: don't go on.
+
+| Option | |
+|---|---|
+| `--offline` | no network: the tag is not looked up (`vX.Y.Z` needs the network) |
+| `--cache DIR` | the downloads to check as well |
+
 ## hao create-installer
 
 ```sh
 sudo ./hao create-installer [/dev/diskN] [--model MODEL | --profile FILE] [--dry-run]
 ```
+
+Run `./hao verify-release` right before it, as yourself: `sudo` runs hao's files as root, so check them first.
+`sudo ./hao` runs only python.org's Python 3.14, and only while it is root's alone (`./hao doctor` checks this and
+prints the fix). It refuses a release whose signature does not hold (exit 4).
 
 Asks which Mac the installer is for (a proven model, or a profile file from `hao detect`) and which USB drive to use,
 and needs its name typed before erasing it. Then it downloads what the release pins (each file checked against its
@@ -46,7 +69,7 @@ kit on `HAO`. It ends with what to do on the Intel Mac.
 hao doctor [--for create-installer | ci | release] [--offline]
 ```
 
-Read only. Checks the Python running hao (python.org's 3.14 on the Mac that makes the installer), Xcode and its Metal
+Read only. Checks the Python running hao (python.org's 3.14 on the Mac that makes the installer; `sudo ./hao` runs only that Python, and only while it is root's alone), Xcode and its Metal
 toolchain, the macOS version, the free disk against the release's peak, that each download URL answers, and that each
 download has a mirror. A failing check names its fix; any failure exits 5. `--for release` also requires the exact Xcode
 version and a mirror for every download; `--offline` skips the network checks.

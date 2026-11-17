@@ -54,27 +54,62 @@ def check_python(where, p, version=None, which=shutil.which):
                          if where == 'build' else 'start hao from the USB installer or /usr/local/bin/hao'))
     else:
         out.append(check('python', 'ok', 'Python %s' % '.'.join(map(str, (version or sys.version_info)[:3]))))
-    if where == 'build' and not which('python%s' % want):
-        out.append(check('python', 'fail', 'python%s is not on PATH (pipeline/ runs python%s -I)' % (want, want),
-                         'install Python %s from python.org and run its Install Certificates once' % want))
+    if where == 'build':
+        # what the pipeline's `env python3.14` will run: this run's PATH (as root, the launcher's verified interpreter)
+        found = which('python%s' % want)
+        if not found:
+            out.append(check('python', 'fail', 'python%s is not on PATH (pipeline/ runs python%s -I)' % (want, want),
+                             'install Python %s from python.org' % want))
+        else:
+            out.append(check('python', 'ok', 'pipeline/ runs %s' % found))
     return out
 
 
-def check_interpreter(exe=None):
-    """`sudo ./hao` runs this Python as root: anything that can change it (a folder of your account, as Homebrew's)
-    runs as root at the next sudo. Warns when the interpreter or its folder is writable by anyone but root."""
+ROOT_PY = Path('/Library/Frameworks/Python.framework/Versions/3.14')
+
+
+def check_interpreter(root_py=None):
+    """What `sudo ./hao` will run (tools/hao/hao's launcher, owner 2026-11-17 "Root-owned Python only"): python.org's
+    Python 3.14 only, and only when it, every folder above it and everything in its version folder (site-packages
+    aside: hao runs it with -S) are root's alone. The same rule as the launcher, so doctor fails where sudo would."""
     import stat
-    exe = Path(os.path.realpath(exe or sys.executable))
-    for p in (exe, exe.parent):
-        try:
-            st = os.stat(str(p))
-        except OSError:
-            continue
-        if st.st_uid != 0 or st.st_mode & 0o022:
-            return [check('python', 'warn', '%s is writable by %s: what runs `sudo ./hao` should be root\'s' % (
-                p, 'your account' if st.st_uid == os.getuid() else 'others'),
-                'use python.org\'s Python %s (installed root-owned in /Library/Frameworks)' % pins()['python']['build'])]
-    return [check('python', 'ok', 'the interpreter is root\'s (%s)' % exe)]
+    root_py = Path(root_py or ROOT_PY)
+    fw = root_py.parent.parent
+    fix = ('install Python 3.14 from python.org, then (its installer leaves it writable by the admin group): '
+           'sudo chown -R root:wheel %s && sudo chmod -R go-w %s' % (fw, fw))
+    exe = root_py / 'bin' / 'python3.14'
+    if not exe.is_file() or exe.is_symlink():
+        return [check('python', 'fail', 'sudo ./hao needs python.org\'s Python 3.14 (%s is missing)' % exe, fix)]
+
+    def bad(st):
+        return st.st_uid != 0 or st.st_mode & 0o022
+    d = root_py
+    while str(d) != '/':
+        st = os.lstat(str(d))
+        if stat.S_ISLNK(st.st_mode) or bad(st):
+            return [check('python', 'fail', '%s is not root\'s alone: sudo ./hao will refuse it' % d, fix)]
+        d = d.parent
+    skip = root_py / 'lib' / 'python3.14' / 'site-packages'
+    errors = []
+    for top, dirs, files in os.walk(str(root_py), onerror=errors.append):
+        dirs[:] = [x for x in dirs if Path(top, x) != skip]
+        for name in dirs + files:
+            path = os.path.join(top, name)
+            st = os.lstat(path)
+            if bad(st):
+                return [check('python', 'fail', '%s can be changed by others than root: sudo ./hao will refuse it'
+                              % path, fix)]
+            if stat.S_ISLNK(st.st_mode):
+                real, target = os.path.realpath(path), os.readlink(path)
+                inside = real.startswith(str(root_py).rstrip('/') + '/')
+                harmless = not os.path.exists(path) and not target.startswith('/') and '..' not in target
+                if not (os.path.exists(path) and inside) and not harmless:
+                    return [check('python', 'fail', '%s leads out of %s: sudo ./hao will refuse it' % (path, root_py),
+                                  fix)]
+    if errors:
+        return [check('python', 'fail', '%s cannot be read whole (%s): sudo ./hao will refuse it' % (root_py, errors[0]),
+                      fix)]
+    return [check('python', 'ok', 'sudo ./hao runs %s (root\'s alone)' % exe)]
 
 
 def check_shebangs(p, top=TOP, run=subprocess.run):

@@ -1,5 +1,58 @@
-#!/usr/bin/env -S python3 -I
-"""hao: user commands of the hao builder (workflow plan step 9a and on).
+#!/bin/sh
+""":"
+# Started by sh. As a user: the first python3.14 (else python3) on PATH runs hao, isolated (-I). As root (sudo): only
+# python.org's Python 3.14, and only when it, every folder above it and everything it loads are root's alone; checked
+# here, before any Python starts (a Python the user's account can change would run as root). -S keeps site-packages out.
+F=/Library/Frameworks/Python.framework
+ROOT_PY=$F/Versions/3.14
+if [ "$(/usr/bin/id -u)" = 0 ]; then
+    PATH=/usr/bin:/bin:/usr/sbin:/sbin            # as root: the system's tools only
+    bad=
+    if [ ! -f "$ROOT_PY/bin/python3.14" ] || [ -L "$ROOT_PY/bin/python3.14" ]; then
+        bad="python.org's Python 3.14 is not installed ($ROOT_PY/bin/python3.14)"
+    else
+        d=$ROOT_PY
+        while [ "$d" != / ]; do
+            if [ -L "$d" ]; then bad="$d is a link"; break; fi
+            m=$(/usr/bin/stat -f '%u %Lp' "$d") || { bad="$d cannot be read"; break; }
+            if [ "${m%% *}" != 0 ] || [ $(( 0${m##* } & 022 )) != 0 ]; then bad="$d is not root's alone"; break; fi
+            d=$(/usr/bin/dirname "$d")
+        done
+        if [ -z "$bad" ]; then
+            sp="$ROOT_PY/lib/python3.14/site-packages"
+            # anything not root's or writable by others; then every link must resolve inside the tree
+            w=$(/usr/bin/find "$ROOT_PY" -path "$sp" -prune -o '(' ! -user root -o -perm -g+w -o -perm -o+w ')' -print) || w="$ROOT_PY (it cannot be read whole)"
+            if [ -z "$w" ]; then
+                w=$(/usr/bin/find "$ROOT_PY" -path "$sp" -prune -o -type l -print | while read -r l; do
+                    r=$(/bin/realpath "$l" 2>/dev/null) && [ "${r#"$ROOT_PY"/}" != "$r" ] && continue
+                    # a dangling link (Tk's PrivateHeaders) may stay if it is relative without ..: it points inside
+                    # the tree, where no one but root can create what is missing
+                    t=$(/usr/bin/readlink "$l")
+                    [ ! -e "$l" ] && [ "${t#/}" = "$t" ] && [ "${t#*..}" = "$t" ] && continue
+                    echo "$l"; break
+                done)
+            fi
+            w=${w%%
+*}
+            [ -z "$w" ] || bad="$w can be changed by others than root, or leads out of $ROOT_PY"
+        fi
+    fi
+    if [ -n "$bad" ]; then
+        echo "hao: under sudo hao runs only python.org's Python 3.14, root's alone: $bad." >&2
+        echo "  Install it from python.org, or make it root's alone:" >&2
+        echo "  sudo chown -R root:wheel $F && sudo chmod -R go-w $F" >&2
+        echo "  (python.org's installer leaves it writable by the admin group; do this right after installing it)" >&2
+        exit 5
+    fi
+    exec "$ROOT_PY/bin/python3.14" -I -S "$0" "$@"
+fi
+for py in python3.14 python3; do
+    if command -v "$py" >/dev/null 2>&1; then exec "$py" -I "$0" "$@"; fi
+done
+echo "hao: no python3 on PATH (install Python 3.14 from python.org)" >&2
+exit 127
+":"""
+HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on).
 
   hao patch OVERLAY... --root ROOT [--state DIR] [--installer] [--dry-run] [--quiet | --show | --log json]
         apply pack overlays to ROOT: only files whose sha256 differs are written, each checked before and
@@ -887,7 +940,7 @@ def cmd_help(a):
 def main():
     import signal
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
-    p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(prog='hao', description=HAO_DOC, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='action')
     q = sub.add_parser('help', help='the commands for where hao runs')
     q.add_argument('--all', action='store_true', help='also the developer commands')

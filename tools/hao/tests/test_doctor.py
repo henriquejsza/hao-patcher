@@ -29,7 +29,8 @@ def runner(xcode='Xcode 27.2\nBuild version 27C5\n', metal=True):
 class Python(unittest.TestCase):
     def test_wrong_python_on_a_build_mac_fails(self):
         r = D.check_python('build', P, version=(3, 12, 14), which=lambda n: '/x/' + n)
-        self.assertEqual(state(r, 'python'), ['fail'])
+        self.assertEqual(state(r, 'python'), ['fail', 'ok'])       # the interpreter, then what the pipeline runs
+        self.assertIn('pipeline/ runs /x/python3.14', r[1]['detail'])
         self.assertIn('needs 3.14', r[0]['detail'])
 
     def test_kit_python_is_right_on_the_usb_installer(self):
@@ -105,6 +106,22 @@ class Shebangs(unittest.TestCase):
         self.assertEqual(r[0]['state'], 'warn')
         self.assertIn('1 name python3', r[0]['detail'])
         self.assertIn('1 name /usr/bin/python3', r[0]['detail'])
+
+
+class RootPython(unittest.TestCase):
+    """The launcher's rule (sudo runs only python.org's 3.14, root's alone), checked the same way by doctor."""
+    def test_missing_or_user_owned_fails(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            r = D.check_interpreter(Path(d) / 'Versions' / '3.14')
+            self.assertEqual((r[0]['state'], 'missing' in r[0]['detail']), ('fail', True))
+            py = Path(d) / 'Versions' / '3.14' / 'bin'
+            py.mkdir(parents=True)
+            (py / 'python3.14').write_text('')
+            r = D.check_interpreter(Path(d) / 'Versions' / '3.14')
+            self.assertEqual(r[0]['state'], 'fail')
+            self.assertIn("not root's alone", r[0]['detail'])
+            self.assertIn('chmod -R go-w', r[0]['fix'])
 
 
 if __name__ == '__main__':

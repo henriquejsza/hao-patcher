@@ -187,6 +187,14 @@ class Environment(unittest.TestCase):
         self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
         self.assertEqual(env['HAO_THEME'], 'dark')
 
+    def test_root_under_the_verified_interpreter_finds_it_on_path(self):
+        env = {'PATH': '/opt/evil/bin:/usr/bin', 'SUDO_USER': 'u', 'SUDO_UID': '501'}
+        SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u', executable=SAFE.ROOT_PYTHON)
+        self.assertEqual(env['PATH'], '/Library/Frameworks/Python.framework/Versions/3.14/bin:' + SAFE.SYSTEM_PATH)
+        env = {'PATH': '/x', 'SUDO_USER': 'u', 'SUDO_UID': '501'}            # another interpreter: system PATH only
+        SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u', executable='/opt/homebrew/bin/python3.14')
+        self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
+
     def test_sudo_home_comes_from_the_account_database(self):
         env = {'HOME': '/tmp/elsewhere', 'SUDO_USER': 'u', 'SUDO_UID': '501'}
         SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
