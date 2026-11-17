@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """Apply payloadv2 links.txt (=src / +dst hard links) under ROOT. Reports counts."""
 import os, sys, json
 root, links = sys.argv[1], sys.argv[2]

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """golden-run RECIPE --repo EXPERIMENTAL_IMAGE_REPOSITORY: GG-first assembly in an isolated VZ builder.
 
 Opt-in: --from-overlays --overlay-system ROOT materialises the set on the host first (pipeline/materialize.py, its

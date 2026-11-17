@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """donor-inputs INSTALLER OUT --requirements REQ [--kdk KDK.dmg]: find and extract the Intel files the
 Golden Gate merge needs, from any macOS installer, and report what is missing.
 

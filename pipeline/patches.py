@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """patches.py: which patches of a set apply to a build, and at which stage.
 
   patches.py plan SET TARGET [OS/]BUILD [--locks DIR:DIR...] [--skip-optional GROUP]... [--record FILE] [--packs auto|A,B]

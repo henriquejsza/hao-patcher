@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """ipsw-stream: make golden_gate_userspace's payload by streaming only the IPSW members it needs, from a file or a URL.
 
   ipsw-stream --ipsw PATH|URL --board BOARD --out DIR [--pins FILE | --trust-local] [--ipsw-tool TOOL]

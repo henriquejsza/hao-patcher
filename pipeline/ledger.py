@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """ledger: every file the recipes of a set declare, as one origin + ordered writes, and the chains it refuses.
 
   ledger.py SET TARGET BUILD [--json]          SET = pipeline/sets/SET.txt, TARGET = pipeline/targets/NAME.json

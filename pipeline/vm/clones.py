@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """Named APFS builder clones and per-bundle startup exclusion. No host mounts or sudo."""
 import argparse
 from contextlib import contextmanager

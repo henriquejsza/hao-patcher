@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """host-check: which steps of the hao builder this Mac can run, and why not (workflow plan step 12, host matrix).
 
   host-check [--json] [--need-gb N]

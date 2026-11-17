@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """unpack-installer: the pristine System tree, cryptexes and BaseSystem from a macOS installer, on the host, as the
 user (no root, no VM). The result matches Apple's post.bom entry for entry (for 25G325: 486,604 entries, 299,962
 files).

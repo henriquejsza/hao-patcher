@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """lock.py: read inputs locks and target files (plain data) for the pipeline's shell stages.
 
   lock.py path LOCK NAME          the row's path; a row with a sha256 is checked against the file or folder

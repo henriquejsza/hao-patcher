@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """cache-images: the image paths of an x86_64 dyld shared cache, one per line: donor-inputs' --target-cache-images.
 
   cache-images list CACHE OUT          CACHE = the main dyld_shared_cache_x86_64 file (its subcaches are not needed:

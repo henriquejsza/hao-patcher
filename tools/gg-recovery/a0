@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Stage A0 of the Golden Gate Recovery: the 27.2.1 BaseSystem on this repo's Intel boot path, for QEMU.
 
 usage: a0 build [--system-image IMG] [--out DIR] [--grow SIZE] [--timeout S] [--keep-vm]

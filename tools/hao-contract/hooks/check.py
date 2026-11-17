@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Hygiene hooks for the hao repositories: no private string in a commit message or in a staged change.
 
     check.py commit-msg FILE     the message git is about to record (git's comment lines are ignored)

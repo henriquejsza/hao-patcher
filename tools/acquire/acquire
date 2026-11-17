@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """acquire: download every file a release pins, by URL, size and sha256 (workflow plan step 12).
 
   acquire fetch MANIFEST --cache DIR [--only NAME ...] [--assets-from DIR|URL] [--quiet | --log json]

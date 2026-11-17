@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """materialize: make each declared file once, into pack overlays that hao patch and the installer apply.
 
   materialize.py SET TARGET BUILD --out DIR [--store DIR] [--system ROOT] [--packs auto|A,B] [--only PATH]... [--json]

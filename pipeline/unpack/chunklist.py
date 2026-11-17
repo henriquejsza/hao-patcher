@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """chunklist.py LIST FILE: verify FILE against an Apple .chunklist (CNKL, SHA-256 per chunk).
 Exit 0 = OK, 1 = FAIL."""
 import hashlib, struct, sys

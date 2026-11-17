@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Cut Tahoe's x86_64 kernel-collection builder out of its OS shared cache (row tahoe_kc_builder), with its record.
 
   kc-builder OUTPUT [--inputs pipeline/inputs/25G342]

@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """compare.py: payload (archive metadata + extracted tree hashes + links.txt) vs a pristine System walk.
 
   compare.py --pristine PRISTINE-SYS.tsv [--pristine-unreadable-sha FILE] --payload PAYLOAD-SYS.tsv

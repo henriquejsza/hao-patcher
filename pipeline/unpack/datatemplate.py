@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """datatemplate.py --patterns Data.symlink-patterns --template TEMPLATE-DATA.tsv --receipt RECEIPT.txt
                    [--pristine-data PRISTINE-DATA.tsv]
 expected pre-first-boot Data volume template = System/Library/Templates/Data with Data.symlink-patterns

@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """tccheck.py TRUSTCACHE.im4p MOUNT... : how many trustcache cdhashes are found among the Mach-O slices under each mount."""
 import sys, os, subprocess, struct
 raw = open(sys.argv[1], 'rb').read()

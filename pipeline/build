@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """build: build the image an assembly describes, with whichever runner it names. Flip OS or model by picking another
 assembly; every choice (target, OS build, donors, OCLP, set, image repository) lives in the assembly file.
 

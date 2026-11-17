@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -I
+#!/usr/bin/env python3.14
 """latest: point an input row at the newest finished artifact of its family, and record the change.
 
   pipeline/latest ROW BUILD [--dry-run]     e.g. pipeline/latest hao_runtime 26B131
