@@ -25,6 +25,16 @@ you supply. Those keep their own terms.
 | Audio fix sources | See NOTICE | [tools/audiomxd-fix/NOTICE.md](tools/audiomxd-fix/NOTICE.md) |
 | CoreSpotlight adapter sources | See NOTICE | [patches/golden-gate-corespotlight-compat/build/NOTICE.md](patches/golden-gate-corespotlight-compat/build/NOTICE.md) |
 
+## Downloaded on your Mac
+
+Fetched from their projects by `hao` while it makes the USB installer, checked against the sha256 in `release.json`,
+and not redistributed by this project:
+
+| Component | License |
+|---|---|
+| VirtualSMC 1.3.8 (Acidanthera), its kext in the QEMU reference EFI | BSD 3-Clause |
+| Apple's HFS+ UEFI driver, as Acidanthera's OcBinaryData distributes it, in the QEMU reference EFI | Apple's terms |
+
 This product includes software developed by Dortania and the OpenCore Legacy
 Patcher contributors.
 
