@@ -29,15 +29,16 @@ def reference(root):
 
 
 def oclp_tar(path):
-    """An OCLP source tar holding the CryptexFixup RELEASE zip (a fake kext, as the payload lays it out)."""
-    z = io.BytesIO()
-    with zipfile.ZipFile(z, 'w') as zf:
-        zf.writestr('CryptexFixup.kext/Contents/Info.plist', b'plist')
-        zf.writestr('CryptexFixup.kext/Contents/MacOS/CryptexFixup', b'fixup')
-        zf.writestr('CryptexFixup.kext.dSYM/Contents/Info.plist', b'dsym')
+    """An OCLP source tar holding the CryptexFixup and Lilu RELEASE zips (fake kexts, as the payload lays them out)."""
     with tarfile.open(path, 'w') as tar:
-        info = tarfile.TarInfo(G['CRYPTEXFIXUP_ZIP']); info.size = len(z.getvalue())
-        tar.addfile(info, io.BytesIO(z.getvalue()))
+        for zip_path, name, body in ((G['CRYPTEXFIXUP_ZIP'], 'CryptexFixup', b'fixup'), (G['LILU_ZIP'], 'Lilu', b'oclp-lilu')):
+            z = io.BytesIO()
+            with zipfile.ZipFile(z, 'w') as zf:
+                zf.writestr(f'{name}.kext/Contents/Info.plist', b'plist')
+                zf.writestr(f'{name}.kext/Contents/MacOS/{name}', body)
+                zf.writestr(f'{name}.kext.dSYM/Contents/Info.plist', b'dsym')
+            info = tarfile.TarInfo(zip_path); info.size = len(z.getvalue())
+            tar.addfile(info, io.BytesIO(z.getvalue()))
     return path
 
 
@@ -107,14 +108,19 @@ class Generic(unittest.TestCase):
             self.assertIn(e, reasons, e)
 
     @unittest.skipUnless((TOP/'store/artifacts/oclp-source-fd83bda09-9d111ed9/oclp-source.tar').is_file(), 'needs the OCLP source row')
-    def test_real_cryptexfixup_is_the_pinned_payload(self):
+    def test_real_oclp_kexts_are_the_pinned_payloads(self):
         import hashlib, json
         self.oclp = TOP/'store/artifacts/oclp-source-fd83bda09-9d111ed9/oclp-source.tar'
         self.run_it()
-        kext = self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext'
-        pinned = json.loads((TOP/'patches/hao-opencore/src/kext-provenance.json').read_text())['CryptexFixup.kext']['files']
-        have = {str(f.relative_to(kext)): hashlib.sha256(f.read_bytes()).hexdigest() for f in kext.rglob('*') if f.is_file()}
-        self.assertEqual(have, pinned)
+        provenance = json.loads((TOP/'patches/hao-opencore/src/kext-provenance.json').read_text())
+        for name in ('CryptexFixup.kext', 'Lilu.kext'):
+            kext = self.tmp/'esp/EFI/OC/Kexts'/name
+            have = {str(f.relative_to(kext)): hashlib.sha256(f.read_bytes()).hexdigest() for f in kext.rglob('*') if f.is_file()}
+            self.assertEqual(have, provenance[name]['files'], name)
+
+    def test_the_references_lilu_is_replaced(self):
+        self.run_it()
+        self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/Lilu.kext/Contents/MacOS/Lilu').read_bytes(), b'oclp-lilu')
 
     def test_apply_runs_before_hao_opencore(self):
         order = [l.split('#')[0].strip() for l in (TOP/'pipeline/order.txt').read_text().splitlines()]
