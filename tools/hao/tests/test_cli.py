@@ -547,6 +547,22 @@ class BuilderTest(unittest.TestCase):
         self.assertEqual(host.calls, [])
         self.assertIn('Not restarting', out.getvalue())
 
+    def test_install_record_names_a_dev_drives_commit(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / 'stick.json').write_text(json.dumps({'hao_commit': 'd02484f8aa' + '0' * 30}))
+            old = os.environ.get('HAO_STICK'); os.environ['HAO_STICK'] = d
+            try:
+                release, commit, runtime = BUILD.release_of()
+            finally:
+                os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+            self.assertEqual((release, commit[:10], runtime), ('dev d02484f8', 'd02484f8aa', None))
+            (Path(d) / 'release.json').write_text(json.dumps({'version': 'v0.0.1', 'hao_patcher': 'abc', 'hao_runtime': 'def'}))
+            os.environ['HAO_STICK'] = d
+            try:
+                self.assertEqual(BUILD.release_of(), ('v0.0.1', 'abc', 'def'))
+            finally:
+                os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+
     def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
         hao = __import__('runpy').run_path(str(TOOL / 'hao'), run_name='hao_module')
         def last(command, text):

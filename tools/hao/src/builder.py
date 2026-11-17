@@ -499,13 +499,19 @@ def _sha256(path):
 def release_of():
     """(release, hao_patcher commit, hao_runtime commit) of the hao that runs: the USB installer's release.json
     ($HAO_STICK), else release.json beside hao, else the checkout's commit as "dev COMMIT"."""
-    for rel in ([Path(os.environ['HAO_STICK']) / 'release.json'] if os.environ.get('HAO_STICK') else []) + [
-            TOP / 'tools' / 'hao' / 'release.json']:
+    stick = Path(os.environ['HAO_STICK']) if os.environ.get('HAO_STICK') else None
+    for rel in ([stick / 'release.json'] if stick else []) + [TOP / 'tools' / 'hao' / 'release.json']:
         try:
             r = json.loads(rel.read_text())
             return r.get('version') or r.get('release'), r.get('hao_patcher'), r.get('hao_runtime')
         except (OSError, ValueError):
             continue
+    try:                                            # a development USB installer: the commit create-installer recorded
+        commit = json.loads((stick / 'stick.json').read_text()).get('hao_commit') if stick else None
+        if commit:
+            return 'dev %s' % commit[:8], commit, None
+    except (OSError, ValueError):
+        pass
     try:
         commit = subprocess.run(['git', '-C', str(TOP), 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
     except OSError:
