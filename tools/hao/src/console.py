@@ -412,10 +412,11 @@ def rich_style(code):
 class Stopped(Exception):
     """A check failed: the command stops and Console.stopped prints what happened, why it matters, what to do."""
 
-    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None, code=None):
+    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None, code=None, unknown=()):
         super().__init__(what)
         self.what, self.why, self.cause, self.options, self.untouched = what, why, cause, list(options), untouched
         self.log, self.code = log, code       # code: the exit code (src/frontdoor.py), when the raiser knows it
+        self.unknown = list(unknown)          # [(what, detail)]: what this Mac has that the release has not proven
 
 
 class Console:
@@ -654,7 +655,8 @@ class Console:
     def stopped(self, x):
         """The failure layout (variation 7): STOPPED and what was left untouched, then what happened, why it
         matters, the likely cause, numbered things to do, and the log."""
-        self.event('run.end', ok=False, what=x.what, why=x.why, cause=x.cause, options=x.options, log=x.log)
+        self.event('run.end', ok=False, what=x.what, why=x.why, cause=x.cause, options=x.options, log=x.log,
+                   unknown=[list(u) for u in x.unknown], code=x.code)
         with self.lock:
             if self.live is not None:
                 self.live.end(False)
@@ -673,6 +675,10 @@ class Console:
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
                 print('  %-17s%s' % (label, text), file=w)
+        if x.unknown:
+            print('\n  Not proven on this Mac', file=w)
+            for what, detail in x.unknown:
+                print('    %-22s%s' % (what, detail), file=w)
         if x.options:
             print('\n  What you can do', file=w)
             for i, o in enumerate(x.options, 1):
@@ -698,6 +704,13 @@ class Console:
                 grid.add_row(label, text)
         parts = [Text(untouched[:1].upper() + untouched[1:])] if untouched else []
         parts += [Text(''), grid] if parts else [grid]
+        if x.unknown:
+            gaps = Table.grid(padding=(0, 2))
+            gaps.add_column(style=rich_style(s.codes['warn']), no_wrap=True)
+            gaps.add_column(overflow='fold')
+            for what, detail in x.unknown:
+                gaps.add_row(what, detail)
+            parts += [Text(''), Text('Not proven on this Mac', style='bold'), gaps]
         if x.options:
             todo = Table.grid(padding=(0, 2))
             todo.add_column(justify='right', style=rich_style(s.codes['dim']))

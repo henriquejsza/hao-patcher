@@ -693,6 +693,8 @@ def builder_args(q, disk=True):
     g.add_argument('--model', help='the Mac model to build for, e.g. MacBookPro9,2 (a proven model)')
     g.add_argument('--profile', help='a profile file from hao detect, for a Mac that is not a proven model')
     q.add_argument('--assembly', help='(developers) an assembly in pipeline/assemblies instead of the release\'s')
+    q.add_argument('--unproven', action='store_true',
+                   help='go on for a Mac, GPU or pack this release has not proven (recorded in the install record)')
     q.add_argument('--dry-run', action='store_true', help='ask the questions and show the plan; write nothing')
     CON.add_level_flags(q)
 
