@@ -102,6 +102,7 @@ NEEDS VALIDATION: not built or booted. Host tests pass with the real 26B131 file
 26B131 IPSW).
 
 ## Revisions
+- r6 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): launchd job edits used on both builds. Nothing it installs changes.
 - r4 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed changes.

@@ -1,11 +1,11 @@
 {
- "revision": 8,
+ "revision": 9,
  "pack": "base",
  "stage": "post",
  "inputs": [
   "icon_caches_golden_gate"
  ],
- "status": "experiment",
+ "status": "product",
  "validated": true,
  "optional": "caches",
  "validated_revision": 3,

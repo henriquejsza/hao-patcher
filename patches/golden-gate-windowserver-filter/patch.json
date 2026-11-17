@@ -1,9 +1,9 @@
 {
-  "revision": 9,
+  "revision": 10,
   "pack": "base",
   "stage": "oclp-hook",
   "inputs": ["windowserver_filter_shim"],
-  "status": "experiment",
+  "status": "product",
   "validated": true,
   "validated_revision": 5,
   "validated_digest": "d391c2a0fe1d553c6d9a2106484d79580e1ad1da1ac57436477b0424e0371ca3",

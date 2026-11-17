@@ -1,11 +1,11 @@
 {
-  "revision": 8,
+  "revision": 9,
   "pack": "base",
   "stage": "oclp-hook",
   "inputs": [
     "corespotlight_compat_shim"
   ],
-  "status": "experiment",
+  "status": "product",
   "validated": true,
   "validated_revision": 4,
   "validated_digest": "fb6a8dd0c53b4dcbec458743f3d40840df9867e5186fc2f4a3669897583a68a5",

@@ -1,8 +1,8 @@
 {
- "revision": 86,
+ "revision": 87,
  "pack": "base",
  "stage": "oclp-hook",
- "status": "experiment",
+ "status": "product",
  "validated": false,
  "inputs": [
   "golden_gate_userspace",

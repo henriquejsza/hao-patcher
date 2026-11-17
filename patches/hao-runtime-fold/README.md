@@ -30,6 +30,7 @@ NEEDS VALIDATION: r7 not built or booted. The payload's own checks (in its READM
 954aa5de, 963 embedded, 965 of 969 AOT caches with none failed.
 
 ## Revisions
+- r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the fold payload for the rebuilt 26B131 family; x86-64-v2 like hao-runtime. Nothing it installs changes.
 - r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83630,
   libhao c1a948e9), after golden-gate-shared-cache r7 rebuilt that family.

@@ -43,6 +43,7 @@ Apple's): with a PNG on the clipboard, `clipboard info` exited 0 5 of 5 times; w
 (rc 132), and with this one it exited 0 again.
 
 ## Revisions
+- r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): only a CPU without AVX2 needs the arm64-only encoder entry. Nothing it installs changes.
 - r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r1 2026-11-16 New: AV1EncoderSW's Info.plist lists arm64 only, so x86_64 programs on a CPU without AVX2 no longer load the encoder's AVX2 setup (diag#0053).

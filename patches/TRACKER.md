@@ -8,21 +8,21 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r12 | oclp-hook | experiment |  | x | x |  |  | **needs** | r12 2026-11-17 Declares its scope (`requires`, docs/requires.md): its rows are the 26A428 (25G332) and 26B131  |
+| darwin27-kernel | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
 | dev-access | r7 | post | dev |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware |
 | dev-diagnostics | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `diagnostic-boot-args` names a reason for each boot argument (`arg_reasons`), as edit specs now  |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | golden-gate-appstore-slices | r5 | post | diagnostic |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): a Data tool and LaunchDaemon that read Mach-O |
-| golden-gate-av1-encoder-x86 | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): only a CPU without AVX2 needs the arm64-only  |
-| golden-gate-corespotlight-compat | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): shim rows for both builds. `proven_on` record |
-| golden-gate-dyld-internal | r3 | oclp-hook | experiment |  | x |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): edits the 26B131 runtime's dyld. Nothing it i |
-| golden-gate-font-registry | r9 | post | experiment | caches | x |  |  |  | ok (r3) | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): registries harvested from 26B131. `proven_on` |
+| golden-gate-av1-encoder-x86 | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| golden-gate-corespotlight-compat | r9 | oclp-hook | product |  | x | x |  |  | ok (r4) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| golden-gate-dyld-internal | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| golden-gate-font-registry | r10 | post | product | caches | x |  |  |  | ok (r3) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | golden-gate-hd4000-planes | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): changes the HD 4000's Metal driver. Nothing i |
 | golden-gate-hello | r11 | oclp-hook | product |  | x | x |  |  | **needs** | r11 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
-| golden-gate-icon-caches | r8 | post | experiment | caches | x |  |  |  | ok (r3) | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): caches harvested from 26B131. `proven_on` rec |
+| golden-gate-icon-caches | r9 | post | product | caches | x |  |  |  | ok (r3) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-ids | r3 | oclp-hook | product |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
-| golden-gate-launchd-warm | r5 | oclp-hook | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): launchd job edits used on both builds. Nothin |
+| golden-gate-launchd-warm | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-live-text-service | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; r |
 | golden-gate-live-text-shared | r12 | oclp-hook | product |  | x |  |  |  | **needs** | r12 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
 | golden-gate-metal-argbuf | r8 | oclp-hook | product |  | x |  |  |  | **needs** | r8 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
@@ -32,22 +32,22 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | golden-gate-root-launchservices | r4 | post | experiment | boot-seeds |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): seed harvested from 26B131. Nothing it instal |
 | golden-gate-shader-caches | r16 | post | product | caches | x |  |  |  | **needs** | r16 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replace |
-| golden-gate-shared-cache | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 cache family. Nothing it i |
+| golden-gate-shared-cache | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-shared-cache-catalog | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it |
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-user-seed | r11 | post | experiment | caches | x |  |  |  | **needs** | r11 2026-11-17 Comments, README and tests name no private project or account; nothing it installs changes. |
-| golden-gate-user-template | r9 | post | experiment | caches | x |  |  |  | **needs** | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): containers harvested from 26B131. Nothing it  |
-| golden-gate-userspace | r86 | oclp-hook | experiment |  | x | x |  |  | **needs** | r86 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03: the same carrier.o and libhao_cod |
-| golden-gate-wifi-compat | r2 | oclp-hook | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): compat rows for both builds. Nothing it insta |
-| golden-gate-windowserver-filter | r9 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): profiles for 26A428 and 26B131 in src/profile |
-| hao-command | r8 | post | experiment |  | x |  |  |  | **needs** | r8 2026-11-17 the new launcher is made by mktemp; every folder from usr to bin must be root's and loses its AC |
+| golden-gate-user-template | r10 | post | product | caches | x |  |  |  | **needs** | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| golden-gate-userspace | r87 | oclp-hook | product |  | x | x |  |  | **needs** | r87 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| hao-command | r9 | post | product |  | x |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | hao-opencore | r68 | post | experiment |  | x | x |  |  | **needs** | r68 2026-11-17 Each boot argument in `edits/config.json` names its own reason (`arg_reasons`; edit specs refus |
-| hao-runtime | r88 | oclp-hook | experiment |  | x | x |  |  | **needs** | r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): hao refuses a CPU below x86-64-v2 (hao-runti |
-| hao-runtime-fold | r8 | oclp-hook | experiment |  |  |  |  |  | **needs** | r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the fold payload for the rebuilt 26B131 famil |
+| hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
-| opencore-mbp92 | r2 | post | experiment |  | x | x |  |  | **needs** | r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): this Mac's display and Ethernet kexts. Nothin |
+| opencore-mbp92 | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | rec-audio | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it  |
 | rec-bluetooth-input | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID and Bluetooth stack. |
 | rec-brightness-keys | r4 | recovery | product |  |  |  | x |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID system. Nothing it i |
