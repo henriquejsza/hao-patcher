@@ -2,7 +2,7 @@
 """release-cut: what a release of an assembly ships, and whether each input could be made again.
 
   release-cut --dry-run ASSEMBLY [--json]                   (ASSEMBLY = pipeline/assemblies/NAME.json)
-  release-cut --write OUT.json ASSEMBLY --release NAME --channel dev|alpha|beta --version vX.Y.Z[-alpha.N|-beta.N] [--stage DIR]
+  release-cut --write OUT.json ASSEMBLY [ASSEMBLY ...] --release NAME --channel dev|alpha|beta --version vX.Y.Z[-alpha.N|-beta.N] [--stage DIR]
               [--no-harvested-assets]
               [--allow-pending | --allow-pending-row ROW ...] [--candidate [--dev]]
         the release.json of release NAME (the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0, also the tag; the
@@ -23,6 +23,11 @@
         --dev (with --candidate only) cuts a dev candidate for bench boots: the assembly's profile must not be a
         release profile, and its dev-layer packs and dev/diagnostic recipes are allowed; release.json says "dev": true
         and "candidate": true. A dev release.json must never be published.
+        Several assemblies (one per profile, e.g. the MacBookPro9,2 image and the generic one) cut one release from
+        one commit: an asset they share is one file, each is listed once in SHA256SUMS, and "profiles" {PATCH_SET:
+        {assembly, target, patch_set, recipes, dev_only_recipes, proven_models, rows, harvested}} says which
+        downloads, assets and made-on-Mac rows ("rows") each profile uses. The top-level assembly, target, set and
+        recipes are the first assembly's (readers that know no "profiles" see that image).
 
 Rows: every input the assembly's set and donors use, the rows golden-run reads besides them (KDK, CPythons, site
 packages, the firmlink tool, OpenCore, PatcherSupportPkg) and the Apple inputs of the rows made on the Mac, resolved
@@ -552,10 +557,80 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
            'packs': {n: {'phase': p['phase'], 'recipes': p.get('recipes', [])} for n, p in sorted(packs.items())},
            'in_checkout': in_checkout, **({'dev_local': dev_local} if dev else {}), 'pending': pending, 'notes': notes,
            'archive_format': json.loads((TOP / 'pipeline' / 'release-classes.json').read_text())['archive']}
+    rel['profiles'] = {a['patch_set']: profile_entry(rel, patches, packs)}
     refs = private_refs(json.dumps(rel).encode())
     if refs:
         problems.append('release.json names %s: reword the row or its class' % ', '.join(refs))
     return rel, problems
+
+
+PLACED = ('downloads', 'assets', 'made_on_mac')      # the entries a profile's "rows" name (each has a "row")
+PROFILE_KEYS = ('assembly', 'target', 'patch_set', 'recipes', 'dev_only_recipes')
+
+
+def profile_entry(rel, patches, packs):
+    """release.json "profiles"[PATCH_SET] of a one-assembly release REL: its assembly, target, set and recipes, the
+    models proven for it (its target's model when every pack the target detects is proven on it), the rows of its
+    downloads, assets and made-on-Mac entries, and its harvested rows not shipped."""
+    target = TOP / 'pipeline/targets' / (rel['target'] + '.json')
+    model = json.loads(target.read_text()).get('model')
+    import contextlib, io
+    with contextlib.redirect_stderr(io.StringIO()):
+        found = patches['detect_packs'](str(target), packs)
+    proven = [model] if found and all(model in packs[n].get('proven_on', []) for n in found) else []
+    return dict({k: rel[k] for k in PROFILE_KEYS}, proven_models=proven,
+                rows=sorted(x['row'] for k in PLACED for x in rel[k]), harvested=sorted(rel['harvested']))
+
+
+def merge_releases(cuts):
+    """(release.json, problems) of one release from CUTS, [(release, problems)] each of one assembly (profile) at the
+    same commit: one macOS build, donor and OCLP. The top-level fields that name one image (assembly, target,
+    patch_set, recipes, dev_only_recipes) are the first profile's, so a reader that knows no "profiles" sees that
+    image; downloads, assets and made-on-Mac rows are listed once (an asset two profiles use is one file); "profiles"
+    says which rows each profile uses. A row two profiles place differently is a problem."""
+    rel, problems = json.loads(json.dumps(cuts[0][0])), list(cuts[0][1])
+    rel.setdefault('profiles', {})
+    for other, more in cuts[1:]:
+        for k in ('release', 'version', 'channel', 'golden_build', 'donor_build', 'oclp', 'hao_patcher', 'candidate',
+                  'dev'):
+            if other.get(k) != rel.get(k):
+                raise ValueError('the profiles of one release must share %s (%r, %r)' % (k, rel.get(k), other.get(k)))
+        problems += [p for p in more if p not in problems]
+        for name in other.get('profiles', {}):
+            if name in rel['profiles']:
+                raise ValueError('profile %s is cut twice' % name)
+        rel['profiles'].update(other.get('profiles', {}))
+        for k in PLACED + ('in_checkout', 'pending', 'dev_local'):
+            have = {x['row']: x for x in rel.get(k, [])}
+            for x in other.get(k, []):
+                if x['row'] not in have:
+                    rel.setdefault(k, []).append(x)
+                elif have[x['row']] != x:
+                    problems.append('%s: the profiles place it differently in %s' % (x['row'], k))
+        rel['harvested'] = sorted(set(rel.get('harvested', [])) | set(other.get('harvested', [])))
+        rel['unvalidated'] = rel.get('unvalidated', []) + [u for u in other.get('unvalidated', [])
+                                                           if u not in rel.get('unvalidated', [])]
+        rel['proven_models'] = sorted(set(rel.get('proven_models', [])) | set(other.get('proven_models', [])))
+        rel['notes'] = rel.get('notes', []) + [n for n in other.get('notes', []) if n not in rel.get('notes', [])]
+    placed = {x['row'] for k in PLACED for x in rel.get(k, [])}
+    for k in PLACED:
+        for x in rel.get(k, []):
+            if sum(x['row'] in {y['row'] for y in rel.get(kk, [])} for kk in PLACED) > 1:
+                problems.append('%s: the profiles place it in different ways' % x['row'])
+    # a row one profile ships (e.g. a harvested cache as an asset for its target) and another leaves harvested is
+    # listed once, as placed; that profile's own "harvested" still names it
+    rel['harvested'] = sorted(set(rel.get('harvested', [])) - placed)
+    files = [x['file'] for x in rel.get('assets', [])]
+    problems += ['asset file %s is made by two rows' % f for f in sorted({f for f in files if files.count(f) > 1})]
+    problems = list(dict.fromkeys(problems))
+    if 'state' in rel:
+        rel['state'] = 'complete' if not problems else 'incomplete'
+    return rel, problems
+
+
+def build_releases(assemblies, name, stage=None, **kw):
+    """build_release for each of ASSEMBLIES (one per profile), merged into one release (merge_releases)."""
+    return merge_releases([build_release(a, name, stage, **kw) for a in assemblies])
 
 
 def stream_pins(kind, path, digest, rows):
@@ -661,7 +736,9 @@ def main(argv):
         if '--final' in argv:
             print('release-cut: --final: there is no final channel yet; every release is a prerelease', file=sys.stderr)
             return 2
-        assembly = next(a for a in argv if not a.startswith('--'))
+        assemblies = [a for a in argv if not a.startswith('--')]
+        if not assemblies:
+            sys.exit(__doc__)
         # No release while a fix proven on the laptop exists only there (pipeline/swaps.py; no override).
         refusal = runpy.run_path(str(Path(__file__).resolve().parent / 'swaps.py'))['gate']()
         if refusal:
@@ -674,7 +751,7 @@ def main(argv):
                 return 1
             stage.mkdir(parents=True, exist_ok=True)
         try:
-            rel, problems = build_release(assembly, opts['--release'], stage, channel=opts['--channel'],
+            rel, problems = build_releases(assemblies, opts['--release'], stage, channel=opts['--channel'],
                                           prerelease='--not-prerelease' not in argv,
                                           version=opts['--version'],
                                           harvested_assets='--no-harvested-assets' not in argv,
@@ -711,8 +788,8 @@ def main(argv):
             write_sums(stage, out_path)
         for b in bad:
             print('release-cut: ' + b, file=sys.stderr)
-        print('release-cut: wrote %s (%s; %d downloads, %d assets, %d made on the Mac, %d harvested, %d pending)' % (
-            out_path, rel['state'], len(rel['downloads']), len(rel['assets']), len(rel['made_on_mac']),
+        print('release-cut: wrote %s (%s; %s; %d downloads, %d assets, %d made on the Mac, %d harvested, %d pending)' % (
+            out_path, rel['state'], 'profiles ' + ', '.join(rel.get('profiles') or ['-']), len(rel['downloads']), len(rel['assets']), len(rel['made_on_mac']),
             len(rel['harvested']), len(rel['pending'])))
         for p in problems:
             print('  ' + p)

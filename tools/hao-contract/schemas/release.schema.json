@@ -50,6 +50,16 @@
     "inputs": {"type": "array", "items": {"type": "string"}}}}},
   "harvested": {"type": "array", "items": {"type": "string"}, "description": "harvested rows this release does not ship"},
   "target": {"type": "string", "description": "the assembly's target (pipeline/targets/<target>.json), e.g. mbp92"},
+  "profiles": {"type": "object", "minProperties": 1,
+   "description": "the image profiles cut into this release (pipeline/profiles/<name>.json), e.g. alpha-v0.1.0 and generic; the top-level assembly, target, patch_set and recipes are the first one's",
+   "additionalProperties": {
+    "type": "object", "required": ["assembly", "target", "patch_set", "rows"],
+    "properties": {
+     "assembly": {"type": "string"}, "target": {"type": "string"}, "patch_set": {"type": "string"},
+     "recipes": {"type": "object"}, "dev_only_recipes": {"type": "array", "items": {"type": "string"}},
+     "proven_models": {"type": "array", "items": {"type": "string"}},
+     "rows": {"type": "array", "items": {"type": "string"}, "description": "the downloads, assets and made_on_mac rows this profile uses"},
+     "harvested": {"type": "array", "items": {"type": "string"}, "description": "harvested rows this profile does not ship"}}}},
   "expected": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
  }
 }

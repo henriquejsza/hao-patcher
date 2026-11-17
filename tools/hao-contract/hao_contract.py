@@ -241,6 +241,42 @@ COMPLETE_CHANNELS = ('beta',)
 HEX64 = re.compile(r'^[0-9a-f]{64}$')
 
 
+PROFILE_FIELDS = ('assembly', 'target', 'patch_set', 'rows')
+
+
+def check_profiles(r):
+    """"profiles" (optional; release-cut writes it, one entry per image profile cut into the release): each names its
+    assembly, target, set and the rows it uses; every row it names is a download, asset or made-on-Mac entry, every
+    such entry belongs to a profile, the top-level assembly is one of them, and a harvested asset belongs only to
+    profiles whose target may ship one."""
+    if 'profiles' not in r:
+        return []
+    ps = r['profiles']
+    if not isinstance(ps, dict) or not ps:
+        return ['release: profiles must map each profile to its entry']
+    bad, used = [], set()
+    placed = {e.get('row'): e for k in ('downloads', 'assets', 'made_on_mac') for e in r[k]}
+    for name, p in sorted(ps.items()):
+        lacks = [f for f in PROFILE_FIELDS if not isinstance(p, dict) or f not in p]
+        if lacks:
+            bad.append('release: profile %s lacks %s' % (name, ', '.join(lacks)))
+            continue
+        if not isinstance(p['rows'], list):
+            bad.append('release: profile %s rows is not a list' % name)
+            continue
+        used |= set(p['rows'])
+        for row in p['rows']:
+            if row not in placed:
+                bad.append('release: profile %s names row %s, which is no download, asset or made-on-Mac entry'
+                           % (name, row))
+            elif placed[row].get('harvested') is True and p['target'] not in HARVESTED_ASSET_TARGETS:
+                bad.append('release: profile %s (target %s) uses harvested asset %s' % (name, p['target'], row))
+    bad += ['release: row %s belongs to no profile' % row for row in sorted(set(placed) - used, key=str)]
+    if r['assembly'] not in {p.get('assembly') for p in ps.values() if isinstance(p, dict)}:
+        bad.append('release: assembly %s is none of the profiles\' assemblies' % r['assembly'])
+    return bad
+
+
 def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
     """Problems with a release.json and, given stage (a folder), with the asset files staged in it."""
     path = Path(path)
@@ -329,6 +365,7 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
             bad.append('release: an entry in %s has no row' % where[0])
         elif len(where) > 1:
             bad.append('release: row %s is in %s' % (row, ' and '.join(where)))
+    bad += check_profiles(r)
     if not isinstance(r['expected'], dict) or not all(HEX64.match(str(v)) for v in r['expected'].values()):
         bad.append('release: expected must map each step to a sha256')
     if stage is not None:
