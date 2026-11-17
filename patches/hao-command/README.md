@@ -24,4 +24,5 @@ NEEDS VALIDATION: not yet run in an image build, a QEMU install or on a laptop.
 
 ## Revisions
 
+- r2 2026-11-16 make.sh writes tools/hao/VERSION (the staged commit) for hao's version on a dev image
 - r1 2026-11-16 first recipe: CPython row and tools/hao under /usr/local/lib/hao, launcher at /usr/local/bin/hao

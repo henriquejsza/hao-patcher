@@ -8,3 +8,5 @@ OUT=${1:?output}
 mkdir -p "$OUT/hao"
 (cd "$TOP" && git ls-files tools/hao NOTICE.md | grep -v '^tools/hao/tests/' | tar -cf - -T -) | (cd "$OUT/hao" && tar -xf -)
 [ ! -f "$TOP/tools/hao/release.json" ] || cp "$TOP/tools/hao/release.json" "$OUT/hao/tools/hao/release.json"
+# the commit staged, for hao's version where there is no checkout and no release.json (a dev image)
+git -C "$TOP" describe --always --dirty --abbrev=12 > "$OUT/hao/tools/hao/VERSION"

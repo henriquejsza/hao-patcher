@@ -722,6 +722,8 @@ def cmd_help(a):
 
 
 def main():
+    import signal
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
     p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='action')
     q = sub.add_parser('help', help='the commands for where hao runs')
