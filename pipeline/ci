@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""ci: every check a push must pass, in one command, with no store and no network (PROTOCOL S8).
+
+  pipeline/ci [COMMIT] [--here] [--only NAME ...] [--list] [--log FILE] [--jobs N]
+
+By default COMMIT (HEAD) is checked out detached in a temporary worktree, so the run sees exactly the committed
+tree: no store/, no ignored files, no uncommitted change. --here runs in this working tree instead (for a
+quick look before committing; a push needs the exported run). Proxies are pointed at a closed port, so a check
+that reaches for the network fails instead of passing on this machine only.
+
+Checks (each prints one line, ok or FAIL, and the run exits 1 if any failed):
+  layout      pipeline/patches.py check (recipes, packs, order.txt, profiles, README and tracker rules)
+  sets        every pipeline/profiles/NAME.json generates pipeline/sets/NAME.txt line for line
+  edit-specs  tools/edit-engine check on every patches/*/edits/*.json, and the signing lint on those recipes
+  hygiene     tools/hao-contract check (contract.json: home folders and private names in tracked files) and
+              the commit message of COMMIT
+  suite:DIR   every unittest suite: pipeline/tests, tools/*/tests, patches/*/tests, patches/*/build/tests,
+              cache/*/tests, cache/metallib/lib
+A later check registers itself by adding a function to CHECKS (requires, matrix, boundary, validated gating).
+--log FILE writes the run as JSON (commit, each check's result and output tail): what the push gate records.
+"""
+import argparse
+import concurrent.futures
+import datetime
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+HERE = Path(__file__).resolve().parents[1]
+PY = sys.executable
+CLOSED = 'http://127.0.0.1:9'          # discard port: nothing listens, a network call fails at once
+
+
+def env():
+    e = dict(os.environ)
+    for k in ('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'):
+        e[k] = CLOSED
+    e['no_proxy'] = e['NO_PROXY'] = '127.0.0.1,localhost,::1'   # tests' own local servers still work
+    e['HAO_CI'] = '1'
+    e['PYTHONDONTWRITEBYTECODE'] = '1'
+    return e
+
+
+def run(tree, *cmd):
+    """(returncode, combined output) of CMD in TREE."""
+    p = subprocess.run([str(c) for c in cmd], cwd=tree, env=env(), capture_output=True, text=True,
+                       errors='replace', stdin=subprocess.DEVNULL)
+    return p.returncode, p.stdout + p.stderr
+
+
+def check_layout(tree, ctx):
+    rc, out = run(tree, PY, '-I', 'pipeline/patches.py', 'check')
+    return rc == 0, out
+
+
+def check_sets(tree, ctx):
+    bad, n = [], 0
+    for prof in sorted((tree / 'pipeline/profiles').glob('*.json')):
+        n += 1
+        rc, out = run(tree, PY, '-I', 'pipeline/patches.py', 'set', prof.relative_to(tree))
+        want = tree / 'pipeline/sets' / (prof.stem + '.txt')
+        names = lambda t: [l.split('#')[0].strip() for l in t.splitlines() if l.split('#')[0].strip()]
+        if rc != 0:
+            bad.append('%s: patches.py set failed: %s' % (prof.stem, out.strip()[-300:]))
+        elif not want.exists():
+            bad.append('%s: no pipeline/sets/%s.txt' % (prof.stem, prof.stem))
+        elif names(out) != names(want.read_text()):
+            bad.append('%s: generated set differs from pipeline/sets/%s.txt' % (prof.stem, prof.stem))
+    return not bad, '%d profiles\n' % n + '\n'.join(bad)
+
+
+def check_edit_specs(tree, ctx):
+    specs = sorted(str(p.relative_to(tree)) for p in tree.glob('patches/*/edits/*.json'))
+    recipes = sorted({str(Path(s).parents[1]) for s in specs})
+    out = '%d specs in %d recipes\n' % (len(specs), len(recipes))
+    ok = True
+    if specs:
+        rc, o = run(tree, PY, '-I', 'tools/edit-engine/edit-engine', 'check', *specs)
+        ok &= rc == 0; out += o
+        rc, o = run(tree, PY, '-I', 'tools/edit-engine/src/signlint.py', *recipes)
+        ok &= rc == 0; out += o
+    return ok, out
+
+
+def check_hygiene(tree, ctx):
+    rc, out = run(tree, PY, '-I', 'tools/hao-contract/hao_contract.py', 'check', '.')
+    ok = rc == 0
+    if ctx.get('message') is not None:
+        with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False) as f:
+            f.write(ctx['message'])
+        try:
+            rc, o = run(tree, PY, '-I', 'tools/hao-contract/hao_contract.py', 'message', f.name)
+        finally:
+            os.unlink(f.name)
+        ok &= rc == 0
+        out += o.replace(f.name, 'commit message')
+    return ok, out
+
+
+def suites(tree):
+    pats = ['pipeline/tests', 'tools/*/tests', 'patches/*/tests', 'patches/*/build/tests', 'cache/*/tests',
+            'cache/metallib/lib']
+    found = []
+    for p in pats:
+        found += sorted(d for d in tree.glob(p) if d.is_dir() and any(d.glob('test*.py')))
+    return [str(d.relative_to(tree)) for d in found]
+
+
+def run_suite(tree, d):
+    rc, out = run(tree, PY, '-I', '-B', '-m', 'unittest', 'discover', '-s', d)
+    ran = re.findall(r'^Ran (\d+) tests?', out, re.M)
+    skipped = re.findall(r'skipped=(\d+)', out)
+    note = '%s tests' % (ran[-1] if ran else '?') + (', %s skipped' % skipped[-1] if skipped else '')
+    if rc == 0 and not ran:
+        return False, 'no test summary\n' + out
+    return rc == 0, note + '\n' + out
+
+
+CHECKS = [('layout', check_layout), ('sets', check_sets), ('edit-specs', check_edit_specs),
+          ('hygiene', check_hygiene)]
+
+
+def export(commit, where):
+    """COMMIT checked out, detached, in a temporary worktree at WHERE/tree (git works there; nothing ignored is in it)."""
+    tree = Path(where) / 'tree'
+    subprocess.run(['git', 'worktree', 'add', '-q', '--detach', str(tree), commit], cwd=HERE, check=True)
+    return tree
+
+
+def unexport(where):
+    subprocess.run(['git', 'worktree', 'remove', '--force', str(Path(where) / 'tree')], cwd=HERE, capture_output=True)
+    shutil.rmtree(where, ignore_errors=True)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('commit', nargs='?', default='HEAD')
+    ap.add_argument('--here', action='store_true', help='run in this working tree, not an export of COMMIT')
+    ap.add_argument('--only', action='append', default=[], help='a check name or a prefix (suite:tools/hao)')
+    ap.add_argument('--list', action='store_true')
+    ap.add_argument('--log')
+    ap.add_argument('--jobs', type=int, default=min(8, os.cpu_count() or 2))
+    a = ap.parse_args(argv)
+    sha = subprocess.run(['git', 'rev-parse', '--verify', a.commit + '^{commit}'], cwd=HERE, capture_output=True,
+                         text=True, check=True).stdout.strip()
+    work = None
+    if a.here:
+        tree = HERE
+        dirty = subprocess.run(['git', 'status', '--porcelain'], cwd=HERE, capture_output=True, text=True).stdout
+        message = None
+    else:
+        work = tempfile.mkdtemp(prefix='hao-ci-')
+        tree = export(sha, work)
+        dirty = ''
+        message = subprocess.run(['git', 'log', '-1', '--format=%B', sha], cwd=HERE, capture_output=True,
+                                 text=True, check=True).stdout
+    todo = [(n, (lambda f: lambda: f(tree, {'message': message}))(f)) for n, f in CHECKS]
+    todo += [('suite:' + d, (lambda d: lambda: run_suite(tree, d))(d)) for d in suites(tree)]
+    if a.only:
+        todo = [t for t in todo if any(t[0] == o or t[0].startswith(o) for o in a.only)]
+    if a.list:
+        print('\n'.join(n for n, _ in todo))
+        return 0
+    print('ci: %s %s (%d checks%s)' % ('working tree at' if a.here else 'commit', sha[:12], len(todo),
+                                       ', uncommitted changes' if dirty else ''), flush=True)
+    results = {}
+    t0 = time.time()
+    try:
+        with concurrent.futures.ThreadPoolExecutor(a.jobs) as pool:
+            futs = {}
+            for name, fn in todo:
+                futs[pool.submit(lambda fn=fn: (time.time(), fn()))] = name
+            for fut in concurrent.futures.as_completed(futs):
+                name = futs[fut]
+                try:
+                    start, (ok, out) = fut.result()
+                except Exception as x:            # a check that crashes is a failed check
+                    start, ok, out = time.time(), False, '%s: %s' % (type(x).__name__, x)
+                secs = time.time() - start
+                first = out.strip().splitlines()[0] if out.strip() else ''
+                results[name] = dict(ok=ok, seconds=round(secs, 1), tail=out[-4000:])
+                print('%-4s %-48s %s (%.0f s)' % ('ok' if ok else 'FAIL', name, first[:60], secs), flush=True)
+    finally:
+        if work:
+            unexport(work)
+    failed = sorted(n for n, r in results.items() if not r['ok'])
+    for n in failed:
+        print('\n==== %s\n%s' % (n, results[n]['tail'].rstrip()[-2500:]))
+    print('\nci: %s %s: %d checks, %d failed%s (%.0f s)' % (sha[:12], 'PASS' if not failed else 'FAIL', len(results),
+                                                          len(failed), ': ' + ', '.join(failed) if failed else '',
+                                                          time.time() - t0))
+    if a.log:
+        Path(a.log).write_text(json.dumps(dict(
+            commit=sha, exported=not a.here, uncommitted=bool(dirty), passed=not failed, failed=failed,
+            finished=datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
+            checks=dict(sorted(results.items()))), indent=1) + '\n')
+    return 1 if failed else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
