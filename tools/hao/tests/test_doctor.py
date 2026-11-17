@@ -124,5 +124,68 @@ class RootPython(unittest.TestCase):
             self.assertIn('chmod -R go-w', r[0]['fix'])
 
 
+
+class AppleMirror(unittest.TestCase):
+    """HAO_MIRROR: URL/health answers "ok", URL/index.json holds {sha256: {size, ...}}; N of M release inputs held."""
+    NEEDS = [('a' * 64, 10, 'https://apple/a.dmg', 'a.dmg'), ('b' * 64, 20, 'https://apple/b.pkg', 'b.pkg')]
+
+    def opener(self, health=b'ok\n', index=None):
+        import io
+        import json as J
+        import urllib.error
+
+        class R(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                self.close()
+
+        def open_(req, timeout=None):
+            url = req.full_url
+            if url.endswith('/health'):
+                if health is None:
+                    raise urllib.error.URLError('refused')
+                return R(health)
+            if url.endswith('/index.json'):
+                return R(J.dumps(index if index is not None else {}).encode())
+            raise urllib.error.HTTPError(url, 404, 'no', {}, None)
+        return open_
+
+    def run_(self, env, **kw):
+        return D.check_hao_mirror(None, {'head_timeout_s': 1}, False, env=env, needs=self.NEEDS, **kw)
+
+    def test_not_set(self):
+        r = self.run_({})
+        self.assertEqual((r[0]['state'], r[0]['detail']), ('skip', 'mirror: not set (downloads go to the origin)'))
+
+    def test_all_held(self):
+        r = self.run_({'HAO_MIRROR': 'http://m:8080/'}, opener=self.opener(index={
+            'a' * 64: {'size': 10, 'name': 'a.dmg'}, 'b' * 64: {'size': 20, 'name': 'b.pkg'}}))
+        self.assertEqual((r[0]['state'], r[0]['detail']), ('ok', 'mirror http://m:8080: reachable, 2 of 2 release inputs held'))
+
+    def test_missing_and_wrong_size_are_named(self):
+        r = self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(index={'a' * 64: {'size': 11}}))
+        self.assertEqual(r[0]['state'], 'warn')
+        self.assertIn('0 of 2 release inputs held; missing: a.dmg, b.pkg', r[0]['detail'])
+
+    def test_unreachable_or_not_ok_fails(self):
+        self.assertEqual(self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(health=None))[0]['state'], 'fail')
+        self.assertEqual(self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(health=b'nope'))[0]['state'], 'fail')
+        self.assertEqual(self.run_({'HAO_MIRROR': 'file:///etc'})[0]['state'], 'fail')
+
+    def test_mirror_list_lines(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / 'pipeline').mkdir()
+            (Path(d) / 'pipeline' / 'mirror-list').write_text('')
+
+            class Done:
+                returncode = 0
+                stdout = '%s 10 https://apple/a.dmg a file.dmg\nnot a line\n' % ('a' * 64)
+            got = D.mirror_needs(None, '/x/release.json', run=lambda *a, **k: Done(), top=d)
+            self.assertEqual(got, [('a' * 64, 10, 'https://apple/a.dmg', 'a file.dmg')])
+
+
 if __name__ == '__main__':
     unittest.main()

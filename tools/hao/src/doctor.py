@@ -12,6 +12,9 @@ Checks, each ok, warn (reported, not stopping) or fail (stopping):
   disk      free space against the release's peak (src/space.py), when there is a release.json
   urls      a HEAD request for each URL release.json downloads from (--offline skips it)
   mirror    each download has a mirror besides Apple's CDN (required for --for release)
+  apple-mirror  with HAO_MIRROR=URL (a mirror of Apple's inputs): URL/health answers "ok", and how many of the
+            release's inputs (pipeline/mirror-list, else release.json's downloads) URL/index.json holds; missing ones
+            are named. A mirror cannot change what is installed: every download stays pinned by its sha256
 
 `hao doctor` exits 0 when nothing fails, 5 otherwise. create-installer and pipeline/ci call checks() first and stop on
 a failure (the same code, so the same answer).
@@ -218,6 +221,80 @@ def head(url, timeout, opener=None):
         return str(getattr(x, 'reason', x))
 
 
+INDEX_LIMIT = 64 << 20
+
+
+def fetch(url, timeout, limit, opener=None):
+    """URL's body (at most LIMIT bytes) by GET."""
+    req = urllib.request.Request(url, headers={'User-Agent': 'hao-doctor/1'})
+    with (opener or urllib.request.urlopen)(req, timeout=timeout) as r:
+        data = r.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError('more than %d bytes' % limit)
+    return data
+
+
+def mirror_needs(release, release_path=None, run=subprocess.run, top=TOP):
+    """[(sha256, size, origin url, name)] the release needs from a mirror: pipeline/mirror-list's lines
+    ("SHA256 SIZE ORIGIN_URL NAME", given release.json's path) when it is there, else release.json's downloads."""
+    tool = Path(top) / 'pipeline' / 'mirror-list'
+    if tool.is_file() and release_path:
+        try:
+            r = run([sys.executable, '-I', str(tool), str(release_path)], capture_output=True, text=True, timeout=120)
+            if r.returncode == 0:
+                out = []
+                for line in r.stdout.splitlines():
+                    parts = line.split(None, 3)
+                    if len(parts) == 4 and re.fullmatch('[0-9a-f]{64}', parts[0]) and parts[1].isdigit():
+                        out.append((parts[0], int(parts[1]), parts[2], parts[3]))
+                return out
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return [(d['sha256'], d['size'], d.get('url', ''), d.get('name', '')) for d in (release or {}).get('downloads', [])
+            if isinstance(d, dict) and isinstance(d.get('sha256'), str) and isinstance(d.get('size'), int)]
+
+
+def check_hao_mirror(release, p, offline, env=None, opener=None, release_path=None, needs=None):
+    """HAO_MIRROR (a project mirror of Apple's inputs, tools' P6): reachable (URL/health answers "ok"), and how many of
+    the release's inputs its URL/index.json holds ({sha256: {size, name, origin, added}}), naming the missing ones."""
+    import safety as SAFE
+    env = os.environ if env is None else env
+    url = (env.get('HAO_MIRROR') or '').rstrip('/')
+    if not url:
+        return [check('apple-mirror', 'skip', 'mirror: not set (downloads go to the origin)')]
+    if not re.match(r'https?://[^\s/]+', url):
+        return [check('apple-mirror', 'fail', 'HAO_MIRROR is not an http(s) URL: %s' % SAFE.text(url)[:80],
+                      'set HAO_MIRROR=https://HOST[:PORT] or unset it')]
+    if offline:
+        return [check('apple-mirror', 'warn', 'mirror %s: --offline, not checked' % SAFE.text(url))]
+    timeout = p.get('head_timeout_s', 10)
+    try:
+        ok = fetch(url + '/health', timeout, 1024, opener).strip() == b'ok'
+    except (OSError, ValueError) as x:
+        ok, why = False, str(getattr(x, 'reason', x))
+    else:
+        why = 'it did not answer "ok"'
+    if not ok:
+        return [check('apple-mirror', 'fail', 'mirror %s: not reachable (%s)' % (SAFE.text(url), SAFE.text(why)[:80]),
+                      'start the mirror, or unset HAO_MIRROR to download from the origin')]
+    try:
+        index = json.loads(fetch(url + '/index.json', timeout, INDEX_LIMIT, opener))
+        if not isinstance(index, dict):
+            raise ValueError('not a JSON object')
+    except (OSError, ValueError) as x:
+        return [check('apple-mirror', 'fail', 'mirror %s: index.json unreadable (%s)' % (
+            SAFE.text(url), SAFE.text(str(getattr(x, 'reason', x)))[:80]))]
+    needs = mirror_needs(release, release_path) if needs is None else needs
+    held = [n for n in needs if isinstance(index.get(n[0]), dict) and index[n[0]].get('size') == n[1]]
+    missing = [n[3] for n in needs if n not in held]
+    detail = 'mirror %s: reachable, %d of %d release inputs held' % (SAFE.text(url), len(held), len(needs))
+    if missing:
+        return [check('apple-mirror', 'warn', detail + '; missing: ' + ', '.join(SAFE.text(m) for m in missing[:5])
+                      + (' and %d more' % (len(missing) - 5) if len(missing) > 5 else ''),
+                      'those download from the origin')]
+    return [check('apple-mirror', 'ok', detail)]
+
+
 def check_urls(release, p, offline, opener=None):
     rows = (release or {}).get('downloads', [])
     if not rows:
@@ -253,7 +330,7 @@ def check_mirror(release, purpose):
 
 
 def checks(purpose='create-installer', where='build', release=None, cache=None, offline=False, opener=None,
-           run=subprocess.run, version=None, mac=None, signature=None):
+           run=subprocess.run, version=None, mac=None, signature=None, release_path=None):
     """[check] for PURPOSE (create-installer, ci, release) at WHERE (frontdoor.where)."""
     p = pins()
     out = check_python(where, p, version)
@@ -268,6 +345,7 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
         out += signature if signature is not None else check_signature(None, purpose)
         out += check_disk(release, cache or Path.home() / 'Library' / 'Caches' / 'hao')
         out += check_urls(release, p, offline, opener) + check_mirror(release, purpose)
+        out += check_hao_mirror(release, p, offline, opener=opener, release_path=release_path)
     return out
 
 
@@ -311,8 +389,12 @@ def doctor(a, c, release_path=None):
     if signature and signature[0]['state'] == 'ok':
         import signing as SIGN
         release = json.loads(SIGN.verified(path).read_bytes())  # the copy check_signature verified, not the path
+    verified = None
+    if release is not None:
+        import signing as SIGN
+        verified = SIGN.verified(path)                           # mirror-list reads the verified copy too
     failed = show(c, checks(a.purpose, FD.where(), release, getattr(a, 'cache', None), a.offline,
-                            signature=signature), a.purpose)
+                            signature=signature, release_path=verified), a.purpose)
     if failed:
         raise Stopped('%d check%s failed: %s' % (len(failed), '' if len(failed) == 1 else 's',
                                                  ', '.join(r['name'] for r in failed)),
