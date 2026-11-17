@@ -13,7 +13,7 @@
   "hao_folder_gb": 0.2,
   "scratch_gb": 2.0,
   "ipsw_read_gb": 19.4,
-  "installer_read_gb": 10.7
+  "installer_read_gb": 15.2
  },
  "estimate": ["metallib_work_gb", "kit_stage_mac_gb"],
  "boot_partition_gb": 1.8,
