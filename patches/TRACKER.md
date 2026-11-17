@@ -8,53 +8,53 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 
 | Patch | Rev | Stage | Status | Optional | golden-gate-26B131 | golden-gate | recovery | stock | Validation | Newest revision |
 |---|---|---|---|---|---|---|---|---|---|---|
-| darwin27-kernel | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| darwin27-sandbox-disk-space | r4 | oclp-hook | experiment |  |  | x |  |  | **needs** | r4 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
+| darwin27-kernel | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| darwin27-sandbox-disk-space | r4 | oclp-hook | experiment |  |  | x |  |  | **needs** | r4 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
 | dev-access | r6 | post | dev |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
 | dev-diagnostics | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
 | dev-keepawake | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (dev): recipe layout format pass; nothing it installs changes. |
 | golden-gate-appstore-slices | r3 | post | product |  | x | x |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
-| golden-gate-av1-encoder-x86 | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
-| golden-gate-corespotlight-compat | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-dyld-internal | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-font-registry | r8 | post | experiment | caches | x |  |  |  | ok (r3) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-hd4000-planes | r5 | oclp-hook | product |  | x |  |  |  | **needs** | r5 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
-| golden-gate-hello | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
-| golden-gate-icon-caches | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-ids | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
-| golden-gate-launchd-warm | r4 | oclp-hook | experiment |  | x |  |  |  | **needs** | r4 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-live-text-service | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
-| golden-gate-live-text-shared | r11 | oclp-hook | experiment |  | x |  |  |  | **needs** | r11 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
-| golden-gate-metal-argbuf | r7 | oclp-hook | product |  | x |  |  |  | **needs** | r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
-| golden-gate-metal-framebuffer | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
-| golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
-| golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; nothing it installs changes. |
-| golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-root-launchservices | r3 | post | experiment | boot-seeds |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
-| golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
-| golden-gate-shared-cache | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-shared-cache-catalog | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-store | r5 | oclp-hook | product |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
-| golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-user-template | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-userspace | r83 | oclp-hook | experiment |  | x | x |  |  | **needs** | r83 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
+| golden-gate-av1-encoder-x86 | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| golden-gate-corespotlight-compat | r7 | oclp-hook | experiment |  | x | x |  |  | ok (r4) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-dyld-internal | r2 | oclp-hook | experiment |  | x |  |  |  | **needs** | r2 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-font-registry | r8 | post | experiment | caches | x |  |  |  | ok (r3) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-hd4000-planes | r5 | oclp-hook | product |  | x |  |  |  | **needs** | r5 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| golden-gate-hello | r10 | oclp-hook | experiment |  | x | x |  |  | **needs** | r10 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
+| golden-gate-icon-caches | r7 | post | experiment | caches | x |  |  |  | ok (r3) | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-ids | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
+| golden-gate-launchd-warm | r4 | oclp-hook | experiment |  | x |  |  |  | **needs** | r4 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-live-text-service | r6 | post | experiment |  | x |  |  |  | **needs** | r6 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
+| golden-gate-live-text-shared | r11 | oclp-hook | experiment |  | x |  |  |  | **needs** | r11 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
+| golden-gate-metal-argbuf | r7 | oclp-hook | product |  | x |  |  |  | **needs** | r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| golden-gate-metal-framebuffer | r11 | oclp-hook | experiment |  | x | x |  |  | **needs** | r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
+| golden-gate-metal-libraries | r22 | oclp-hook | experiment |  | x | x |  |  | **needs** | r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (appli |
+| golden-gate-metal27 | r5 | oclp-hook | dev |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (app |
+| golden-gate-native-identities | r7 | oclp-hook | experiment |  | x | x |  |  | **needs** | r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-root-launchservices | r3 | post | experiment | boot-seeds |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
+| golden-gate-shader-caches | r15 | post | experiment | caches | x |  |  |  | **needs** | r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (app |
+| golden-gate-shared-cache | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-shared-cache-catalog | r3 | oclp-hook | experiment |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-store | r5 | oclp-hook | product |  |  |  |  |  | **needs** | r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies |
+| golden-gate-user-seed | r10 | post | experiment | caches | x |  |  |  | **needs** | r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| golden-gate-user-template | r8 | post | experiment | caches | x |  |  |  | **needs** | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| golden-gate-userspace | r83 | oclp-hook | experiment |  | x | x |  |  | **needs** | r83 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| golden-gate-windowserver-filter | r8 | oclp-hook | experiment |  | x | x |  |  | ok (r5) | r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
 | hao-command | r5 | post | experiment |  | x |  |  |  | **needs** | r5 2026-11-17 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
-| hao-opencore | r66 | post | experiment |  | x | x |  |  | **needs** | r66 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| hao-runtime-fold | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes. |
-| metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes. |
-| metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; nothing it installs changes. |
-| metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes. |
-| rec-audio | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
-| rec-bluetooth-input | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
-| rec-brightness-keys | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
-| rec-display-ethernet | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| hao-opencore | r66 | post | experiment |  | x | x |  |  | **needs** | r66 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| hao-runtime | r87 | oclp-hook | experiment |  | x | x |  |  | **needs** | r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mod |
+| hao-runtime-fold | r6 | oclp-hook | experiment |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.mode |
+| metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |
+| metal-metalold | r3 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; its pack decides the machines  |
+| metalold-selectors | r8 | oclp-hook | product |  | x | x |  |  | ok (r3) | r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (appl |
+| rec-audio | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
+| rec-bluetooth-input | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
+| rec-brightness-keys | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
+| rec-display-ethernet | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
 | rec-install-volume | r6 | post | product |  |  |  |  |  | **needs** | r6 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes. |
 | rec-language-list | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
 | rec-power | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
 | rec-progress-phase | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
 | rec-reinstall | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
 | rec-startup-guard | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes. |
-| rec-wifi | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
-| rec-wifi-autojoin | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes. |
+| rec-wifi | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |
+| rec-wifi-autojoin | r3 | recovery | product |  |  |  | x |  | **needs** | r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (ap |

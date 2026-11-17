@@ -34,5 +34,5 @@ Terminal as its top hit.
 NEEDS VALIDATION: host tests (script and spec agree on hao-runtime's dyld); not built into an image or booted.
 
 ## Revisions
-- r2 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
+- r2 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r1 2026-11-13 internalInstall() answers true in dyld only (owner chose this over the boot-arg, 2026-11-13).

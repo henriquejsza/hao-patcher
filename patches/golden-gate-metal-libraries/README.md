@@ -111,7 +111,7 @@ matching Tungsten library. A complete image with every library, shader-cache
 re-keying and full-workload performance remain open.
 
 ## Revisions
-- r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; nothing it installs changes.
+- r22 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r21 2026-11-14 Input rows `metallib_repairs_golden_gate` and `metal_quad_runtime_golden_gate` now hash their payload only (`# hash: without build.json ...` in the row: the build record's dates and paths and the quad runtime's build/ intermediates are left out, pipeline/lock.py without()), so a remake of the same payload on a user's Mac matches; their sha256 changed, the artifacts did not, so what this recipe installs is unchanged.
 - r20 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r19 2026-11-12 Declare the installed files in patch.json `files` (whole-file origins) and test them in tests/test_edits.py; the hook is unchanged.

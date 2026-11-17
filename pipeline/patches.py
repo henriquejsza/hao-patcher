@@ -401,7 +401,7 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
 
 
 LAYERS = ('os', 'platform', 'dev')
-KINDS = ('model', 'gpu', 'wifi', 'audio', 'input', 'recovery')
+KINDS = ('model', 'cpu', 'gpu', 'wifi', 'audio', 'input', 'recovery')
 
 
 def layout_problems(root=os.path.join(TOP, 'patches'), packs_dir=PACKS, order=ORDER, profiles=PROFILES):

@@ -91,7 +91,7 @@ not main's older one, so a fold build needs that row; after retirement only the 
 Both fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), one payload for both families.
 
 ## Revisions
-- r6 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
+- r6 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r5 2026-11-16 Row `rebuilt_cache` hashes the artifact without its build.json (`# hash: without build.json`), so a
   producer run elsewhere matches it. Installed bytes unchanged.
 - r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.

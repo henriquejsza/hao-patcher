@@ -102,7 +102,7 @@ NEEDS VALIDATION: not built or booted. Host tests pass with the real 26B131 file
 26B131 IPSW).
 
 ## Revisions
-- r4 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
+- r4 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed changes.
 - r2 2026-11-12 Renamed from golden-gate-kernelmanager-helper-warm and made a job list; adds com.apple.mbsystemadministration (KeepAlive PathState while .AppleSetupDone is missing, Interactive), which loginwindow waits for before Setup (4.4-4.7 s in a007b23).
 - r1 2026-11-12 New: kernelmanager_helper RunAtLoad, Interactive (job plist and launchd job cache), so the helper is ready for the OpenCore kexts' load reports once hao-opencore r44 skips the boot-time Aux KC build that used to start it.

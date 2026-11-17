@@ -32,6 +32,6 @@ NEEDS VALIDATION: not installed on any image yet. Next is an A/B on the target a
 WindowServer effects, the hello shaders).
 
 ## Revisions
-- r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; nothing it installs changes.
+- r3 2026-11-16 Declares its pack (metal-3802-extras): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-15 edits/metalold.json's evidence line names the comparison instead of a private document; the edit and its bytes are unchanged.
 - r1 2026-11-12 Our own MetalOld from Apple's 13.2.1 cut (cache-dylib r5) plus the declared je->nop edit; no hook, in no set.

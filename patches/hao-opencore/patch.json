@@ -3,9 +3,6 @@
   "pack": "base",
   "stage": "post",
   "applies": {
-    "models": [
-      "MacBookPro9,2"
-    ],
     "builds": [
       "25G332",
       "25G342"

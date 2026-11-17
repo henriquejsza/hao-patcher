@@ -54,7 +54,7 @@ Wi-Fi symbol correctly, and Setup renders with it installed. The full desktop
 remain open. Nothing has been checked on 26B131.
 
 ## Revisions
-- r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes.
+- r11 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r10 2026-11-16 Rows `metal_framebuffer` are the 2845387b build of the current source, which the same command reproduces byte for byte; against f8ff3547 only internal argument and variable names differ.
 - r9 2026-11-15 build/tests: the AIR version lookup's linearity test compares 4x the input against the base size instead of a fixed 5 s, so it holds on a loaded host. What the recipe installs is unchanged.
 - r8 2026-11-14 Input row `metal_framebuffer` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()), so its sha256 changed. The same artifact, so what this recipe installs is unchanged.

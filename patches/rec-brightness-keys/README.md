@@ -36,6 +36,6 @@ NEEDS VALIDATION: `brightkeys` builds and installs in every Recovery build; the 
 Recovery built from this repository.
 
 ## Revisions
-- r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes.
+- r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare brightkeys and its plist in `patch.json` `files`; the recipe is unchanged.
 - r1 2026-11-10 Initial public release.

@@ -48,7 +48,7 @@ abort (3 of 3 selections); r4's wrapper reads WebGPU and WebGL back right with n
 pipelines freed) is shown on the host only: 100 of 100 freed in a lifecycle control, 11 tool tests pass.
 
 ## Revisions
-- r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; nothing it installs changes.
+- r7 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 
 - r6 2026-11-15 libargbuf from d9fa28e7 (fix 26c6afc6): the texture and render-pipeline factory hooks return the driver's +1 result without retaining it again, so textures and pipelines are freed when apps release them (before, none was: 100 created, 0 destroyed; after, 100 and 100, in a lifecycle control on the host; tools/metal-argbuf tests pass). Laptop memory numbers: pending, on the first image with r6. patch.json declares what it installs (the driver's weak load as edits/driver.json, the three dylibs from row metal_argbuf). Wrapper and iCBE-real as r5.
 - r5 2026-11-14 libargbuf from 547557ae: requests MetalOld refuses but current Apple drivers accept are adapted where the HD 4000 can honour them (multisample/depth-stencil render targets made Private; separate Depth32Float + Stencil8 built packed; a CPU-written MSAA stencil emulated through a staging texture and per-bit stencil passes), each logged; AGB_SURVEY=1 logs every texture/pipeline/pass shape (off by default). Ends Weather's precipitation-map abort (diag#0002). Wrapper and iCBE-real as r4.

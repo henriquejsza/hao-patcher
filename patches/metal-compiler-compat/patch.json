@@ -2,7 +2,7 @@
  "revision": 9,
  "pack": "metal-3802",
  "stage": "oclp-hook",
- "applies": {"models": ["MacBookPro9,2"], "builds": ["25G332", "25G342"]},
+ "applies": {"builds": ["25G332", "25G342"]},
  "inputs": ["metal_compiler_compat"],
  "status": "experiment",
  "validated": false,

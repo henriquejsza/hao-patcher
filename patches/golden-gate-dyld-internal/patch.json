@@ -2,7 +2,7 @@
  "revision": 2,
  "pack": "base",
  "stage": "oclp-hook",
- "applies": {"models": ["MacBookPro9,2"], "builds": ["25G342"]},
+ "applies": {"builds": ["25G342"]},
  "inputs": [],
  "status": "experiment",
  "validated": false,

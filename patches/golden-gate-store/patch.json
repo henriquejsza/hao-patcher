@@ -3,9 +3,6 @@
  "pack": "os-extras",
  "stage": "oclp-hook",
  "applies": {
-  "models": [
-   "MacBookPro9,2"
-  ],
   "builds": [
    "25G342"
   ]

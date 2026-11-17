@@ -25,6 +25,6 @@ NEEDS VALIDATION: the dylib builds and installs; the method checks were written 
 auto-join in a booted 25G332 Recovery has not been tested (on a mismatch the dylib changes nothing).
 
 ## Revisions
-- r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; nothing it installs changes.
+- r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is unchanged.
 - r1 2026-11-10 Initial public release.

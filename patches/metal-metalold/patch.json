@@ -3,9 +3,6 @@
  "pack": "metal-3802-extras",
  "stage": "oclp-hook",
  "applies": {
-  "models": [
-   "MacBookPro9,2"
-  ],
   "builds": [
    "25G342"
   ]

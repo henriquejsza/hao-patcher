@@ -52,7 +52,7 @@ placed trees (owner sessions 2026-11-06), not re-checked on 26B131.
 r5 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r4's, so the result above stands.
 
 ## Revisions
-- r10 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
+- r10 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r9 2026-11-13 Documentation only: wording. The seed and what it installs are unchanged.
 - r8 2026-11-13 Tests and README only: the seed chain includes golden-gate-user-template; README names it. seed.zsh unchanged.
 - r7 2026-11-12 Declare the installed files in patch.json `files` (generated at install); the hook is unchanged.

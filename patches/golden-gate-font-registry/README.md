@@ -37,7 +37,7 @@ the earlier Tahoe image project): that fontd adopts a seeded registry without a 
 r2 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r1's, so the result above stands.
 
 ## Revisions
-- r8 2026-11-16 Declares its pack (base): recipe layout format pass; nothing it installs changes.
+- r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r7 2026-11-15 Row `font_registry_golden_gate` names the cache/seeds r3 remake (font-registry-26B131-20261115-e09b952363a1): the two installed files are the same bytes; only its build.json changes (the reset user-font folder written as ~/Library/Fonts, not the harvest account's home). validated_digest carried forward for that reason.
 - r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged; validated_digest carried forward for that reason.
 - r5 2026-11-12 Declare where each installed file is inside its row ("source"; tar members as ARCHIVE!MEMBER) for pipeline/materialize.py; the hook is unchanged.
