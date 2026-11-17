@@ -118,8 +118,9 @@ The generic image is `pipeline/profiles/generic.json` (the OS layer plus the opt
 `hardware` input and golden-image's step `hardware` installs nothing (the configuration's `hardware` is null); an
 assembly whose `hardware` input disagrees with its target's patch sets is refused. The base ESP is always the one
 `stages/build-efi.py` makes from the target's `efi_build` (never a harvested ESP or another target's): the generic
-target has none yet, so `golden-run` refuses it before staging anything and says which decision is open (OCLP's
-iMac20,1 build is the 5K iMac's Apple-firmware boot layout, which non-Apple firmware cannot start).
+target's is `"base": "qemu_reference"`, the `qemu_reference_efi` tree (OpenCore tested on OVMF, started from
+`EFI/BOOT/BOOTx64.efi`) with the pinned OpenCore release's binaries, not OCLP's iMac20,1 build (the 5K iMac's
+Apple-firmware boot layout, which non-Apple firmware cannot start). See [layout](layout.md#target-esp-base).
 
 Before writing anything, `golden-run`, `hao build-image --here`, `tools/qemu-vm` and the builder VM's start check the
 free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the

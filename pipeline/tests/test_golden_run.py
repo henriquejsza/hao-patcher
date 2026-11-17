@@ -242,15 +242,18 @@ class GoldenRun(unittest.TestCase):
             target=Path(folder)/'efi-less.json';target.write_text('{"model": "iMac20,1"}')
             with self.assertRaisesRegex(ValueError,'efi-less has no "efi_build"'):
                 build['build'](folder,None,target,'fd83bda09',Path(folder)/'OpenCore-1.0.5-RELEASE.zip',Path(folder)/'esp')
-        if 'efi_build' in json.loads((TOP/'pipeline/targets/generic.json').read_text()):
-            self.skipTest('the generic target has its efi_build')
+        # The generic target's ESP is the qemu_reference_efi tree with the pinned OpenCore release, not OCLP's build.
         generic=json.loads((TOP/'pipeline/assemblies/generic-26B131.json').read_text())
-        with self.assertRaisesRegex(ValueError,'no "efi_build".*BOOTx64.efi.*Decide'):RUN['efi_build_of'](generic)
+        self.assertEqual(RUN['efi_build_of'](generic)['base'],'qemu_reference')
+        self.assertNotIn('base',RUN['efi_build_of'](nine))             # the 9,2: OCLP's build, as before
         with tempfile.TemporaryDirectory() as folder:
-            work,record=Path(folder)/'work',Path(folder)/'record'
-            with self.assertRaisesRegex(SystemExit,'golden-run: target generic has no "efi_build"'):
-                RUN['run'](TOP/'pipeline/assemblies/generic-26B131.json',None,work=work,record=record)
-            self.assertFalse(work.exists() or record.exists())         # refused before anything is staged
+            targets=Path(folder)/'pipeline/targets';targets.mkdir(parents=True)
+            (targets/'odd.json').write_text('{"model": "iMac20,1", "efi_build": {"base": "harvested"}}')
+            (Path(folder)/'pipeline/stages').mkdir()
+            shutil.copy2(TOP/'pipeline/stages/build-efi.py',Path(folder)/'pipeline/stages/build-efi.py')
+            with mock.patch.dict(RUN['efi_build_of'].__globals__,TOP=Path(folder)):
+                with self.assertRaisesRegex(ValueError,"odd: unknown \"efi_build\" base 'harvested'"):
+                    RUN['efi_build_of'](dict(target='odd'))
 
     def test_skipped_optional_groups_merge_assembly_and_flag(self):
         self.assertEqual(RUN['skipped_groups']({}),[])

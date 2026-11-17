@@ -37,6 +37,18 @@ letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neu
 
 `patches.py check` refuses a `platform_data` that is not an object or has a key of another form.
 
+## Target ESP base
+
+The target's `"efi_build"` says what the image's base ESP is built from (`pipeline/stages/build-efi.py`, with the
+assembly's pinned OpenCore release; the set's post recipes then complete it). golden-run refuses a target without
+one, or with another `base`, before staging anything.
+
+- `"base": "oclp"` (the default when `base` is absent; `mbp92`): OCLP's OpenCore build for the target's `model`
+  from the pinned OCLP source, with `"settings"` (OCLP build settings).
+- `"base": "qemu_reference"` (`generic`): the row `qemu_reference_efi` (OpenCore tested on OVMF:
+  `EFI/BOOT/BOOTx64.efi`, `EFI/OC` with its drivers, kexts and `config.plist`), copied as
+  `tools/kernel-foundation/vm_esp.py` copies it, with the release's binaries. No OCLP configuration; no `settings`.
+
 ## Sets are generated
 
 - `pipeline/order.txt` lists every image recipe once, in build order, each with the reason for its position.
