@@ -69,14 +69,19 @@ def problems(p, mac_free_bytes, drive_bytes=None):
         out.append('this Mac has %.1f GB free; making the USB installer needs %.1f GB at its peak (%.1f + %.0f margin)'
                    % (mac_free_bytes / GB, need, p['mac_peak'], p['margin']))
     if drive_bytes is not None and drive_bytes * p['drive_fraction'] / GB < p['drive_need']:
-        out.append('the USB drive holds %.1f GB; the installer needs %.1f GB (a %d GB drive)' % (
+        out.append('the USB drive holds %.1f GB; the installer needs %.1f GB (a %d GB drive or larger)' % (
             drive_bytes / GB, p['drive_need'], drive_size_gb(p)))
     return out
 
 
+MINIMUM_DRIVE_GB = 64      # what create-installer accepts (installer.STICK_GB; disks refuses under 60 * 10^9 bytes):
+                           # up to 41 GB is written when the userspace images are copied from this Mac's store
+
+
 def drive_size_gb(p):
-    """The smallest drive size sold (16, 32, 64, ...) that holds the installer."""
-    size = 16
+    """The drive size to ask for: the smallest size sold (64, 128, ...) that holds the installer, never below what
+    create-installer accepts."""
+    size = MINIMUM_DRIVE_GB
     while size * p['drive_fraction'] < p['drive_need']:
         size *= 2
     return size
@@ -86,7 +91,7 @@ def lines(p):
     out = ['%-10s %8s %8s  %s' % ('stage', 'this Mac', 'drive', 'what is on disk')]
     for name, mac, drive, what in p['stages']:
         out.append('%-10s %6.1f GB %5.1f GB  %s' % (name, mac, drive, what))
-    out.append('peak: %.1f GB on this Mac (plus a %.0f GB margin), %.1f GB on the USB drive (a %d GB drive); '
+    out.append('peak: %.1f GB on this Mac (plus a %.0f GB margin), %.1f GB on the USB drive (a %d GB drive or larger); '
                '%.1f GB downloaded, %.1f GB read by range from Apple\'s IPSW and installer'
                % (p['mac_peak'], p['margin'], p['drive_need'], drive_size_gb(p), p['download'], p['read_by_range']))
     return out
