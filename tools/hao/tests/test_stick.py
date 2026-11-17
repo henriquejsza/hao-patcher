@@ -53,7 +53,7 @@ class FakeHost:
     def __init__(self, root):
         self.root, self.calls, self.partitioned = Path(root), [], False
         self.moved = {}                 # mount point -> another disk's partition (a swapped drive)
-        self.uuid = None                # the VolumeUUID diskutil reports for mounted partitions
+        self.uuid = 'UUID-1'            # the VolumeUUID diskutil reports for mounted partitions
 
     def run(self, argv, check=True, timeout=120):
         argv = [str(a) for a in argv]
@@ -285,11 +285,11 @@ class StickTest(unittest.TestCase):
         STICK.check_mounts(host, 'disk4', parts)                 # still the same partitions: fine
         same_number = dict(parts); same_number[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'), 'OTHER-UUID')
         host.uuid = 'THIS-UUID'
-        with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s3'):   # same numbers, another volume
+        with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s'):   # same numbers, another volume
             STICK.check_mounts(host, 'disk4', same_number)
-        host.uuid = None
+        host.uuid = 'UUID-1'
         host.moved[str(self.mnt / 'HAO')] = 'disk9s2'            # another volume took HAO's place
-        parts[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'))
+        parts[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'), 'UUID-1')
         (self.mnt / 'HAO').rename(self.mnt / 'gone')
         (self.mnt / 'HAO').mkdir()
         with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s3'):

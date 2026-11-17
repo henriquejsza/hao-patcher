@@ -39,14 +39,14 @@ LAPTOP_PCI = [pci(0x8086, 0x0166, 0x030000, 'display'), pci(0x14e4, 0x4331, 0x02
               pci(0x8086, 0x1e20, 0x040300, 'pci8086,1e20'), pci(0x8086, 0x1e31, 0x0c0330, 'pci8086,1e31')]
 GiB = 1 << 30
 DISKS_INFO = {
-    'disk0': dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Physical', BusProtocol='SATA', TotalSize=500 * 10**9,
+    'disk0': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk0', Internal=True, VirtualOrPhysical='Physical', BusProtocol='SATA', TotalSize=500 * 10**9,
                   MediaName='APPLE SSD SM512E'),
     'disk1': dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Virtual', TotalSize=499 * 10**9),
-    'disk4': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
+    'disk4': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk4', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
                   TotalSize=32 * 10**9, MediaName='SanDisk Ultra'),
-    'disk5': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
+    'disk5': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk5', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
                   TotalSize=1000 * 10**9, MediaName='Samsung T7'),
-    'disk6': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
+    'disk6': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk6', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB',
                   TotalSize=16 * 10**9, MediaName='Small Stick'),
     'disk4s1': dict(WholeDisk=False, Internal=False),
 }

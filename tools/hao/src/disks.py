@@ -91,6 +91,8 @@ def identity(host, disk):
     name = normalize(disk)
     info, _ = describe(host, name)
     parts = (_plist(host, 'diskutil', 'list', '-plist', name).get('AllDisksAndPartitions') or [{}])[0].get('Partitions', [])
+    if not (info.get('DeviceTreePath') or info.get('IORegistryEntryName')):
+        raise LP.PatchError('/dev/%s: diskutil names no device path for it: hao cannot tell it from another disk' % name)
     return {'media': (info.get('MediaName') or '').strip(), 'size': info.get('TotalSize') or info.get('Size'),
             'bus': info.get('BusProtocol'), 'path': info.get('DeviceTreePath') or info.get('IORegistryEntryName'),
             'partitions': sorted(p.get('DiskUUID') or p.get('VolumeUUID') or p.get('DeviceIdentifier', '')[len(name):]

@@ -119,9 +119,12 @@ class ApplyRevert(Base):
     def test_revert_cleans_up_only_its_own_copies(self):
         rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
         keep = self.metal.with_name('.hao-patch-Metalnotes.txt'); keep.write_text('not ours')
-        ours = self.metal.with_name('.hao-patch-Metal.0123456789ab'); ours.write_bytes(b'cut short')
+        alike = self.metal.with_name('.hao-patch-Metal.0123456789ab'); alike.write_text('not ours either')
+        tmp = next(f['tmp'] for f in rec['files'] if f['path'].endswith('/Metal'))
+        ours = self.metal.with_name(tmp); ours.write_bytes(b'cut short')     # the copy this patch recorded
         LP.revert(self.root, self.state, patch_id=rec['id'])
         self.assertTrue(keep.exists())
+        self.assertTrue(alike.exists())
         self.assertFalse(ours.exists())
 
     def test_attributes_only_never_go_through_a_link(self):

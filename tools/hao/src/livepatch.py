@@ -423,12 +423,12 @@ def _folder_times(resolve, created, dirs):
             os.utime(resolve(sub), (mtime, mtime), follow_symlinks=False)
 
 
-def _copy_new(source, target, prefix):
+def _copy_new(source, target, prefix, name=None):
     """SOURCE's bytes in a new file beside TARGET: an exclusive, no-follow name with a random part, so nothing put in
     that folder beforehand (a link, a file) is written through. Returns its path."""
     if target.parent.is_symlink() or not target.parent.is_dir():
         raise PatchError('%s is not a folder (a link?)' % target.parent)
-    name = '%s%s.%s' % (prefix, target.name, os.urandom(6).hex())
+    name = name or '%s%s.%s' % (prefix, target.name, os.urandom(6).hex())
     dfd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)   # the folder, opened once, no link
     try:
         fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644, dir_fd=dfd)
@@ -443,8 +443,8 @@ def _copy_new(source, target, prefix):
     return target.parent / name
 
 
-def _install(source, target, want, attributes):
-    tmp = _copy_new(source, target, '.hao-patch-')
+def _install(source, target, want, attributes, name=None):
+    tmp = _copy_new(source, target, '.hao-patch-', name)
     if target.exists():
         attributes.clear_flags(target)
     os.replace(tmp, target)
@@ -584,11 +584,13 @@ def _write(p, record, folder, resolve, attributes, emit):
             shutil.copyfile(target, backup)
             if sha256_file(backup) != now_sha:
                 raise PatchError('%s: the backup does not match the file' % row['path'])
-        entry = dict({k: row[k] for k in ('path', 'pack', 'sha256', 'old_sha256')}, before=before, pending=True)
+        tmp = '.hao-patch-%s.%s' % (target.name, os.urandom(6).hex())
+        entry = dict({k: row[k] for k in ('path', 'pack', 'sha256', 'old_sha256')}, before=before, pending=True,
+                     tmp=tmp)                       # the copy's exact name: a rollback removes this one file only
         record['files'].append(entry)               # recorded before the write, so a rollback undoes it too
         _save(folder, record)
         _folders(resolve, row['path'], p['dirs'], attributes, record['folders'])
-        skipped = _install(row['source'], target, row['want'], attributes)
+        skipped = _install(row['source'], target, row['want'], attributes, tmp)
         after = sha256_file(target)
         if after != row['sha256']:
             raise PatchError('%s: wrote %s, expected %s' % (row['path'], after, row['sha256']))
@@ -643,10 +645,10 @@ def _undo(record, folder, resolve, attributes, emit):
     for f in reversed(record['files']):
         target = resolve(f['path'])
         _no_links_above(resolve, f['path'])
-        cut_name = re.compile(r'\.hao-patch-%s\.[0-9a-f]{12}\Z' % re.escape(target.name))
-        for cut in target.parent.iterdir() if target.parent.is_dir() else []:      # a copy cut short: exactly ours
-            if cut_name.match(cut.name) and cut.is_file() and not cut.is_symlink():
-                cut.unlink(missing_ok=True)
+        if f.get('tmp') and '/' not in f['tmp']:            # a copy cut short: the one this patch recorded
+            cut = target.parent / f['tmp']
+            if cut.is_file() and not cut.is_symlink():
+                cut.unlink()
         if f['old_sha256'] is None:
             if target.exists() or target.is_symlink():
                 attributes.clear_flags(target)

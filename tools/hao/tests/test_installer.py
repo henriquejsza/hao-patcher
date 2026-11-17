@@ -29,14 +29,14 @@ from test_cli import FakeMac as LaptopMac   # noqa: E402
 
 GB = 10 ** 9
 DISKS = {
-    'disk0': dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Physical', BusProtocol='SATA', TotalSize=500 * GB,
+    'disk0': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk0', Internal=True, VirtualOrPhysical='Physical', BusProtocol='SATA', TotalSize=500 * GB,
                   MediaName='APPLE SSD SM512E'),
     'disk1': dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Virtual', TotalSize=499 * GB),
     'disk3': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Virtual', TotalSize=100 * GB,
                   MediaName='Disk Image'),
-    'disk4': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
+    'disk4': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk4', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
                   TotalSize=62 * GB, MediaName='SanDisk Ultra'),
-    'disk6': dict(WholeDisk=True, Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
+    'disk6': dict(WholeDisk=True, DeviceTreePath='IODeviceTree:/disk6', Internal=False, VirtualOrPhysical='Physical', BusProtocol='USB', Removable=True,
                   TotalSize=16 * GB, MediaName='Small Stick'),
 }
 SERIAL, UUID = 'C02XK1ABDV33', '1A2B3C4D-1111-2222-3333-444455556666'

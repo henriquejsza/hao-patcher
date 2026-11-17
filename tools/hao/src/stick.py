@@ -450,6 +450,8 @@ def check_mounts(host, disk, parts):
     for name, part in parts.items():
         dev, mount = part[0], part[1]
         uuid = part[2] if len(part) > 2 else None
+        if not uuid:                    # without its volume UUID a partition cannot be told from one that took its place
+            raise StickError('%s (%s) has no volume UUID: hao cannot check it is still the USB drive' % (mount, name))
         try:
             info = _plist(host, 'diskutil', 'info', '-plist', str(mount))
         except Exception:
@@ -542,13 +544,13 @@ def esp_tar_of(tree, out):
     return Path(out)
 
 
-def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_step=None):
+def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_step=None, parts=None):
     """Only the boot partitions of a USB installer written by write() (HAO holds stick.json): OpenCore on EFI again
     (OPENCORE_TAR, or the ESP of the kit on HAO) and the Recovery on HAOBOOT (BASESYSTEM, or the one already there);
     HAO and the kit are not touched. OpenCore's logs on EFI (opencore-*.txt) are moved to HAO/reports/ first.
     Returns the updated stick.json."""
     step = on_step or (lambda text: None)
-    parts = mounted_parts(host, disk)
+    parts = parts or mounted_parts(host, disk)       # found once: the same volumes until the end
     check_mounts(host, disk, parts)
     esp, boot, top = (Path(parts[n][1]) for n in ('EFI', BOOT_NAME, KIT_NAME))
     info = top / 'stick.json'
@@ -560,7 +562,7 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
         import tempfile
         with tempfile.TemporaryDirectory() as work:
             return rewrite_boot(host, disk, esp_tar_of(top / KIT_ESP, Path(work) / 'kit-esp.tar'), basesystem, log,
-                                on_step)
+                                on_step, parts)
     if basesystem is None:
         basesystem = boot / 'com.apple.recovery.boot' / 'BaseSystem.dmg'
         if not basesystem.is_file():
@@ -577,7 +579,9 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
         step('kept %d OpenCore log%s in %s/reports' % (len(logs), '' if len(logs) == 1 else 's', KIT_NAME))
     for name in ('EFI', 'System'):
         shutil.rmtree(esp / name, ignore_errors=True)
+    check_mounts(host, disk, parts)
     rec.update(write_boot(esp, boot, basesystem, opencore_tar, log=log))
+    check_mounts(host, disk, parts)
     rec.update(boot_rewritten=datetime.datetime.now().isoformat(timespec='seconds'), opencore_logs_kept=logs)
     step('EFI      OpenCore again (picker after %d s, log %s)' % (PICKER_TIMEOUT, 'on' if log else 'off'))
     step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
