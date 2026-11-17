@@ -269,6 +269,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r76 2026-11-17 Declares its scope (`requires`, docs/requires.md): the kernel repairs, IntelCommpage and AMFI site are bound to 26B131's kernel and the 25G342 donors; its OpenCore part is model-neutral (the model's own is its pack's). Nothing it installs changes.
 - r75 2026-11-17 The edit spec's origin names the target's model generically (GEN1, S15). Declaration only.
 - r74 2026-11-17 Status product (was experiment): every end-user set ships it, AMFI relaxed by the owner's decision D1. Declaration only; `validated` stays false until a boot proves the re-cut.
 - r73 2026-11-17 The generic image's elements have their reasons (VirtualSMC and the non-Apple-firmware quirks, all "generic image only"), and VirtualSMC its provenance (Acidanthera 1.3.8). `config_reasons.py` refuses a generic-only element in any config that isn't the generic one (SMBIOS iMac20,1, created). Nothing a 9,2 image gets changes.

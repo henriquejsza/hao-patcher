@@ -11,7 +11,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | darwin27-kernel | r14 | oclp-hook | product |  | x | x |  |  | **needs** | r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only. |
 | darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
 | dev-access | r7 | post | dev |  |  |  |  |  | **needs** | r7 2026-11-17 Declares its scope (`requires`, docs/requires.md): an SSH switch: no build, CPU, GPU or firmware |
-| dev-diagnostics | r8 | post | dev |  |  |  |  |  | **needs** | r8 2026-11-17 Its declared boot-args carry hao-opencore r72's `amfi_force_policy=8`; nothing this recipe adds  |
+| dev-diagnostics | r9 | post | dev |  |  |  |  |  | **needs** | r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): boot-args, OpenCore log settings and SIP flag |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | golden-gate-appstore-slices | r4 | post | diagnostic |  |  | x |  |  | **needs** | r4 2026-11-17 Status diagnostic: it only reports, so release profiles leave it out. |
 | golden-gate-av1-encoder-x86 | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
@@ -42,7 +42,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| hao-opencore | r75 | post | product |  | x | x |  |  | **needs** | r75 2026-11-17 The edit spec's origin names the target's model generically (GEN1, S15). Declaration only. |
+| hao-opencore | r76 | post | product |  | x | x |  |  | **needs** | r76 2026-11-17 Declares its scope (`requires`, docs/requires.md): the kernel repairs, IntelCommpage and AMFI s |
 | hao-runtime | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r9 | oclp-hook | experiment |  | x |  |  |  | **needs** | r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applie |

@@ -1,8 +1,7 @@
 {
- "revision": 8,
+ "revision": 9,
  "pack": "dev",
  "stage": "post",
- "applies": "any",
  "inputs": [],
  "status": "dev",
  "validated": false,
@@ -11,5 +10,6 @@
    "path": "EFI/OC/config.plist",
    "edits": "edits/config.json"
   }
- ]
+ ],
+ "requires": {"os": "any", "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
 }
