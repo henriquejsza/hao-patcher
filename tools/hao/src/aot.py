@@ -42,7 +42,7 @@ def need_root(euid, what):
 def job(caches=CACHES, run=subprocess.run):
     """The hao.aot job: (state, detail): 'running', 'done' (for which runtime) or 'not yet'."""
     try:
-        r = run(['launchctl', 'print', 'system/hao.aot'], capture_output=True, text=True, timeout=10)
+        r = run(['/bin/launchctl', 'print', 'system/hao.aot'], capture_output=True, text=True, timeout=10)
         if r.returncode == 0 and re.search(r'^\s*state = running', r.stdout, re.M):
             return 'running', 'building now, at background priority'
     except (OSError, subprocess.SubprocessError):
@@ -128,10 +128,11 @@ def aot(a, c, env=None, euid=None, run=subprocess.run, caches=CACHES, popen=subp
         return 0
     if a.background:
         need_root(euid, 'background')
-        LOG.mkdir(parents=True, exist_ok=True)
+        import safety as SAFE
+        SAFE.private_dir(LOG, 0o755)
         log = LOG / 'aot.log'
-        with open(log, 'a') as out:
-            argv = ['taskpolicy', '-b', exe, '--aot'] if os.access('/usr/sbin/taskpolicy', os.X_OK) else [exe, '--aot']
+        with SAFE.open_log(log) as out:
+            argv = ['/usr/sbin/taskpolicy', '-b', exe, '--aot'] if os.access('/usr/sbin/taskpolicy', os.X_OK) else [exe, '--aot']
             popen(argv, stdout=out, stderr=out, stdin=subprocess.DEVNULL, start_new_session=True)
         c.done('building the caches in the background; hao aot --status shows how far, the log is %s' % log)
         return 0

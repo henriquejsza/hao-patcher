@@ -18,9 +18,9 @@ def state(results, name):
 
 def runner(xcode='Xcode 27.2\nBuild version 27C5\n', metal=True):
     def run(argv, **kw):
-        if argv[0] == 'xcodebuild':
+        if argv[0].endswith('xcodebuild'):
             return subprocess.CompletedProcess(argv, 0 if xcode else 1, xcode or '', '')
-        if argv[0] == 'xcrun':
+        if argv[0].endswith('xcrun'):
             return subprocess.CompletedProcess(argv, 0 if metal else 1, '', '')
         raise OSError('unexpected %s' % argv)
     return run

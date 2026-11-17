@@ -17,6 +17,7 @@ import re
 import subprocess
 
 import detect as DETECT
+import safety as SAFE
 import livepatch as LP
 
 TOP = Path(__file__).resolve().parents[3]
@@ -33,14 +34,19 @@ LABELLED = [
                 re.I), '[wifi]'),
 ]
 EMAIL = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+URL_SECRET = re.compile(r'(\b[a-z][a-z0-9+.-]*://)[^/\s@:]+(?::[^/\s@]*)?@', re.I)
+URL_QUERY = re.compile(r'(\b[a-z][a-z0-9+.-]*://[^\s?#"\']+)\?[^\s#"\']+', re.I)
 MAC_ADDRESS = re.compile(r'\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b')
 
 
 def log_dir(env=None, euid=None):
-    """Where this run keeps its command log: HAO_LOGS, else /Library/Logs/hao as root, else ~/Library/Logs/hao."""
+    """Where this run keeps its command log: HAO_LOGS, else the USB installer's logs/ (HAO_STICK), else
+    /Library/Logs/hao as root, else ~/Library/Logs/hao. (Under sudo hao drops HAO_LOGS and HAO_STICK first.)"""
     env = os.environ if env is None else env
     if env.get('HAO_LOGS'):
         return Path(env['HAO_LOGS'])
+    if env.get('HAO_STICK'):
+        return Path(env['HAO_STICK']) / 'logs'
     if (os.geteuid() if euid is None else euid) == 0:
         return SYSTEM_LOGS
     return Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao'
@@ -80,26 +86,54 @@ def version():
 
 
 def save_log(command, argv, events, folder=None, ver=None, now=None):
-    """Keep COMMAND's console events as FOLDER/COMMAND-DATE.json (readable by everyone, no secrets: hao report
-    still scrubs it); the oldest beyond KEEP go. Returns the path, or None when the folder cannot be written."""
+    """Keep COMMAND's console events as FOLDER/COMMAND-DATE.json, 0600 in a 0700 folder, created new (never through a
+    symlink or over a file); the oldest beyond KEEP go (plain files only). Returns the path, or None when it cannot be
+    written."""
     folder = Path(folder) if folder else log_dir()
     stamp = (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
+    data = json.dumps({'command': command, 'argv': list(argv), 'hao': ver if ver is not None else version(),
+                       'events': events}, indent=1, default=str) + '\n'
     try:
-        folder.mkdir(parents=True, exist_ok=True)
-        path = folder / ('%s-%s.json' % (command, stamp))
-        path.write_text(json.dumps({'command': command, 'argv': list(argv), 'hao': ver if ver is not None
-                                    else version(), 'events': events}, indent=1, default=str) + '\n')
-        path.chmod(0o644)
-        for old in sorted(folder.glob('*-*.json'), key=lambda p: p.stat().st_mtime)[:-KEEP]:
+        SAFE.private_dir(folder)
+        path = None
+        for n in range(10):
+            candidate = folder / ('%s-%s%s.json' % (command, stamp, '-%d' % n if n else ''))
+            try:
+                path = SAFE.create(candidate, data, 0o600)
+                break
+            except FileExistsError:
+                continue
+        if path is None:
+            return None
+        plain = [p for p in folder.glob('*-*.json') if p.is_file() and not p.is_symlink()]
+        for old in sorted(plain, key=lambda p: p.lstat().st_mtime)[:-KEEP]:
             old.unlink()
         return path
     except OSError:
         return None
 
 
-def last_log(folders):
-    found = [p for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')]
-    return max(found, key=lambda p: p.stat().st_mtime) if found else None
+def log_owners(env=None):
+    """Whose logs a root run may read: root's and the sudo user's (none else)."""
+    env = os.environ if env is None else env
+    return {os.geteuid()} | ({int(env['SUDO_UID'])} if env.get('SUDO_UID', '').isdigit() else set())
+
+
+def last_log(folders, env=None):
+    """The newest command log that is a plain file (not a symlink, not another user's)."""
+    owners = log_owners(env)
+    found = []
+    for f in folders:
+        if not Path(f).is_dir():
+            continue
+        for p in Path(f).glob('*-*.json'):
+            try:
+                st = p.lstat()
+            except OSError:
+                continue
+            if p.is_file() and not p.is_symlink() and st.st_uid in owners | {0}:
+                found.append((st.st_mtime, p))
+    return max(found)[1] if found else None
 
 
 def _out(host, *argv):
@@ -143,6 +177,8 @@ def scrub(text, private):
     text = HOME.sub(lambda m: m.group(1) + USER, text)
     for pattern, label in LABELLED:
         text = pattern.sub(lambda m: m.group(1) + label, text)
+    text = URL_SECRET.sub(lambda m: m.group(1) + '[credentials]@', text)    # https://user:pass@host
+    text = URL_QUERY.sub(lambda m: m.group(1) + '?[query]', text)             # tokens in query strings
     text = EMAIL.sub('[email]', text)
     text = MAC_ADDRESS.sub('[hardware address]', text)
     for secret in sorted(private, key=len, reverse=True):
@@ -150,9 +186,12 @@ def scrub(text, private):
     return text
 
 
-def _json(path):
+def _json(path, env=None):
+    text = SAFE.read_small(path, owners=log_owners(env))
+    if text is None:
+        return '(not read: %s is not a plain file of root or this user, or is larger than 4 MB)' % path
     try:
-        return json.dumps(json.loads(Path(path).read_text()), indent=1, default=str)
+        return json.dumps(json.loads(text), indent=1, default=str)
     except (OSError, ValueError) as x:
         return 'unreadable: %s' % x
 
@@ -163,8 +202,9 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
     folders = log_dirs(env) if folders is None else folders
     when = now or datetime.datetime.now()
     parts = ['hao report  %s' % when.strftime('%Y-%m-%d %H:%M:%S'),
-             'Attach this file to a GitHub issue. Removed before writing: serial number, hardware UUID, computer '
-             'name, user names, Wi-Fi names, e-mail and hardware addresses.']
+             'For a GitHub issue. Removed before writing: serial number, hardware UUID, computer name, user names, '
+             'Wi-Fi names, e-mail and hardware addresses, credentials and query strings in URLs. Read it before you '
+             'share it: messages from programs can hold other details.']
 
     def section(title, body):
         parts.extend(['', '== ' + title, body.rstrip() or '(none)'])
@@ -222,14 +262,17 @@ def write(path, text, env=None):
     """Write the report; under sudo, give it to the user who ran sudo so they can attach and delete it."""
     env = os.environ if env is None else env
     path = Path(path)
-    path.write_text(text)
-    path.chmod(0o644)
+    owner = None
     if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit() and env.get('SUDO_GID', '').isdigit():
+        owner = (int(env['SUDO_UID']), int(env['SUDO_GID']))
+    # a new file only: an existing name (or a symlink planted at it) is never written through, chmod-ed or chown-ed
+    for n in range(10):
+        candidate = path if n == 0 else path.with_name('%s-%d%s' % (path.stem, n, path.suffix))
         try:
-            os.chown(path, int(env['SUDO_UID']), int(env['SUDO_GID']))
-        except OSError:
-            pass
-    return path
+            return SAFE.create(candidate, text, 0o600, owner)
+        except FileExistsError:
+            continue
+    raise FileExistsError('%s and nine numbered names next to it exist already' % path)
 
 
 def report(a, c, host, env=None, folders=None, state=STATE, ver=None):

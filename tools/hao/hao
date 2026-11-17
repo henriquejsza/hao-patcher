@@ -48,7 +48,8 @@
         HAO (run /Volumes/HAO/install in its Recovery). Not built yet: the kit made from the downloads, so
         without --kit it stages one from this checkout's store. --dry-run asks and shows the plan, nothing more.
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
-        its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
+        its hao detect profile, the last command's log and the install record; serials, user and Wi-Fi names,
+        e-mail and hardware addresses and URL credentials are removed (read it before sharing)
 
 hao alone (or hao help) lists the commands for where it runs; hao help --all adds the developer commands. A command
 run where it doesn't belong says where it runs (HAO_ANYWHERE=1 or --dry-run skips that check). Exit codes: 0 done,
@@ -89,6 +90,7 @@ import status as STATUS  # noqa: E402
 import run as RUN        # noqa: E402
 import aot as AOT        # noqa: E402
 import doctor as DOCTOR  # noqa: E402
+import safety as SAFE    # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -380,6 +382,7 @@ def hook_backends(a, c, build=BUILD, inst=INST):
         t.add_column()
         n = 0
         for label, value in choices:
+            label = SAFE.text(label)             # disk and volume names come from the disks: shown as text
             if value is None:
                 t.add_row('', Text(label, style=c2.style('dim')))
             else:
@@ -733,6 +736,7 @@ def cmd_help(a):
 
 
 def main():
+    SAFE.harden_env()        # under sudo: no developer variables, the system PATH (security review F3)
     import signal
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
     p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

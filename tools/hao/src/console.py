@@ -605,6 +605,8 @@ class Console:
 
     def confirm(self, question, word, given=None):
         """Ask QUESTION and require WORD typed (or GIVEN, from a flag). False when it does not match."""
+        import safety as SAFE
+        question = SAFE.text(question)       # disk names come from the disk: shown as text
         self.event('confirm', question=question, word=word, given=given is not None)
         self.close()
         if self.rich and given is None:
@@ -665,6 +667,10 @@ class Console:
         self.footer = None
         self.close()
         w, s = self.err, self.paint_err
+        import safety as SAFE                  # the report quotes paths, device names and backend errors: shown as text
+        x.what, x.why, x.cause, x.untouched = (SAFE.text(v) if v else v for v in (x.what, x.why, x.cause, x.untouched))
+        x.options = [SAFE.text(o) for o in x.options]
+        x.unknown = [(SAFE.text(a), SAFE.text(b)) for a, b in x.unknown]
         untouched = x.untouched or ''
         if untouched:
             untouched = untouched + ('' if untouched.endswith('.') else '.')     # "STOPPED before anything ..." 

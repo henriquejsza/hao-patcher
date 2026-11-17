@@ -24,16 +24,21 @@ def _out(host, *argv):
 def last_stop(folders):
     """(command, when, what) of the newest command log that ended stopped, or None."""
     logs = sorted((p for f in folders if Path(f).is_dir() for p in Path(f).glob('*-*.json')),
-                  key=lambda p: p.stat().st_mtime, reverse=True)
+                  key=lambda p: p.lstat().st_mtime, reverse=True)
     for path in logs[:REP.KEEP]:
+        import safety as SAFE
+        text = SAFE.read_small(path, owners=REP.log_owners())     # plain files of root or this user only
         try:
-            data = json.loads(path.read_text())
-        except (OSError, ValueError):
+            data = json.loads(text) if text is not None else None
+        except ValueError:
+            data = None
+        if not isinstance(data, dict) or not isinstance(data.get('events', []), list):
             continue
-        ends = [e for e in data.get('events', []) if e.get('ev') == 'run.end']
+        ends = [e for e in data.get('events', []) if isinstance(e, dict) and e.get('ev') == 'run.end']
         if ends and ends[-1].get('ok') is False:
+            import safety as SAFE
             when = datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-            return data.get('command'), when, ends[-1].get('what')
+            return SAFE.text(data.get('command')), when, SAFE.text(ends[-1].get('what'))
         if ends:
             return None                    # the newest finished command did not stop
     return None

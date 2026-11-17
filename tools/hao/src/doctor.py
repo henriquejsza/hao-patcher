@@ -62,7 +62,7 @@ def check_shebangs(p, top=TOP, run=subprocess.run):
     """Python scripts in the checkout whose shebang names another interpreter than the pinned build one."""
     want = 'python%s' % p['python']['build']
     try:
-        files = run(['git', '-C', str(top), 'ls-files'], capture_output=True, text=True, check=True).stdout.split()
+        files = run(['/usr/bin/git', '-C', str(top), 'ls-files'], capture_output=True, text=True, check=True).stdout.split()
     except (OSError, subprocess.CalledProcessError):
         return [check('shebangs', 'warn', 'not a checkout: not checked')]
     other = {}
@@ -84,7 +84,7 @@ def check_shebangs(p, top=TOP, run=subprocess.run):
 
 def check_xcode(purpose, p, run=subprocess.run):
     try:
-        r = run(['xcodebuild', '-version'], capture_output=True, text=True, timeout=30)
+        r = run(['/usr/bin/xcodebuild', '-version'], capture_output=True, text=True, timeout=30)
         have = r.stdout.split('\n')[0].replace('Xcode ', '').strip() if r.returncode == 0 else ''
     except (OSError, subprocess.SubprocessError):
         have = ''
@@ -94,7 +94,7 @@ def check_xcode(purpose, p, run=subprocess.run):
                       'install Xcode %s and its Metal toolchain (Xcode > Settings > Components)' % p['xcode'])]
     out = []
     try:
-        metal = run(['xcrun', '--find', 'metal'], capture_output=True, text=True, timeout=30).returncode == 0
+        metal = run(['/usr/bin/xcrun', '--find', 'metal'], capture_output=True, text=True, timeout=30).returncode == 0
     except (OSError, subprocess.SubprocessError):
         metal = False
     if version_tuple(have) != version_tuple(p['xcode']):

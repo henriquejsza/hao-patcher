@@ -300,14 +300,18 @@ class Runner:
         return None
 
     def logfile(self):
+        """The backend log: appended, never through a symlink, 0600 in a 0700 folder; when that folder cannot be
+        used, a new private folder of this run (never a shared name in /tmp)."""
+        import safety as SAFE
+        import tempfile
         if self.log is None:
             self.log = output_log(self.command)
         try:
-            self.log.parent.mkdir(parents=True, exist_ok=True)
-            return open(self.log, 'a', encoding='utf-8', errors='replace')
+            SAFE.private_dir(self.log.parent)
+            return SAFE.open_log(self.log)
         except OSError:
-            self.log = Path(os.environ.get('TMPDIR', '/tmp')) / self.log.name
-            return open(self.log, 'a', encoding='utf-8', errors='replace')
+            self.log = Path(tempfile.mkdtemp(prefix='hao-logs-')) / self.log.name
+            return SAFE.open_log(self.log)
 
     def view_for(self, argv):
         words = [str(x) for x in argv]
@@ -377,7 +381,8 @@ class Runner:
         return rc
 
     def feed(self, view, line):
-        text = line.strip()
+        import safety as SAFE
+        text = SAFE.text(line.strip())                  # external text: no control sequences reach the terminal
         if text.startswith('@hao '):
             try:
                 ev = json.loads(text[5:])
@@ -389,11 +394,12 @@ class Runner:
             elif kind == 'progress':
                 view.progress(ev.get('done'), ev.get('total'), ev.get('unit'))
             elif kind == 'item':
-                self.c.item(str(ev.get('text', '')), ev.get('level', 'steps'), ok=ev.get('ok'))
+                self.c.item(SAFE.text(ev.get('text', '')), ev.get('level', 'steps'), ok=ev.get('ok'))
             elif kind == 'note':
-                self.c.note(str(ev.get('text', '')))
+                self.c.note(SAFE.text(ev.get('text', '')))
             elif kind == 'stop':
-                self.stop = ev
+                self.stop = {k: ([SAFE.text(o) for o in v] if isinstance(v, list) else SAFE.text(v)) if v else v
+                             for k, v in ev.items()}
             return
         if text.startswith('STEP '):
             view.step(text[5:].strip())

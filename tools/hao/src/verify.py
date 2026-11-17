@@ -53,6 +53,23 @@ def manifests(sources, root):
     return out
 
 
+def inside(root, data, path):
+    """The file a manifest PATH names under ROOT (or, for a firmlinked path of an unbooted install, under its Data
+    volume DATA), or None when PATH is absolute, has empty, . or .. parts, or resolves outside that root."""
+    parts = str(path).split('/')
+    if not path or str(path).startswith('/') or any(x in ('', '.', '..') for x in parts):
+        return None
+    target = root / path
+    base = root
+    if data is not None and not os.path.lexists(target) and os.path.lexists(data / path):
+        target, base = data / path, data
+    real_base = os.path.realpath(str(base))
+    real_parent = os.path.realpath(str(target.parent))
+    if real_parent != real_base and not real_parent.startswith(real_base.rstrip('/') + '/'):
+        return None
+    return target
+
+
 def verify(root, found, attributes=None, on_file=None):
     """{'ok': n, 'problems': [{path, pack, problem, ...}], 'packs': {pack: files}}; ON_FILE(row) per file."""
     root = Path(root)
@@ -63,10 +80,16 @@ def verify(root, found, attributes=None, on_file=None):
         pack = m.get('pack', Path(where).parent.name)
         out['packs'][pack] = len(m['files'])
         for path, meta in sorted(m['files'].items()):
-            target = root / path
-            if data is not None and not os.path.lexists(target) and os.path.lexists(data / path):
-                target = data / path            # a firmlinked path of an unbooted install: on its Data volume
             row = {'path': path, 'pack': pack}
+            target = inside(root, data, path)
+            if target is None:
+                # a manifest path that is absolute, has . or .. parts, or leads out of the root through a symlinked
+                # folder: refused, never read or hashed (a manifest must not point hao at other files)
+                row['problem'] = 'outside'
+                out['problems'].append(row)
+                if on_file:
+                    on_file(row)
+                continue
             if target.is_symlink() or not target.is_file():
                 row['problem'] = 'missing'
             else:
