@@ -21,6 +21,11 @@
                                      proof there (proven_on), stale proof; --check exits 1 when a "release": true
                                      profile refuses a recipe on its own target and its assemblies' pairs
   patches.py check                   every patch against the patch format below; one line per problem, exit 1 if any
+  patches.py release-gate [PROFILE ...]
+                                     whether each release profile (default: every one) may ship: release_problems with
+                                     the gate, no recipe "validated": false or status experiment unless
+                                     pipeline/release-waivers.json holds an owner waiver for that profile, recipe and
+                                     revision; exit 1 on any problem (release-cut always applies it)
   patches.py digest NAME             sha256 of everything that decides what NAME installs (for validated_digest)
   patches.py explain [NAME | PATH]   what each declared file comes from and every edit to it, with reasons (one patch,
                                      or every file whose path is or ends with /PATH); no argument: every patch
@@ -671,39 +676,110 @@ def check(root=os.path.join(TOP, 'patches'), sets_dir=os.path.join(TOP, 'pipelin
         bad += layout_problems(root)
         bad += requires_tree_problems(root)
         bad += release_profile_problems(root)
+        bad += waiver_problems(root)
     return bad
 
 
 RELEASE_REFUSED_STATUSES = ('dev', 'diagnostic')   # never shipped: bench and logging-only recipes
+RELEASE_GATED_STATUSES = ('experiment',)           # shipped only with an owner waiver, like validated: false
+WAIVERS = os.path.join(TOP, 'pipeline', 'release-waivers.json')
+WAIVER_REASON = re.compile(r'\bowner (\d{4}-\d{2}-\d{2})\b')
 
 
-def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
+def load_waivers(path=WAIVERS):
+    """pipeline/release-waivers.json's waivers (none when the file is not there)."""
+    return json.load(open(path)).get('waivers', []) if os.path.isfile(path) else []
+
+
+def release_problems(name, root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER,
+                     gate=True, waivers=None):
     """Why the set NAME may not be released (empty: it may): it must be a profile marked "release": true, and none of
-    its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES."""
+    its recipes may come from a dev-layer pack or have a status in RELEASE_REFUSED_STATUSES. With gate (release-cut,
+    patches.py release-gate), none may be "validated": false or have a status in RELEASE_GATED_STATUSES either, unless
+    a waiver (pipeline/release-waivers.json) names this profile, that recipe and its current revision."""
     f = os.path.join(profiles, name + '.json')
     if not os.path.isfile(f):
         return ['set %s: not a profile (pipeline/profiles/%s.json); only release profiles are released' % (name, name)]
     if json.load(open(f)).get('release') is not True:
         return ['profile %s: not marked "release": true' % name]
     packs = packs if packs is not None else load_packs(root=root)
+    waivers = load_waivers() if waivers is None else waivers
     layer = {r: pk.get('layer') for pk in packs.values() for r in pk.get('recipes', [])}
     bad = []
     for r in generate(f, root, packs, order):
         pj = os.path.join(directory(r, root), 'patch.json')
-        status = json.load(open(pj)).get('status') if os.path.isfile(pj) else None
+        p = json.load(open(pj)) if os.path.isfile(pj) else {}
+        status = p.get('status')
         if layer.get(r) == 'dev':
             bad.append('profile %s: %s is in a dev-layer pack' % (name, r))
         if status in RELEASE_REFUSED_STATUSES:
             bad.append('profile %s: %s has status %s' % (name, r, status))
+        if not gate:
+            continue
+        why = (['validated false'] if p.get('validated') is not True else []) + \
+              (['status %s' % status] if status in RELEASE_GATED_STATUSES else [])
+        if why and not any(w.get('profile') == name and w.get('recipe') == r and w.get('revision') == p.get('revision')
+                           for w in waivers):
+            bad.append('profile %s: %s r%s is %s (no owner waiver in pipeline/release-waivers.json)'
+                       % (name, r, p.get('revision'), ' and '.join(why)))
     return bad
 
 
-def release_profile_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER):
-    """release_problems of every profile marked "release": true."""
+def waiver_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER, waivers=None):
+    """pipeline/release-waivers.json: each waiver names a release profile, a recipe of it and that recipe's current
+    revision (a new revision needs a new waiver; a stale one must go), and the owner's decision with its date."""
+    try:
+        waivers = load_waivers() if waivers is None else waivers
+    except ValueError as e:
+        return ['pipeline/release-waivers.json: %s' % e]
+    bad, seen = [], set()
+    for i, w in enumerate(waivers):
+        if not isinstance(w, dict):
+            bad.append('waiver %d: not an object' % i)
+            continue
+        label = 'waiver %d (%s/%s)' % (i, w.get('profile'), w.get('recipe'))
+        missing = [k for k in ('profile', 'recipe', 'revision', 'reason', 'decided') if k not in w]
+        if missing:
+            bad.append('%s: has no %s' % (label, ', '.join(missing)))
+            continue
+        if (w['profile'], w['recipe']) in seen:
+            bad.append('%s: named twice' % label)
+        seen.add((w['profile'], w['recipe']))
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(w['decided'])):
+            bad.append('%s: decided %r is not YYYY-MM-DD' % (label, w['decided']))
+        m = WAIVER_REASON.search(str(w['reason']))
+        if not m or m.group(1) != w['decided']:
+            bad.append('%s: reason must be the owner\'s decision with its date ("owner %s: ...")' % (label, w['decided']))
+        f = os.path.join(profiles, str(w['profile']) + '.json')
+        if not os.path.isfile(f) or json.load(open(f)).get('release') is not True:
+            bad.append('%s: %s is not a release profile' % (label, w['profile']))
+            continue
+        pj = os.path.join(directory(str(w['recipe']), root), 'patch.json')
+        if not os.path.isfile(pj):
+            bad.append('%s: no recipe %s' % (label, w['recipe']))
+            continue
+        if w['recipe'] not in generate(f, root, packs if packs is not None else load_packs(root=root), order):
+            bad.append('%s: %s is not in profile %s' % (label, w['recipe'], w['profile']))
+            continue
+        p = json.load(open(pj))
+        if w['revision'] != p.get('revision'):
+            bad.append('%s: waives r%s but the recipe is r%s (stale: remove it, or the owner waives r%s)'
+                       % (label, w['revision'], p.get('revision'), p.get('revision')))
+        elif p.get('validated') is True and p.get('status') not in RELEASE_GATED_STATUSES:
+            bad.append('%s: r%s is validated and not an experiment; the waiver is not needed' % (label, w['revision']))
+    return bad
+
+
+def release_profile_problems(root=os.path.join(TOP, 'patches'), packs=None, profiles=PROFILES, order=ORDER,
+                             gate=False, names=None, waivers=None):
+    """release_problems of every profile marked "release": true (or of NAMES); patches.py check runs it without the
+    validated/experiment gate, patches.py release-gate with it."""
     out = []
-    for f in sorted(glob.glob(os.path.join(profiles, '*.json'))):
-        if json.load(open(f)).get('release') is True:
-            out += release_problems(os.path.basename(f)[:-5], root, packs, profiles, order)
+    if names is None:
+        names = [os.path.basename(f)[:-5] for f in sorted(glob.glob(os.path.join(profiles, '*.json')))
+                 if json.load(open(f)).get('release') is True]
+    for n in names:
+        out += release_problems(n, root, packs, profiles, order, gate=gate, waivers=waivers)
     return out
 
 
@@ -1134,6 +1210,10 @@ if __name__ == '__main__':
         problems = matrix_problems(cells) if '--check' in sys.argv else []
         if problems:
             print('\n'.join(problems), file=sys.stderr)
+        sys.exit(1 if problems else 0)
+    if sys.argv[1:2] == ['release-gate']:
+        problems = release_profile_problems(gate=True, names=sys.argv[2:] or None) + waiver_problems()
+        print('\n'.join(problems) or 'release-gate: every release profile may ship')
         sys.exit(1 if problems else 0)
     if sys.argv[1:2] == ['requires']:
         print(requires_table())

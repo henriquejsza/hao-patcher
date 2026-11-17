@@ -44,7 +44,12 @@ letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neu
   single opt-in `recipes` by name, and `variants`.
 - A profile marked `"release": true` is one that ships to people. `release-cut` cuts only those, and `patches.py
   check` (so `pipeline/ci`) refuses one that holds a dev-layer pack's recipe or a recipe with status `dev` or
-  `diagnostic` (`release_problems`).
+  `diagnostic` (`release_problems`). `release-cut` and `patches.py release-gate [PROFILE...]` also refuse a recipe
+  that is `"validated": false` or has status `experiment`, unless the owner waived it: `pipeline/release-waivers.json`
+  = `{"waivers": [{"profile", "recipe", "revision", "reason", "decided"}]}`, the reason saying `owner DATE: ...`
+  with `decided` that date. A waiver covers only that recipe at that revision in that profile; a new revision needs a
+  new waiver, and `check` refuses one that names an unknown or non-release profile, a recipe not in it, a revision
+  other than the current one, or a recipe that no longer needs it.
 - The set = `order.txt` filtered to the packs the target detects, the profile's named packs and recipes, and its
   variants (each replacing the recipe it names). `pipeline/patches.py set PROFILE` prints it. golden-run,
   `hao build-image`, release-cut and `patches.py plan` take a set name and read its profile when there is one; the

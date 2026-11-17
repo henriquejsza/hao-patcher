@@ -305,6 +305,37 @@ class Write(unittest.TestCase):
             rel, problems = R['build_release'](a, '27.2.1-26B131.0')
         self.assertIn('profile dev-bs-test: not marked "release": true', problems)
 
+    def test_release_cut_refuses_an_experiment_recipe(self):
+        # release-cut runs release_problems with the validated/experiment gate on; here against a small tree whose
+        # release profile holds one experiment recipe.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'patches/exp-a').mkdir(parents=True)
+            (root / 'patches/exp-a/patch.json').write_text(json.dumps(
+                {'revision': 3, 'pack': 'base', 'stage': 'post', 'status': 'experiment', 'validated': True}))
+            (root / 'packs').mkdir()
+            (root / 'packs/base.json').write_text(json.dumps(
+                {'format': 1, 'phase': 'installer', 'layer': 'os', 'detect': {'any_intel': True}}))
+            (root / 'profiles').mkdir()
+            (root / 'profiles/rel.json').write_text(json.dumps({'target': 'mbp92', 'release': True}))
+            (root / 'order.txt').write_text('exp-a\n')
+            real = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))
+            packs = real['load_packs'](str(root / 'packs'), str(root / 'patches'))
+            real['generate'].__globals__['detect_packs'] = lambda target, packs=None: ['base']
+            fixture = lambda name, **kw: real['release_problems'](
+                'rel', str(root / 'patches'), packs, str(root / 'profiles'), str(root / 'order.txt'), waivers=[])
+            g = R['build_release'].__globals__
+            saved = g['runpy']
+            g['runpy'] = type('runpy', (), {'run_path': staticmethod(
+                lambda path, *a, **k: dict(saved.run_path(path, *a, **k), release_problems=fixture)
+                if str(path).endswith('patches.py') else saved.run_path(path, *a, **k))})
+            try:
+                rel, problems = R['build_release'](ASSEMBLY, '27.2.1-26B131.0')
+            finally:
+                g['runpy'] = saved
+        self.assertIn('profile rel: exp-a r3 is status experiment (no owner waiver in pipeline/release-waivers.json)',
+                      problems)
+
 
 class Versions(unittest.TestCase):
     def test_a_release_version_may_carry_an_alpha_or_beta_number(self):
