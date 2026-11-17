@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import struct
 import tempfile
 import unittest
 from unittest import mock
@@ -14,7 +15,21 @@ sys.path.insert(0, str(HERE/'src'))
 import native_identities as ni
 
 TRUE, FALSE = Path('/usr/bin/true'), Path('/usr/bin/false')
-KEPT = {'usr/bin/kept': ('test', frozenset())}   # the fixture's programs.txt
+
+def true_cdhash():
+    try:
+        return ni.x86_64(TRUE)[0]['cdhash']
+    except (TypeError, KeyError):
+        return '0' * 40
+
+
+def entry(path, **changes):
+    """The fixture's programs.txt entry for PATH (a re-signed /usr/bin/true): its own digests, TRUE's cdhash."""
+    data = ni.x86_64(path)[1]
+    value = dict(recipe='test', libs=frozenset(), refs=frozenset({true_cdhash()}),
+                 digests=frozenset({ni.content_digest(data)}), ents=frozenset({ni.entitlements_digest(data)}))
+    value.update(changes)
+    return value
 
 
 def cdhash(path):
@@ -61,6 +76,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         shutil.copy(TRUE, self.system/'usr/bin/stub')
         resign(self.system/'usr/bin/stub', 'com.apple.stub')
         (self.system/ni.STUBS).write_text(f'# test\n{cdhash(self.system/"usr/bin/stub")}  {"0" * 40}  arm64e  x\n')
+        self.kept = {'usr/bin/kept': entry(self.system/'usr/bin/kept')}
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -73,7 +89,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertTrue(ni.x86_64(self.system/'usr/bin/kept')[0]['adhoc'])
 
     def test_scan(self):
-        rows, skipped, refused = ni.scan(self.system, [self.source], KEPT)
+        rows, skipped, refused = ni.scan(self.system, [self.source], self.kept)
         self.assertEqual(refused, {})
         self.assertEqual([(r['path'], r['observed'], r['reference']) for r in rows],
                          [('usr/bin/kept', cdhash(self.system/'usr/bin/kept'), cdhash(TRUE))])
@@ -86,12 +102,12 @@ class NativeIdentitiesTests(unittest.TestCase):
     def test_first_source_with_the_original_wins(self):
         empty = Path(self.tmp.name)/'empty'
         empty.mkdir()
-        rows, _, _ = ni.scan(self.system, [empty, self.source], KEPT)
+        rows, _, _ = ni.scan(self.system, [empty, self.source], self.kept)
         self.assertEqual([r['source'] for r in rows], [str(self.source/'usr/bin/kept')])
 
     def test_install(self):
         owner = (os.getuid(), os.getgid())
-        record = ni.install(self.system, [self.source], owner=owner, programs=KEPT)
+        record = ni.install(self.system, [self.source], owner=owner, programs=self.kept)
         copy = self.system/ni.ORIGINALS/'usr/bin/kept'
         self.assertEqual(copy.read_bytes(), TRUE.read_bytes())
         self.assertEqual(copy.stat().st_mode & 0o7777, 0o644)
@@ -104,7 +120,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertEqual(len(record['rows']), 1)
         # an installed original is not itself scanned, so a second run gives the same list
         before = (self.system/ni.LIST).read_bytes()
-        ni.install(self.system, [self.source], owner=owner, programs=KEPT)
+        ni.install(self.system, [self.source], owner=owner, programs=self.kept)
         self.assertEqual((self.system/ni.LIST).read_bytes(), before)
 
     def test_unlisted_program_is_refused(self):
@@ -118,23 +134,50 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.assertFalse((self.system/ni.LIST).exists())
 
     def test_libraries_must_be_the_listed_ones(self):
-        wanted = {'usr/bin/kept': ('test', frozenset({'/usr/lib/libextra.dylib'}))}
+        wanted = {'usr/bin/kept': entry(self.system/'usr/bin/kept', libs=frozenset({'/usr/lib/libextra.dylib'}))}
         rows, _, refused = ni.scan(self.system, [self.source], wanted)
         self.assertEqual(rows, [])
         self.assertIn("adds none", refused['usr/bin/kept'])
         self.assertIn('/usr/lib/libextra.dylib', refused['usr/bin/kept'])
 
+    def test_original_must_have_a_pinned_cdhash(self):
+        for change, words in ((dict(refs=frozenset({'1' * 40})), 'has cdhash'),
+                              (dict(digests=frozenset({'2' * 64})), 'content digest'),
+                              (dict(ents=frozenset({'3' * 64})), 'entitlements digest')):
+            rows, _, refused = ni.scan(self.system, [self.source], {'usr/bin/kept': entry(self.system/'usr/bin/kept', **change)})
+            self.assertEqual(rows, [], change)
+            self.assertIn(words, refused['usr/bin/kept'])
+
+    def test_content_digest_ignores_only_the_signature(self):
+        data = ni.x86_64(self.system/'usr/bin/kept')[1]
+        self.assertEqual(ni.content_digest(data), ni.content_digest(ni.x86_64(TRUE)[1]))   # re-signing alone
+        changed = bytearray(data)
+        at = 32 + struct.unpack_from('<I', data, 20)[0] + 64        # a byte after the load commands
+        changed[at] ^= 0xff
+        self.assertNotEqual(ni.content_digest(bytes(changed)), ni.content_digest(data))
+
     def test_dylibs(self):
         sig, data = ni.x86_64(TRUE)
-        self.assertIn('/usr/lib/libSystem.B.dylib', ni.dylibs(data))
+        self.assertIn((0xc, '/usr/lib/libSystem.B.dylib'), ni.dylibs(data))
 
     def test_programs_file(self):
         programs = ni.load_programs()
-        self.assertEqual(len(programs), 3)
-        for path, (recipe, libs) in programs.items():
+        self.assertEqual(len(programs), 5)
+        for path, want in programs.items():
+            recipe, libs = want['recipe'], want['libs']
+            self.assertTrue(want['refs'] and want['digests'] and want['ents'], path)
             self.assertTrue(path.startswith('System/') and recipe.startswith('golden-gate-'), path)
             self.assertTrue(all(lib.startswith('/') for lib in libs))
         bad = Path(self.tmp.name)/'bad.txt'
+        spaced = Path(self.tmp.name)/'spaced.txt'
+        spaced.write_text('System/A B.app/Contents/MacOS/A B  some-recipe  +/usr/lib/x.dylib  =%s  ~%s  %%%s\n'
+                          % ('a' * 40, 'b' * 64, 'c' * 64))
+        self.assertEqual(ni.load_programs(spaced)['System/A B.app/Contents/MacOS/A B'],
+                         dict(recipe='some-recipe', libs=frozenset({'/usr/lib/x.dylib'}), refs=frozenset({'a' * 40}),
+                              digests=frozenset({'b' * 64}), ents=frozenset({'c' * 64})))
+        spaced.write_text('usr/bin/x  r  +/usr/lib/x.dylib\n')   # no pinned original
+        with self.assertRaises(ValueError):
+            ni.load_programs(spaced)
         bad.write_text('usr/bin/x  r  /no-plus\n')
         with self.assertRaises(ValueError):
             ni.load_programs(bad)
@@ -164,7 +207,7 @@ def whole_scan(system, sources, programs=None):
     """scan() reading every candidate whole, as before the header-only read."""
     with mock.patch.object(ni, 'x86_64_signature', whole_file), \
             mock.patch.object(ni, 'slice_bytes', lambda path, found: Path(path).read_bytes()[found[1]:found[1] + found[2]]):
-        return ni.scan(system, sources, KEPT if programs is None else programs)
+        return ni.scan(system, sources, programs)
 
 
 class HeaderOnlyRead(unittest.TestCase):
@@ -238,8 +281,9 @@ class HeaderOnlyRead(unittest.TestCase):
         shutil.copy(FALSE, system/'usr/bin/orphan')
         resign(system/'usr/bin/orphan', 'com.apple.false')
         (system/'usr/bin/link').symlink_to('kept')
-        self.assertEqual(ni.scan(system, [source], KEPT), whole_scan(system, [source]))
-        self.assertEqual(len(ni.scan(system, [source], KEPT)[0]), 1)
+        kept = {'usr/bin/kept': entry(system/'usr/bin/kept')}
+        self.assertEqual(ni.scan(system, [source], kept), whole_scan(system, [source], kept))
+        self.assertEqual(len(ni.scan(system, [source], kept)[0]), 1)
 
     @unittest.skipUnless(os.environ.get('NATIVE_IDENTITIES_SYSTEM') and os.environ.get('NATIVE_IDENTITIES_SOURCES'),
                          'set NATIVE_IDENTITIES_SYSTEM and NATIVE_IDENTITIES_SOURCES (a built image, read-only)')

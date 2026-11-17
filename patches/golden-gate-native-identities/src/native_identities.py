@@ -29,9 +29,12 @@ Programs listed in hao's stub-identities, and any program for which no such orig
 example), get no row; `scan` says why. A program that is still Apple-signed needs no row and is not touched.
 """
 import argparse
+import collections
 import hashlib
 import json
 import os
+import plistlib
+import re
 from pathlib import Path
 import shutil
 import stat
@@ -195,31 +198,90 @@ def slice_bytes(path, found):
 
 
 def load_programs(path=PROGRAMS):
-    """programs.txt -> {relative path: (recipe, frozenset of inserted library paths)}."""
+    """programs.txt -> {relative path: dict(recipe, libs, refs, digests, ents)}: the inserted library paths (+PATH),
+    the original's cdhashes (=CDHASH), the edited program's content_digest values (~SHA256) and entitlements_digest
+    values (%SHA256), one of each per input build."""
     out = {}
     for line in Path(path).read_text().splitlines():
-        words = line.split('#', 1)[0].split()
+        words = re.split(r'\s{2,}|\t', line.split('#', 1)[0].strip()) if line.split('#', 1)[0].strip() else []
         if not words:
             continue
-        if len(words) < 2 or any(not w.startswith('+/') for w in words[2:]) or words[0] in out:
-            raise ValueError(f'{path}: bad line: {line}')
-        out[words[0]] = (words[1], frozenset(w[1:] for w in words[2:]))
+        entry = dict(recipe=words[1] if len(words) > 1 else '', libs=set(), refs=set(), digests=set(), ents=set())
+        for w in words[2:]:
+            kind = {'+': 'libs', '=': 'refs', '~': 'digests', '%': 'ents'}.get(w[:1])
+            shape = r'/\S.*' if kind == 'libs' else r'[0-9a-f]{40}' if kind == 'refs' else r'[0-9a-f]{64}'
+            if not kind or not re.fullmatch(shape, w[1:]):
+                raise ValueError(f'{path}: bad field {w!r}: {line}')
+            entry[kind].add(w[1:])
+        if len(words) < 3 or words[0] in out or not all(entry[k] for k in ('refs', 'digests', 'ents')):
+            raise ValueError(f'{path}: bad line (needs =CDHASH, ~DIGEST and %ENTITLEMENTS): {line}')
+        out[words[0]] = {k: frozenset(v) if isinstance(v, set) else v for k, v in entry.items()}
     return out
 
 
 def dylibs(data):
-    """The library paths a thin 64-bit slice's load commands name (LC_LOAD_DYLIB and its kinds), as a sorted list."""
-    count, commands = struct.unpack_from('<II', data, 16)
-    at, out = 32, []
-    for _ in range(count):
-        command, length = struct.unpack_from('<II', data, at)
-        if length < 8:
-            raise ValueError('bad load command')
+    """The library paths a thin 64-bit slice's load commands name (LC_LOAD_DYLIB and its kinds), as a sorted list of
+    (command, path): a load that changes kind (weak, re-export, upward) counts as another library."""
+    out = []
+    for command, at, length in _commands(data):
         if command in DYLIB_COMMANDS:
             name = struct.unpack_from('<I', data, at + 8)[0]
-            out.append(data[at + name:at + length].split(b'\0', 1)[0].decode(errors='replace'))
-        at += length
+            if length < 24 or not 24 <= name < length or b'\0' not in data[at + name:at + length]:
+                raise ValueError('bad dylib load command')
+            out.append((command, data[at + name:at + length].split(b'\0', 1)[0].decode()))
     return sorted(out)
+
+
+def _commands(data):
+    """[(command, offset, length)] of a thin 64-bit slice's load commands, every one inside sizeofcmds."""
+    if len(data) < 32 or data[:4] != b'\xcf\xfa\xed\xfe':
+        raise ValueError('not a 64-bit Mach-O slice')
+    count, size = struct.unpack_from('<II', data, 16)
+    at, end, out = 32, 32 + size, []
+    if end > len(data):
+        raise ValueError('load commands run past the slice')
+    for _ in range(count):
+        if at + 8 > end:
+            raise ValueError('load commands run past sizeofcmds')
+        command, length = struct.unpack_from('<II', data, at)
+        if length < 8 or length % 8 or at + length > end:
+            raise ValueError('bad load command')
+        out.append((command, at, length))
+        at += length
+    return out
+
+
+def content_digest(data):
+    """sha256 of a slice's bytes up to its code signature, with the fields signing rewrites zeroed (the signature's
+    size, __LINKEDIT's sizes): the same for the unsigned edit output and for it signed ad hoc by any codesign."""
+    data = bytearray(data)
+    dataoff = None
+    for command, at, length in _commands(data):
+        if command == 0x1d:                                         # LC_CODE_SIGNATURE: dataoff, datasize
+            dataoff = struct.unpack_from('<I', data, at + 8)[0]
+            struct.pack_into('<I', data, at + 12, 0)
+        elif command == 0x19 and data[at + 8:at + 24].rstrip(b'\0') == b'__LINKEDIT':
+            struct.pack_into('<Q', data, at + 32, 0)                   # vmsize
+            struct.pack_into('<Q', data, at + 48, 0)                   # filesize
+    if dataoff is None or dataoff > len(data):
+        raise ValueError('no code signature')
+    return hashlib.sha256(bytes(data[:dataoff])).hexdigest()
+
+
+def entitlements_digest(data):
+    """sha256 of a slice's entitlements (the XML entitlements blob, parsed, as sorted JSON); {} when it has none."""
+    found = {}
+    for command, at, length in _commands(data):
+        if command == 0x1d:
+            dataoff, datasize = struct.unpack_from('<II', data, at + 8)
+            blob = data[dataoff:dataoff + datasize]
+            if blob[:4] == b'\xfa\xde\x0c\xc0':
+                for k in range(struct.unpack_from('>I', blob, 8)[0]):
+                    kind, off = struct.unpack_from('>II', blob, 12 + 8 * k)
+                    magic, size = struct.unpack_from('>II', blob, off)
+                    if magic == 0xfade7171:
+                        found = plistlib.loads(bytes(blob[off + 8:off + size]))
+    return hashlib.sha256(json.dumps(found, sort_keys=True, default=repr).encode()).hexdigest()
 
 
 def same_program(observed, reference, limit):
@@ -308,12 +370,28 @@ def scan(system, sources, programs=None):
                 if rel not in programs:
                     refused[rel] = f'matches {original} ({measure} unchanged) but is not in programs.txt'
                     break
-                have, had = dylibs(observed), dylibs(reference)
-                added = sorted(set(have) - set(had))
-                if sorted(set(had) - set(have)) or len(have) != len(set(have)) or set(added) != programs[rel][1]:
-                    refused[rel] = (f'its libraries differ from {original}: adds {added or "none"}, removes '
-                                    f'{sorted(set(had) - set(have)) or "none"}; programs.txt allows '
-                                    f'{sorted(programs[rel][1]) or "none"} ({programs[rel][0]})')
+                want = programs[rel]
+                if ref['cdhash'] not in want['refs']:
+                    refused[rel] = (f'its original {original} has cdhash {ref["cdhash"]}, not one programs.txt pins '
+                                    f'({", ".join(sorted(want["refs"]))})')
+                    break
+                try:
+                    digest, ents = content_digest(observed), entitlements_digest(observed)
+                    have, had = collections.Counter(dylibs(observed)), collections.Counter(dylibs(reference))
+                except ValueError as e:
+                    refused[rel] = f'cannot read its load commands or signature: {e}'
+                    break
+                if digest not in want['digests']:
+                    refused[rel] = f'its content digest {digest} is not one programs.txt pins ({want["recipe"]})'
+                    break
+                if ents not in want['ents']:
+                    refused[rel] = f'its entitlements digest {ents} is not one programs.txt pins ({want["recipe"]})'
+                    break
+                added, removed = have - had, had - have
+                if removed or added != collections.Counter((0xc, lib) for lib in want['libs']):
+                    refused[rel] = (f'its libraries differ from {original}: adds {sorted(added) or "none"}, removes '
+                                    f'{sorted(removed) or "none"}; programs.txt allows {sorted(want["libs"]) or "none"} '
+                                    f'({want["recipe"]})')
                     break
                 rows.append(dict(path=rel, observed=sig['cdhash'], reference=ref['cdhash'], source=str(original),
                                  identifier=sig['identifier'], same=measure))
