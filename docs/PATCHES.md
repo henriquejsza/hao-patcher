@@ -276,10 +276,10 @@ Revision r5, status experiment. [Recipe](../patches/golden-gate-root-launchservi
 
 ## golden-gate-shader-caches
 
-Revision r16, status product. [Recipe](../patches/golden-gate-shader-caches/README.md)
+Revision r17, status product. [Recipe](../patches/golden-gate-shader-caches/README.md)
 
 - 72 whole files from hao (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
-- 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Listed by `patches.py explain golden-gate-shader-caches`.
+- 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Seed (macOS changes it after install): Metal appends to this shader cache on first GPU use. Listed by `patches.py explain golden-gate-shader-caches`.
 
 ## golden-gate-shared-cache
 
