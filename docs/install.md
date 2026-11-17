@@ -31,7 +31,7 @@ MacBook Pro.
 2. Plug in the USB drive and run:
 
    ```sh
-   ./hao create-installer
+   ./hao create-installer --link-on-target
    ```
 
    Choose the USB drive and confirm. This erases the drive; you may be asked for your password.
@@ -64,5 +64,5 @@ To build hao and its kit yourself, follow [the developer guide](building.md):
 
 ```sh
 git clone https://github.com/lythka/hao-patcher && cd hao-patcher
-tools/hao/hao create-installer
+tools/hao/hao create-installer --link-on-target
 ```
