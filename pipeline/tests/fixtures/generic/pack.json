@@ -1,0 +1,12 @@
+{
+ "format": 1,
+ "description": "Stand-in for packs/generic.json in tests until the real pack lands: a model pack selected by name only (opt_in), so detection never adds it to another target's image.",
+ "detect": {"any_intel": true},
+ "opt_in": true,
+ "phase": "installer",
+ "proven_on": [],
+ "oclp_patchsets": [],
+ "layer": "platform",
+ "kind": "model",
+ "platform": "apple-intel"
+}

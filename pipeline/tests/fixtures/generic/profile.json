@@ -1,0 +1,10 @@
+{
+ "comment": "generic: the software-graphics test image for Intel hardware without its own target (first proof: an x86_64 QEMU VM) = the OS layer of alpha-v0.1.0 (pack base, recipe golden-gate-store) plus the model pack generic; no platform GPU, Wi-Fi or audio pack (the target detects none).",
+ "target": "generic",
+ "packs": [
+  "generic"
+ ],
+ "recipes": [
+  "golden-gate-store"
+ ]
+}
