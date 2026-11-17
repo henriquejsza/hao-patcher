@@ -96,11 +96,12 @@ def build(setfile, target, build_name, root=os.path.join(TOP, 'patches'), layer_
                 e['writers'].append({'recipe': name, 'action': 'edits', 'spec': f['edits'],
                                      'edits': [x['id'] for x in spec['edits']], 'sign': bool(spec.get('sign')),
                                      'origin_kind': spec['origin']['kind'], 'install': f.get('install'), 'source': f.get('source'),
-                                     'input': f.get('input'), 'after': f.get('after')})
+                                     'input': f.get('input'), 'after': f.get('after'),
+                                     'content': f.get('content'), 'reason': f.get('reason')})
             else:
                 e['writers'].append({'recipe': name, 'action': 'origin', 'origin': f['origin'],
                                      'tree': bool(f.get('tree')), 'install': f.get('install'), 'source': f.get('source'),
-                                     'after': f.get('after')})
+                                     'after': f.get('after'), 'content': f.get('content'), 'reason': f.get('reason')})
     tree_writers = [(p, w) for p, e in ledger.items() for w in e['writers'] if w.get('tree')]
     for path, e in ledger.items():
         first = e['writers'][0]['recipe']             # a recipe editing a file of its own tree edits the tree's file

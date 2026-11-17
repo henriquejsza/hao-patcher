@@ -290,6 +290,42 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(got, {'usr/lib/a.dylib': 'content', 'usr/lib/b.dylib': 'missing',
                                'usr/lib/c.dylib': 'attributes'})
 
+    def seeds(self, reason='Metal compiles append to it on first GPU use'):
+        """a.dylib and b.dylib declared seeds ("content": "seed", "reason")."""
+        man = json.loads((self.ovl / 'manifest.json').read_text())
+        for rel in ('usr/lib/a.dylib', 'usr/lib/b.dylib'):
+            man['files'][rel].update(content='seed', reason=reason)
+        (self.ovl / 'manifest.json').write_text(json.dumps(man))
+
+    def test_a_changed_seed_is_changed_as_expected(self):
+        self.seeds()
+        (self.root / 'usr/lib/a.dylib').write_bytes(b'A and more records')
+        r = VERIFY.verify(self.root, VERIFY.manifests([self.ovl], self.root))
+        self.assertEqual((r['ok'], r['problems']), (3, []))
+        self.assertEqual([(x['path'], x['changed'], x['reason']) for x in r['changed']],
+                         [('usr/lib/a.dylib', 'seed', 'Metal compiles append to it on first GPU use')])
+
+    def test_a_seed_still_fails_missing_or_with_the_wrong_mode(self):
+        self.seeds()
+        (self.root / 'usr/lib/a.dylib').write_bytes(b'grown')
+        os.chmod(self.root / 'usr/lib/a.dylib', 0o644)
+        (self.root / 'usr/lib/b.dylib').unlink()
+        (self.root / 'usr/lib/c.dylib').write_bytes(b'not a seed')
+        r = VERIFY.verify(self.root, VERIFY.manifests([self.ovl], self.root))
+        got = {p['path']: p['problem'] for p in r['problems']}
+        self.assertEqual(got, {'usr/lib/a.dylib': 'attributes', 'usr/lib/b.dylib': 'missing',
+                               'usr/lib/c.dylib': 'content'})
+
+    def test_hao_verify_prints_seeds_and_exits_0(self):
+        self.seeds()
+        (self.root / 'usr/lib/a.dylib').write_bytes(b'grown')
+        r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'hao'), 'verify', str(self.root), '--manifests',
+                            str(self.ovl)], capture_output=True, text=True,
+                           env=dict(os.environ, HAO_LOGS=self.tmp.name, HAO_ANYWHERE='1'))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('changed as expected: Metal compiles append to it on first GPU use', r.stdout + r.stderr)
+        self.assertIn('1 seed changed as expected', r.stdout + r.stderr)
+
     def test_installed_manifests_default(self):
         inst = self.root / VERIFY.INSTALLED
         inst.mkdir(parents=True)

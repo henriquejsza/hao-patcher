@@ -66,6 +66,11 @@ uchg, sunlnk, hidden, nodump): declare what the hook sets, e.g. ["restricted"] w
 A file made on the target (an origin without a row, or an external op) may name what it must come after there:
 "after": [INSTALLED_PATH | "overlays"] ("overlays": every overlay file installed first). An edits file is an edit spec for
 tools/edit-engine (format in its README) and must name the same path; every patches/NAME/edits/*.json must be declared.
+"content": "seed" (the only value; absent means the bytes are the file) marks a file whose installed bytes are a
+starting value that macOS legitimately changes after install (a Metal shader cache it appends to on first GPU use); it
+needs "reason": a non-empty sentence saying who changes it and why. Both go into the recipe's install manifest
+(pipeline/materialize.py, golden-image's manifests), where `hao verify` checks such a file's presence, type, mode, owner
+and flags but not its content. "reason" only goes with "content".
 
 "requires" (docs/requires.md) states where a recipe is valid, as data: {"os": ..., "donor": ..., "cpu": ..., "gpu": ...,
 "firmware": ...}, every key present, each "any" or a list. os: macOS 27 builds (an assembly's golden_build); donor:
@@ -940,6 +945,24 @@ def edit_spec():
     return runpy.run_path(os.path.join(TOP, 'tools', 'edit-engine', 'src', 'spec.py'))
 
 
+SEED = 'seed'
+
+
+def seed_problems(f):
+    """Problems with a "files" entry F's "content" and "reason": content is "seed" or absent, a seed needs a non-empty
+    reason, and a reason goes only with content."""
+    if 'content' not in f:
+        return ['files: %s: "reason" goes with "content": "seed"' % f.get('path')] if 'reason' in f else []
+    if f['content'] != SEED:
+        return ['files: %s: content is "seed" (bytes macOS changes after install) or absent, not %r'
+                % (f.get('path'), f['content'])]
+    r = f.get('reason')
+    if not isinstance(r, str) or not r.strip():
+        return ['files: %s: "content": "seed" needs a "reason" (who changes the file after install, and why)'
+                % f.get('path')]
+    return []
+
+
 def file_problems(d, p):
     """Problems with patch.json "files" in patch folder D, and edits/*.json files it does not declare."""
     files = p.get('files')
@@ -951,7 +974,7 @@ def file_problems(d, p):
         paths = set()
         for f in files:
             if not isinstance(f, dict) or set(f) - {'path', 'edits', 'origin', 'tree', 'install', 'source', 'input',
-                                                    'after'} \
+                                                    'after', 'content', 'reason'} \
                     or ('edits' in f) == ('origin' in f):
                 bad.append('files: each entry is {"path", "edits"} or {"path", "origin"} (+ "tree", "install"): %s'
                            % json.dumps(f))
@@ -962,6 +985,7 @@ def file_problems(d, p):
                     for a in after)):
                 bad.append('files: %s: after is a list of installed paths (relative) or "overlays" (every overlay file '
                            'installed first), what a file made on the target must come after' % f.get('path'))
+            bad += seed_problems(f)
             src = f.get('source')
             if src is not None and (not isinstance(src, str) or 'origin' not in f or not f['origin'].get('row')
                                     or src.startswith('/') or '..' in src.replace('!', '/').split('/')):
@@ -1087,6 +1111,8 @@ def explain(what=None, root=os.path.join(TOP, 'patches')):
             if origin.get('note'):
                 out.append('  note     %s' % origin['note'])
         out.append('  install  %s' % (install_text(entry.get('install')) or 'default: ' + DEFAULT_INSTALL))
+        if entry.get('content') == SEED:
+            out.append('  content  seed: %s' % entry.get('reason'))
         after = after_list(entry, spec, S)
         if after:
             out.append('  after    %s' % '; '.join(after_text(i) for i in after))
@@ -1102,6 +1128,8 @@ def sentence(text):
 def attributes(entry, spec, S):
     """' Installed mode 0644, owner root:wheel. Made after `X`.' for a catalog line ('' when the entry has neither)."""
     out = ''
+    if entry.get('content') == SEED:
+        out += ' Seed (macOS changes it after install): %s' % sentence(entry.get('reason', ''))
     if install_text(entry.get('install')):
         out += ' Installed %s.' % install_text(entry['install'])
     after = after_list(entry, spec, S)
@@ -1122,25 +1150,28 @@ def catalog(root=os.path.join(TOP, 'patches')):
           '`python3.14 -I pipeline/patches.py explain NAME|PATH` prints the same for one patch or file.',
           'A file is installed with the attributes its declaration gives (*installed*: mode, owner, chflags); one',
           'without them gets %s.' % DEFAULT_INSTALL,
-          'A file made on the target lists what it is made *after* there.', '',
+          'A file made on the target lists what it is made *after* there. A *seed* file is a starting value macOS',
+          'changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its',
+          'attributes, not its bytes.', '',
           '%d of %d patches declare their files so far.' % (len(declaring), len(declaring) + len(others)), '']
     for name in declaring:
         mine = [r for r in rows if r[0] == name]
         md += ['## %s' % name, '', 'Revision r%s, status %s. [Recipe](../patches/%s/README.md)' % (mine[0][1], mine[0][2], name), '']
         groups = {}
-        key = lambda origin, entry: json.dumps([origin, entry.get('install'), entry.get('after')], sort_keys=True)
+        key = lambda origin, entry: json.dumps([origin, entry.get('install'), entry.get('after'), entry.get('content'),
+                                                entry.get('reason')], sort_keys=True)
         for _, _, _, path, origin, spec, entry in mine:
             if not spec:
                 groups.setdefault(key(origin, entry), []).append(path)
         large = {k: v for k, v in groups.items() if len(v) > 10}
         for k, paths in large.items():
-            origin, install, after = json.loads(k)
+            origin, install, after, content, reason = json.loads(k)
             prefix = os.path.commonpath(paths) if len(paths) > 1 else os.path.dirname(paths[0])
             where = 'under `%s/`' % prefix if prefix else 'in several folders'
             md.append('- %d whole files from %s, %s (for example `%s`).%s%s Listed by `patches.py explain %s`.' % (
                 len(paths), S['origin_text'](origin), where, os.path.relpath(paths[0], prefix) if prefix else paths[0],
                 ' ' + sentence(origin['note']) if origin.get('note') else '',
-                attributes({'install': install, 'after': after}, None, S), name))
+                attributes({'install': install, 'after': after, 'content': content, 'reason': reason}, None, S), name))
         for _, _, _, path, origin, spec, entry in mine:
             if not spec and key(origin, entry) in large:
                 continue

@@ -17,7 +17,9 @@ tar member (source "ARCHIVE!MEMBER") otherwise keeps the member's mode and numer
 --numeric-owner` does, and the manifest's "dirs" carries every folder entry of that tar (mode, owner and mtime),
 empty ones included, since `tar -x` creates them all (the report entry of the recipe's first file from that tar lists
 them as "dirs", so an install plan knows which recipe creates them); anything else is root:wheel, 0755 for a Mach-O
-and 0644 otherwise, with no flags.
+and 0644 otherwise, with no flags. A file whose last writer declares "content": "seed" (bytes macOS changes after
+install) carries "content": "seed" and that declaration's "reason" in its manifest entry, so `hao verify` checks
+its presence and attributes, not its bytes.
 
 An edit spec with "when_target" (tools/edit-engine) is applied only when the target's "platform_data" (pipeline/targets/
 TARGET.json) has that key; on another target that writer is left out, and a path no writer is left for is "skipped"
@@ -388,6 +390,7 @@ def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo,
             continue
         m = manifests.setdefault(pack, {'format': 1, 'pack': pack, 'phase': phase_of(pack), 'files': {}})
         install = next((w.get('install') for w in reversed(entry['writers']) if w.get('install')), None) or {}
+        seed = entry['writers'][-1] if entry['writers'][-1].get('content') == 'seed' else None
         member, dirs, archive = origin_attrs(entry, sources)
         member = member or {}
         for p, data in files.items():
@@ -399,6 +402,8 @@ def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo,
                                      ('0755' if data[:4] in MACHO else '0644'),
                              'owner': install.get('owner') or member.get('owner') or 'root:wheel',
                              'flags': install.get('flags', [])}
+            if seed:
+                m['files'][p].update(content='seed', reason=seed['reason'])
             if not install.get('mode') and member.get('mtime') is not None:
                 m['files'][p]['mtime'] = member['mtime']       # as `tar -x` leaves it
         for d, attrs in dirs.items():

@@ -373,6 +373,23 @@ class Format(unittest.TestCase):
         self.assertIn('install  mode 0755, owner root:wheel, flags restricted', patches.explain('t', root=self.d / 'patches'))
         self.assertIn('Installed mode 0755, owner root:wheel, flags restricted.', patches.catalog(root=self.d / 'patches'))
 
+    def test_seed_content_needs_a_reason(self):
+        why = 'macOS appends to this Metal cache on first GPU use'
+        self.patch('seed', files=[{'path': 'Library/c/functions.data', 'origin': {'kind': 'hao'}, 'content': 'seed',
+                                   'reason': why}])
+        self.patch('badvalue', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'content': 'mutable', 'reason': why}])
+        self.patch('noreason', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'content': 'seed'}])
+        self.patch('blank', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'content': 'seed', 'reason': ' '}])
+        self.patch('stray', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'reason': why}])
+        got = '\n'.join(self.check())
+        self.assertFalse([l for l in got.splitlines() if l.startswith('seed: ')], got)
+        self.assertIn('badvalue: files: a: content is "seed"', got)
+        self.assertIn('noreason: files: a: "content": "seed" needs a "reason"', got)
+        self.assertIn('blank: files: a: "content": "seed" needs a "reason"', got)
+        self.assertIn('stray: files: a: "reason" goes with "content": "seed"', got)
+        self.assertIn('content  seed: ' + why, patches.explain('seed', root=self.d / 'patches'))
+        self.assertIn('Seed (macOS changes it after install): M', patches.catalog(root=self.d / 'patches'))
+
     def test_explain_and_catalog_show_install_and_after(self):
         stamp = {'format': 1, 'path': 'EFI/x', 'origin': {'kind': 'hao', 'row': 'row_a'},
                  'edits': [{'id': 's', 'kind': 'op', 'op': 'hao.stamp', 'reason': 'why',

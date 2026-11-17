@@ -736,6 +736,9 @@ def cmd_verify(a, c):
         if 'problem' in row:
             c.item('%-10s %-22s %s%s' % (row['problem'], row['pack'], row['path'],
                                           '  (%s)' % ', '.join(row['keys']) if row.get('keys') else ''), 'steps')
+        elif row.get('changed'):
+            c.item('%-10s %-22s %s  (changed as expected: %s)' % ('seed', row['pack'], row['path'],
+                                                                  SAFE.text(row.get('reason'))), 'steps', ok=True)
         else:
             c.item('%-10s %-22s %s' % ('ok', row['pack'], row['path']), 'files')
     r = VERIFY.verify(root, found, on_file=on)
@@ -747,7 +750,9 @@ def cmd_verify(a, c):
                           why='these files are not the ones the packs installed',
                           options=['see which: hao verify --show', 'put them back: hao patch OVERLAY... (or the '
                                    'installer for installer-phase packs)'], code=4)
-    c.done('%d files match their manifests' % r['ok'])
+    seeds = len(r.get('changed', []))
+    c.done('%d files match their manifests%s' % (r['ok'], ' (%d seed%s changed as expected)' % (
+        seeds, '' if seeds == 1 else 's') if seeds else ''), seeds_changed=seeds)
     return 0
 
 
