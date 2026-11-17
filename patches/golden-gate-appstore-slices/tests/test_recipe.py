@@ -15,7 +15,7 @@ JOB = plistlib.loads((PATCH / 'src/org.hao.slice-guard.plist').read_bytes())
 class Recipe(unittest.TestCase):
     def installs(self):
         return {m.group(3)[len('$DATA/'):]: (m.group(1), m.group(2))
-                for m in re.finditer(r'^install -o root -g wheel -m (\d+) (\S+) (\$DATA/\S+)$', APPLY, re.M)}
+                for m in re.finditer(r'^install -o root -g wheel -m (\d+) "(\S+)" "(\$DATA/\S+)"$', APPLY, re.M)}
 
     def test_every_installed_file_is_declared_from_its_source(self):
         installs = self.installs()

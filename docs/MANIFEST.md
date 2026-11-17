@@ -15,15 +15,15 @@ Undeclared: opencore-generic, opencore-mbp92.
 |---|---|---|---|---|---|---|
 | darwin27-kernel | r14 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
 | darwin27-sandbox-disk-space | r5 | experiment | oclp-hook | yes | golden-gate | - |
-| dev-access | r7 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
+| dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
 | dev-diagnostics | r9 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
-| golden-gate-appstore-slices | r5 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
+| golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
 | golden-gate-av1-encoder-x86 | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (hao-patcher 177dc8a1) |
 | golden-gate-dyld-internal | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-font-registry | r10 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | font_registry_golden_gate 5bf6a3d3 font-registry-26B131-20261115-e09b952363a1 |
-| golden-gate-hd4000-planes | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes bae5502e hd4000-planes-20261114-3030c66cd852 (hao-patcher 789a8c7d) |
+| golden-gate-hd4000-planes | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes bae5502e hd4000-planes-20261114-3030c66cd852 (hao-patcher 789a8c7d) |
 | golden-gate-hello | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | hello_metallib_golden_gate 0ff25dac hello-metallib-26B131-20261111-b4c0156d117e; libhelloblur 9c273f39 libhelloblur.dylib (hao-patcher f479d6c7) |
 | golden-gate-icon-caches | r9 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | icon_caches_golden_gate 788ba7d6 icon-caches-26B131-20261111-de36690716f3 |
 | golden-gate-ids | r3 | product | oclp-hook | yes | dev-beta-candidate-fold | ids_service 6458b30d ids-26B131-20261115-d5aa7a8c |
@@ -55,18 +55,18 @@ Undeclared: opencore-generic, opencore-mbp92.
 | metalold-selectors | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
 | opencore-generic | r5 | experiment | post | undeclared | generic | qemu_reference_efi 57e3f1c3 qemu-reference-efi-20261117; oclp_source ff509df0 oclp-source.tar |
 | opencore-mbp92 | r3 | product | post | undeclared | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | - |
-| rec-audio | r4 | product | recovery | yes | recovery | - |
-| rec-bluetooth-input | r4 | product | recovery | yes | recovery | - |
-| rec-brightness-keys | r4 | product | recovery | yes | recovery | - |
-| rec-display-ethernet | r4 | product | recovery | yes | recovery | - |
+| rec-audio | r5 | product | recovery | yes | recovery | - |
+| rec-bluetooth-input | r5 | product | recovery | yes | recovery | - |
+| rec-brightness-keys | r5 | product | recovery | yes | recovery | - |
+| rec-display-ethernet | r5 | product | recovery | yes | recovery | - |
 | rec-install-volume | r7 | product | post | no: row enduser_recovery | - | enduser_recovery ? ? |
-| rec-language-list | r4 | product | recovery | yes | recovery | - |
-| rec-power | r4 | product | recovery | yes | recovery | - |
-| rec-progress-phase | r4 | product | recovery | yes | recovery | - |
-| rec-reinstall | r6 | product | recovery | yes | recovery | - |
-| rec-startup-guard | r4 | product | recovery | yes | recovery | - |
+| rec-language-list | r5 | product | recovery | yes | recovery | - |
+| rec-power | r5 | product | recovery | yes | recovery | - |
+| rec-progress-phase | r5 | product | recovery | yes | recovery | - |
+| rec-reinstall | r7 | product | recovery | yes | recovery | - |
+| rec-startup-guard | r5 | product | recovery | yes | recovery | - |
 | rec-wifi | r4 | product | recovery | yes | recovery | - |
-| rec-wifi-autojoin | r4 | product | recovery | yes | recovery | - |
+| rec-wifi-autojoin | r5 | product | recovery | yes | recovery | - |
 
 ### Files each patch installs
 
@@ -79,7 +79,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from hao · Preboot copy of the member list
 - **darwin27-sandbox-disk-space** r5
   - `System/Library/Sandbox/Profiles/system.sb`: edited (1 edit) from Apple
-- **dev-access** r7
+- **dev-access** r8
   - `private/var/root/.testssh/ssh_host_ed25519_key`: from hao (row test_host_key)
   - `private/var/root/.testssh/authorized_keys`: from hao (row test_authorized_key)
   - `private/var/root/.testssh/sshd_config`: from hao
@@ -91,7 +91,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **dev-keepawake** r3
   - `Library/LaunchDaemons/dev.hao.keepawake.plist`: from hao
   - `Library/LaunchDaemons/dev.hao.power.plist`: from hao
-- **golden-gate-appstore-slices** r5
+- **golden-gate-appstore-slices** r6
   - `usr/local/libexec/hao-slice-guard`: from hao (row appstore_slice_guard)
   - `Library/LaunchDaemons/org.hao.slice-guard.plist`: from hao
 - **golden-gate-av1-encoder-x86** r4
@@ -105,7 +105,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **golden-gate-font-registry** r10
   - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: from hao (row font_registry_golden_gate)
   - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: from hao (row font_registry_golden_gate)
-- **golden-gate-hd4000-planes** r6
+- **golden-gate-hd4000-planes** r7
   - `usr/lib/libhd4000-planes.dylib`: from hao (row hd4000_planes)
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
 - **golden-gate-hello** r11
@@ -291,12 +291,12 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **metalold-selectors** r9
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `usr/lib/libmetalold-selectors.dylib`: from hao (row metalold_selectors)
-- **rec-audio** r4
+- **rec-audio** r5
   - `System/Library/Extensions/AppleHDA.kext`: from OCLP · AppleHDA 26.0 Beta 1
   - `System/Library/Extensions/IOAudioFamily.kext`: from Tahoe donor · Tahoe IOAudioFamily.kext
   - `System/Library/Extensions/AppleGFXHDA.kext`: from Tahoe donor · Tahoe AppleGFXHDA.kext
   - `System/Library/KernelCollections/BaseSystemKernelExtensions.kc`: edited (1 edit) from Tahoe donor · BaseSystemKernelExtensions.kc
-- **rec-bluetooth-input** r4
+- **rec-bluetooth-input** r5
   - `System/Library/Extensions/AppleHIDKeyboard.kext`: from Tahoe donor · Tahoe AppleHIDKeyboard.kext
   - `System/Library/Extensions/AppleHIDMouse.kext`: from Tahoe donor · Tahoe AppleHIDMouse.kext
   - `System/Library/Extensions/IOBluetoothHIDDriver.kext`: from Tahoe donor · Tahoe IOBluetoothHIDDriver.kext
@@ -304,39 +304,39 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `usr/local/ssdtools/btpower`: from hao
   - `System/Library/LaunchDaemons/local.btpower.plist`: from hao
   - `System/Library/KernelCollections/BaseSystemKernelExtensions.kc`: edited (1 edit) from Tahoe donor · BaseSystemKernelExtensions.kc
-- **rec-brightness-keys** r4
+- **rec-brightness-keys** r5
   - `usr/local/ssdtools/brightkeys`: from hao
   - `System/Library/LaunchAgents/local.brightkeys.plist`: from hao
-- **rec-display-ethernet** r4
+- **rec-display-ethernet** r5
   - `System/Library/Extensions/AppleIntelFramebufferCapri.kext`: from OCLP · AppleIntelFramebufferCapri 11.7.10-23.4
   - `System/Library/Extensions/AppleIntelHD4000Graphics.kext`: from OCLP · AppleIntelHD4000Graphics 11.7.10-23.4
   - `System/Library/KernelCollections/BaseSystemKernelExtensions.kc`: edited (1 edit) from Tahoe donor · BaseSystemKernelExtensions.kc
 - **rec-install-volume** r7
   - `<volume group UUID>/BaseSystem.dmg`: from hao · BaseSystem.dmg (row enduser_recovery)
   - `<volume group UUID>/BaseSystem.chunklist`: from hao · BaseSystem.chunklist (row enduser_recovery)
-- **rec-language-list** r4
+- **rec-language-list** r5
   - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: from hao
   - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser.real`: from Tahoe donor · Language Chooser
   - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/lcfast.dylib`: from hao
-- **rec-power** r4
+- **rec-power** r5
   - `usr/local/ssdtools/power.sh`: from hao
   - `System/Library/LaunchDaemons/local.power.plist`: from hao
-- **rec-progress-phase** r4
+- **rec-progress-phase** r5
   - `usr/local/ssdtools/iasphase.sh`: from hao
   - `System/Library/LaunchDaemons/local.iasphase.plist`: from hao
-- **rec-reinstall** r6
+- **rec-reinstall** r7
   - `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: from hao
   - `usr/local/ssdtools/ssdinstall`: from hao
   - `usr/local/ssdtools/startup-internal`: from hao
   - `usr/local/ssdtools/bin/ssdpush-agent`: from hao
-- **rec-startup-guard** r4
+- **rec-startup-guard** r5
   - `usr/local/ssdtools/bootguard`: from hao
   - `usr/local/ssdtools/bootguard.sh`: from hao
   - `usr/local/ssdtools/internal-esp`: from hao
   - `System/Library/LaunchDaemons/local.bootguard.plist`: from hao
 - **rec-wifi** r4
   - `System/Library/PrivateFrameworks/IO80211.framework`: from OCLP · Modern Wireless IO80211.framework
-- **rec-wifi-autojoin** r4
+- **rec-wifi-autojoin** r5
   - `usr/local/ssdtools/wifijoin.dylib`: from hao
   - `usr/local/ssdtools/wifijoin.sh`: from hao
   - `System/Library/LaunchDaemons/local.wifijoin.plist`: from hao
@@ -480,14 +480,14 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 ## 4. Drift
 
 - darwin27-kernel r14 is newer than every image built with it (newest r10).
-- dev-access r7 is newer than every image built with it (newest r5).
+- dev-access r8 is newer than every image built with it (newest r5).
 - dev-diagnostics r9 is newer than every image built with it (newest r4).
 - dev-keepawake r3 is newer than every image built with it (newest r1).
-- golden-gate-appstore-slices r5 is newer than every image built with it (newest r2).
+- golden-gate-appstore-slices r6 is newer than every image built with it (newest r2).
 - golden-gate-corespotlight-compat r9 is newer than every image built with it (newest r6).
 - golden-gate-dyld-internal r4 is newer than every image built with it (newest r1).
 - golden-gate-font-registry r10 is newer than every image built with it (newest r7).
-- golden-gate-hd4000-planes r6 is newer than every image built with it (newest r4).
+- golden-gate-hd4000-planes r7 is newer than every image built with it (newest r4).
 - golden-gate-hello r11 is newer than every image built with it (newest r9).
 - golden-gate-icon-caches r9 is newer than every image built with it (newest r6).
 - golden-gate-ids r3 is newer than every image built with it (newest r1).
