@@ -88,6 +88,7 @@ import frontdoor as FD   # noqa: E402
 import status as STATUS  # noqa: E402
 import run as RUN        # noqa: E402
 import aot as AOT        # noqa: E402
+import doctor as DOCTOR  # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -830,6 +831,14 @@ def main():
     g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/hao (sudo)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: AOT.aot(a, c), log='aot'))
+    q = sub.add_parser('doctor', help='is this Mac ready: Python, Xcode, macOS, disk, download URLs, mirrors')
+    q.add_argument('--for', dest='purpose', choices=DOCTOR.PURPOSES, default='create-installer',
+                   help='what to check for (default create-installer)')
+    q.add_argument('--release', help='the release.json to check against (default: beside hao)')
+    q.add_argument('--cache', type=Path, help='where downloads go (default ~/Library/Caches/hao)')
+    q.add_argument('--offline', action='store_true', help='skip the HEAD requests')
+    CON.add_level_flags(q)
+    q.set_defaults(fn=guarded(lambda a, c: DOCTOR.doctor(a, c)))
     q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))
