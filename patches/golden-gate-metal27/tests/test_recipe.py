@@ -40,7 +40,9 @@ class Declaration(unittest.TestCase):
 
     def test_dev_only_in_one_opt_in_pack_and_no_default_set(self):
         self.assertEqual((PATCH['status'], PATCH['validated']), ('dev', False))
-        pack = json.loads((TOP / 'packs' / 'metal27-trial.json').read_text())
+        # docs/layout.md: the recipe declares its pack; the pack's members are collected from the declarations
+        self.assertEqual(PATCH['pack'], 'metal27-trial')
+        pack = runpy.run_path(str(TOP / 'pipeline' / 'patches.py'))['load_packs']()['metal27-trial']
         self.assertEqual((pack['recipes'], pack['opt_in'], pack['phase']), (['golden-gate-metal27'], True, 'live-capable'))
         for s in ('golden-gate-26B131', 'golden-gate', 'dev-bs-test', 'recovery'):
             text = (TOP / 'pipeline' / 'sets' / (s + '.txt')).read_text()
