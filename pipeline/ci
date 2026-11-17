@@ -184,7 +184,7 @@ def main(argv=None):
                     start, ok, out = time.time(), False, '%s: %s' % (type(x).__name__, x)
                 secs = time.time() - start
                 first = out.strip().splitlines()[0] if out.strip() else ''
-                results[name] = dict(ok=ok, seconds=round(secs, 1), tail=out[-4000:])
+                results[name] = dict(ok=ok, seconds=round(secs, 1), tail=out[-20000:])
                 print('%-4s %-48s %s (%.0f s)' % ('ok' if ok else 'FAIL', name, first[:60], secs), flush=True)
     finally:
         if work:
