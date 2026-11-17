@@ -251,6 +251,7 @@ class Command(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(self.run_cmd(release_folder(d, sign=False)), 4)
 
+    @unittest.skipUnless((TOOL.parents[1] / '.git').exists(), '--keys is for a checkout; this is not one')
     def test_keys_from_a_file_in_a_checkout(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
             (Path(k) / 'test.pub').write_text(sshsig_files(SECRET, b'')[0])
