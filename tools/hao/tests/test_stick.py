@@ -222,6 +222,7 @@ class StickTest(unittest.TestCase):
                           ('System/Library/CoreServices/boot.efi', b'kit boot')):
             (kit_esp / rel).parent.mkdir(parents=True, exist_ok=True)
             (kit_esp / rel).write_bytes(data)
+        STICK.write_manifest(top)                       # as create-installer would have written it with that ESP
         STICK.rewrite_boot(host, 'disk4')
         self.assertEqual((esp / 'EFI/OC/OpenCore.efi').read_bytes(), b'MZ kit opencore')
         self.assertEqual((esp / 'EFI/BOOT/BOOTX64.EFI').read_bytes(), b'kit boot')
@@ -262,6 +263,31 @@ class StickTest(unittest.TestCase):
         with self.assertRaises((STICK.StickError, FileExistsError)):
             STICK.attach_image(host, img, 10 ** 6)
         self.assertEqual(victim.read_text(), 'keep')
+
+    def test_the_manifest_catches_any_change_on_the_drive(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        self.assertEqual(STICK.check_manifest(top), [])
+        m = json.loads((top / STICK.MANIFEST).read_text())
+        self.assertIn('install', m['files']); self.assertIn('kit/kit.json', m['files'])
+        self.assertEqual(m['links']['kit/py-x86_64/bin/python3'], 'python3.12')
+        (top / 'reports' / 'hao-report.txt').write_text('reports are not covered')
+        self.assertEqual(STICK.check_manifest(top), [])
+        launcher = (top / 'install').read_text()
+        (top / 'install').write_text(launcher.replace('install', 'evil'))           # a casual edit
+        (top / 'kit' / 'extra.sh').write_text('#!/bin/sh')                          # an added file
+        os.unlink(top / 'kit/py-x86_64/bin/python3'); os.symlink('/bin/sh', top / 'kit/py-x86_64/bin/python3')
+        os.chmod(top / 'report', 0o777)
+        got = dict(STICK.check_manifest(top))
+        self.assertIn('different', got['install'])
+        self.assertEqual(got['kit/extra.sh'], 'a file that is not in the manifest')
+        self.assertEqual(got['kit/py-x86_64/bin/python3'], 'the link points elsewhere')
+        self.assertEqual(got['report'], 'a different mode')
+        (top / STICK.MANIFEST).unlink()
+        self.assertEqual(STICK.check_manifest(top)[0][0], STICK.MANIFEST)
+        # rewrite-boot refuses a drive that no longer matches its manifest
+        with self.assertRaisesRegex(STICK.StickError, 'differs from its manifest|manifest'):
+            STICK.rewrite_boot(host, 'disk4', self.esp)
 
     def test_rewrite_boot_refuses_a_disk_hao_did_not_write(self):
         host = FakeHost(self.mnt)

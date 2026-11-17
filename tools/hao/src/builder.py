@@ -467,6 +467,58 @@ def build_disk(a, c, host, run=subprocess.call):
     return 0
 
 
+STATEMENT = TOP / 'tools' / 'hao' / 'data' / 'security-statement.txt'   # releases' one statement (O-2), verbatim
+
+
+def show_statement(c):
+    """Releases' reduced-security statement (owner O-2), shown before the user confirms an erase."""
+    try:
+        text = ' '.join(STATEMENT.read_text().split())
+    except OSError:
+        raise Stopped('the reduced-security statement is missing (%s)' % STATEMENT, code=4,
+                      why='hao shows it before anything is erased', untouched='nothing was written')
+    c.event('statement', text=text)
+    c.print('', 'quiet')
+    c.print(c.paint('warn', text), 'quiet')
+    return text
+
+
+def check_drive(a, c):
+    """Before the install erases anything: the USB installer the kit is on must match the manifest create-installer
+    wrote (owner O-1: custody plus an integrity check). A kit not on a USB installer (build-disk, --kit elsewhere) has
+    none to check."""
+    import stick as STICK
+    top = Path(a.kit).resolve().parent
+    if not (top / 'stick.json').exists():
+        return None
+    total = _manifest_bytes(top / STICK.MANIFEST)
+    done = [0]
+    with c.task('check the USB installer against its manifest', total=total or None, unit='bytes') as t:
+        def seen(rel, size):
+            done[0] += size
+            t.update(done=done[0])
+        problems = STICK.check_manifest(top, on_file=seen)
+    c.event('drive.check', problems=len(problems), files=None)
+    if problems:
+        path, what = problems[0]
+        raise Stopped('the USB installer differs from what hao wrote: %s (%s)%s' % (
+                          path, what, ' and %d more' % (len(problems) - 1) if len(problems) > 1 else ''),
+                      why='a changed or damaged USB installer could install something else', code=4,
+                      untouched='nothing was erased',
+                      options=['make the USB installer again with hao create-installer, and keep it with you until '
+                               'the install'])
+    return True
+
+
+def _manifest_bytes(path):
+    """The bytes the check reads (each hard-linked file once), for its progress bar."""
+    try:
+        m = json.loads(Path(path).read_text())
+        return m.get('bytes') or sum(f.get('size', 0) for f in m.get('files', {}).values())
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def create_installer(a, c, host):
     """The USB stick: asks its questions and runs its steps in installer.py (the user's one command)."""
     import installer
@@ -507,6 +559,8 @@ def install(a, c, host, run=subprocess.call):
     if not getattr(a, 'kit', None):
         raise Stopped('no kit named', why='install assembles the kit the USB installer carries',
                       options=['name it: hao install /dev/diskN --kit /Volumes/HAO/kit'], untouched='nothing was written')
+    check_drive(a, c)
+    show_statement(c)
     question, word = (('Continue the install on %s? The steps it completed are kept.' % DISKS.label(info), 'RESUME')
                       if prior else
                       ('Install macOS 27 on %s? Everything on it will be erased.' % DISKS.label(info), 'ERASE'))

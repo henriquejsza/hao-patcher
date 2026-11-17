@@ -500,6 +500,30 @@ class BuilderTest(unittest.TestCase):
             self.assertIn('was not erased', x.exception.what)
             self.assertEqual(ran, [])                    # the assembler never ran
 
+    def test_install_checks_the_usb_installer_and_shows_the_statement_first(self):
+        sys.path.insert(0, str(TOOL / 'src'))
+        import stick as STICK
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            top = Path(d) / 'HAO'; kit = top / 'kit'; kit.mkdir(parents=True)
+            (kit / 'kit.json').write_text('{}'); (top / 'stick.json').write_text('{}'); (top / 'install').write_text('x')
+            STICK.write_manifest(top)
+            c, out = console('quiet')
+            ran, run = self.fake_run()
+            self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
+            text = out.getvalue()
+            self.assertIn('Reduced security.', text)
+            evs = [e['ev'] for e in c.events]
+            self.assertLess(evs.index('drive.check'), evs.index('statement'))
+            self.assertLess(evs.index('statement'), evs.index('confirm'))
+            (top / 'install').write_text('changed')                  # the drive was edited: nothing is erased
+            ran, run = self.fake_run()
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run)
+            self.assertEqual((x.exception.code, ran), (4, []))
+            self.assertIn('install (a different size)', x.exception.what)
+
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
