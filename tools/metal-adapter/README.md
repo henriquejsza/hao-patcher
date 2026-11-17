@@ -95,7 +95,7 @@ Tables copied out of Apple binaries (`layouts.inc`) are generated on the buildin
 | Input | Where | Pin |
 |---|---|---|
 | 26B131 x86_64 dyld cache | `System/Library/dyld` of the 26B131 IPSW's Rosetta cryptex (input row `ipsw_27_0`), mounted read-only; `--cache DIR` | sha256 of the 7 cache files and `.map`; the unsigned Metal cut `dbb5e8e8…` |
-| `tools/cache-dylib` of the tooling repository | its checkout next to this repository, or `CACHE_DYLIB=DIR` | r6, commit `7e5dd2a6`, sha256 of `cache_dylib.py`, `check.py`, `dsc.py` |
+| `tools/cache-dylib` of the tooling repository | `CACHE_DYLIB=DIR` (required) | r6, commit `7e5dd2a6`, sha256 of `cache_dylib.py`, `check.py`, `dsc.py` |
 | type-7 template | built from the framing in `inputs.json`; or `--template FILE`, the MetalOld capture r2 shipped (sha256 `ce4640d4…`) | see below |
 | OCLP's compilers, HD 4000 driver, plugin chain | on the target, at their installed paths, only read | `run.sh` records their sha256 in `system.txt` |
 | OCLP's `MetalOld.dylib` | OCLP hardware artifact, `payload/13.2.1-25/System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`; `--metalold FILE` | sha256 `90a1ff7a…`; with the Metal cut, `abi.py` generates `OUT/work/layouts.inc` from it (never committed) |

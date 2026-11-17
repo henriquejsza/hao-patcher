@@ -21,7 +21,7 @@ Inputs (all read-only, each checked against inputs.json before use; nothing Appl
   --metalold FILE   OCLP's MetalOld.dylib (13.2.1-25): abi.py reads its descriptor struct encodings and 27's from
                     the Metal cut and writes OUT/work/layouts.inc, the shim's translation table (generated here,
                     never committed: it carries Apple's private type encodings)
-  CACHE_DYLIB       tools/cache-dylib of the tooling repository (its checkout next to this repository unless set)
+  CACHE_DYLIB       tools/cache-dylib of the tooling repository (required)
   --template FILE   optional: the captured MetalOld type-7 request r2 shipped; without it the bundle gets the
                     template built from the framing in inputs.json (same requests on the wire, see README)
 Toolchain: Xcode with the macOS 27 SDK (clang, metal, metallib, codesign, dwarfdump). Every x86_64 binary built here
@@ -40,7 +40,7 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / 'src'
 INPUTS = json.loads((HERE / 'inputs.json').read_text())
 REPO = HERE.parents[1]
-CACHE_DYLIB = Path(os.environ.get('CACHE_DYLIB', REPO.parent / 'hao-tools' / 'tools' / 'cache-dylib'))
+CACHE_DYLIB = Path(os.environ['CACHE_DYLIB']) if os.environ.get('CACHE_DYLIB') else None
 METAL = '/System/Library/Frameworks/Metal.framework/Versions/A'
 MTLCOMPILER = '/System/Library/PrivateFrameworks/MTLCompiler.framework/Versions'
 BUNDLE = 'metal27-adapter-test'
@@ -79,13 +79,14 @@ def check_inputs(cache, template=None, metalold=None):
         if got != digest:
             raise SystemExit(f'input {p}: sha256 {got}, expected {digest}')
     cd = INPUTS['cache_dylib']
+    if CACHE_DYLIB is None:
+        raise SystemExit('set CACHE_DYLIB to the cache-dylib tool folder (inputs.json cache_dylib)')
     for name, digest in cd['files'].items():
         p = CACHE_DYLIB / name
         if not p.is_file():
-            raise SystemExit(f'cache-dylib not found at {CACHE_DYLIB}: check out hao-tools next to this repository '
-                             'or set CACHE_DYLIB')
+            raise SystemExit(f'cache-dylib not found at {CACHE_DYLIB}: set CACHE_DYLIB')
         if sha(p) != digest:
-            raise SystemExit(f'{p}: not hao-tools {cd["commit"]} ({cd["revision"]}); sha256 {sha(p)}, expected {digest}')
+            raise SystemExit(f'{p}: not cache-dylib {cd["commit"]} ({cd["revision"]}); sha256 {sha(p)}, expected {digest}')
     if metalold:
         got = sha(metalold)
         if got != INPUTS['metalold']['sha256']:
