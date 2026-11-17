@@ -9,7 +9,9 @@ passes DiskTarget's checks, with confirm_disk), a new work directory, size_bytes
 pristine_script, kdk_preparer, payload (filesystem/os/app/rosetta.dmg), kernel, kdk, fl,
 donor_tool, donors {native,extensions,boot,driverkit,recovery}, esp (tree),
 hardware {tool,artifact}, hooks [{name,kc_hook}] in set order, posts
-[{name,script,folder}] in set order, environment, and optionally overlays
+[{name,script,folder}] in set order, environment (every step, hook and post
+runs with it; golden-run puts the target there: HAO_TARGET_MODEL, the target's
+model, and HAO_TARGET_DATA, the kit's JSON file of its platform_data), and optionally overlays
 {plan,files,installer,livepatch} (golden-run --from-overlays: a recipe the plan
 marks "overlay" has its files installed by golden-overlays.py at its turn in
 set order instead of running its hook or apply.sh), and optionally cryptex_cache

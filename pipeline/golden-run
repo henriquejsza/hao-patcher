@@ -9,7 +9,11 @@ from. Every other recipe, and every step only the target can make, runs its hook
 
 golden-gate-userspace's sealed cryptex images are kept in store/cache/cryptex, keyed on everything that decides their
 bytes (its src/cryptex_cache.py), and copied instead of rebuilt when a build has the same key; --no-cryptex-cache
-always builds them."""
+always builds them.
+
+Every hook and post (in the VM, and wherever the kit is assembled) gets the assembly's target in its environment:
+HAO_TARGET_MODEL (pipeline/targets/TARGET.json "model") and HAO_TARGET_DATA (the kit's target-data.json, the
+target's "platform_data", {} when it has none)."""
 import argparse
 from contextlib import contextmanager, nullcontext
 import datetime
@@ -183,6 +187,30 @@ def collect_cryptex_cache(share, store, record, keep=CRYPTEX_CACHE_KEEP):
     return record
 
 
+TARGET_DATA='target-data.json'     # in the kit: the target's platform_data, which hooks read at HAO_TARGET_DATA
+
+
+def target_of(recipe):
+    """(model, platform_data) of the assembly RECIPE's target, pipeline/targets/TARGET.json."""
+    t=json.loads((TOP/'pipeline/targets'/(recipe['target']+'.json')).read_text())
+    data=t.get('platform_data',{})
+    if not isinstance(t.get('model'),str) or not t['model'] or not isinstance(data,dict):
+        raise ValueError('target %s needs a "model" and an object "platform_data" (or none)'%recipe['target'])
+    return t['model'],data
+
+
+def stage_target(recipe, share):
+    """Write the target's platform_data into the kit (SHARE/target-data.json); the model goes in the environment."""
+    write(share/TARGET_DATA,target_of(recipe)[1])
+
+
+def target_environment(recipe, kit_root):
+    """HAO_TARGET_MODEL and HAO_TARGET_DATA for every hook and post (none for an assembly without a target)."""
+    if 'target' not in recipe:
+        return {}
+    return dict(HAO_TARGET_MODEL=target_of(recipe)[0],HAO_TARGET_DATA=kit_root+'/'+TARGET_DATA)
+
+
 def guest_config(recipe, share, local, overlays=False, cryptex_cache=False, kit_root=GUEST):
     """The assembler configuration for the kit staged in SHARE, seen at KIT_ROOT by the Mac that assembles, with its
     local copies in LOCAL. golden-run's guest sees the kit at GUEST; kit.json has it with pipeline/kit.py's
@@ -207,7 +235,8 @@ def guest_config(recipe, share, local, overlays=False, cryptex_cache=False, kit_
                 hooks=[dict(name=name,kc_hook=local+'/hooks/'+folder+'/kc-hook.sh') for name,folder in hooks],
                 posts=[dict(name=name,script=local+'/post/'+folder+'/apply.sh',folder=local+'/post/'+folder)
                        for stage,name,folder in rows if stage=='post'],
-                environment=dict(PYTHONPATH=local+'/site',PYTHONDONTWRITEBYTECODE='1',TMPDIR=local+'/tmp',S=GUEST,OCLP=GUEST+'/oclp'),
+                environment=dict(PYTHONPATH=local+'/site',PYTHONDONTWRITEBYTECODE='1',TMPDIR=local+'/tmp',S=GUEST,OCLP=GUEST+'/oclp',
+                                 **target_environment(recipe,GUEST)),
                 **(dict(overlays=dict(plan=GUEST+'/overlay-plan.json',files=GUEST+'/overlay-files',
                                       installer=local+'/source/golden-overlays.py',
                                       livepatch=local+'/source/livepatch.py')) if overlays else {}),
@@ -442,6 +471,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             if cryptex_cache:
                 state['cryptex_cache']=prepare_cryptex_cache(recipe,share,store/'cache/cryptex',lockrows,
                                                              (golden_lock,build_lock,common));write(record/'build.json',state)
+            stage_target(recipe,share)   # HAO_TARGET_DATA of every hook and post
             config=guest_config(recipe,share,local,overlays=bool(overlays),cryptex_cache=cryptex_cache)
             write(share/'declared.json',declared_files(share))   # what golden-image records per recipe (hao verify)
             write(share/'guest-config.json',config)
@@ -452,7 +482,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
                                                                cryptex_cache=cryptex_cache),
                                                   recipe_path.stem,GUEST,local))
             shutil.copy2(share/'kit.json',record/'kit.json')
-            for name in ('patches.txt','MANIFEST.txt','profile.json'):
+            for name in ('patches.txt','MANIFEST.txt','profile.json',TARGET_DATA):
                 shutil.copy2(share/name,record/name)
             state.update(inputs=sources,source_files={str(p.relative_to(source)):digest(p) for p in source.rglob('*') if p.is_file() and not p.is_symlink()},status='starting')
             # The Boot and System KCs a VM build of this same tree linked (pipeline/prelinked_kc.py): a VM build stores
