@@ -474,6 +474,8 @@ def show_statement(c):
     """Releases' reduced-security statement (owner O-2), shown before the user confirms an erase."""
     try:
         text = ' '.join(STATEMENT.read_text().split())
+        if not text:
+            raise OSError('empty')
     except OSError:
         raise Stopped('the reduced-security statement is missing (%s)' % STATEMENT, code=4,
                       why='hao shows it before anything is erased', untouched='nothing was written')
@@ -488,9 +490,17 @@ def check_drive(a, c):
     wrote (owner O-1: custody plus an integrity check). A kit not on a USB installer (build-disk, --kit elsewhere) has
     none to check."""
     import stick as STICK
-    top = Path(a.kit).resolve().parent
-    if not (top / 'stick.json').exists():
-        return None
+    kit = Path(a.kit).resolve()
+    if os.environ.get('HAO_STICK'):             # run by the USB installer's launcher: the check is not optional
+        top = Path(os.environ['HAO_STICK']).resolve()
+        if top not in kit.parents:
+            raise Stopped('the kit %s is not on the USB installer %s' % (kit, top), code=4,
+                          untouched='nothing was erased')
+    else:
+        top = kit.parent
+        if not any(os.path.lexists(top / n) for n in ('stick.json', STICK.MANIFEST)):
+            return None                         # a kit that is not on a USB installer (build-disk, a developer's --kit)
+    keep_awake()
     total = _manifest_bytes(top / STICK.MANIFEST)
     done = [0]
     with c.task('check the USB installer against its manifest', total=total or None, unit='bytes') as t:
@@ -510,6 +520,14 @@ def check_drive(a, c):
     return True
 
 
+def keep_awake():
+    """The check reads the whole drive (minutes): keep the Mac awake while this process runs, where caffeinate exists."""
+    import shutil
+    if shutil.which('caffeinate'):
+        subprocess.Popen(['caffeinate', '-dimsu', '-w', str(os.getpid())], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+
+
 def _manifest_bytes(path):
     """The bytes the check reads (each hard-linked file once), for its progress bar."""
     try:
@@ -526,6 +544,8 @@ def create_installer(a, c, host):
 
 
 def install(a, c, host, run=subprocess.call):
+    if getattr(a, 'kit', None) and not a.dry_run:
+        check_drive(a, c)                       # first: before any planning code from the drive runs (owner O-1)
     if not getattr(a, 'profile', None) and not getattr(a, 'model', None):
         profile = DETECT.profile(DETECT.facts(host))
         name, _ = DETECT.target_for_model(profile['model'])
@@ -559,7 +579,6 @@ def install(a, c, host, run=subprocess.call):
     if not getattr(a, 'kit', None):
         raise Stopped('no kit named', why='install assembles the kit the USB installer carries',
                       options=['name it: hao install /dev/diskN --kit /Volumes/HAO/kit'], untouched='nothing was written')
-    check_drive(a, c)
     show_statement(c)
     question, word = (('Continue the install on %s? The steps it completed are kept.' % DISKS.label(info), 'RESUME')
                       if prior else

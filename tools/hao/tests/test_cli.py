@@ -516,6 +516,17 @@ class BuilderTest(unittest.TestCase):
             evs = [e['ev'] for e in c.events]
             self.assertLess(evs.index('drive.check'), evs.index('statement'))
             self.assertLess(evs.index('statement'), evs.index('confirm'))
+            (top / 'stick.json').unlink()                            # launched from the drive: the check is not optional
+            os.environ['HAO_STICK'] = str(top)
+            try:
+                ran2, run2 = self.fake_run()
+                c, _ = console('quiet')
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run2)
+                self.assertEqual((x.exception.code, ran2), (4, []))
+            finally:
+                del os.environ['HAO_STICK']
+            (top / 'stick.json').write_text('{}')
             (top / 'install').write_text('changed')                  # the drive was edited: nothing is erased
             ran, run = self.fake_run()
             c, _ = console('quiet')

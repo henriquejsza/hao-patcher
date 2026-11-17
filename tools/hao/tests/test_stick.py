@@ -165,7 +165,7 @@ class StickTest(unittest.TestCase):
         for name, cmd in (('install', 'install --kit "$D/kit"'), ('report', 'report --output "$D/reports/')):
             text = (kit / name).read_text()
             self.assertTrue(os.access(kit / name, os.X_OK))
-            self.assertIn('"$PY/bin/python3.12" -I "$D/hao/tools/hao/hao" ' + cmd, text)
+            self.assertIn('"$PY/bin/python3.12" -I -B "$D/hao/tools/hao/hao" ' + cmd, text)
         self.assertTrue((kit / 'reports').is_dir())
         self.assertIn('erased /dev/disk4', steps[0])
         self.assertEqual(len(steps), 4)
@@ -289,6 +289,39 @@ class StickTest(unittest.TestCase):
         with self.assertRaisesRegex(STICK.StickError, 'differs from its manifest|manifest'):
             STICK.rewrite_boot(host, 'disk4', self.esp)
 
+    def test_manifest_holes_are_closed(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        # what running the installer writes is outside the check: logs, install work
+        (top / 'logs').mkdir(); (top / 'logs' / 'install.log').write_text('x')
+        (top / 'hao-install-20261117-090000').mkdir(); (top / 'hao-install-20261117-090000' / 'run.sh').write_text('x')
+        self.assertEqual(STICK.check_manifest(top), [])
+        # an AppleDouble-looking file inside the kit is not exempt (Python could read a ._x.pth); .DS_Store is
+        (top / 'kit' / '.DS_Store').write_bytes(b'finder')
+        (top / 'kit' / '._extra.pth').write_text('import os')
+        self.assertEqual(dict(STICK.check_manifest(top)), {'kit/._extra.pth': 'a file that is not in the manifest'})
+        os.unlink(top / 'kit' / '._extra.pth')
+        # a malformed manifest is a problem, not a crash
+        good = (top / STICK.MANIFEST).read_text()
+        for bad in ('[]', 'null', '{"format": 1, "files": {"x": {}}, "links": {}}'):
+            (top / STICK.MANIFEST).write_text(bad)
+            self.assertEqual(STICK.check_manifest(top)[0][0], STICK.MANIFEST)
+        (top / STICK.MANIFEST).write_text(good)
+        # a link into what the manifest leaves out is refused when written
+        os.symlink('../reports/x', top / 'kit' / 'into-reports')
+        with self.assertRaisesRegex(STICK.StickError, 'links into reports'):
+            STICK.write_manifest(top)
+
+    def test_rewrite_boot_checks_the_drive_before_changing_it(self):
+        host = FakeHost(self.mnt)
+        esp, boot, top = self.written(host)
+        rec = json.loads((top / 'stick.json').read_text()); rec['model'] = 'edited'
+        (top / 'stick.json').write_text(json.dumps(rec))                # a casual edit of stick.json
+        before = (esp / 'EFI/OC/config.plist').read_bytes()
+        with self.assertRaisesRegex(STICK.StickError, 'stick.json'):
+            STICK.rewrite_boot(host, 'disk4', self.esp, log=True)
+        self.assertEqual((esp / 'EFI/OC/config.plist').read_bytes(), before)     # nothing on the drive changed
+
     def test_rewrite_boot_refuses_a_disk_hao_did_not_write(self):
         host = FakeHost(self.mnt)
         esp, boot, top = self.written(host)
@@ -347,7 +380,7 @@ class StickTest(unittest.TestCase):
         (py / 'python3.12').write_text('#!/bin/sh\necho "$@"\n')
         (py / 'python3.12').chmod(0o755)
         out = subprocess.run([str(kit / 'install'), '/dev/disk0'], capture_output=True, text=True, check=True).stdout
-        self.assertEqual(out.split(), ['-I', str(kit / 'hao/tools/hao/hao'), 'install', '--kit', str(kit / 'kit'),
+        self.assertEqual(out.split(), ['-I', '-B', str(kit / 'hao/tools/hao/hao'), 'install', '--kit', str(kit / 'kit'),
                                        '/dev/disk0'])
 
     def test_release_archive_without_git(self):
