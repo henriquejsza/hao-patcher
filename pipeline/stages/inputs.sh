@@ -10,7 +10,7 @@
 #   SHARE/hooks/NN-<name>  the set's oclp-hook patches (patches/<name>/src, OCLP runs its hook.sh SYS DATA) and
 #   SHARE/post/NN-<name>   post patches (patches/<name>), NN = set order; each with inputs/<row> for its lock rows and,
 #                          when the patch has make.sh, build/ from `sh make.sh build` on the host (as pipeline/recovery)
-#   SHARE/profile.json    the target's OCLP hardware profile
+#   SHARE/profile.json    the target's OCLP hardware profile (null for a target without one: golden-first only)
 set -eu
 SHARE=${1:?share}; TARGET=${2:?target json}; LOCK=${3:?inputs lock}; COMMON=${4:?common lock}; OCLP=${5:?OCLP commit}; SET=${6:?set}
 HERE=${0:A:h}; TOP=${HERE:h:h}; L=(python3 -I $TOP/pipeline/lock.py)
@@ -104,7 +104,15 @@ while read -r stage name ins; do
         else cp -Rpc $src $d/inputs/$n; fi
     done
 done < $SHARE/patches.txt
-$L target $TARGET oclp_hardware_profile > $SHARE/profile.json
+# A target without an OCLP hardware profile (the generic one: no OCLP patch sets) has none to record: null, said so.
+# The Tahoe-first runner's OCLP stage needs it (oclp.sh --hardware_profile), so legacy refuses such a target.
+if python3 -I -c 'import json, sys; sys.exit("oclp_hardware_profile" not in json.load(open(sys.argv[1])))' $TARGET; then
+    $L target $TARGET oclp_hardware_profile > $SHARE/profile.json
+elif [[ $FOUNDATION == legacy ]]; then
+    print -u2 "inputs.sh: ${TARGET:t} has no oclp_hardware_profile: the Tahoe-first runner's OCLP stage needs one"; exit 1
+else
+    echo null > $SHARE/profile.json; echo "inputs.sh: ${TARGET:t} has no OCLP hardware profile (profile.json null)"
+fi
 {
     echo "oclp $OCLP_FULL ($OCLP), PatcherSupportPkg $($L psp $SHARE/oclp)"
     echo "kdk $KDK ($(shasum -a 256 $KDKDMG | cut -c1-16))"

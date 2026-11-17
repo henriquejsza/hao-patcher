@@ -199,6 +199,53 @@ def target_of(recipe):
     return t['model'],data
 
 
+def target_json(recipe):
+    """pipeline/targets/TARGET.json of the assembly RECIPE, parsed."""
+    return json.loads((TOP/'pipeline/targets'/(recipe['target']+'.json')).read_text())
+
+
+def hardware_overlay(recipe, inputs=True):
+    """Whether the image gets OCLP's legacy hardware overlay (golden-image.py's step hardware, from the assembly's
+    "hardware" input): when the target's OCLP hardware profile (tools/oclp-hardware/profiles/TARGET.json) selects
+    patch sets. A target whose profile selects none (the generic one: software graphics, no GPU, Wi-Fi or audio
+    patches) gets no overlay, and its assembly names no "hardware" input. Either mismatch stops: an overlay is never
+    taken from another target's input, and a selected patch set is never dropped silently (INPUTS false: the target
+    alone decides, unchecked; run checks before staging). An assembly without a target (test fixtures) keeps it."""
+    if 'target' not in recipe:
+        return True
+    patchsets=runpy.run_path(str(TOP/'pipeline/patches.py'))['oclp_patchsets'](TOP/'pipeline/targets'/(recipe['target']+'.json'))
+    named='hardware' in recipe.get('inputs',{})
+    if not inputs:
+        return bool(patchsets)
+    if patchsets and not named:
+        raise ValueError('target %s selects OCLP patch sets (%s) but the assembly names no "hardware" input: its '
+                         'legacy hardware overlay would be missing'%(recipe['target'],', '.join(sorted(patchsets))))
+    if not patchsets and named:
+        raise ValueError('target %s selects no OCLP patch sets, so its image gets no hardware overlay, but the '
+                         'assembly names the "hardware" input %s (another target\'s overlay?): remove it'
+                         %(recipe['target'],recipe['inputs']['hardware']))
+    return bool(patchsets)
+
+
+def efi_build_of(recipe):
+    """The target's "efi_build" (the base ESP stages/build-efi.py makes from the pinned OCLP source and OpenCore
+    release; the set's post recipes then complete it), or a refusal naming what is missing. Checked before anything is
+    staged. The image's ESP never comes from another target's data: a target without "efi_build" has no ESP yet."""
+    t=target_json(recipe)
+    if 'efi_build' in t:
+        return t['efi_build']
+    if t.get('generic'):
+        raise ValueError(
+            'target %s has no "efi_build": its ESP base is not decided yet. OCLP\'s OpenCore build for %s is the '
+            'Apple firmware layout of that model (a 5K iMac: OpenCore hidden as System/Library/CoreServices/'
+            '.diagnostics/Drivers/HardwareDrivers/Product.efi behind Apple\'s diagnostics launcher \\boot.efi, '
+            'Misc.Boot.LauncherPath \\boot.efi; with boot_efi true OCLP\'s build fails), and there is no '
+            'EFI/BOOT/BOOTx64.efi, the path non-Apple firmware (OVMF) starts. Decide the generic ESP\'s base (an '
+            'OCLP build with that layout undone, or OpenCore\'s release with the qemu_reference_efi tree) and record '
+            'it in the target before building' % (recipe['target'], t.get('model')))
+    raise ValueError('target %s has no "efi_build": stages/build-efi.py cannot make its ESP' % recipe['target'])
+
+
 def stage_target(recipe, share):
     """Write the target's platform_data into the kit (SHARE/target-data.json); the model goes in the environment."""
     write(share/TARGET_DATA,target_of(recipe)[1])
@@ -230,7 +277,9 @@ def guest_config(recipe, share, local, overlays=False, cryptex_cache=False, kit_
                 kdk_preparer=local+'/source/kdk_intel_payload.py',fl=local+'/source/fl',
                 donor_tool=local+'/source/tahoe-donors/make',
                 donors={role:GUEST+'/assembly-inputs/'+role for role in ('native','extensions','boot','driverkit','recovery')},
-                esp=local+'/source/esp',hardware=dict(tool=local+'/source/hardware/apply',artifact=GUEST+'/assembly-inputs/hardware'),
+                # hardware None: the target selects no OCLP patch sets; golden-image.py's step hardware installs nothing
+                esp=local+'/source/esp',hardware=dict(tool=local+'/source/hardware/apply',artifact=GUEST+'/assembly-inputs/hardware')
+                                                 if hardware_overlay(recipe,inputs=False) else None,
                 declared=GUEST+'/declared.json',
                 hooks=[dict(name=name,kc_hook=local+'/hooks/'+folder+'/kc-hook.sh') for name,folder in hooks],
                 posts=[dict(name=name,script=local+'/post/'+folder+'/apply.sh',folder=local+'/post/'+folder)
@@ -380,6 +429,10 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
     if recipe['schema'] != 1:
         raise ValueError('unsupported Golden assembly recipe')
     skip=skipped_groups(recipe,skip_optional)
+    # What the target decides about the base layers, refused here, before any staging: the hardware overlay and its
+    # input, and the base ESP's build settings.
+    try:hardware=hardware_overlay(recipe);efi_build_of(recipe)
+    except ValueError as x:raise SystemExit('golden-run: %s'%x)
     pipeline=TOP/'pipeline';store=(TOP/'store').resolve()
     stamp=datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:6]
     job=('kit-' if kit_only else 'golden-')+recipe['golden_build']+'-'+stamp
@@ -460,7 +513,8 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             shutil.copy2(share/'oclp/opencore_legacy_patcher/sys_patch/utilities/kdk_intel_payload.py',source/'kdk_intel_payload.py')
             shutil.copy2(share/'pristine/fl',source/'fl')
             shutil.copytree(TOP/'tools/tahoe-donors',source/'tahoe-donors',ignore=shutil.ignore_patterns('__pycache__'))
-            shutil.copytree(extras/'hardware/install-tools',source/'hardware')
+            if hardware:shutil.copytree(extras/'hardware/install-tools',source/'hardware')
+            else:print('golden-run: target %s selects no OCLP patch sets: no hardware overlay'%recipe['target'],flush=True)
             command([share/KIT['python_dir']()/'bin/python3.12','-I',pipeline/'stages/build-efi.py',
                      '--source',share/'oclp','--site',share/'site',
                      '--target',pipeline/'targets'/(recipe['target']+'.json'),

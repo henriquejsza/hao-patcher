@@ -23,6 +23,8 @@ def build(source, site, target, revision, opencore, out):
     selected=re.fullmatch(r'OpenCore-([0-9.]+)-(DEBUG|RELEASE)\.zip',opencore.name)
     if not selected:raise ValueError('expected a versioned OpenCore release archive')
     recipe = json.loads(target.read_text())
+    if 'efi_build' not in recipe:   # never another target's ESP (golden-run refuses such a target before staging)
+        raise ValueError('target %s has no "efi_build": its base ESP is not defined' % target.stem)
     settings = recipe['efi_build']['settings']
     if set(settings) - SETTINGS:
         raise ValueError('unsupported EFI setting: '+str(sorted(set(settings)-SETTINGS)))

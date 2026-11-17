@@ -112,9 +112,14 @@ stays the first profile's image, so a reader that knows no `profiles` sees the M
 works from the chosen profile's view of the release (`~/Library/Caches/hao/releases/RELEASE-PROFILE.json`): it
 downloads, makes and puts on the USB installer only that profile's rows.
 
-The generic profile and assembly land with the model pack `generic` (`packs/generic.json`, opt-in: selected by the
-profile's name, never detected): until then they are `pipeline/tests/fixtures/generic/`, and
-`pipeline/tests/test_generic.py` generates and plans them with a stand-in pack.
+The generic image is `pipeline/profiles/generic.json` (the OS layer plus the opt-in model pack `generic`, whose
+`opencore-generic` runs right before `hao-opencore`), its set `pipeline/sets/generic.txt` and its assembly
+`pipeline/assemblies/generic-26B131.json`. Its target selects no OCLP patch sets, so `golden-run` stages no
+`hardware` input and golden-image's step `hardware` installs nothing (the configuration's `hardware` is null); an
+assembly whose `hardware` input disagrees with its target's patch sets is refused. The base ESP is always the one
+`stages/build-efi.py` makes from the target's `efi_build` (never a harvested ESP or another target's): the generic
+target has none yet, so `golden-run` refuses it before staging anything and says which decision is open (OCLP's
+iMac20,1 build is the 5K iMac's Apple-firmware boot layout, which non-Apple firmware cannot start).
 
 Before writing anything, `golden-run`, `hao build-image --here`, `tools/qemu-vm` and the builder VM's start check the
 free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the

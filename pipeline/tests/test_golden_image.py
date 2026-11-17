@@ -222,6 +222,16 @@ class GoldenImageTests(unittest.TestCase):
         self.assertEqual(record['status'],'failed');self.assertIsNone(record['attached_device'])
         self.assertTrue(Path(self.config['image']).is_file())
 
+    def test_no_hardware_overlay_runs_nothing_and_says_so(self):
+        # golden-run's config for a target that selects no OCLP patch sets (the generic one): hardware null
+        self.config['hardware']=None
+        record=golden.assemble(self.config,self.fake)
+        self.assertEqual(record['status'],'assembled')
+        self.assertFalse(any('/staged/hardware' in x for a in self.commands() for x in a))
+        self.assertIn('hardware',[row['name'] for row in record['steps']])
+        self.assertIsNone(json.loads((Path(self.config['work'])/'hardware.json').read_text())['overlay'])
+        self.assertNotIn('/staged/hardware',golden.source_paths(self.config))
+
     def test_unmount_failure_retains_attached_image_and_fails_completion(self):
         data=str(Path(self.config['work'])/'mnt/data')
         self.fake.fail=lambda a:a==['diskutil','unmount',data]
