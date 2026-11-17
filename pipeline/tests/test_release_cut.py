@@ -159,6 +159,8 @@ class Archive(unittest.TestCase):
         (stage / 'a.dylib').write_bytes(b'abc')
         rel = {'assets': [{'file': 'a.dylib', 'size': 3, 'sha256': R['sha256_file'](stage / 'a.dylib')}]}
         self.assertEqual(R['check_stage'](rel, stage), [])
+        sums = (Path(stage) / 'SHA256SUMS').read_text().splitlines() if (Path(stage) / 'SHA256SUMS').exists() else []
+        self.assertEqual(len(sums), len(set(l.split()[1] for l in sums)), 'each file listed once')
         (stage / 'release.json').write_text('{}')
         (stage / '.DS_Store').write_text('')
         self.assertEqual(R['check_stage'](rel, stage), [])
