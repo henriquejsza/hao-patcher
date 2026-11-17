@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""image-compare: whether two built images install the same files (the layout proofs, docs/layout.md).
+
+  image-compare A.img B.img [--allow PATH ...] [--out REPORT.json]
+
+Attaches both raw images read-only (never mounted read-write), mounts each image's System and Data volumes read-only,
+and compares every entry by relative path: type, mode, owner, flags (UF_COMPRESSED ignored: storage, not content),
+size, sha256 of regular files, symlink targets and extended attributes (com.apple.provenance and quarantine ignored).
+Times are not compared: two builds of the same commit differ there. --allow PATH (relative, as printed) accepts a
+declared difference. Exit 0 when nothing else differs; 1 lists what does.
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import plistlib
+import stat
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.geteuid() == 0
+IGNORED_XATTRS = {'com.apple.provenance', 'com.apple.quarantine', 'com.apple.lastuseddate#PS'}
+
+
+def run(*cmd, **kw):
+    return subprocess.run([str(c) for c in cmd], capture_output=True, check=True, **kw)
+
+
+def attach(image, where):
+    """{role: mount point} of IMAGE's System and Data volumes, mounted read-only below WHERE; returns (disk, mounts)."""
+    out = plistlib.loads(run('hdiutil', 'attach', '-readonly', '-nomount', '-noverify', '-imagekey',
+                             'diskimage-class=CRawDiskImage', '-plist', image).stdout)
+    whole = next(e['dev-entry'] for e in out['system-entities'] if e['dev-entry'].rstrip('0123456789').endswith('disk'))
+    mounts = {}
+    containers = plistlib.loads(run('diskutil', 'apfs', 'list', '-plist').stdout)['Containers']
+    stores = {e['dev-entry'].split('/')[-1] for e in out['system-entities']}
+    for c in containers:
+        if not any(s.get('DeviceIdentifier') in stores for s in c.get('PhysicalStores', [])):
+            continue
+        for v in c['Volumes']:
+            roles = set(v.get('Roles', []))
+            role = 'System' if 'System' in roles else 'Data' if 'Data' in roles else None
+            if role is None:
+                continue
+            point = Path(where) / role
+            point.mkdir(parents=True, exist_ok=True)
+            # not root: owners ignored on the mount (else most of Data is unreadable); owners are then not compared
+            opts = ['readOnly'] + ([] if os.geteuid() == 0 else ['-mountOptions', 'noowners'])
+            run('diskutil', 'mount', *opts, '-mountPoint', point, v['DeviceIdentifier'])
+            mounts[role] = point
+    return whole, mounts
+
+
+def detach(whole, mounts):
+    for point in mounts.values():
+        subprocess.run(['diskutil', 'unmount', 'force', str(point)], capture_output=True)
+    subprocess.run(['hdiutil', 'detach', '-force', whole], capture_output=True)
+
+
+import ctypes
+_libc = ctypes.CDLL(None, use_errno=True)
+_libc.listxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_int]
+_libc.listxattr.restype = ctypes.c_ssize_t
+_libc.getxattr.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int]
+_libc.getxattr.restype = ctypes.c_ssize_t
+NOFOLLOW = 1
+
+
+def xattrs(p):
+    """{name: sha256 prefix of the value} of P's extended attributes (macOS libc; symlinks not followed)."""
+    path = os.fsencode(p)
+    n = _libc.listxattr(path, None, 0, NOFOLLOW)
+    if n <= 0:
+        return {}
+    buf = ctypes.create_string_buffer(n)
+    n = _libc.listxattr(path, buf, n, NOFOLLOW)
+    out = {}
+    for name in buf.raw[:max(n, 0)].split(b'\0'):
+        if not name or name.decode(errors='replace') in IGNORED_XATTRS:
+            continue
+        size = _libc.getxattr(path, name, None, 0, 0, NOFOLLOW)
+        value = ctypes.create_string_buffer(max(size, 1))
+        got = _libc.getxattr(path, name, value, max(size, 0), 0, NOFOLLOW) if size >= 0 else -1
+        out[name.decode(errors='replace')] = hashlib.sha256(value.raw[:got]).hexdigest()[:16] if got >= 0 else '?'
+    return out
+
+
+def entries(top):
+    """{relative path: description} of every entry below TOP."""
+    out = {}
+    unreadable = []
+    for d, dirs, files in os.walk(top, onerror=lambda e: unreadable.append(e.filename)):
+        dirs.sort()
+        for name in sorted(dirs + files):
+            p = os.path.join(d, name)
+            rel = os.path.relpath(p, top)
+            try:
+                st = os.lstat(p)
+            except PermissionError:
+                out[rel] = dict(type='unreadable')
+                continue
+            e = dict(mode='%o' % stat.S_IMODE(st.st_mode), owner='%d:%d' % (st.st_uid, st.st_gid) if ROOT else '-',
+                     flags='%x' % (getattr(st, 'st_flags', 0) & ~0x20), x=xattrs(p))
+            if stat.S_ISLNK(st.st_mode):
+                e.update(type='link', target=os.readlink(p))
+            elif stat.S_ISDIR(st.st_mode):
+                e.update(type='dir')
+            elif stat.S_ISREG(st.st_mode):
+                h = hashlib.sha256()
+                try:
+                    with open(p, 'rb') as f:
+                        for block in iter(lambda: f.read(1 << 20), b''):
+                            h.update(block)
+                    digest = h.hexdigest()
+                except OSError as x:
+                    digest = 'unreadable: %s' % x.strerror
+                e.update(type='file', size=st.st_size, sha256=digest)
+            else:
+                e.update(type='other')
+            out[rel] = e
+    for u in unreadable:              # a folder whose contents this run cannot list (root only): marked, both sides
+        rel = os.path.relpath(u, top)
+        if rel in out:
+            out[rel]['listed'] = False
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('a'); ap.add_argument('b')
+    ap.add_argument('--allow', action='append', default=[])
+    ap.add_argument('--out')
+    ap.add_argument('--noise', help='a report of two builds of the same commit: the paths it lists differ between any two '
+                                    'builds (times, journals, linked collections) and are not counted')
+    args = ap.parse_args()
+    if os.geteuid() != 0:
+        print('image-compare: not root: owners are not compared (volumes mounted noowners)', file=sys.stderr)
+    work = Path(tempfile.mkdtemp(prefix='image-compare-'))
+    attached = []
+    try:
+        listing = {}
+        for side, image in (('a', args.a), ('b', args.b)):
+            whole, mounts = attach(image, work / side)
+            attached.append((whole, mounts))
+            if set(mounts) != {'System', 'Data'}:
+                raise SystemExit('%s: found volumes %s, need System and Data' % (image, sorted(mounts)))
+            listing[side] = {'%s/%s' % (role, rel): e for role, point in sorted(mounts.items())
+                             for rel, e in entries(point).items()}
+        a, b = listing['a'], listing['b']
+        diffs = []
+        for rel in sorted(set(a) | set(b)):
+            if a.get(rel) == b.get(rel):
+                continue
+            if rel not in a or rel not in b:
+                kind = 'only in ' + ('B' if rel not in a else 'A')
+                keys = []
+            else:
+                kind = 'differs'
+                keys = sorted(k for k in set(a[rel]) | set(b[rel]) if a[rel].get(k) != b[rel].get(k))
+            diffs.append(dict(path=rel, kind=kind, keys=keys, allowed=rel in args.allow))
+        noise = set()
+        if args.noise:
+            noise = {d['path'] for d in json.loads(Path(args.noise).read_text())['differences']}
+        for d in diffs:
+            d['noise'] = d['path'] in noise or d['path'].startswith('Data/.fseventsd/')
+        bad = [d for d in diffs if not d['allowed'] and not d['noise']]
+        closed = sorted(r for r, e in a.items() if e.get('listed') is False or e.get('type') == 'unreadable')
+        report = dict(a=args.a, b=args.b, entries=[len(a), len(b)], owners_compared=ROOT, not_listed=closed,
+                      differences=diffs)
+        if closed:
+            print('image-compare: %d entries could not be read without root (compared as present only)' % len(closed))
+        if args.out:
+            Path(args.out).write_text(json.dumps(report, indent=1) + '\n')
+        for d in diffs:
+            if not d['noise']:
+                print('%-9s %-14s %s %s' % ('allowed' if d['allowed'] else 'DIFF', d['kind'], d['path'], ','.join(d['keys'])))
+        print('image-compare: %d and %d entries; %d differences: %d build noise, %d allowed, %d not allowed'
+              % (len(a), len(b), len(diffs), sum(d['noise'] for d in diffs), sum(d['allowed'] for d in diffs), len(bad)))
+        return 1 if bad else 0
+    finally:
+        for whole, mounts in attached:
+            detach(whole, mounts)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
