@@ -8,8 +8,9 @@
                                        "bench ITEM-OR-EVIDENCE" or "owner: WORDS"
   swaps.py gate   [--ledger FILE]      exit 1 when a proven swap has no resolution (golden-run and release-cut run it)
 
-hao-tools' laptop-swap records each put on this Mac (ledger: date, laptop path, sha256, mode, local source, who; the
-bytes under objects/<sha256> beside it). HAO_SWAP_LEDGER or --ledger names it; the default is laptop-swap's. Only a
+The laptop swap tool records each put on this Mac (ledger: date, laptop path, sha256, mode, local source, who; the
+bytes under objects/<sha256> beside it). --ledger, HAO_SWAP_LEDGER, or the path on the first line of
+~/.config/hao/swap-ledger (a local file, never tracked) names it; with none of them there is no ledger. Only a
 path's newest swap needs a resolution: earlier ones were iterations it replaced.
 
 A proven swap is one a bench pass or the owner's word showed to work. The ledger records the moment: a line whose mode
@@ -34,7 +35,20 @@ import runpy
 import sys
 
 TOP = Path(__file__).resolve().parents[1]
-LEDGER = Path(os.environ.get('HAO_SWAP_LEDGER') or Path.home() / 'mac-image/store/laptop-swaps/ledger.tsv')
+
+
+def default_ledger():
+    """HAO_SWAP_LEDGER, else the path on the first line of ~/.config/hao/swap-ledger, else
+    ~/.config/hao/swap-ledger.tsv (absent: no ledger)."""
+    env = os.environ.get('HAO_SWAP_LEDGER')
+    if env:
+        return Path(env)
+    conf = Path.home() / '.config/hao/swap-ledger'
+    first = conf.read_text().strip().splitlines()[:1] if conf.is_file() else []
+    return Path(os.path.expanduser(first[0])) if first and first[0].strip() else conf.with_name('swap-ledger.tsv')
+
+
+LEDGER = default_ledger()
 RESOLUTIONS = TOP / 'pipeline' / 'live-swaps.tsv'
 PRIVATE = Path(os.environ.get('HAO_SWAP_PRIVATE') or Path.home() / '.config/hao/live-swaps-private.tsv')
 RUNTIME_ROWS = (TOP / 'pipeline/inputs/golden/26B131', 'hao_runtime')

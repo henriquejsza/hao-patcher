@@ -18,17 +18,17 @@
 #   usr/share/misc/ascii                                 replaced (the ascii(7) table plus one comment line), System
 #   Library/Application Support/hao-9a/data-probe.txt    new, Data volume (seen at once)
 #
-# Environment: LAPTOP_SSH (default $HOME/hao-tools/tools/laptop-ssh, with its LAPTOP/LAPTOP_KEY), PY_TGZ (the
+# Environment: LAPTOP_SSH (required: the laptop SSH helper, with its LAPTOP/LAPTOP_KEY), PY_TGZ (the
 # x86_64 python-build-standalone archive, sha256 below), EVIDENCE (default
-# $repo/store/runs/hao-9a-YYYYMMDD), LOCK (default $HOME/mac-image/store/tmp/laptop.lock).
+# $repo/store/runs/hao-9a-YYYYMMDD), LOCK (the laptop lock file; default $repo/store/tmp/laptop.lock).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
-ssh_tool=${LAPTOP_SSH:-$HOME/hao-tools/tools/laptop-ssh}
+ssh_tool=${LAPTOP_SSH:-}
 py_tgz=${PY_TGZ:-$repo/store/artifacts/python-x86_64-3.12.14-20261109-0d6a4a299908/cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz}
 py_sha=0d6a4a299908123f00bc844df737603f047ff9eba14fda6cad83f3cf3cb3a2af
 evidence=${EVIDENCE:-$repo/store/runs/hao-9a-$(date +%Y%m%d)}
-lock=${LOCK:-$HOME/mac-image/store/tmp/laptop.lock}
+lock=${LOCK:-$repo/store/tmp/laptop.lock}
 W=/private/var/tmp/hao-9a                 # on the laptop
 HAO="$W/python/bin/python3 -I $W/hao/hao patch"
 OV=$W/overlay
@@ -41,6 +41,7 @@ expect() {   # expect FILE PATTERN...: every pattern (an extended regex) must ma
 }
 step=${1:-}
 [ -n "$step" ] || { sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 2; }
+[ "$step" = reboot-note ] || [ -n "$ssh_tool" ] || die "set LAPTOP_SSH to the laptop SSH helper"
 [ -e "$lock" ] || echo "run-9a: note: $lock does not exist; rebooting and patching the laptop belong to its holder" >&2
 mkdir -p "$evidence"
 log=$evidence/$step.txt
@@ -89,8 +90,8 @@ apply)
 reboot-note)
     cat <<EOF
 Reboot (the lock holder's step): the laptop's default boot is the NetBoot Recovery, so
-  1. $ssh_tool -- shutdown -r now                    # back to the Recovery
-  2. ~/mac-image/netboot/bench IMAGE_REPO --no-push --stay   # one-time boot of the internal disk, keep it there
+  1. ${ssh_tool:-\$LAPTOP_SSH} -- shutdown -r now                    # back to the Recovery
+  2. the NetBoot tool's one-time boot of the internal disk (no push), and stay there
 Then: $0 verify-applied (after apply) or $0 verify-reverted (after revert).
 EOF
     exit 0 ;;

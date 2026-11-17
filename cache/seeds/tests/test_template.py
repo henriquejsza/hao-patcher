@@ -31,17 +31,17 @@ class Home:
 
     def __init__(self, d, build='26B131', placeholder=b'placeholder archive'):
         self.build = build
-        self.home = Path(d) / 'Users/benchtest'
+        self.home = Path(d) / 'Users/HARVEST'
         lib = self.home / 'Library'
         for name, personality in (('com.apple.weather', False), ('com.apple.stocks.widget', True)):
             c = lib / 'Containers' / name
             (c / 'Data/Library/Caches').mkdir(parents=True)
-            (c / 'Data/Library/Caches/app.db').write_bytes(b'user data of benchtest')
+            (c / 'Data/Library/Caches/app.db').write_bytes(b'user data of HARVEST')
             os.symlink('../../../../Preferences', c / 'Data/Library/Preferences')
             os.symlink('../../../../Keychains', c / 'Data/Library/Keychains')
             info = {'com.apple.MobileInstallation.ContentProtectionClass': -1,
-                    'SandboxProfileData': b'\0compiled /Users/benchtest/Library and C/dg6v',
-                    'SandboxProfileDataValidationInfo': {'Parameters': {'_HOME': '/Users/benchtest', '_USER': 'benchtest'}}}
+                    'SandboxProfileData': b'\0compiled /Users/HARVEST/Library and C/dg6v',
+                    'SandboxProfileDataValidationInfo': {'Parameters': {'_HOME': '/Users/HARVEST', '_USER': 'HARVEST'}}}
             if personality:
                 info['LSDataContainerPersonalityInfo'] = True
             (c / META).write_bytes(plistlib.dumps({'MCMMetadataIdentifier': name, 'MCMMetadataSchemaVersion': 44,
@@ -84,7 +84,7 @@ class Home:
         s.close()
         (r / 'Container_v1/Stores/notes.txt').write_bytes(b'other')
         (lib / 'Group Containers/group.com.apple.notes').mkdir()
-        (lib / 'Group Containers/group.com.apple.notes/NoteStore.sqlite').write_bytes(b'notes of benchtest')
+        (lib / 'Group Containers/group.com.apple.notes/NoteStore.sqlite').write_bytes(b'notes of HARVEST')
         (lib / 'Preferences').mkdir()
         (lib / 'Preferences/com.apple.chronod.plist').write_bytes(plistlib.dumps(
             {'migrationState': b'{"systemVersion":"%s"}' % build.encode(), 'lastKnownTimes': {'world': 1.0},
@@ -93,7 +93,7 @@ class Home:
         (lib / 'Preferences/com.apple.finder.plist').write_bytes(b'not collected')
 
     def collect(self, out):
-        env = dict(os.environ, SEED_USER='benchtest', SEED_HOME=str(self.home), SEED_REALNAME='Bench Test')
+        env = dict(os.environ, SEED_USER='HARVEST', SEED_HOME=str(self.home), SEED_REALNAME='Bench Test')
         with open(out, 'wb') as f:
             r = subprocess.run(['sh', str(COLLECT)], stdout=f, stderr=subprocess.PIPE, env=env)
         self.db.close()
@@ -189,7 +189,7 @@ class TemplateTest(unittest.TestCase):
         self.assertEqual(sorted(prefs), ['migrationState'])
 
     def test_refuses_account_traces(self):
-        home = Home(self.d, placeholder=b'tap url file:///Users/benchtest/Library/x')
+        home = Home(self.d, placeholder=b'tap url file:///Users/HARVEST/Library/x')
         harvest = home.collect(self.d / 'h.cpio')
         (self.d / 'out').mkdir()
         r = template(harvest, self.d / 'out')

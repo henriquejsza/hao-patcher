@@ -56,13 +56,13 @@ name ends in the first 12 hex of SHA256SUMS' hash. An existing folder is never o
 ## User Template (`collect-template.sh`, `template`)
 The account's own Library at its first login (containers, chronod's widget descriptor cache, remindd's stores) is not
 a cache folder seed.zsh can fill: macOS copies `/Library/User Template/Non_localized` into the new home when the
-account is created, so it goes there (`patches/golden-gate-user-template`, mac-image's `user-template` with the
-archive BETA7 rule). Harvest it from an account whose first login has settled (Setup done, desktop up ~15 min);
+account is created, so it goes there (`patches/golden-gate-user-template`, the predecessor project's `user-template` with
+its BETA7 rule). Harvest it from an account whose first login has settled (Setup done, desktop up ~15 min);
 apps opened in it add containers (metadata only), so harvest before using it where possible.
 
 ```sh
 # 1. On the laptop (read-only except a temp folder; root SSH): SEED_USER is the account
-ssh root@LAPTOP 'SEED_USER=benchtest sh -s' < cache/seeds/collect-template.sh \
+ssh root@LAPTOP 'SEED_USER=ACCOUNT sh -s' < cache/seeds/collect-template.sh \
     > store/artifacts/template-harvest-<build>-<image>-<stamp>.cpio
 # 2. On the host: the artifact next to the harvest, and its row (user_template_golden_gate)
 python3.14 -I cache/seeds/template store/artifacts/template-harvest-<build>-<image>-<stamp>.cpio

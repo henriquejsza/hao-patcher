@@ -389,7 +389,7 @@
    "inputs": [
     "tahoe_os_cache_x86_64h"
    ],
-   "reason": "Tahoe's x86_64 libKernelCollectionBuilder cut out of Apple's Tahoe OS cache by hao-tools cache-dylib; kmutil loads it on an Intel host, where Golden Gate's own builder refuses x86_64"
+   "reason": "Tahoe's x86_64 libKernelCollectionBuilder cut out of Apple's Tahoe OS cache by a private cache-dylib extractor; kmutil loads it on an Intel host, where Golden Gate's own builder refuses x86_64"
   },
   "tahoe_os_cache_x86_64h": {
    "class": "made-on-mac",
