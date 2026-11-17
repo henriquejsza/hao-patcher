@@ -38,7 +38,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-user-seed | r14 | post | product | caches | x |  |  |  | **needs** | r14 2026-11-17 Declares its scope (`requires`, docs/requires.md): the seed runtime and the payload layout of 2 |
 | golden-gate-user-template | r10 | post | product | caches | x |  |  |  | **needs** | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
-| golden-gate-userspace | r89 | oclp-hook | product |  | x | x |  |  | **needs** | r89 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03-ae09c83d: the same objects (same r |
+| golden-gate-userspace | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 The prespecialization gate refuses only a Swift-bearing image the overridden set gains. One it  |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r10 | post | product |  | x |  |  |  | **needs** | r10 2026-11-17 a candidate build's tools/hao/data/candidate-keys.pub is staged with hao (never tracked; releas |
