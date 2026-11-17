@@ -276,7 +276,8 @@ class Runner:
         out.write('\n### %s  %s\n' % (datetime.datetime.now().isoformat(timespec='seconds'),
                                       ' '.join(str(x) for x in argv)))
         out.flush()
-        env = dict(self.env if self.env is not None else os.environ, HAO_EVENTS='1', PYTHONUNBUFFERED='1')
+        base = kw.pop('env', None) or (self.env if self.env is not None else os.environ)   # a caller's env wins
+        env = dict(base, HAO_EVENTS='1', PYTHONUNBUFFERED='1')
         view.start()
         try:
             p = self.popen([str(x) for x in argv], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, **kw)
