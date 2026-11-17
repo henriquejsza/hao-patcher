@@ -18,6 +18,7 @@ basic ones.
 """
 import json
 import os
+from pathlib import Path
 import re
 import shutil
 import sys
@@ -45,6 +46,21 @@ SGR_DARK = {'ok': '38;5;78', 'bar': '38;5;75', 'warn': '38;5;221', 'bad': '1;38;
 SGR_LIGHT = {'ok': '38;5;29', 'bar': '38;5;25', 'warn': '38;5;94', 'bad': '1;38;5;160', 'dim': '38;5;243',
              'apple': '38;5;240', 'tahoe': '38;5;130', 'oclp': '38;5;97', 'hao': '38;5;29', 'bold': '1'}
 SGR_256 = SGR_DARK
+
+
+def _rgb(hexes, bold=('bad', 'bold')):
+    out = {}
+    for kind, h in hexes.items():
+        rgb = '38;2;%d;%d;%d' % tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) if h else ''
+        out[kind] = ';'.join(x for x in ('1' if kind in bold else '', rgb) if x)
+    return out
+
+
+# with COLORTERM=truecolor (or 24bit): the mockups' own colours
+TRUE_DARK = _rgb({'ok': '62d394', 'bar': '6db7ff', 'warn': 'f1c453', 'bad': 'ff7a7a', 'dim': '8a8f99', 'apple': 'c3c8d0',
+                  'tahoe': 'f0a54e', 'oclp': 'c79dff', 'hao': '5fd6b4', 'bold': ''})
+TRUE_LIGHT = _rgb({'ok': '1a7f37', 'bar': '0a5fb4', 'warn': '8f5d00', 'bad': 'c62828', 'dim': '6b7280', 'apple': '4b5563',
+                   'tahoe': '9c5300', 'oclp': '7a3fb8', 'hao': '0b7d5f', 'bold': ''})
 SGR_8 = {'ok': '32', 'bad': '1;31', 'warn': '33', 'bar': '36', 'bold': '1', 'dim': '2',
          'apple': '90', 'tahoe': '33', 'oclp': '35', 'hao': '36'}
 ORIGINS = {'apple': 'Apple', 'tahoe': 'Tahoe', 'oclp': 'OCLP', 'hao': 'hao'}
@@ -128,7 +144,11 @@ class Style:
         elif palette == '8' or (palette != '256' and '256' not in env.get('TERM', '') and not env.get('COLORTERM')):
             self.codes = SGR_8
         else:
-            self.codes = SGR_LIGHT if theme(env) == 'light' else SGR_DARK
+            light = theme(env) == 'light'
+            if env.get('COLORTERM') in ('truecolor', '24bit') and palette != '256':
+                self.codes = TRUE_LIGHT if light else TRUE_DARK
+            else:
+                self.codes = SGR_LIGHT if light else SGR_DARK
 
     def __call__(self, kind, text):
         if not self.on or not text:
@@ -151,6 +171,7 @@ class Style:
 SPIN = {True: '-\\|/', False: '-\\|/'}     # the mockups' spinner, in the bar colour
 CELLS = {True: ('█', '░'), False: ('#', '.')}
 TICK = 0.1                    # seconds between redraws of a live line
+SHOW_TIME = 30                # a finished line gives its time from this many seconds (the mockups: long steps only)
 HEARTBEAT = 30                # seconds between "still working" lines when the output is not a terminal
 
 
@@ -183,6 +204,7 @@ def fit(text, width):
     return ''.join(out) + '…' + ('\033[0m' if '\033[' in text else '')
 
 
+COMMAND = re.compile(r'(^|: |as: |run |again: )((?:sudo )?(?:\./hao|hao|/Volumes/\S+/(?:install|report|hao))(?=\s|$)[^,;()]*?)(?=$| \(|,|;)')
 MARK_COLUMN = 62              # where ✓ / ✗ stand on step and item lines, so they line up as in the mockups
 
 
@@ -222,13 +244,130 @@ def add_level_flags(parser):
     g.add_argument('--log', choices=['json'], help='every event as one JSON line')
 
 
+VENDOR = Path(__file__).resolve().parents[1] / 'vendor'
+
+
+def rich_modules(env=None):
+    """(Console, Live, Text) from the vendored Rich (tools/hao/vendor, its LICENSE and NOTICE.md there), or None
+    when HAO_NO_RICH is set or it cannot be imported (the console then redraws lines itself)."""
+    env = os.environ if env is None else env
+    if env.get('HAO_NO_RICH'):
+        return None
+    if str(VENDOR) not in sys.path:
+        sys.path.insert(0, str(VENDOR))
+    try:
+        from rich.console import Console as RichConsole
+        from rich.live import Live
+        from rich.text import Text
+    except ImportError:
+        return None
+    return RichConsole, Live, Text
+
+
+class PlainSurface:
+    """A terminal without Rich: the live line is redrawn with \\r and erase-line by the task's own thread."""
+    threaded = True
+
+    def __init__(self, c):
+        self.c = c
+
+    def line(self, text, stream=None):
+        print(text, file=stream or self.c.out, flush=True)
+
+    def start(self, task):
+        self.c._draw_live()
+
+    def refresh(self):
+        self.c._clear_live()
+        self.c._draw_live()
+
+    def stop(self):
+        self.c._clear_live()
+
+    def pause(self):
+        self.c._clear_live()
+
+    def resume(self):
+        self.c._draw_live()
+
+    def save(self, path):
+        return False
+
+
+class RichSurface:
+    """A terminal through Rich: finished lines are printed above a Live region holding the line being worked on;
+    Rich refreshes it (10 a second), hides the cursor meanwhile and measures cells for cropping. HAO_RECORD=FILE keeps
+    everything drawn and saves it as SVG (or HTML, by FILE's suffix) when the command ends."""
+    threaded = False
+
+    def __init__(self, c, modules, record=False):
+        RichConsole, self.Live, self.Text = modules
+        self.c = c
+        self.rc = RichConsole(file=c.out, force_terminal=True, color_system='truecolor', highlight=False, markup=False,
+                              emoji=False, soft_wrap=True)
+        # the record holds only finished lines (no live frames): the screen as it is left
+        import io
+        self.rec = RichConsole(file=io.StringIO(), force_terminal=True, color_system='256', highlight=False,
+                               markup=False, emoji=False, soft_wrap=True, record=True, width=c.width()) if record else None
+        self.live = None
+
+    def line(self, text, stream=None):
+        if stream is not None and stream is not self.c.out:
+            self.pause()
+            print(text, file=stream, flush=True)
+            self.resume()
+            return
+        self.rc.print(self.Text.from_ansi(text), soft_wrap=True)
+        if self.rec is not None:
+            self.rec.print(self.Text.from_ansi(text), soft_wrap=True)
+
+    def _renderable(self):
+        task = self.c.live
+        if task is None:
+            return self.Text('')
+        task.frame = int(time.monotonic() / TICK)
+        return self.Text.from_ansi(fit(task.render(), self.c.width() - 1), no_wrap=True, end='')
+
+    def start(self, task):
+        self.stop()
+        self.live = self.Live(get_renderable=self._renderable, console=self.rc, refresh_per_second=1 / TICK,
+                              transient=True, redirect_stdout=False, redirect_stderr=False)
+        self.live.start()
+
+    def refresh(self):
+        if self.live is not None:
+            self.live.refresh()
+
+    def stop(self):
+        if self.live is not None:
+            self.live.stop()
+            self.live = None
+
+    def pause(self):
+        if self.live is not None:
+            self.live.stop()
+
+    def resume(self):
+        if self.live is not None:
+            self.live.start()
+
+    def save(self, path):
+        if self.rec is None:
+            return False
+        if str(path).endswith('.html'):
+            self.rec.save_html(str(path))
+        else:
+            self.rec.save_svg(str(path), title='hao')
+        return True
+
+
 class Stopped(Exception):
     """A check failed: the command stops and Console.stopped prints what happened, why it matters, what to do."""
 
-    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None):
+    def __init__(self, what, why=None, cause=None, options=(), untouched=None, log=None, code=None):
         super().__init__(what)
         self.what, self.why, self.cause, self.options, self.untouched = what, why, cause, list(options), untouched
-        self.log = log
+        self.log, self.code = log, code       # code: the exit code (src/frontdoor.py), when the raiser knows it
 
 
 class Console:
@@ -261,6 +400,10 @@ class Console:
         self.gap = False              # a blank line before each step header (create-installer's rhythm)
         self.muted = False            # print nothing (events are still kept): a backend's own header is replaced
         self.release = None           # the release (or dev COMMIT) the header names
+        self.hide = ()                # lines (by their start) a command does not show
+        modules = rich_modules(e) if self.animate else None
+        self.surface = RichSurface(self, modules, record=bool(e.get('HAO_RECORD'))) if modules else PlainSurface(self)
+        self.record = e.get('HAO_RECORD')
 
     # -- plumbing
     @property
@@ -278,11 +421,26 @@ class Console:
         return self.level != 'json' and LEVELS.index(self.level) >= LEVELS.index(level)
 
     def print(self, text='', level='steps'):
+        if self.hide and text and plain(text).startswith(self.hide):
+            return
         if self.at(level) and not self.muted:
             with self.lock:
-                self._clear_live()
-                print(self.paint.erased(text), file=self.out, flush=True)
-                self._draw_live()
+                if isinstance(self.surface, PlainSurface):
+                    self._clear_live()
+                    print(self.paint.erased(text), file=self.out, flush=True)
+                    self._draw_live()
+                else:
+                    self.surface.line(self.paint.erased(text))
+
+    def save_record(self):
+        """HAO_RECORD=FILE: the run as drawn, saved (SVG, or HTML for a .html FILE). True when saved."""
+        if not self.record:
+            return False
+        self.surface.stop()
+        try:
+            return self.surface.save(self.record)
+        except OSError:
+            return False
 
     def _clear_live(self):
         if self.live is not None and self.animate:
@@ -358,9 +516,12 @@ class Console:
         self.event('warning', text=text)
         if self.level != 'json':
             with self.lock:
-                self._clear_live()
-                print(self.paint_err('warn', 'warning:') + ' ' + text, file=self.err, flush=True)
-                self._draw_live()
+                if isinstance(self.surface, PlainSurface):
+                    self._clear_live()
+                    print(self.paint_err('warn', 'warning:') + ' ' + text, file=self.err, flush=True)
+                    self._draw_live()
+                else:
+                    self.surface.line(self.paint_err('warn', 'warning:') + ' ' + text, stream=self.err)
 
     def confirm(self, question, word, given=None):
         """Ask QUESTION and require WORD typed (or GIVEN, from a flag). False when it does not match."""
@@ -370,6 +531,8 @@ class Console:
         answer = given if given is not None else self.ask('Type %s to continue: ' % self.paint('bold', word))
         ok = answer.strip() == word
         self.event('confirmed' if ok else 'declined')
+        if ok and given is None and self.level != 'json':
+            self.print('', 'quiet')                    # the mockups: a blank line after the typed word
         return ok
 
     def took(self):
@@ -397,7 +560,7 @@ class Console:
         w, s = self.err, self.paint_err
         untouched = x.untouched or ''
         if untouched:
-            untouched = untouched[0].upper() + untouched[1:] + ('' if untouched.endswith('.') else '.')
+            untouched = untouched + ('' if untouched.endswith('.') else '.')     # "STOPPED before anything ..." 
         print('\n%s\n' % ' '.join(x for x in (s('bad', 'STOPPED'), untouched) if x), file=w)
         for label, text in (('What happened', x.what), ('Why it matters', x.why), ('Likely cause', x.cause)):
             if text:
@@ -405,7 +568,7 @@ class Console:
         if x.options:
             print('\n  What you can do', file=w)
             for i, o in enumerate(x.options, 1):
-                print('    %d  %s' % (i, o), file=w)
+                print('    %d  %s' % (i, COMMAND.sub(lambda m: m.group(1) + s('bold', m.group(2)), o)), file=w)
         if x.log:
             print('\n  ' + s('dim', 'Log: %s' % x.log), file=w)
         w.flush()
@@ -430,9 +593,10 @@ class Task:
                 if c.live is not None:          # one live line at a time: the older one ends as it stands
                     c.live.end(None)
                 c.live = self
-                c._draw_live()
+                if c.animate:
+                    c.surface.start(self)
             self._thread = None
-            if c.animate:
+            if c.animate and c.surface.threaded:
                 self._stop = threading.Event()
                 self._thread = threading.Thread(target=self._spin, daemon=True)
                 self._thread.start()
@@ -493,8 +657,7 @@ class Task:
                 self.tail = tail
             if self.shown and not self.ended:
                 if self.c.animate:
-                    self.c._clear_live()
-                    self.c._draw_live()
+                    self.c.surface.refresh()
                 elif self.c.clock() - self.beat >= self.c.heartbeat:
                     self.pulse()
 
@@ -514,7 +677,8 @@ class Task:
                 return
             self.ended = True
             if c.live is self:
-                c._clear_live()
+                if c.animate:
+                    c.surface.stop()
                 c.live = None
             c.event('task.end', text=self.text, ok=True, seconds=round(self.seconds(), 1), shown=False, **self.fields)
         if getattr(self, '_thread', None) is not None:
@@ -534,13 +698,17 @@ class Task:
             note = note or getattr(self, 'final_note', None)
             line = (at_column(line, c.col()) + mark if mark else line) + ('  ' + note if note else '')
             secs = self.seconds()
-            if timed and secs >= 1:
+            if timed and secs >= SHOW_TIME:
                 line += '  ' + c.paint('dim', elapsed(secs))
             if c.live is self:
-                c._clear_live()
+                if c.animate:
+                    c.surface.stop()
                 c.live = None
             if self.shown:
-                print(c.paint.erased(line), file=c.out, flush=True)
+                if c.animate:
+                    c.surface.line(c.paint.erased(line))
+                else:
+                    print(c.paint.erased(line), file=c.out, flush=True)
             c.event('task.end', text=self.text, ok=ok, note=note, seconds=round(secs, 1), **self.fields)
         if getattr(self, '_thread', None) is not None:
             self._stop.set()

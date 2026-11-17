@@ -521,7 +521,7 @@ class CommandLineTest(unittest.TestCase):
             rel.write_text(json.dumps({'downloads': [{'name': 'x', 'url': 'http://127.0.0.1:9/x', 'size': len(data),
                                                       'sha256': sha}]}))
             r = self.hao('fetch', str(rel), '--cache', d + '/cache', '--verify')
-            self.assertEqual(r.returncode, 1)
+            self.assertEqual(r.returncode, 4)       # a file failed its sha256 (frontdoor exit codes)
             (Path(d) / 'cache/sha256').mkdir(parents=True)
             (Path(d) / 'cache/sha256' / sha).write_bytes(data)
             r = self.hao('fetch', str(rel), '--cache', d + '/cache', '--verify')
@@ -545,7 +545,7 @@ class CommandLineTest(unittest.TestCase):
                             'url': 'http://127.0.0.1:9/27.2.1-26B131.0/shim.tar',
                             'sha256': hashlib.sha256(ours).hexdigest()}]}))
             r = self.hao('fetch', str(rel), '--cache', cache, '--verify')
-            self.assertEqual(r.returncode, 1)
+            self.assertEqual(r.returncode, 4)       # a file failed its sha256 (frontdoor exit codes)
             r = self.hao('fetch', str(rel), '--cache', cache, '--assets-from', str(stage), '--log', 'json')
             self.assertEqual(r.returncode, 0, r.stderr)
             evs = [json.loads(line) for line in r.stdout.splitlines()]
@@ -556,7 +556,7 @@ class CommandLineTest(unittest.TestCase):
             self.assertIn('1 downloads, 1 assets', r.stdout)
             (Path(cache) / 'sha256' / hashlib.sha256(ours).hexdigest()).write_bytes(b'changed')
             r = self.hao('fetch', str(rel), '--cache', cache, '--verify')
-            self.assertEqual(r.returncode, 1)
+            self.assertEqual(r.returncode, 4)       # a changed file fails its sha256
             self.assertIn('missing or damaged', r.stdout + r.stderr)
 
 

@@ -1,0 +1,31 @@
+[1/7] Lay out the disk
+  copy the installer's tools and Python                       ✓
+  GPT partition map and an APFS container                     ✓
+[2/7] Copy macOS 27
+  the System volume, from the installer's filesystem image    ✓
+  Data, Preboot, Recovery and VM volumes                      ✓
+[3/7] Add Intel support
+  Tahoe's Intel drivers, the Data template and firmlinks      ✓
+  Intel boot files and the EFI partition                      ✓
+  OCLP's legacy hardware support: graphics, Wi-Fi, audio      ✓
+[4/7] Link the kernel  Tahoe kmutil
+  kernel collections linked with Tahoe's kmutil               ✓
+[5/7] Apply packs  what each pack brings, from the kit
+  base                   1 recipe                             ✓
+  metal-3802             1 recipe                             ✓
+  other fixes            1 recipe                             ✓
+[6/7] Seal
+  update Preboot, bless, take the system snapshot             ✓
+[7/7] Make it bootable
+  settings, caches and the OpenCore configuration             ✗  unmount of /Volumes/macOS refused: Resource busy
+
+STOPPED after the EFI partition was written. This Mac will not start from disk0 yet.
+
+  What happened    the build onto /dev/disk0 failed (exit 1) in step posts
+  Why it matters   the disk is erased and incomplete; it will not start
+  Likely cause     the last message was: unmount of /Volumes/macOS refused: Resource busy
+
+  What you can do
+    1  run it again: /Volumes/HAO/install
+
+  Log: <LOG>

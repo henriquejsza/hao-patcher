@@ -1,5 +1,6 @@
 """src/progress.py: a backend's output goes to the log; the screen gets the install's phases in plain words."""
 import io
+import json
 import os
 from pathlib import Path
 import re
@@ -164,10 +165,28 @@ class Steps(unittest.TestCase):
         self.assertFalse(any('\033[' in l for l in out.splitlines()))
 
     def test_terminal_redraws_in_place_with_colour(self):
-        _, out, _, _, _ = render(out=Tty())
-        self.assertIn('\r\033[K', out)
+        _, out, _, _, c = render(out=Tty())
+        self.assertIsInstance(c.surface, CON.RichSurface)             # the vendored Rich draws the live line
+        self.assertIn('\033[?25l', out)                                # cursor hidden while a line is live
+        self.assertIn('\033[2K', out)                                  # the live line erased, its final line drawn
         self.assertIn('\033[1m[1/7] Lay out the disk\033[0m', out)
         self.assertIn('\033[38;5;78m✓\033[0m', out)
+
+    def test_without_rich_the_console_redraws_itself(self):
+        _, out, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        self.assertIsInstance(c.surface, CON.PlainSurface)
+        self.assertIn('\r\033[K', out)
+        self.assertIn('\033[38;5;78m✓\033[0m', out)
+
+    def test_record_saves_what_was_drawn(self):
+        with tempfile.TemporaryDirectory() as d:
+            svg = Path(d) / 'run.svg'
+            _, _, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_RECORD': str(svg)})
+            self.assertTrue(c.save_record())
+            text = svg.read_text()
+        self.assertIn('<svg', text)
+        self.assertIn('Lay&#160;out&#160;the&#160;disk', text)
+        self.assertNotIn('0s</text>', text)                        # finished lines only, no live frames
 
     def test_no_colour_and_dumb_terminal_are_plain(self):
         for env in ({'NO_COLOR': '1', 'TERM': 'xterm'}, {'TERM': 'dumb'}):
@@ -203,10 +222,10 @@ class Steps(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual([sq(l) for l in out.getvalue().splitlines()], [sq(l) for l in [
             "  stage each recipe's inputs, every one checked against its sha256  ✓",
-            '  base  1 files · 3.0 KB  ✓',
-            '  metal-3802  1 files · 1.0 KB  ✓',
-            '  intel-hd4000  1 files · 2.0 KB  ✓',
-            '  other fixes  1 files · 10 B  ✓',
+            '  base  1 files  ✓',
+            '  metal-3802  1 files  ✓',
+            '  intel-hd4000  1 files  ✓',
+            '  other fixes  1 files  ✓',
             "  copy Tahoe's Intel system programs  ████████████████████ 5.0 / 5.0 KB  ✓",
             '  OpenCore for this Mac  ✓']])
 
@@ -226,8 +245,74 @@ class Steps(unittest.TestCase):
             r(['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), 'LOCAL'])
         got = sq(out.getvalue())
         self.assertIn('  BootKC and SystemKC linked, Boot 875abf7d221c…  ✓  matches the proven build', got)
-        self.assertIn('  HaoExec stamped for kernel 037e7b860ac8…  ✓', got)
+        self.assertNotIn('HaoExec stamped', got)                      # at -v only; the bind line says it
         self.assertIn('  4 kernel repairs bound to this kernel, IntelCommpage added  ✓', got)
+
+
+class Round5(unittest.TestCase):
+    def test_binder_record_gives_the_bind_lines(self):
+        with tempfile.TemporaryDirectory() as d:
+            rec = Path(d) / 'local' / 'work' / 'post' / 'hao-opencore'
+            rec.mkdir(parents=True)
+            (rec / 'kc-binder.json').write_text(json.dumps({
+                'mode': 'binder', 'commpage_table': {'load_time': True},
+                'points': {'site': {'segment': '__TEXT', 'offset': '0x8ffa02', 'length': 104, 'fields': 9},
+                           'pv_addresses.pv_zone': {'segment': '__DATA_CONST', 'offset': '0x111a0'}},
+                'patches': [{'comment': 'Initialize early VM range', 'offset': '0x9efa02', 'length': 104}]}))
+            text = 'STEP posts\nSTEP post hao-opencore\nInstalled 4 recorded kernel repairs and IntelCommpage.kext\n'
+            for level, want, absent in (('steps', 'bind  4 kernel repairs against the BootKC just linked  ✓', 'early-vm.site'),
+                                        ('edits', 'early-vm.site  __TEXT +0x8ffa02  104 bytes  9 fields  ✓', None)):
+                out = Pipe()
+                c = CON.Console(level, out=out, env={})
+                PROG.Runner(c, 'install', groups=GROUPS, log=Path(d) / 'i.log', popen=popen_of(text), env={})(
+                    ['sh', 'golden-assemble.sh', str(Path(d) / 'kit'), str(Path(d) / 'local')])
+                got = sq(out.getvalue())
+                self.assertIn(want, got)
+                self.assertIn('→ 1 OpenCore patches written · HaoExec stamped · IntelCommpage table filled', got)
+                if absent:
+                    self.assertNotIn(absent, got)
+
+    def test_the_system_copy_is_a_bar(self):
+        out = Pipe()
+        c = CON.Console('steps', out=out, env={})
+        r = PROG.Runner(c, 'install', log='/dev/null', popen=popen_of(''), env={})
+        view = PROG.Assembly(r, local='/L')
+        view.start()
+        view.step('layout')
+        view.line('/dev/disk11s1  41504653-0000-11AA-AA11-0030654  /V/job/tmp/golden-pristine.x/filesystem')
+        view.step('golden-system')
+        used = {'/V/job/tmp/golden-pristine.x/filesystem': 10 * 10 ** 9, '/L/work/mnt/system': 1 * 10 ** 9}
+        saved = PROG.used_bytes
+        PROG.used_bytes = lambda path: used.get(str(path))
+        try:
+            view.tick()                                    # the base: what the new volume held before the copy
+            used['/L/work/mnt/system'] = 5 * 10 ** 9
+            view.tick()
+        finally:
+            PROG.used_bytes = saved
+        self.assertEqual((view.task.done, view.task.total, view.task.unit), (4 * 10 ** 9, 10 * 10 ** 9, 'bytes'))
+        self.assertIn('4.0 / 10.0 GB', CON.plain(view.task.render()))
+
+    def test_stopped_says_what_was_left_untouched(self):
+        text = 'STEP layout\nSTEP golden-system\nerror: copy failed\n'
+        _, _, _, r, _ = render(text, rc=1)
+        x = r.explain(CON.Stopped('the build onto /dev/disk0 failed (exit 1)'))
+        self.assertEqual(x.untouched, 'before anything was written to the EFI partition. This Mac will not start from disk0 yet.')
+
+    def test_commands_in_what_you_can_do_are_bold(self):
+        err = Tty()
+        c = CON.Console('steps', out=err, err=err, env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c.stopped(CON.Stopped('x', options=['run it again: sudo ./hao create-installer', 'save a report: /Volumes/HAO/report (attach it)']))
+        out = err.getvalue()
+        self.assertIn('\033[1msudo ./hao create-installer\033[0m', out)
+        self.assertIn('\033[1m/Volumes/HAO/report\033[0m (attach it)', out)
+        c2 = CON.Console('steps', out=Tty(), err=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c2.stopped(CON.Stopped('x', options=['the logs: /Volumes/HAO/hao-install-1/local/work']))
+        self.assertNotIn('\033[1m', c2.err.getvalue().split('What you can do')[1])      # a folder, not a command
+
+    def test_truecolor_uses_the_mockups_colours(self):
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'COLORTERM': 'truecolor'})
+        self.assertEqual(c.ok, '\033[38;2;98;211;148m✓\033[0m')
 
 
 class Sizes(unittest.TestCase):
@@ -380,6 +465,12 @@ class Hooks(unittest.TestCase):
         inst.prepare_kit(a, c, 'p')
         self.assertEqual(calls, [('plan', 'create-installer'), ('kit', c.run)])
         hao.hook_backends(a, c, build, inst)                  # twice wraps once
+        out = Pipe()
+        hao.detection(CON.Console('edits', out=out, env={}), {'packs': ['intel-hd4000', 'mbp92'], 'board_id': 'Mac-X',
+                      'model': 'MacBookPro9,2', 'gpu_name': 'Intel HD Graphics 4000 (Ivy Bridge)',
+                      'oclp_patchsets': ['Intel Ivy Bridge']})
+        self.assertIn(sq('  GPU     Intel HD 4000                 → Intel Ivy Bridge          → intel-hd4000'), sq(out.getvalue()))
+        self.assertIn(sq('  Board   Mac-X                         → MacBookPro9,2             → mbp92'), sq(out.getvalue()))
         self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743'), 'dev 73b28ae2')
         self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743-dirty'), 'dev 73b28ae2+')
         self.assertEqual(hao.dev_label('73b28ae2e743'), 'dev 73b28ae2')

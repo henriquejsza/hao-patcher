@@ -1,0 +1,26 @@
+[1/7] Lay out the disk
+  copy the installer's tools and Python                       ✓
+  GPT partition map and an APFS container                     ✓
+[2/7] Copy macOS 27
+  the System volume, from the installer's filesystem image    ✓
+  Data, Preboot, Recovery and VM volumes                      ✓
+[3/7] Add Intel support
+  Tahoe's Intel drivers, the Data template and firmlinks      ✓
+  Intel boot files and the EFI partition                      ✓
+  OCLP's legacy hardware support: graphics, Wi-Fi, audio      ✓
+[4/7] Link the kernel  Tahoe kmutil
+  kernel collections linked with Tahoe's kmutil               ✓
+[5/7] Apply packs  what each pack brings, from the kit
+    base                   golden-gate-userspace ████████████████████ 4/4 files  ✓
+    metal-3802             golden-gate-hello                  ✓
+    other fixes            golden-gate-store                  ✓
+  base                   1 recipe                             ✓
+  metal-3802             1 recipe                             ✓
+  other fixes            1 recipe                             ✓
+[6/7] Seal
+  update Preboot, bless, take the system snapshot             ✓
+[7/7] Make it bootable
+    base                   hao-opencore                       ✓
+    intel-hd4000           golden-gate-shader-caches          ✓
+  settings, caches and the OpenCore configuration  2 recipes  ✓
+  unmount the new volumes                                     ✓

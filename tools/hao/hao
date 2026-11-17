@@ -50,6 +50,10 @@
   hao report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
         its hao detect profile, the last command's log and the install record, without serial, user or Wi-Fi names
 
+hao alone (or hao help) lists the commands for where it runs; hao help --all adds the developer commands. A command
+run where it doesn't belong says where it runs (HAO_ANYWHERE=1 or --dry-run skips that check). Exit codes: 0 done,
+1 failed (stopped safely), 2 usage, 3 not enough space or the wrong drive, 4 a file failed its sha256, 5 refused.
+
 Detail levels for every command: --quiet, default, --show or -v (files), --show-edits (edits), --log json.
 On a terminal the step being worked on has a spinner (or a bar) and its time, redrawn in place, with colour; in a
 pipe, a log, with NO_COLOR or TERM=dumb the same lines come plain, with a "still working" line every 30 s.
@@ -80,6 +84,7 @@ import assets as ASSETS  # noqa: E402
 import installer as INST  # noqa: E402
 import report as REP     # noqa: E402
 import progress as PROG  # noqa: E402
+import frontdoor as FD   # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
 CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
@@ -272,15 +277,20 @@ def guarded(fn, log=None):
                 c.column = 78                 # the mockups' install layout: P(text, 76) after the indent
             elif log == 'create-installer':
                 c.column, c.gap = 60, True    # P(text, 58), a blank line between steps
+                c.hide = ('hao makes a USB installer',)   # the backend's intro: the mockups open with the header
         try:
+            refusal = None if getattr(a, 'dry_run', False) or os.environ.get('HAO_ANYWHERE') else \
+                FD.wrong_place(getattr(a, 'action', None), FD.where())
+            if refusal:
+                raise CON.Stopped(refusal, untouched='nothing was done', code=5)
             return fn(a, c)
         except CON.Stopped as x:
             if getattr(c, 'run', None) is not None:
                 c.run.explain(x)
-            if log and INST.REPORT not in x.options and x.what != 'not confirmed':
+            if log and INST.REPORT not in x.options and x.what != 'not confirmed' and x.code != 5:
                 x.options.append(INST.REPORT)
             c.stopped(x)
-            return 1
+            return FD.code_of(x)
         except (LP.PatchError, DETECT.DetectError) as x:
             c.stopped(CON.Stopped(str(x), options=[INST.REPORT] if log else ()))
             return 1
@@ -365,12 +375,20 @@ def header(c, command, profile, asm):
     proven = profile.get('proven_model')
     build = 'macOS 27 %s' % asm.get('golden_build', '')
     title = {'install': 'hao installer', 'build-disk': 'hao installer'}.get(command, 'hao-builder')
-    c.print('%s %s  %s' % (title, c.paint('bold', c.release or ''), c.paint('dim', build)) if c.release else
-            '%s  %s' % (title, c.paint('dim', build)))
     short = lambda n: (n or '').replace('Graphics ', '').split(' (')[0]   # "Intel HD 4000", as the mockups
     gpu = ', '.join(short(d.get('name') or d.get('device')) for d in profile.get('gpu', [])) or \
         short(profile.get('gpu_name'))
     check = ('proven model ' + c.ok) if proven else c.paint('warn', 'not proven on this model')
+    if command not in ('install', 'build-disk'):
+        # the mockups' builder header: "hao-builder 27.2.1-26B131.4   proven on MacBookPro9,2", then the host
+        c.print(CON.at_column('%s %s' % (title, c.paint('bold', c.release or '')), 30) +
+                ('proven on %s' % profile['model'] if proven else c.paint('warn', 'for %s, not proven' % profile['model'])))
+        c.print('%-6s%s' % ('host', host_line(c)))
+        c.print('%-7s%s' % ('Packs', ' · '.join(profile.get('packs', []))), 'files')
+        c.event('header', command=command, model=profile.get('model'), packs=profile.get('packs'))
+        return
+    c.print('%s %s  %s' % (title, c.paint('bold', c.release or ''), c.paint('dim', build)) if c.release else
+            '%s  %s' % (title, c.paint('dim', build)))
     if command in ('install', 'build-disk'):
         try:
             mem = ('%d GB' % profile['memory_gb'] if profile['memory_gb'] else '') if 'memory_gb' in profile else \
@@ -382,11 +400,45 @@ def header(c, command, profile, asm):
         c.print(CON.at_column('%-7s%s' % ('For', ' · '.join(x for x in (profile['model'], gpu) if x)), 67) + check)
         c.print('%-7s%s' % ('host', host_line(c)))
     c.print('%-7s%s' % ('Packs', ' · '.join(profile.get('packs', []))))
+    detection(c, profile)
     c.event('header', command=command, model=profile.get('model'), packs=profile.get('packs'))
 
 
+def detection(c, profile, packs_dir=REPO / 'packs'):
+    """--show-edits: the mockups' detection table, one row per pack: what on this Mac chose it (a device and the OCLP
+    patch set it gets, the board id, or any Intel Mac) -> the pack."""
+    if not c.at('edits'):
+        return
+    have = profile.get('oclp_patchsets') or []
+    gpu = profile.get('gpu_name') or ', '.join(d.get('name', '') for d in profile.get('gpu', []))
+    names = {'audio': ', '.join(d.get('name', '') for d in profile.get('audio', [])) or 'HDA codec',
+             'wifi': ', '.join(d.get('name', '') for d in profile.get('wifi', [])) or 'Wi-Fi card'}
+    rows = []
+    for pack in profile.get('packs', []):
+        try:
+            rule = json.loads((Path(packs_dir) / (pack + '.json')).read_text()).get('detect', {})
+        except (OSError, ValueError):
+            continue
+        sets = [x for x in rule.get('oclp_patchsets', []) if x in have]
+        if sets:
+            role = 'Audio' if 'Audio' in sets[0] else 'Wi-Fi' if 'Wireless' in sets[0] else 'GPU'
+            device = names['audio'] if role == 'Audio' else names['wifi'] if role == 'Wi-Fi' else gpu
+            rows.append((role, device, sets[0], pack))
+        elif rule.get('board_ids'):
+            rows.append(('Board', profile.get('board_id') or '', profile.get('model', ''), pack))
+        elif rule.get('any_intel'):
+            rows.append(('CPU', 'Intel', 'any Intel', pack))
+    if not rows:
+        return
+    c.print('', 'edits')
+    c.print(c.paint('bold', 'Detect hardware') + '  ' + c.paint('dim', 'OCLP-style: device → patch set → pack'), 'edits')
+    for role, device, via, pack in rows:
+        c.print('  %-8s%-30s%-28s→ %s' % (role, device.replace('Graphics ', '').split(' (')[0][:28], '→ ' + via,
+                                         c.paint('bold', pack)), 'edits')
+
+
 def host_line(c):
-    """macOS 26.7 · Apple silicon · 1,369 GB free ✓ (the mockups' host line)."""
+    """macOS 26.7 · Apple silicon · Xcode 26.1 ✓ · 1,369 GB free ✓ (the mockups' host line)."""
     import platform
     import shutil
     mac = platform.mac_ver()[0]
@@ -396,7 +448,15 @@ def host_line(c):
                                          .free // 10 ** 9, ','), c.ok)
     except OSError:
         free = ''
-    return ' · '.join(x for x in ('macOS ' + mac if mac else '', arch, free) if x)
+    xcode = ''
+    try:
+        r = subprocess.run(['xcodebuild', '-version'], capture_output=True, text=True, timeout=20)
+        if r.returncode == 0 and r.stdout.startswith('Xcode'):
+            xcode = '%s %s' % (r.stdout.split('\n')[0], c.ok)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    xcode = xcode or c.paint('warn', 'no Xcode (needed for the Metal libraries)')
+    return ' · '.join(x for x in ('macOS ' + mac if mac else '', arch, xcode, free) if x)
 
 
 def finish_line(c, command):
@@ -407,12 +467,16 @@ def finish_line(c, command):
         took = CON.elapsed(c.clock() - c.started)
         log = getattr(getattr(c, 'run', None), 'log', None)
         more = ['Log: %s' % log] if log else []
+        if command in ('install', 'build-disk') and 'installed on' in text and c.level == 'quiet':
+            return done('Installed in %s. Details are in the log%s.' % (took, ': %s' % log if log else ''), **fields)
         if command in ('install', 'build-disk') and 'installed on' in text:
             disk = text.split('installed on ', 1)[1].split(';')[0]
             s = getattr(c.run, 'summary', {}) if getattr(c, 'run', None) else {}
             parts = ['macOS 27 on %s in %s' % (disk, took)]
             if s.get('files'):
                 parts.append('%s files from packs' % format(s['files'], ','))
+            if s.get('edits'):
+                parts.append('%s edits' % format(s['edits'], ','))
             if s.get('repairs'):
                 parts.append('%d kernel repairs' % s['repairs'])
             parts.append('no notes' if not s.get('notes') else '%d notes' % s['notes'])
@@ -551,9 +615,21 @@ def kit_args(q):
     q.add_argument('--local', help='the assembly\'s writable folder (default WORK/local), not on the erased disk')
 
 
+def cmd_help(a):
+    """`hao` alone, `hao help [--all]`: the commands for where it runs."""
+    c = CON.Console('steps')
+    v = REP.version()
+    FD.listing(c, FD.where(), all_=getattr(a, 'all', False),
+               versions={'hao': v.get('release') or dev_label(v.get('commit'))})
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(prog='hao', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = p.add_subparsers(dest='action', required=True)
+    sub = p.add_subparsers(dest='action')
+    q = sub.add_parser('help', help='the commands for where hao runs')
+    q.add_argument('--all', action='store_true', help='also the developer commands')
+    q.set_defaults(fn=cmd_help)
     q = sub.add_parser('patch')
     q.add_argument('overlays', nargs='*')
     q.add_argument('--root'); q.add_argument('--state'); q.add_argument('--id'); q.add_argument('--deferred')
@@ -624,6 +700,8 @@ def main():
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: REP.report(a, c, MAC.SystemHost())))
     a = p.parse_args()
+    if a.action is None:
+        return cmd_help(a)
     return a.fn(a)
 
 

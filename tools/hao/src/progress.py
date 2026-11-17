@@ -123,6 +123,17 @@ def tree_size(path, seen=None, shared=None):
     return files, size
 
 
+def used_bytes(path):
+    """Bytes in use on the volume mounted at PATH, or None when nothing is mounted there."""
+    try:
+        if not os.path.ismount(str(path)):
+            return None
+        st = os.statvfs(str(path))
+    except OSError:
+        return None
+    return (st.f_blocks - st.f_bfree) * st.f_frsize
+
+
 def recipe_folders(share):
     """{recipe: (files, bytes)} of a kit's hooks/NN-NAME and post/NN-NAME folders (what each recipe brings); an input
     row two recipes share counts for the first."""
@@ -141,9 +152,8 @@ def recipe_folders(share):
 
 
 def pack_line(c, pack, files, size, extra=''):
-    """The mockups' pack line: P(pack, 24), then the files and their size."""
-    import console
-    return '%-24s%s files · %s%s' % (pack_name(pack), format(files, ','), console.human_size(size), extra)
+    """The mockups' pack line: P(pack, 24), then its files (the size is in the events and the log)."""
+    return '%-24s%s files%s' % (pack_name(pack), format(files, ','), extra)
 
 
 TOP = Path(__file__).resolve().parents[3]
@@ -250,7 +260,8 @@ class Runner:
         words = [str(x) for x in argv]
         if any(w.endswith('golden-assemble.sh') for w in words):
             at = next(i for i, w in enumerate(words) if w.endswith('golden-assemble.sh'))
-            return Assembly(self, kit=words[at + 1] if len(words) > at + 1 else None)
+            return Assembly(self, kit=words[at + 1] if len(words) > at + 1 else None,
+                            local=words[at + 2] if len(words) > at + 2 else None)
         if '--stage-kit' in words:
             return Kit(self, words)
         if '--collect-kit' in words:
@@ -358,6 +369,12 @@ class Runner:
             x.cause = 'the last message was: ' + self.error[:200]
         if self.log and not x.log:
             x.log = str(self.log)
+        seen = getattr(self.view, 'seen', None)
+        if seen is not None and not x.untouched:
+            disk = re.search(r'/dev/(disk\d+)', x.what or '')
+            later = 'This Mac will not start from %s yet.' % (disk.group(1) if disk else 'that disk')
+            x.untouched = ('before anything was written to the EFI partition. ' if 'boot-and-esp' not in seen
+                           else 'after the EFI partition was written. ') + later
         return x
 
 
@@ -536,9 +553,13 @@ class Kit:
 class Assembly:
     """golden-assemble.sh: the seven phases, one line per step, one line per pack, the --quiet bar."""
 
-    def __init__(self, runner, phases=INSTALL, kit=None):
+    def __init__(self, runner, phases=INSTALL, kit=None, local=None):
         self.r, self.c, self.phases = runner, runner.c, phases
         self.kit = Path(kit) if kit else None
+        self.local = Path(local) if local else None
+        self.seen = set()          # the steps that ran (for "what was left untouched")
+        self.copy_source = None    # the installer's filesystem image, mounted (for the System copy's bar)
+        self.copy_base = None
         self.sizes = None          # {recipe: (files, bytes)} the kit carries, read when Apply packs starts
         self.index = 0             # the phase being worked on, 1-based; 0 before the first
         self.task = None
@@ -599,6 +620,8 @@ class Assembly:
         if self.packs and self.sizes is None:
             self.sizes = recipe_folders(self.kit) if self.kit and self.kit.is_dir() else {}
         for pack, names in self.packs.items():
+            self.r.summary['edits'] = self.r.summary.get('edits', 0) + sum(
+                len(sp['edits']) for n in names for _, _, sp, _ in declared(n)[0] if sp)
             files = sum(self.sizes.get(n, (0, 0))[0] for n in names)
             size = sum(self.sizes.get(n, (0, 0))[1] for n in names)
             text = pack_line(self.c, pack, files, size) if files else '%s %s' % (
@@ -638,6 +661,7 @@ class Assembly:
         self.task = self.c.task('  ' + SAY['tools'])
 
     def step(self, name):
+        self.seen.add(name)
         if name == self.last:          # golden-pristine.sh names the step golden-image.py has just started
             return
         self.last = name
@@ -684,7 +708,13 @@ class Assembly:
     REPAIRS = re.compile(r'^Installed (\d+) recorded kernel repairs')
     STAMP = re.compile(r'^stamped .*HaoExec\.kext for kernel ([0-9a-f]{8,})')
 
+    ATTACHED = re.compile(r'^/dev/disk\d+s\d+\s+\S+\s+(/\S+/filesystem)$')
+
     def line(self, text):
+        m = self.ATTACHED.match(text)
+        if m:
+            self.copy_source = m.group(1)          # hdiutil attach of the System's source, golden-pristine.sh
+            return
         m = self.KC.match(text)
         if m:
             how, boot = m.groups()
@@ -704,13 +734,48 @@ class Assembly:
             return
         m = self.REPAIRS.match(text)
         if m:
-            self.say('%s kernel repairs bound to this kernel, IntelCommpage added' % m.group(1), ok=True,
-                     ev='kc.bind', repairs=int(m.group(1)))
             self.r.summary['repairs'] = int(m.group(1))
+            if not self.bind_detail(int(m.group(1))):
+                self.say('%s kernel repairs bound to this kernel, IntelCommpage added' % m.group(1), ok=True,
+                         ev='kc.bind', repairs=int(m.group(1)))
             return
         m = self.STAMP.match(text)
         if m:
-            self.say('HaoExec stamped for kernel %s…' % m.group(1)[:12], ok=True, ev='kc.stamp', kernel=m.group(1))
+            self.c.item('HaoExec stamped for kernel %s…' % m.group(1)[:12], 'files', ok=True, ev='kc.stamp',
+                        kernel=m.group(1))
+
+    def bind_detail(self, repairs):
+        """The binder's record (post hao-opencore's kc-binder.json): the mockups' "bind N kernel repairs" line, what
+        it wrote, and at --show-edits each site it bound. False when there is no record to read."""
+        if not self.local:
+            return False
+        try:
+            rec = json.loads((self.local / 'work' / 'post' / 'hao-opencore' / 'kc-binder.json').read_text())
+        except (OSError, ValueError):
+            return False
+        c = self.c
+        patches, points = rec.get('patches', []), rec.get('points', {})
+        c.item('bind  %d kernel repairs against the BootKC just linked' % repairs, ok=True, ev='kc.bind',
+               repairs=repairs, mode=rec.get('mode'), patches=len(patches))
+        table = rec.get('commpage_table') or {}
+        c.print('        ' + c.paint('dim', '→ %d OpenCore patches written · HaoExec stamped · IntelCommpage table %s' % (
+            len(patches), 'filled' if table.get('load_time') or table.get('sha256') else 'checked')))
+        for name in ('site', 'range_call', 'pv_hook', 'pv_cave'):
+            pt = points.get(name)
+            if not pt:
+                continue
+            what = '%d fields' % pt['fields'] if pt.get('fields') else '%s bytes free' % pt.get('capacity', '?')
+            c.print('    %-24s%-20s%-12s%s' % ('early-vm.' + name, '%s +%s' % (pt['segment'], pt['offset']),
+                                              '%s bytes' % pt.get('length', pt.get('tail', '?')), what) +
+                    '  ' + c.ok, 'edits')
+        for key, pt in points.items():
+            if '.' in key:
+                c.print('      %-22s%-28s%s' % (key.split('.', 1)[1], '%s +%s' % (pt['segment'], pt['offset']), c.ok),
+                        'edits')
+        for pch in patches:
+            c.print('    %s %s' % (c.paint('dim', 'patch'), '%s  (%s bytes at %s)' % (pch['comment'], pch['length'],
+                                                                                    pch['offset'])), 'edits')
+        return True
 
     def say(self, text, ok=None, **fields):
         """A line under the step on screen, printed above its live line."""
@@ -733,9 +798,23 @@ class Assembly:
             self.task.update(done=done, total=total)
 
     def tick(self):
-        if self.task:
+        if self.task and self.last == 'golden-system' and self.copy_source and self.local:
+            self.copy_progress()
+        elif self.task:
             self.task.update()
         self.pace()
+
+    def copy_progress(self):
+        """The System copy as a bar: bytes on the new System volume against the source image's."""
+        total = used_bytes(self.copy_source)
+        done = used_bytes(self.local / 'work' / 'mnt' / 'system')
+        if total is None or done is None:
+            self.task.update()
+            return
+        if self.copy_base is None:
+            self.copy_base = done
+        self.task.unit = 'bytes'
+        self.task.update(done=max(0, min(done - self.copy_base, total)), total=total)
 
     def end(self, rc):
         if rc == 0:
