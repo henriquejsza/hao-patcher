@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import runpy
 import shutil
+import subprocess
 import tempfile
 import unittest
 
@@ -100,6 +101,68 @@ class Cut(unittest.TestCase):
         self.assertFalse(rec['passed'])
         self.assertFalse(rec['dev']['passed'])
         self.assertEqual(rec['dev']['steps'][-1]['name'], 'create-installer-dev')
+
+
+    def test_only_dev_makes_only_the_dev_stick(self):
+        rc, rec, out = self.cut('--only-dev')
+        self.assertEqual(rc, 0)
+        self.assertEqual([s['kind'] for s in rec['sticks']], ['dev'])
+        self.assertEqual(rec['release_stick'], {'skipped': '--only-dev'})
+        self.assertFalse((out / 'stick.img').exists())
+        self.assertTrue(all('--dev' in c for c, _ in self.calls if 'pipeline/release-cut' in c))
+
+
+def sh(cwd, *cmd):
+    return subprocess.run(list(cmd), cwd=cwd, capture_output=True, text=True, check=True).stdout
+
+
+class Overlay(unittest.TestCase):
+    """--dev-overlay REV: the dev cut files REV changed since its merge base with COMMIT, applied in the cut's
+    worktree of COMMIT and committed there; COMMIT's own later changes to the same files are kept."""
+
+    def test_the_dev_cut_is_applied_on_top_of_the_commit(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d).resolve() / 'repo'
+            (repo / 'pipeline/profiles').mkdir(parents=True)
+            sh(Path(d), 'git', 'init', '-q', '-b', 'main', str(repo))
+            for k, v in (('user.name', 'test'), ('user.email', 'test@localhost'), ('core.hooksPath', '/dev/null')):
+                sh(repo, 'git', 'config', k, v)
+            classes = ['{', ' "rows": {', '  "a": 1,'] + ['  "pad%d": %d,' % (i, i) for i in range(8)] + \
+                      ['  "z": 2', ' }', '}']
+            (repo / 'pipeline/release-classes.json').write_text('\n'.join(classes) + '\n')
+            (repo / 'pipeline/release-cut').write_text('cut\n')
+            (repo / 'pipeline/patches.py').write_text('import sys\nprint("x\\ndev-access")\n')
+            sh(repo, 'git', 'add', '-A')
+            sh(repo, 'git', 'commit', '-q', '-m', 'base')
+            sh(repo, 'git', 'checkout', '-q', '-b', 'dev')
+            dev_classes = classes[:2] + ['  "test_host_key": 3,'] + classes[2:]
+            (repo / 'pipeline/release-classes.json').write_text('\n'.join(dev_classes) + '\n')
+            (repo / 'pipeline/release-cut').write_text("cut\n'--dev'\n")
+            for f in C['DEV_FILES'][3:]:
+                (repo / f).parent.mkdir(parents=True, exist_ok=True)
+                (repo / f).write_text('{}\n' if f.endswith('.json') else 'x\n')
+            (repo / 'unrelated.txt').write_text('not part of the dev cut\n')
+            sh(repo, 'git', 'add', '-A')
+            sh(repo, 'git', 'commit', '-q', '-m', 'dev cut')
+            sh(repo, 'git', 'checkout', '-q', 'main')
+            later = classes[:-3] + ['  "z": 20', ' }', '}']          # the commit's own later change, kept
+            (repo / 'pipeline/release-classes.json').write_text('\n'.join(later) + '\n')
+            sh(repo, 'git', 'commit', '-q', '-am', 'later')
+            sha = sh(repo, 'git', 'rev-parse', 'HEAD').strip()
+            tree = Path(d).resolve() / 'tree'
+            sh(repo, 'git', 'worktree', 'add', '-q', '--detach', str(tree), sha)
+            got = C['dev_overlay'](tree, sha, 'dev', repo=repo)
+            self.assertEqual(got['base_commit'], sha)
+            self.assertTrue(got['set_regenerated'])
+            self.assertEqual((tree / 'pipeline/sets/dev-alpha-v0.1.0.txt').read_text(), 'x\ndev-access\n')
+            text = (tree / 'pipeline/release-classes.json').read_text()
+            self.assertIn('"test_host_key": 3', text)
+            self.assertIn('"z": 20', text)
+            self.assertIn("'--dev'", (tree / 'pipeline/release-cut').read_text())
+            self.assertFalse((tree / 'unrelated.txt').exists())
+            self.assertEqual(sh(tree, 'git', 'status', '--porcelain', '--untracked-files=no'), '')
+            self.assertEqual(sh(tree, 'git', 'rev-parse', 'HEAD^').strip(), sha)
+            self.assertEqual(got['cut_commit'], sh(tree, 'git', 'rev-parse', 'HEAD').strip())
 
 
 class Phases(unittest.TestCase):
