@@ -74,7 +74,7 @@ class Run:
         self.fs, self.work, self.log, self.dry = fs, work, log, dry
         self.release, self.userspace_on, self.keep = release or {}, userspace_on, keep
         self.runtime_tool = runtime_tool
-        self.mounts, self.private = {}, []
+        self.mounts, self.private, self.inputs = {}, [], {}
 
     def stream(self, row):
         """(source, extra arguments) for a download row: a private snapshot of its local file (snapshot()) when it is
@@ -144,6 +144,39 @@ class Run:
             raise Failed('%s does not have the row\'s sha256' % src)
         return out
 
+    def snapshot_tree(self, src, folder, row, want):
+        """A copy of folder row ROW (SRC, of lock folder FOLDER) in a private_folder(), checked as a tree after it is
+        made (lock.py: its content sha256 WANT and its check lines). Its path."""
+        out = self.private_folder() / Path(src).name
+        shutil.copytree(src, out, symlinks=True)
+        if lock.row_hash(str(folder), row, str(out)) != want or lock.check_row(str(folder), row, str(out)):
+            raise Failed('input row %s: %s does not have the row\'s sha256' % (row, src))
+        return out
+
+    def input(self, row):
+        """Input row ROW for a producer: a checked private snapshot of its file, or checked private copy of its
+        folder, made once per run; never the store path, which may change after it was checked."""
+        if row in self.inputs:
+            return self.inputs[row]
+        folder = find(self.fs, row)
+        want, p = lock.rows(str(folder))[row]
+        p = Path(p)
+        if self.dry:
+            return p
+        if want == '-':
+            raise Failed('input row %s has no sha256' % row)
+        st = os.lstat(p) if os.path.lexists(p) else None
+        if st is None:
+            raise Failed('input row %s: %s is not there' % (row, p))
+        if stat.S_ISDIR(st.st_mode):
+            out = self.snapshot_tree(p, folder, row, want)
+        else:
+            out = self.snapshot(p, want)
+            if lock.check_row(str(folder), row, str(out)):
+                raise Failed('input row %s does not check' % row)
+        self.inputs[row] = out
+        return out
+
     def discard(self, p):
         """Delete a work tree whose rows are made and checked (unless --keep)."""
         if self.keep or self.dry or not Path(p).exists():
@@ -194,6 +227,7 @@ class Run:
         for d in self.private:
             shutil.rmtree(d, ignore_errors=True)
         self.private.clear()
+        self.inputs.clear()
 
 
 def private_base(folder):
@@ -335,11 +369,7 @@ def steps(r, fs, a):
     """[(rows it makes, function)] in dependency order."""
     P = lambda row: path(fs, row)
 
-    def I(row):
-        """An input row's path, checked first (lock.py)."""
-        if not r.dry and not checks(fs, row):
-            raise Failed('input row %s does not check' % row)
-        return P(row)
+    I = r.input        # an input row a producer reads: a checked private copy (Run.input)
     userspace = lambda: artifact(P('golden_gate_userspace')) / 'payload'
     root = lambda: r.mount(userspace() / 'filesystem.dmg', 'system')
     donor = TOP / 'store/inputs' / a['donor_build']
@@ -382,16 +412,16 @@ def steps(r, fs, a):
                 t.extract(t.getmember('payloads/Tools/RSRRepair'), tools, filter='data')
         # PatcherSupportPkg's image is encrypted with the passphrase OCLP itself mounts it with (its public source)
         psp = r.mount(I('psp_2.0.5'), 'psp', passphrase='password')
-        r.sh(*PY, 'tools/oclp-hardware/make', 'build', '--psp-root', psp, '--psp-archive', P('psp_2.0.5'),
+        r.sh(*PY, 'tools/oclp-hardware/make', 'build', '--psp-root', psp, '--psp-archive', I('psp_2.0.5'),
              '--rsr-repair', tools / 'payloads/Tools/RSRRepair', '--out', P('oclp_hardware'))
 
     def qemu_reference():
         out = P('qemu_reference_efi')
         if out.exists() and not r.dry:
             shutil.rmtree(out)
-        r.sh(*PY, 'pipeline/unpack/qemu-reference', out, '--opencore', P('opencore_release'),
-             '--oclp-source', P('oclp_source'), '--hfsplus', P('ocbinarydata_hfsplus'),
-             '--virtualsmc', P('virtualsmc_release'))
+        r.sh(*PY, 'pipeline/unpack/qemu-reference', out, '--opencore', I('opencore_release'),
+             '--oclp-source', I('oclp_source'), '--hfsplus', I('ocbinarydata_hfsplus'),
+             '--virtualsmc', I('virtualsmc_release'))
 
     def donors():
         """One x86_64 pass of donor-inputs over the installer (by URL when the release streams it), target-first

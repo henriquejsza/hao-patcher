@@ -142,7 +142,7 @@ class Row(unittest.TestCase):
         text = (TOP/'pipeline/make-on-mac').read_text()
         self.assertIn("(['qemu_reference_efi'], qemu_reference)", text)
         for name in INPUTS:
-            self.assertIn("P('%s')" % name, text)
+            self.assertIn("I('%s')" % name, text)   # each read from a checked private copy (Run.input)
 
     def test_store_rows_make_the_pinned_row(self):
         lock = str(TOP/'pipeline/inputs/25G342')

@@ -137,6 +137,42 @@ class MakeOnMac(unittest.TestCase):
         self.assertFalse(src.parent.exists())
         self.assertTrue((elsewhere / src.parent.name / src.name).exists(), 'close() deletes only what it made')
 
+    def test_an_input_row_is_read_from_a_checked_private_copy(self):
+        kdk = self.d / 'kdk.dmg'; kdk.write_bytes(b'kdk')
+        self.row('kdk', kdk, b'kdk')
+        r = self.run_()
+        got = r.input('kdk')
+        self.assertNotEqual(got, kdk)
+        self.assertIs(r.input('kdk'), got, 'one copy per run')
+        kdk.write_bytes(b'evil')                  # whoever can write the store changes it after the check
+        self.assertEqual(got.read_bytes(), b'kdk')
+        self.assertEqual(got.stat().st_mode & 0o777, 0o400)
+        r.close()
+        self.assertFalse(got.exists())
+        with self.assertRaises(M['Failed']):
+            self.run_().input('kdk')              # does not have the row's sha256
+        self.row('kdk', kdk, None)
+        with self.assertRaises(M['Failed']):
+            self.run_().input('kdk')              # a row without a sha256 is never an input
+        self.assertEqual(M['Run']([self.lock], self.work, io.StringIO(), True).input('kdk'), kdk)
+
+    def test_a_folder_input_row_is_a_checked_private_copy(self):
+        tree = self.d / 'oclp-hardware'; (tree / 'payload').mkdir(parents=True)
+        (tree / 'payload' / 'x').write_bytes(b'x')
+        (tree / 'link').symlink_to('payload/x')
+        want = M['lock'].row_sha256(str(tree))
+        (self.lock / 'oclp_hardware').write_text('%s %s\n' % (want, tree))
+        r = self.run_()
+        got = r.input('oclp_hardware')
+        self.assertNotEqual(got, tree)
+        self.assertEqual(M['lock'].row_sha256(str(got)), want)
+        self.assertTrue((got / 'link').is_symlink())
+        (tree / 'payload' / 'x').write_bytes(b'evil')
+        self.assertEqual((got / 'payload' / 'x').read_bytes(), b'x')
+        r.close()
+        with self.assertRaises(M['Failed']):
+            self.run_().input('oclp_hardware')
+
     def steps(self, a_bytes, b_fails=False):
         ran = []
         out = {n: self.d / n for n in 'abc'}
