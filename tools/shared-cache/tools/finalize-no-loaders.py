@@ -3,8 +3,11 @@
 
 dyld then makes a JustInTimeLoader for every cache dylib and skips program loader sets (runtime's reading of 26B131's
 dyld: the program sets are only looked up when the dylibs set passes validHeader). Nothing from the source cache's sets
-is carried: the dylibs set address and the program pool and trie fields in the main header are zeroed, and every ObjC
-header-info row's loader field must already be 0 (the bootstrap form). OPEN: who reads that field on 27 and whether 0
+is carried: the program pool and trie fields in the main header are zeroed, and every ObjC header-info row's loader
+field must already be 0 (the bootstrap form). The dylibs set address is not zeroed but set to the cache's own unslid
+base: 26B131's x86_64 dyld (RuntimeState::initializeClosureMode, 0x30c7e..0x30c92) adds the slide to that field and
+calls PrebuiltLoaderSet::validHeader on it with no null check, so 0 faulted at validHeader+9 (launchd, the 11-15 fold
+boot). At the base it reads the cache header's "dyld" magic, validHeader returns false, and dyld uses its JIT loaders. OPEN: who reads that field on 27 and whether 0
 is safe there (research, queue/tools/20261114-1400).
 """
 import argparse
@@ -28,6 +31,7 @@ from dyld_rebuild.objc_tables import decode_header_info
 # dyld_cache_header: dylibsPBLSetAddr, programsPBLSetPoolAddr, programsPBLSetPoolSize, programTrieAddr (Q each),
 # programTrieSize (I). osVersion follows at 364 and is not touched.
 LOADER_FIELDS = (328, '<4QI', 36)
+SHARED_REGION_START = 224   # dyld_cache_header.sharedRegionStart (Q): the cache's unslid base
 
 
 def header_info(family):
@@ -37,11 +41,19 @@ def header_info(family):
     return decode_header_info(family.read, base + ro, base + rw, bootstrap_only=True)
 
 
+def no_loader_fields(main):
+    """The loader-set fields of a main header without prebuilt loaders: the dylibs set at the cache base (validHeader
+    reads the header's magic there and refuses it), the program pool and trie 0."""
+    base, = struct.unpack_from('<Q', main, SHARED_REGION_START)
+    require(base != 0, 'cache header has no sharedRegionStart')
+    return struct.pack(LOADER_FIELDS[1], base, 0, 0, 0, 0)
+
+
 def clear_loader_fields(main):
-    """Zero the loader-set fields of a main cache header in place; returns the old values."""
+    """Set the loader-set fields of a main cache header in place (no_loader_fields); returns the old values."""
     offset, form, size = LOADER_FIELDS
     old = struct.unpack_from(form, main, offset)
-    main[offset:offset + size] = bytes(size)
+    main[offset:offset + size] = no_loader_fields(main)
     return old
 
 
@@ -78,7 +90,8 @@ def main():
     candidate = CandidateFamily(output / main_path.name, image_count=images, subcache_count=count - 1)
     try:
         offset, form, size = LOADER_FIELDS
-        require(not any(candidate.main.data[offset:offset + size]), 'loader fields not cleared')
+        require(bytes(candidate.main.data[offset:offset + size]) == no_loader_fields(candidate.main.data),
+                'loader fields not cleared')
         require(len(header_info(candidate)) == len(rows), 'header-info rows changed')
     finally:
         candidate.close()

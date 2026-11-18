@@ -132,6 +132,7 @@ See [NOTICE.md](NOTICE.md): the vendored frida-gum and Swift headers and Apple's
 against dyld keep their own licences. The rest is covered by the repository's MIT license.
 
 ## Revisions
+- r86 2026-11-18 No prebuilt loaders: the dylibs loader-set address is the cache base, not 0. 26B131's dyld calls validHeader on it without a null check, and 0 faulted launchd at boot; at the base it reads the header magic and falls back to JIT loaders.
 - r85 2026-11-15 Disk guard: a build checks free space on its work and output volumes (and an optional site check
   command) before writing, and removes its intermediates when the family is written (`--keep-work` keeps them).
 - r84 2026-11-15 First public revision: folds the on-disk replacements of a 26B131 x86_64 cache into a new signed
