@@ -77,6 +77,21 @@ index c541e04..9e7636a 100644
  
  namespace dyld4 {
  
+diff --git a/common/MachOAnalyzer.cpp b/common/MachOAnalyzer.cpp
+index bdf7f5e..ab941f6 100644
+--- a/common/MachOAnalyzer.cpp
++++ b/common/MachOAnalyzer.cpp
+@@ -4501,7 +4501,9 @@ void MachOAnalyzer::forEachBindTarget_ChainedFixups(Diagnostics& diag, void (^ha
+     // The C++ spec says main executables can define non-weak functions which override weak-defs in dylibs
+     // This happens automatically for anything bound at launch, but the dyld cache is pre-bound so we need
+     // to patch any binds that are overridden by this non-weak in the main executable.
+-    if ( diag.noError() && this->isMainExecutable() && this->hasWeakDefs() ) {
++    // 27 (26B131): main-executable treat-as-weak overrides are no longer bind targets; dyld handles them at launch
++    // (JustInTimeLoader::handleStrongWeakDefOverrides), and stock program sets carry only the import table
++    if ( false && diag.noError() && this->isMainExecutable() && this->hasWeakDefs() ) {
+         MachOAnalyzer::forEachTreatAsWeakDef(^(const char* symbolName) {
+             BindTargetInfo info;
+             info.targetIndex = targetIndex;
 diff --git a/common/MachOFile.cpp b/common/MachOFile.cpp
 index 4e4fcc1..00c5b8e 100644
 --- a/common/MachOFile.cpp
@@ -144,6 +159,21 @@ index 4e4fcc1..00c5b8e 100644
              callback(cdHash);
              return;
          }
+diff --git a/common/MachOLayout.cpp b/common/MachOLayout.cpp
+index 62ea086..13ac94b 100644
+--- a/common/MachOLayout.cpp
++++ b/common/MachOLayout.cpp
+@@ -499,7 +499,9 @@ void Fixups::forEachBindTarget_ChainedFixups(Diagnostics& diag, void (^handler)(
+     // The C++ spec says main executables can define non-weak functions which override weak-defs in dylibs
+     // This happens automatically for anything bound at launch, but the dyld cache is pre-bound so we need
+     // to patch any binds that are overridden by this non-weak in the main executable.
+-    if ( diag.noError() && this->layout.mf->isMainExecutable() && this->layout.mf->hasWeakDefs() ) {
++    // 27 (26B131): main-executable treat-as-weak overrides are no longer bind targets; dyld handles them at launch
++    // (JustInTimeLoader::handleStrongWeakDefOverrides), and stock program sets carry only the import table
++    if ( false && diag.noError() && this->layout.mf->isMainExecutable() && this->layout.mf->hasWeakDefs() ) {
+         dyld3::MachOFile::forEachTreatAsWeakDef(^(const char* symbolName) {
+             BindTargetInfo info;
+             info.targetIndex = targetIndex;
 diff --git a/common/MachOLoaded.cpp b/common/MachOLoaded.cpp
 index 2dcf7e1..6b40ebb 100644
 --- a/common/MachOLoaded.cpp
