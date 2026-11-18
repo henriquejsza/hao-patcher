@@ -1,4 +1,4 @@
-// heap.m: placement heaps (MTLHeapTypePlacement) on the HD 4000 (diag#0019).
+// heap.m: placement heaps (MTLHeapTypePlacement) and shared-storage heaps on the HD 4000 (diag#0019).
 //
 // MetalOld's -[MTLHeapDescriptorInternal validateWithDevice:] aborts on a placement heap ("Placement heap type is not
 // supported."), and the HD 4000 driver's MTLIGAccelHeap has no placement path. RealityKit asks for one unconditionally:
@@ -14,11 +14,19 @@
 // its size. Contents of aliased resources are undefined in Metal, so not sharing memory between different resources is
 // within the contract.
 //
+// Shared-storage automatic heaps the same way (RealityKit's re::HeapPool::allocateNewHeap, from
+// RenderDataGPU<realitykit::AnchorConstants> at RenderContext::init): the HD 4000 answers NO to
+// supportsSharedStorageHeapResources and validateWithDevice: aborts ("Shared storage mode disallowed"). The emulated
+// automatic heap makes each newBufferWithLength:options: / newTextureWithDescriptor: an ordinary device resource with
+// the heap's storage and CPU cache modes, counts the live ones against its size (usedSize, maxAvailableSize, nil when
+// full, as a real heap answers), and its useHeap(s) becomes useResources for them.
+//
 // useHeap(s) on an encoder becomes useResources:usage:Read for the live resources of emulated heaps (MetalOld's compute
 // useHeap: is doesNotRecognizeSelector:). AGB_KEEP_PLACEMENT_HEAPS leaves placement heaps to MetalOld (A/B);
 // AGB_TRACE_HEAPS=1 logs every placement.
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
+#import <objc/message.h>
 #import <objc/runtime.h>
 #import <os/lock.h>
 
@@ -38,6 +46,8 @@ static BOOL g_traceHeaps;
     MTLCPUCacheMode _cache;
     MTLHazardTrackingMode _hazard;
     MTLPurgeableState _purgeable;
+    BOOL _automatic;                              // an emulated shared-storage automatic heap, not a placement heap
+    NSMapTable *_sizes;                           // automatic: live resource (weak) -> its heap size
     NSMutableArray<AGBPlacementEntry *> *_held;   // non-overlapping byte ranges
     NSHashTable *_live;                           // every resource made and still alive (weak)
     os_unfair_lock _lock;
@@ -60,13 +70,16 @@ static NSString *texKey(MTLTextureDescriptor *t) {
     if (!(self = [super init])) return nil;
     _device = d; _size = hd.size; _storage = hd.storageMode; _cache = hd.cpuCacheMode;
     _hazard = [hd respondsToSelector:@selector(hazardTrackingMode)] ? hd.hazardTrackingMode : MTLHazardTrackingModeDefault;
-    if (_hazard == MTLHazardTrackingModeDefault) _hazard = MTLHazardTrackingModeUntracked;   // a placement heap's default
+    _automatic = hd.type == MTLHeapTypeAutomatic;
+    if (_hazard == MTLHazardTrackingModeDefault)   // the defaults: placement heaps untracked, automatic heaps tracked
+        _hazard = _automatic ? MTLHazardTrackingModeTracked : MTLHazardTrackingModeUntracked;
+    _sizes = [NSMapTable weakToStrongObjectsMapTable];
     _purgeable = MTLPurgeableStateNonVolatile;
     _held = [NSMutableArray new]; _live = [NSHashTable weakObjectsHashTable]; _lock = OS_UNFAIR_LOCK_INIT;
     return self;
 }
 - (id<MTLDevice>)device { return _device; }
-- (MTLHeapType)type { return MTLHeapTypePlacement; }
+- (MTLHeapType)type { return _automatic ? MTLHeapTypeAutomatic : MTLHeapTypePlacement; }
 - (MTLStorageMode)storageMode { return _storage; }
 - (MTLCPUCacheMode)cpuCacheMode { return _cache; }
 - (MTLHazardTrackingMode)hazardTrackingMode { return _hazard; }
@@ -77,19 +90,63 @@ static NSString *texKey(MTLTextureDescriptor *t) {
 - (NSUInteger)size { return _size; }
 - (NSUInteger)currentAllocatedSize { return _size; }
 - (NSUInteger)allocatedSize { return _size; }
-- (NSUInteger)usedSize {
-    os_unfair_lock_lock(&_lock); NSUInteger u = 0; for (AGBPlacementEntry *e in _held) u += e->length; os_unfair_lock_unlock(&_lock);
+- (NSUInteger)usedLocked {
+    NSUInteger u = 0;
+    // reading a weak key retains and autoreleases it: drain here, or a released resource would outlive its release
+    if (_automatic) @autoreleasepool { for (id r in _sizes) u += [[_sizes objectForKey:r] unsignedLongValue]; }
+    else for (AGBPlacementEntry *e in _held) u += e->length;
     return u;
 }
-// Placement heaps leave placement to the client: the whole heap is always available.
-- (NSUInteger)maxAvailableSizeWithAlignment:(NSUInteger)a { return a > 1 ? _size / a * a : _size; }
+- (NSUInteger)usedSize { os_unfair_lock_lock(&_lock); NSUInteger u = [self usedLocked]; os_unfair_lock_unlock(&_lock); return u; }
+// Placement heaps leave placement to the client: the whole heap is always available. An automatic heap has what its
+// live resources leave.
+- (NSUInteger)maxAvailableSizeWithAlignment:(NSUInteger)a {
+    NSUInteger free_ = _automatic ? _size - MIN(_size, self.usedSize) : _size;
+    return a > 1 ? free_ / a * a : free_;
+}
 - (MTLPurgeableState)setPurgeableState:(MTLPurgeableState)s {
     MTLPurgeableState old = _purgeable; if (s != MTLPurgeableStateKeepCurrent) _purgeable = s; return old;
 }
-// Automatic-heap entry points are invalid on a placement heap (Metal's validation says so); answer nil.
-- (id<MTLBuffer>)newBufferWithLength:(NSUInteger)l options:(MTLResourceOptions)o { heap_log("placement heap: newBufferWithLength:options: without offset"); return nil; }
-- (id<MTLTexture>)newTextureWithDescriptor:(MTLTextureDescriptor *)d { heap_log("placement heap: newTextureWithDescriptor: without offset"); return nil; }
-
+- (MTLResourceOptions)heapOptions:(MTLResourceOptions)o {
+    return (o & ~(MTLResourceOptions)((0xF << MTLResourceStorageModeShift) | (0xF << MTLResourceCPUCacheModeShift) |
+                                      (0x3 << MTLResourceHazardTrackingModeShift)))
+           | (_storage << MTLResourceStorageModeShift) | (_cache << MTLResourceCPUCacheModeShift);
+}
+// An automatic heap makes a resource when its live ones leave room for it, and answers nil otherwise (as a full heap
+// does). No block or autorelease in between: a released resource gives its room back at once, as on real hardware.
+- (BOOL)roomLocked:(NSUInteger)length used:(NSUInteger *)used {
+    *used = [self usedLocked];
+    return length <= _size && *used <= _size - length;
+}
+- (void)recordLocked:(id)r length:(NSUInteger)length used:(NSUInteger)used what:(const char *)what {
+    if (r) { [_sizes setObject:@(length) forKey:r]; [_live addObject:r]; }
+    if (g_traceHeaps || !r) heap_log("shared heap %p: %s size %lu used %lu of %lu -> %s %p", self, what, (unsigned long)length,
+                                     (unsigned long)used, (unsigned long)_size, r ? "new" : "FULL", r);
+}
+// Without an offset: an automatic heap's calls, invalid on a placement heap (Metal's validation says so; answer nil).
+- (id<MTLBuffer>)newBufferWithLength:(NSUInteger)l options:(MTLResourceOptions)o {
+    if (!_automatic) { heap_log("placement heap: newBufferWithLength:options: without offset"); return nil; }
+    MTLResourceOptions opts = [self heapOptions:o];
+    MTLSizeAndAlign sa = [_device heapBufferSizeAndAlignWithLength:l options:opts];
+    NSUInteger length = MAX(sa.size, l), used;
+    os_unfair_lock_lock(&_lock);
+    id<MTLBuffer> b = [self roomLocked:length used:&used] ? [_device newBufferWithLength:l options:opts] : nil;
+    [self recordLocked:b length:length used:used what:"buffer"];
+    os_unfair_lock_unlock(&_lock);
+    return b;
+}
+- (id<MTLTexture>)newTextureWithDescriptor:(MTLTextureDescriptor *)desc {
+    if (!_automatic) { heap_log("placement heap: newTextureWithDescriptor: without offset"); return nil; }
+    MTLTextureDescriptor *td = [desc copy];
+    td.storageMode = _storage; td.cpuCacheMode = _cache;
+    MTLSizeAndAlign sa = [_device heapTextureSizeAndAlignWithDescriptor:td];
+    NSUInteger used;
+    os_unfair_lock_lock(&_lock);
+    id<MTLTexture> t = [self roomLocked:sa.size used:&used] ? [_device newTextureWithDescriptor:td] : nil;
+    [self recordLocked:t length:sa.size used:used what:"texture"];
+    os_unfair_lock_unlock(&_lock);
+    return t;
+}
 // The resource the heap holds at exactly (offset, key), or nil after dropping every hold overlapping [offset, offset+length).
 - (id)takeAt:(NSUInteger)offset length:(NSUInteger)length key:(NSString *)key {
     for (AGBPlacementEntry *e in _held)
@@ -110,11 +167,10 @@ static NSString *texKey(MTLTextureDescriptor *t) {
     return NO;
 }
 - (id<MTLBuffer>)newBufferWithLength:(NSUInteger)length options:(MTLResourceOptions)o offset:(NSUInteger)offset {
+    if (_automatic) { heap_log("shared heap: newBufferWithLength:options:offset: on an automatic heap"); return nil; }
     MTLSizeAndAlign sa = [_device heapBufferSizeAndAlignWithLength:length options:o];
     if (![self fits:offset length:MAX(sa.size, length) what:"buffer"]) return nil;
-    MTLResourceOptions opts = (o & ~(MTLResourceOptions)((0xF << MTLResourceStorageModeShift) | (0xF << MTLResourceCPUCacheModeShift) |
-                                                         (0x3 << MTLResourceHazardTrackingModeShift)))
-                              | (_storage << MTLResourceStorageModeShift) | (_cache << MTLResourceCPUCacheModeShift);
+    MTLResourceOptions opts = [self heapOptions:o];
     NSString *key = [NSString stringWithFormat:@"b %lu %lu", (unsigned long)length, (unsigned long)opts];
     os_unfair_lock_lock(&_lock);
     id<MTLBuffer> b = [self takeAt:offset length:MAX(sa.size, length) key:key];
@@ -126,6 +182,7 @@ static NSString *texKey(MTLTextureDescriptor *t) {
     return b;
 }
 - (id<MTLTexture>)newTextureWithDescriptor:(MTLTextureDescriptor *)desc offset:(NSUInteger)offset {
+    if (_automatic) { heap_log("shared heap: newTextureWithDescriptor:offset: on an automatic heap"); return nil; }
     MTLTextureDescriptor *td = [desc copy];
     td.storageMode = _storage; td.cpuCacheMode = _cache;
     if ([td respondsToSelector:@selector(setHazardTrackingMode:)]) td.hazardTrackingMode = MTLHazardTrackingModeDefault;
@@ -222,6 +279,11 @@ static void hookUse(Class c, BOOL render) {
 }
 
 // ---------------------------------------------------------------------------------------------------- install
+// MetalOld's validateWithDevice: asks the device the same; a device that doesn't answer keeps the driver's path.
+static BOOL deviceHasSharedHeaps(id d) {
+    SEL q = sel_registerName("supportsSharedStorageHeapResources");
+    return ![d respondsToSelector:q] || ((BOOL (*)(id, SEL))objc_msgSend)(d, q);
+}
 typedef id (*NewHeapIMP)(id, SEL, MTLHeapDescriptor *) __attribute__((ns_returns_retained));
 void agb_placement_install(Class device, Class render, Class compute, void (*log)(const char *, ...)) {
     static dispatch_once_t once;
@@ -234,10 +296,11 @@ void agb_placement_install(Class device, Class render, Class compute, void (*log
         if (!m) { log("%s lacks newHeapWithDescriptor:", class_getName(device)); return; }
         __block NewHeapIMP o = (NewHeapIMP)method_getImplementation(m);
         IMP imp = imp_implementationWithBlock(^id(id d, MTLHeapDescriptor *hd) __attribute__((ns_returns_retained)) {
-            if (hd.type != MTLHeapTypePlacement) return o(d, s, hd);
+            BOOL shared = hd.type == MTLHeapTypeAutomatic && hd.storageMode == MTLStorageModeShared && !deviceHasSharedHeaps(d);
+            if (hd.type != MTLHeapTypePlacement && !shared) return o(d, s, hd);
             AGBPlacementHeap *h = [[AGBPlacementHeap alloc] initWithDevice:d descriptor:hd];
-            log("placement heap %p emulated: size %lu storage %lu cache %lu hazard %lu", h, (unsigned long)hd.size,
-                (unsigned long)hd.storageMode, (unsigned long)hd.cpuCacheMode, (unsigned long)h->_hazard);
+            log("%s heap %p emulated: size %lu storage %lu cache %lu hazard %lu", shared ? "shared" : "placement", h,
+                (unsigned long)hd.size, (unsigned long)hd.storageMode, (unsigned long)hd.cpuCacheMode, (unsigned long)h->_hazard);
             return h;
         });
         if (!class_addMethod(device, s, imp, method_getTypeEncoding(m))) method_setImplementation(class_getInstanceMethod(device, s), imp);
