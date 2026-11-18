@@ -16,9 +16,9 @@ class DiskGuard(unittest.TestCase):
         self.work, self.output = self.top / 'new-work', self.top / 'new-family'
 
     def test_one_volume_needs_work_and_family_together(self):
-        disk_guard.check(self.work, self.output, 'x', free=lambda p: 30, command='')
-        with self.assertRaisesRegex(Refusal, 'needs 30 GB'):
-            disk_guard.check(self.work, self.output, 'x', free=lambda p: 29, command='')
+        disk_guard.check(self.work, self.output, 'x', free=lambda p: 38, command='')
+        with self.assertRaisesRegex(Refusal, 'needs 38 GB'):
+            disk_guard.check(self.work, self.output, 'x', free=lambda p: 37, command='')
 
     def test_a_site_check_command_can_refuse(self):
         calls = []
@@ -27,7 +27,7 @@ class DiskGuard(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 3)
         with self.assertRaisesRegex(Refusal, 'refused the run'):
             disk_guard.check(self.work, self.output, 'fold F', free=lambda p: 1000, run=run, command='site-disk')
-        self.assertEqual([['site-disk', 'check', '--need', '30', '--who', 'shared-cache', '--what', 'fold F']], calls)
+        self.assertEqual([['site-disk', 'check', '--need', '38', '--who', 'shared-cache', '--what', 'fold F']], calls)
 
     def test_intermediates_go_and_the_selection_stays(self):
         (self.work / 'build/prepare').mkdir(parents=True)

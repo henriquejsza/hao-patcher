@@ -131,6 +131,9 @@ def build(system, os_root, app, data, build_id, selection, work, output, program
                                  global_sha256=global_['sha256'], structural_sha256=structure['sha256'],
                                  patch_sha256=patch['patch_report']['sha256'],
                                  lookup_sha256=patch['lookup_report']['sha256'])['assembled_manifest']
+    from .swift_conformance import regenerate
+    print('Rebuild Swift conformance lookups', flush=True)
+    assembly = regenerate(assembly['path'], work / 'conformance')
     md = read(meta)
     allocation = md['outputs']['metadata-layout.json']
     layout = read(allocation)
@@ -168,6 +171,7 @@ def build(system, os_root, app, data, build_id, selection, work, output, program
     (output / (BASE + '.map')).write_text(text)
     selected = json.loads(Path(selection).read_text())['providers']
     (output / 'retired-roots.txt').write_text(''.join(path.lstrip('/') + '\n' for path in selected.values()))
+    optimizations['swift']['conformance'] = read(assembly)['conformance']
     write(output / 'optimizations.json', optimizations)
     run = read(intake['run-provenance.json'])
     write(output / 'provider-provenance.json', dict(schema=1, build=build_id, provider_sources=run['provider_sources']))
