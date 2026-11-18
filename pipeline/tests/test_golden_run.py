@@ -18,6 +18,17 @@ TOP=Path(__file__).resolve().parents[2]
 RUN=runpy.run_path(str(TOP/'pipeline/golden-run'))
 
 
+class CheckedRows(unittest.TestCase):
+    def test_rows_handed_on_are_checked_copies(self):
+        """The donor and hardware rows (SHARE/assembly-inputs), the OpenCore release and the QEMU reference tree reach
+        their consumers as copies checked as copied (lock.py stage), never by a row's path after a check."""
+        text=(TOP/'pipeline/golden-run').read_text()
+        self.assertNotIn("lockrows['path']",text)
+        self.assertIn("lockrows['stage'](str(lock_of(row)),row,str(extras/role),'ditto')",text)
+        self.assertIn("'--opencore',checked_row(opencore_row)",text)
+        self.assertIn("'--reference',checked_row(reference_row)",text)
+
+
 class GoldenRun(unittest.TestCase):
     def test_capture_reads_stopped_workspace_readonly_and_detaches_on_failure(self):
         state=dict(vm='/fixture/vm',guest_local='/Volumes/work/job',

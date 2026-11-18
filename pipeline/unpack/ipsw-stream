@@ -1,13 +1,14 @@
 #!/usr/bin/env python3.14
 """ipsw-stream: make golden_gate_userspace's payload by streaming only the IPSW members it needs, from a file or a URL.
 
-  ipsw-stream --ipsw PATH|URL --board BOARD --out DIR [--pins FILE | --trust-local] [--ipsw-tool TOOL]
+  ipsw-stream --ipsw PATH|URL --board BOARD --out DIR [--pins FILE | --trust-local] [--ipsw-tool TOOL] [--spool DIR]
 
 The same payload as patches/golden-gate-userspace/build/make (filesystem, os, app and rosetta .dmg plus
 identity.plist, byte for byte; tests/test_ipsw_stream.py and the 1440 run on the real IPSW show it), without the
-download: the IPSW's zip members are read by byte range, an .aea member is decrypted while it streams (its key from
-`ipsw fw aea -k` on the member's first bytes, then /usr/bin/aea decrypt, which authenticates every segment), and no
-.aea is kept. DIR may be on the USB drive.
+download: the IPSW's zip members are read by byte range. An .aea member is first copied whole to a private spool
+folder (--spool, default inside DIR) and checked against its pin; only then does `ipsw fw aea -k` read its first bytes
+for the key and /usr/bin/aea decrypt it. The spool copy is deleted after each image (the largest, the 26B131 System
+image, is 11.3 GB), and no .aea is kept. DIR may be on the USB drive.
 
 Integrity, fail closed: --pins FILE (release.json's "ipsw_pins": {"members": {NAME: {size, sha256}}, "images":
 {ROLE: {size, sha256}}}) pins each member read (hashed while it streams, checked at its end) and each image written;
@@ -26,7 +27,6 @@ import runpy
 import subprocess
 import sys
 import tempfile
-import threading
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -45,19 +45,6 @@ class Refused(Exception):
     pass
 
 
-def tee(src, proc_in, err):
-    try:
-        for b in iter(lambda: src.read(8 << 20), b''):
-            proc_in.write(b)
-    except BaseException as x:       # a PinError or a read error: the decrypt is stopped by closing its input early
-        err.append(x)
-    finally:
-        try:
-            proc_in.close()
-        except OSError:
-            pass
-
-
 def write_image(stream, dest, pin, role):
     """Copy STREAM to DEST, hashing; DEST is removed unless its size and sha256 equal PIN (when given)."""
     h, n = hashlib.sha256(), 0
@@ -74,34 +61,45 @@ def write_image(stream, dest, pin, role):
     return dict(sha256=h.hexdigest(), size=n)
 
 
-def decrypt(tool, z, pins, member, dest, pin, role, scratch):
-    with pins.open(z, member) as s:            # the prologue is read unpinned only to ask for the key; the decrypt
-        head = z.open(member).read(KEY_PREFIX)  # below reads (and pins) every byte, and aea authenticates them
-        prefix = Path(scratch) / ('%s.prefix.aea' % role)
-        prefix.write_bytes(head)
+def spool(z, pins, member, dest):
+    """MEMBER copied to DEST, a new file; its pin is checked at its end, before anything else reads DEST."""
+    try:
+        with pins.open(z, member) as s, open(dest, 'xb') as o:
+            for b in iter(lambda: s.read(8 << 20), b''):
+                o.write(b)
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
+
+
+def decrypt(tool, z, pins, member, dest, pin, role, spool_dir):
+    aea = Path(spool_dir) / ('%s.aea' % role)
+    spool(z, pins, member, aea)
+    try:
+        prefix = Path(spool_dir) / ('%s.prefix.aea' % role)
+        with open(aea, 'rb') as f:
+            prefix.write_bytes(f.read(KEY_PREFIX))
         r = subprocess.run([tool, 'fw', 'aea', '-k', str(prefix)], capture_output=True, text=True)
         prefix.unlink()
         key = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else ''
         if not key.startswith('base64:'):
             raise Refused('no decryption key for %s: %s' % (member, (r.stderr or r.stdout).strip()[:300]))
-        p = subprocess.Popen(['/usr/bin/aea', 'decrypt', '-key-value', key], stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        err = []
-        t = threading.Thread(target=tee, args=(s, p.stdin, err), daemon=True)
-        t.start()
-        try:
-            rec = write_image(p.stdout, dest, pin, role)
-        finally:
-            t.join()
-            p.stdout.close()
-            rc = p.wait()
-            msg = p.stderr.read().decode(errors='replace').strip()
-        if err or rc:
+        with open(aea, 'rb') as f, tempfile.TemporaryFile() as err:
+            p = subprocess.Popen(['/usr/bin/aea', 'decrypt', '-key-value', key], stdin=f, stdout=subprocess.PIPE,
+                                 stderr=err)
+            try:
+                rec = write_image(p.stdout, dest, pin, role)
+            finally:
+                p.stdout.close()
+                rc = p.wait()
+            err.seek(0)
+            msg = err.read().decode(errors='replace').strip()
+        if rc:
             dest.unlink(missing_ok=True)
-            if err:
-                raise err[0]
             raise Refused('aea decrypt %s failed (%d): %s' % (member, rc, msg[:300]))
         return rec
+    finally:
+        aea.unlink(missing_ok=True)
 
 
 def main():
@@ -113,6 +111,8 @@ def main():
     g.add_argument('--pins', type=Path, help='JSON: {"members": {...}, "images": {...}} (release.json ipsw_pins)')
     g.add_argument('--trust-local', action='store_true', help='a local IPSW, read without pins')
     ap.add_argument('--ipsw-tool', type=Path, help='ipsw %s: its release archive or the program' % MAKE['IPSW_VERSION'])
+    ap.add_argument('--spool', type=Path,
+                    help='where an .aea member is checked before it is decrypted (default: inside --out)')
     a = ap.parse_args()
     if a.trust_local and a.ipsw.startswith(('http://', 'https://')):
         raise SystemExit('ipsw-stream: a URL is read only with --pins')
@@ -123,6 +123,7 @@ def main():
     payload = a.out / 'payload'
     payload.mkdir(mode=0o755)
     scratch = Path(tempfile.mkdtemp(prefix='ipsw-stream-'))
+    spool_dir = Path(tempfile.mkdtemp(prefix='.spool-', dir=a.spool or a.out))
     sys.path.insert(0, str(TOP / 'pipeline'))
     import source_commit
     tool, tool_version = MAKE['ipsw_tool'](a.ipsw_tool, TOP, scratch / 'ipsw-tool')
@@ -154,7 +155,7 @@ def main():
             if a.pins and pin is None:
                 raise ranged.PinError('image %s is not pinned by the release' % role)
             if name.endswith('.aea'):
-                rec = decrypt(tool, z, pins, name, dest, pin, role, scratch)
+                rec = decrypt(tool, z, pins, name, dest, pin, role, spool_dir)
             else:
                 with pins.open(z, name) as s:
                     rec = write_image(s, dest, pin, role)
@@ -175,7 +176,7 @@ def main():
         raise SystemExit('ipsw-stream: %s' % x)
     finally:
         save()
-        subprocess.run(['rm', '-rf', str(scratch)])
+        subprocess.run(['rm', '-rf', str(scratch), str(spool_dir)])
 
 
 if __name__ == '__main__':

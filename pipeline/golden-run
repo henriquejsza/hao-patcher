@@ -505,9 +505,10 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             sources={}
             extras=share/'assembly-inputs';extras.mkdir(mode=0o755)
             for role,row in recipe['inputs'].items():
-                source=Path(lockrows['path'](str(lock_of(row)),row))
-                command(['ditto',source,extras/role]);sources[role]=dict(row=row,path=str(source))
-                if (source/'build.json').exists():shutil.copy2(source/'build.json',record/(role+'-input.json'))
+                # copied, then checked as copied (lock.py stage): never read by the row's path after a check
+                source=Path(lockrows['where'](str(lock_of(row)),row))
+                lockrows['stage'](str(lock_of(row)),row,str(extras/role),'ditto');sources[role]=dict(row=row,path=str(source))
+                if (extras/role/'build.json').exists():shutil.copy2(extras/role/'build.json',record/(role+'-input.json'))
             source=share/'assembly-source';source.mkdir(mode=0o755)
             for name in ('golden-image.py','golden-layout.py','golden-pristine.sh','golden-workspace.py','recovery-tools.py'):
                 shutil.copy2(pipeline/'stages'/name,source/name)
@@ -523,12 +524,19 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             shutil.copytree(TOP/'tools/tahoe-donors',source/'tahoe-donors',ignore=shutil.ignore_patterns('__pycache__'))
             if hardware:shutil.copytree(extras/'hardware/install-tools',source/'hardware')
             else:print('golden-run: target %s selects no OCLP patch sets: no hardware overlay'%recipe['target'],flush=True)
+            work.mkdir(parents=True,exist_ok=True)
+            rows_in=Path(tempfile.mkdtemp(prefix='checked-rows-',dir=work))   # this run's own, mode 0700
+            def checked_row(row):
+                """A checked copy of ROW (lock.py stage) in this run's private folder, named as the row's file."""
+                out=rows_in/row;out.mkdir()
+                return lockrows['stage'](str(lock_of(row)),row,str(out/Path(lockrows['where'](str(lock_of(row)),row)).name))
             command([share/KIT['python_dir']()/'bin/python3.12','-I',pipeline/'stages/build-efi.py',
                      '--source',share/'oclp','--site',share/'site',
                      '--target',pipeline/'targets'/(recipe['target']+'.json'),
-                     '--revision',recipe['oclp'],'--opencore',lockrows['path'](str(lock_of(opencore_row)),opencore_row),
+                     '--revision',recipe['oclp'],'--opencore',checked_row(opencore_row),
                      '--out',source/'esp','--record',record/'base-efi.json']
-                    +(['--reference',lockrows['path'](str(lock_of(reference_row)),reference_row)] if reference_row else []))
+                    +(['--reference',checked_row(reference_row)] if reference_row else []))
+            shutil.rmtree(rows_in)
             if overlays:
                 state['overlays']=prepare_overlays(recipe,share,work,record,source,overlays);write(record/'build.json',state)
             if cryptex_cache:

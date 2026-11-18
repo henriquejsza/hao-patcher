@@ -36,6 +36,147 @@ class Lock(unittest.TestCase):
         r = lock('path', p, 'kdk'); self.assertNotEqual(r.returncode, 0); self.assertIn('is not', r.stderr)
         r = lock('path', p, 'nope'); self.assertNotEqual(r.returncode, 0); self.assertIn('no row nope', r.stderr)
 
+    def test_take_copies_only_the_rows_bytes(self):
+        p = self.write('kdk %s %s\ntree - %s\n' % (self.sha, self.f, self.f))
+        out = self.d / 'out'; out.mkdir()
+        r = lock('take', p, 'kdk', out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(Path(r.stdout.strip()).read_bytes(), b'abc')
+        other = self.d / 'other'; other.write_bytes(b'abd')
+        for args in (('kdk', out / 'o1', other), ('tree', out / 'o2')):
+            (out / args[1].name).mkdir()
+            r = lock('take', p, *args)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertEqual(list((out / args[1].name).iterdir()), [], 'nothing is left on a refusal')
+        r = lock('take', p, 'kdk', out / 'o1', self.f)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_take_never_removes_a_file_it_did_not_create(self):
+        p = self.write('kdk %s %s\n' % (self.sha, self.f))
+        out = self.d / 'out'; out.mkdir()
+        (out / 'payload').write_bytes(b'already here')
+        r = lock('take', p, 'kdk', out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual((out / 'payload').read_bytes(), b'already here')
+        r = lock('take', p, 'kdk', self.d)          # the source's own folder as the destination
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(self.f.read_bytes(), b'abc')
+
+    def tree_row(self):
+        t = self.d / 'tree'; (t / 'sub').mkdir(parents=True)
+        (t / 'sub' / 'a').write_bytes(b'a'); (t / 'sub' / 'a').chmod(0o755)
+        (t / 'sub').chmod(0o750)
+        (t / 'ln').symlink_to('sub/a')
+        (t / 'notes').write_bytes(b'not hashed')
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock as L
+        want = L.row_sha256(str(t), without=('notes',))
+        d = self.d / 'treelock'; d.mkdir()
+        (d / 'site').write_text('# hash: without notes\n%s %s\n' % (want, t))
+        return t, d, want, L
+
+    def test_take_tree_copies_and_checks_the_tree(self):
+        t, d, want, L = self.tree_row()
+        out = self.d / 'copy'
+        r = lock('take-tree', d, 'site', out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(L.row_sha256(str(out), without=('notes',)), want)
+        self.assertEqual(((out / 'sub').stat().st_mode & 0o777, (out / 'sub' / 'a').stat().st_mode & 0o777), (0o750, 0o755))
+        self.assertEqual(os.readlink(out / 'ln'), 'sub/a')
+        self.assertFalse((out / 'notes').exists(), 'what the row does not hash is not copied')
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        self.assertEqual((out / 'sub' / 'a').read_bytes(), b'a')
+
+    def test_take_tree_refuses_a_changed_tree_and_an_existing_destination(self):
+        t, d, want, L = self.tree_row()
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        r = lock('take-tree', d, 'site', self.d / 'copy')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('(site)', r.stderr)
+        self.assertFalse((self.d / 'copy').exists())
+        (t / 'sub' / 'a').write_bytes(b'a')
+        there = self.d / 'there'; there.mkdir(); (there / 'keep').write_bytes(b'k')
+        r = lock('take-tree', d, 'site', there)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual((there / 'keep').read_bytes(), b'k', 'a destination this call did not make is left alone')
+
+    def test_stage_copies_a_row_and_checks_the_copy(self):
+        t, d, want, L = self.tree_row()
+        os.utime(t / 'sub' / 'a', ns=(10**18, 10**18))
+        (d / 'kdk').write_text('%s %s\n' % (self.sha, self.f))
+        out = self.d / 'staged'
+        r = lock('stage', d, 'site', out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(L.row_sha256(str(out), without=('notes',)), want)
+        self.assertEqual((out / 'sub' / 'a').stat().st_mtime_ns, 10**18, 'metadata kept, as cp -Rp')
+        self.assertTrue((out / 'notes').exists(), 'every entry is copied, as before')
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        self.assertEqual((out / 'sub' / 'a').read_bytes(), b'a')
+        r = lock('stage', d, 'kdk', self.d / 'kdk-copy')
+        self.assertEqual((r.returncode, (self.d / 'kdk-copy').read_bytes()), (0, b'abc'))
+        self.assertEqual(lock('where', d, 'kdk').stdout.strip(), str(self.f))
+
+    def test_stage_refuses_changed_bytes_existing_destinations_and_unpinned_rows(self):
+        t, d, want, L = self.tree_row()
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        r = lock('stage', d, 'site', self.d / 'staged')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse((self.d / 'staged').exists(), 'a copy that does not check is removed')
+        (d / 'kdk').write_text('%s %s\n' % ('0' * 64, self.f))
+        r = lock('stage', d, 'kdk', self.d / 'kdk-copy')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse((self.d / 'kdk-copy').exists())
+        there = self.d / 'there'; there.write_bytes(b'keep')
+        (d / 'kdk').write_text('%s %s\n' % (self.sha, self.f))
+        self.assertNotEqual(lock('stage', d, 'kdk', there).returncode, 0)
+        self.assertEqual(there.read_bytes(), b'keep', 'a destination this call did not make is left alone')
+        (d / 'loose').write_text('- %s\n' % self.f)
+        r = lock('stage', d, 'loose', self.d / 'loose-copy')
+        self.assertIn('no sha256', r.stderr)
+        (d / 'tool').write_text('- pipeline/lock.py\n')     # a '-' row of this checkout: pinned by the commit
+        self.assertEqual(lock('stage', d, 'tool', self.d / 'tool-copy').returncode, 0)
+
+    @staticmethod
+    def acl(p):
+        out = subprocess.run(['/bin/ls', '-lde', str(p)], capture_output=True, text=True).stdout
+        return [l.strip() for l in out.splitlines()[1:] if l.strip()[:1].isdigit()]
+
+    def grant(self, p):
+        """An ACL entry that lets everyone write P: the source's, which no checked copy may keep."""
+        subprocess.run(['/bin/chmod', '+a', 'everyone allow write,append,delete,writeattr,writeextattr', str(p)],
+                       check=True)
+        self.assertTrue(self.acl(p))
+
+    def test_no_copy_keeps_the_sources_acl_or_set_id_bits(self):
+        t, d, want, L = self.tree_row()
+        self.grant(t / 'sub' / 'a'); self.grant(t / 'sub'); self.grant(t)
+        self.grant(self.f); self.f.chmod(0o4777)
+        (d / 'kdk').write_text('%s %s\n' % (self.sha, self.f))
+        out = self.d / 'out'; out.mkdir()
+        for args, made in ((('stage', d, 'site', self.d / 'staged'), self.d / 'staged'),
+                           (('stage', d, 'kdk', self.d / 'kdk-copy'), self.d / 'kdk-copy'),
+                           (('take-tree', d, 'site', self.d / 'taken'), self.d / 'taken'),
+                           (('take', d, 'kdk', out), out / 'payload')):
+            with self.subTest(how=args[0]):
+                r = lock(*args)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                for p in [made] + (list(made.rglob('*')) if made.is_dir() else []):
+                    if not p.is_symlink():
+                        self.assertEqual(self.acl(p), [], p)
+                        self.assertEqual(p.lstat().st_uid, os.geteuid(), p)
+                if made.is_file():
+                    self.assertEqual(made.stat().st_mode & 0o7022, 0, 'no set-id bit, no one else may write it')
+        self.assertEqual([p.name for p in self.d.rglob('.stage-*')], [], 'no staging folder is left')
+
+    def test_the_staging_folder_is_private(self):
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock as L
+        parent = self.d / 'parent'; parent.mkdir()
+        subprocess.run(['/bin/chmod', '+a', 'everyone allow add_file,add_subdirectory,file_inherit,directory_inherit',
+                        str(parent)], check=True)
+        p = Path(L.private_dir(str(parent)))
+        self.assertEqual((p.stat().st_mode & 0o777, self.acl(p)), (0o700, []))
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))

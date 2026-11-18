@@ -118,6 +118,23 @@ class Ranged(unittest.TestCase):
         with self.assertRaises(OSError):
             ranged.HTTPSource(self.url)
 
+    def test_closing_before_the_end_is_refused(self):
+        _, z = self.zip()
+        s = ranged.Hashed(z.open('a.bin'), 'a.bin', pin(self.members['a.bin']), 'member')
+        s.read(1000)
+        with self.assertRaises(ranged.PinError) as e:
+            s.close()
+        self.assertIn('not checked', str(e.exception))
+        raw = ranged.Hashed(z.open('b.txt'), 'b.txt', pin(self.members['b.txt']), 'member')
+        self.assertEqual(raw.read(len(self.members['b.txt'])), self.members['b.txt'])
+        raw.close()                                 # every pinned byte read: checked on close
+        self.assertTrue(raw.checked)
+        bad = dict(pin(self.members['b.txt']), sha256='0' * 64)
+        raw = ranged.Hashed(z.open('b.txt'), 'b.txt', bad, 'member')
+        raw.read(len(self.members['b.txt']))
+        with self.assertRaises(ranged.PinError):
+            raw.close()
+
     def test_unpinned_reads_are_recorded(self):
         _, z = self.zip()
         p = ranged.Pins(None, 'member')
@@ -266,7 +283,7 @@ class IPSWStream(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.TemporaryDirectory(); self.root = Path(self.d.name)
         self.tool = self.root / 'ipsw'; self.tool.write_text(FAKE_IPSW % dict(key=KEY)); self.tool.chmod(0o755)
-        self.images = {'fs.dmg': os.urandom(2 << 20), 'os.dmg': os.urandom(1 << 20),
+        self.images = {'fs.dmg': os.urandom(2 << 20), 'os.dmg': os.urandom(5 << 20),
                        'app.dmg': os.urandom(300000), 'ros.dmg': os.urandom(700000)}
         members = {}
         for name in ('fs.dmg', 'os.dmg'):
@@ -331,6 +348,7 @@ class IPSWStream(unittest.TestCase):
             self.assertEqual((self.root / 'm/payload' / name).read_bytes(), (self.root / 's/payload' / name).read_bytes(),
                              name)
         self.assertFalse(list((self.root / 's').rglob('*.aea')))
+        self.assertFalse(list((self.root / 's').glob('.spool-*')))
 
     def assert_refused(self, r, out):
         self.assertNotEqual(r.returncode, 0)
@@ -356,6 +374,22 @@ class IPSWStream(unittest.TestCase):
         p = self.root / 'unpinned.json'; p.write_text(json.dumps(bad))
         out = self.root / 'unpinned'
         self.assert_refused(self.stream(out, '--pins', str(p)), out)
+
+    def test_aea_member_reaches_no_tool_before_its_pin_is_checked(self):
+        log = self.root / 'tool.log'
+        logging = self.root / 'ipsw-logging'
+        logging.write_text('#!/bin/sh\necho "$@" >> %s\nexec %s "$@"\n' % (log, self.tool)); logging.chmod(0o755)
+        blob = self.ipsw.read_bytes()
+        self.srv.httpd.flip = ('/test.ipsw', blob.index(self.members['os.dmg.aea'][:64]) + 10)   # in the key prologue
+        out = self.root / 'flip-prologue'
+        r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/unpack/ipsw-stream'), '--ipsw',
+                            self.srv.base + '/test.ipsw', '--board', 't1ap', '--out', str(out), '--ipsw-tool',
+                            str(logging), '--pins', str(self.pin_file)], capture_output=True, text=True)
+        self.assert_refused(r, out)
+        calls = log.read_text()
+        self.assertIn('filesystem.prefix.aea', calls)          # the checked member before it was read
+        self.assertNotIn('os.prefix.aea', calls)
+        self.assertEqual([p.name for p in out.iterdir() if p.name.startswith('.spool-')], [])
 
     def test_url_needs_pins(self):
         r = self.stream(self.root / 'nopins', '--trust-local')

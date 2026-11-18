@@ -23,7 +23,7 @@ t=$(ts); $S/autool links $R $S/links.txt 2> $O/links.err; echo "links rc=$?"; st
 t=$(ts); aa extract -v -i $S/firmlinks_payload -d $R > /dev/null 2> $O/aa-fl.err; echo "aa firmlinks_payload rc=$?"; step firmlink-dirs $(( $(ts)-t ))
 t=$(ts); $S/hmeta apply $R $S/sys.tsv > $O/hmeta-sys.out 2> $O/hmeta-sys.err; echo "hmeta sys rc=$?"; cat $O/hmeta-sys.out; tail -3 $O/hmeta-sys.err; step hmeta-sys $(( $(ts)-t ))
 TPL=$R/System/Library/Templates/Data
-t=$(ts); ditto $TPL $D; n=0; while IFS="	" read -r p tg; do rm -rf "$D/$p"; mkdir -p "$(dirname "$D/$p")"; ln -s "$tg" "$D/$p" && n=$((n+1)); done < $S/data-symlinks.tsv; echo "symlinks=$n"
+t=$(ts); ditto $TPL $D; n=0; while IFS="	" read -r p tg; do case "/$p/" in //*|*/../*|*/./*) echo "SYMLINK-PATH-OUTSIDE $p"; exit 1 ;; esac; q=$(dirname "$p"); while [ "$q" != . ]; do [ -L "$D/$q" ] && { echo "SYMLINK-PATH-OUTSIDE $p (through $q)"; exit 1; }; q=$(dirname "$q"); done; rm -rf "$D/$p"; mkdir -p "$(dirname "$D/$p")"; ln -s "$tg" "$D/$p" && n=$((n+1)); done < $S/data-symlinks.tsv; echo "symlinks=$n"
 $S/hmeta apply $D $S/data.tsv > $O/hmeta-data.out 2> $O/hmeta-data.err; echo "hmeta data rc=$?"; step data $(( $(ts)-t ))
 t=$(ts); FLRC=0; while IFS="	" read -r p u g m f tg; do $S/fl set "$R$p" "$tg"; r=$?; [ $r = 0 ] || { echo "SET-FAIL $p rc=$r"; FLRC=$r; }; [ $r -ge 128 ] && break; done < $S/meta17.tsv
 echo "FLRC=$FLRC"; $S/fl-noent get $(cut -f1 $S/meta17.tsv | sed "s|^|$R|"); step firmlinks $(( $(ts)-t ))

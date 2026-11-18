@@ -8,7 +8,8 @@ refused at its end if it differs. Nothing read from a source counts until its pi
                              -> Source: .size, .read_at(off, n), .reader() (seekable file object), .fetched
   mirrored(URL, sha256, name=None) -> the URL to read: the local mirror's when it serves the file, else URL
   Pins(DICT, what)            {member: {"size": N, "sha256": HEX}}: .open(zipfile, member) -> a stream that raises
-                              PinError at its end when the bytes differ (and at once when the member is not pinned)
+                              PinError at its end when the bytes differ (and at once when the member is not pinned),
+                              and when it is closed before all of it was read
 
   ranged.py pins ZIP MEMBER...   the pins of MEMBERs of a trusted local zip (an IPSW), as JSON
 
@@ -213,11 +214,12 @@ class _Raw(io.RawIOBase):
 
 
 class Hashed(io.RawIOBase):
-    """STREAM read through sha256; at its end the size and digest must equal the pin, else PinError."""
+    """STREAM read through sha256; at its end the size and digest must equal the pin, else PinError. Closing it before
+    its end is a PinError too: nothing read from it was checked."""
 
     def __init__(self, stream, name, pin, what):
         self.s, self.name, self.pin, self.what = stream, name, pin, what
-        self.h, self.n, self.checked = hashlib.sha256(), 0, False
+        self.h, self.n, self.checked, self.error = hashlib.sha256(), 0, False, None
 
     def readable(self): return True
 
@@ -229,7 +231,8 @@ class Hashed(io.RawIOBase):
         if data:
             self.h.update(data); self.n += len(data)
             if self.n > self.pin['size']:
-                raise PinError('%s %s: more than the pinned %d bytes' % (self.what, self.name, self.pin['size']))
+                self.error = PinError('%s %s: more than the pinned %d bytes' % (self.what, self.name, self.pin['size']))
+                raise self.error
         else:
             self.check()
         b[:len(data)] = data
@@ -239,13 +242,25 @@ class Hashed(io.RawIOBase):
         if self.checked:
             return
         if self.n != self.pin['size'] or self.h.hexdigest() != self.pin['sha256']:
-            raise PinError('%s %s: got %d bytes, sha256 %s; pinned %d, %s' % (
+            self.error = PinError('%s %s: got %d bytes, sha256 %s; pinned %d, %s' % (
                 self.what, self.name, self.n, self.h.hexdigest(), self.pin['size'], self.pin['sha256']))
+            raise self.error
         self.checked = True
 
     def close(self):
-        self.s.close()
-        super().close()
+        if self.closed:
+            return
+        try:
+            self.s.close()
+        finally:
+            super().close()
+        if self.checked or self.error is not None:     # checked, or its refusal already raised
+            return
+        if self.n < self.pin['size']:
+            self.error = PinError('%s %s: closed after %d of its %d bytes; not checked' % (
+                self.what, self.name, self.n, self.pin['size']))
+            raise self.error
+        self.check()
 
 
 class Pins:

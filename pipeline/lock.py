@@ -2,6 +2,9 @@
 """lock.py: read inputs locks and target files (plain data) for the pipeline's shell stages.
 
   lock.py path LOCK NAME          the row's path; a row with a sha256 is checked against the file or folder
+  lock.py take LOCK NAME DIR [FILE]
+                                  copy row NAME's file (or FILE instead) into new folder DIR, hashing what is copied;
+                                  the copy's path when it is the row's sha256, else nothing is left and it stops
   lock.py hash PATH               a row's sha256 for PATH: a file's sha256, or a folder's content_sha256
   lock.py seal LOCK NAME          give the '- PATH' row NAME in folder LOCK the sha256 of what PATH holds now
                                   (LOCK may be a target .json: NAME is then a key holding {"path", "sha256"})
@@ -245,6 +248,213 @@ def path(lock, name):
     return p
 
 
+def _no_acl(path, tree=False):
+    """Remove every ACL entry of PATH (and of every entry under it, no link followed, when TREE)."""
+    import subprocess
+    if subprocess.run(['/bin/chmod'] + (['-R'] if tree else []) + ['-N', path], capture_output=True).returncode:
+        sys.exit('%s: its access control entries could not be removed' % path)
+
+
+def _has_acl(path):
+    import subprocess
+    out = subprocess.run(['/bin/ls', '-lde', path], capture_output=True, text=True).stdout
+    return any(re.match(r'\s*\d+: ', l) for l in out.splitlines()[1:])
+
+
+def private_dir(parent):
+    """A new folder in PARENT for a copy until it is checked: made by this process (mode 0700, this user's, no ACL
+    entry, checked), so no one else can open, change or replace what is in it."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix='.stage-', dir=parent)
+    _no_acl(d)
+    st = os.lstat(d)
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid() or stat.S_IMODE(st.st_mode) != 0o700 or _has_acl(d):
+        sys.exit('%s: the staging folder is not private' % d)
+    return d
+
+
+def own(path):
+    """PATH and every entry under it (no link followed) given to this process's user and group, with no ACL entry: no
+    other owner or access entry of the source survives into a copy. Times and permission bits are kept."""
+    uid, gid = os.geteuid(), os.getegid()
+    entries = [path]
+    if os.path.isdir(path) and not os.path.islink(path):
+        for d, dirs, files in os.walk(path):
+            entries += [os.path.join(d, e) for e in dirs + files]
+    for e in entries:
+        st = os.lstat(e)
+        if (st.st_uid, st.st_gid) != (uid, gid):
+            os.lchown(e, uid, gid)
+    _no_acl(path, tree=os.path.isdir(path) and not os.path.islink(path))
+
+
+def _expose(made, dest):
+    """Move the checked copy MADE to DEST, which must not be there (never replaced)."""
+    if os.path.lexists(dest):
+        sys.exit('%s is there already' % dest)
+    os.rename(made, dest)
+
+
+def take(lock, name, dest, src=None):
+    """A private copy of row NAME's file (or SRC) in DEST, hashed as it is written: read once, so what is checked is
+    what later steps read. Stops unless the row has a sha256 and the copy has it."""
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    src = src or p
+    if want == '-':
+        sys.exit('%s: row %s has no sha256' % (lock, name))
+    if not os.path.isfile(src):
+        sys.exit('%s: %s is not a file (%s)' % (lock, src, name))
+    out = os.path.join(dest, os.path.basename(src))
+    if os.path.lexists(out):
+        sys.exit('%s is there already (%s)' % (out, name))
+    import shutil
+    stage_dir = private_dir(dest)          # only this call's own folder is removed on failure
+    try:
+        tmp = os.path.join(stage_dir, os.path.basename(src))
+        h = hashlib.sha256()
+        with open(src, 'rb') as f, open(tmp, 'xb') as o:
+            for b in iter(lambda: f.read(1 << 22), b''):
+                h.update(b); o.write(b)
+        own(tmp)
+        if h.hexdigest() != want:
+            sys.exit('%s: %s is not %s (%s)' % (lock, src, want, name))
+        _expose(tmp, out)
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+    return out
+
+
+def _clone(src, dst):
+    """Clone file SRC to DST (APFS clonefile, never following a link, owned by the caller), else copy it."""
+    try:
+        import ctypes
+        clonefile = ctypes.CDLL(None, use_errno=True).clonefile
+    except (OSError, AttributeError):
+        clonefile = None
+    if clonefile is None or clonefile(os.fsencode(src), os.fsencode(dst), 3):   # CLONE_NOFOLLOW | CLONE_NOOWNERCOPY
+        import shutil
+        shutil.copy2(src, dst, follow_symlinks=False)
+
+
+def copy_tree(src, dest, only=None, without=()):
+    """Copy folder SRC into the existing folder DEST: the entries a row's sha256 covers (ONLY, WITHOUT: as
+    content_sha256), with their permission bits and links as links, files cloned where they can be. Nothing outside
+    the row's hash is copied, so a checked copy holds only checked bytes."""
+    modes = []
+    for d, dirs, files in os.walk(src):
+        rel_d = os.path.relpath(d, src)
+        keep = []
+        for f in sorted(dirs + files):
+            p = os.path.join(d, f)
+            rel = os.path.normpath(os.path.join(rel_d, f))
+            if only is not None and not in_scope(rel, only):
+                continue
+            if any(rel == w or rel.startswith(w.rstrip('/') + '/') for w in without):
+                continue
+            q = os.path.join(dest, rel)
+            st = os.lstat(p)
+            if stat.S_ISLNK(st.st_mode):
+                os.symlink(os.readlink(p), q)
+            elif stat.S_ISDIR(st.st_mode):
+                os.mkdir(q, 0o700)
+                modes.append((q, stat.S_IMODE(st.st_mode)))
+                keep.append(f)
+            elif stat.S_ISREG(st.st_mode):
+                _clone(p, q)
+            else:
+                sys.exit('%s: not a file, folder or symlink' % p)
+        dirs[:] = [x for x in dirs if x in keep]
+    for q, mode in reversed(modes):
+        os.chmod(q, mode)
+
+
+def take_tree(lock, name, dest):
+    """A copy of folder row NAME in DEST (made here; it must not exist), checked as a tree after it is made (its
+    content sha256 and check lines): read the copy, never the row's path, which may change after a check. Stops
+    unless the row has a sha256 and the copy has it; on a failure only DEST, which this call made, is removed."""
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    if want == '-':
+        sys.exit('%s: row %s has no sha256' % (lock, name))
+    if not os.path.isdir(p):
+        sys.exit('%s: %s is not a folder (%s)' % (lock, p, name))
+    if os.path.lexists(dest):
+        sys.exit('%s is there already (%s)' % (dest, name))
+    import shutil
+    stage_dir = private_dir(os.path.dirname(os.path.abspath(dest)))
+    try:
+        tmp = os.path.join(stage_dir, 'tree')
+        os.mkdir(tmp, 0o700)
+        copy_tree(p, tmp, scope(lock, name), without(lock, name))
+        own(tmp)                           # before the check: nothing of the source's owners or ACLs is kept
+        if row_hash(lock, name, tmp) != want:
+            sys.exit('%s: %s is not %s (%s)' % (lock, p, want, name))
+        bad = check_row(lock, name, tmp)
+        if bad:
+            sys.exit('\n'.join('%s: %s' % (lock, b) for b in bad))
+        os.chmod(tmp, 0o755)
+        _expose(tmp, dest)
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+    return dest
+
+
+def where(lock, name):
+    """Row NAME's path, unchecked: only to decide where a checked copy goes (stage), never to read it."""
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    return r[name][1]
+
+
+def stage(lock, name, dest, tool='cp'):
+    """Copy row NAME to DEST (it must not exist) as before a check (cp -Rpc: clones, times and permission bits; TOOL
+    ditto: ditto) into a private folder (private_dir), give the copy to this user without ACL entries (own), check it
+    (its sha256 or content sha256 and check lines) and only then move it to DEST: what is checked is what later steps
+    read, never the row's path, which may change after a check. A '-' row is copied only when it is part of this
+    checkout (pinned by the commit). On a failure nothing is left."""
+    import shutil, subprocess
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    if want == '-' and not in_checkout(p):
+        sys.exit('%s: row %s has no sha256' % (lock, name))
+    if not os.path.exists(p):
+        sys.exit('%s: %s is not there (%s)' % (lock, p, name))
+    if os.path.lexists(dest):
+        sys.exit('%s: %s is there already (%s)' % (lock, dest, name))
+    # copied into a private folder of this call, given to this user without ACL entries, then checked; only then
+    # moved to DEST: no one else can open or change the copy between the check and its use
+    stage_dir = private_dir(os.path.dirname(os.path.abspath(dest)))
+    try:
+        tmp = os.path.join(stage_dir, os.path.basename(dest))
+        cmd = ['/usr/bin/ditto', p, tmp] if tool == 'ditto' else ['/bin/cp', '-Rpc' if os.path.isdir(p) else '-pc', p, tmp]
+        if subprocess.run(cmd).returncode:
+            sys.exit('%s: copying %s failed (%s)' % (lock, p, name))
+        st = os.lstat(tmp)
+        if stat.S_ISLNK(st.st_mode) or stat.S_ISDIR(st.st_mode) != os.path.isdir(p):
+            sys.exit('%s: the copy of %s is not a %s (%s)' % (lock, p, 'folder' if os.path.isdir(p) else 'file', name))
+        own(tmp)
+        # a file row's sha256 covers its bytes only: no set-id bit, and no one else may write it; a folder's
+        # permission bits below it are in its content sha256, its own are not
+        os.chmod(tmp, stat.S_IMODE(st.st_mode) & 0o755)
+        if want != '-' and row_hash(lock, name, tmp) != want:
+            sys.exit('%s: %s is not %s (%s)' % (lock, p, want, name))
+        bad = check_row(lock, name, tmp)
+        if bad:
+            sys.exit('\n'.join('%s: %s' % (lock, b) for b in bad))
+        _expose(tmp, dest)
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+    return dest
+
+
 def row_identity(sha, p, store):
     """What a row's input is, independent of the store's location: its sha256 column; for a '-' row the file's own
     content digest, else (a folder, or not there yet) its path relative to the store (outside the store: the path).
@@ -454,5 +664,5 @@ def verify_store(*argv):
 
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
-    print({'path': path, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
+    print({'path': path, 'take': take, 'take-tree': take_tree, 'stage': stage, 'where': where, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
            'oclp-keys': oclp_keys, 'verify-store': verify_store}[cmd](*args))

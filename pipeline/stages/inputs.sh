@@ -3,7 +3,7 @@
 # virtiofs (use a new SHARE per run: the guest's virtiofs view caches files that change in place).
 #   SHARE/pristine      payload.yaa, links.txt, firmlinks_payload (unpack), sys/data lists, firmlinks + root_uuid metadata, tools
 #   SHARE/oclp    OCLP source at commit OCLP (git archive of $OCLP_REPO) + the Universal-Binaries.dmg it expects
-#   SHARE/kdk     the build's KDK, expanded (System/Library/Extensions + SystemVersion.plist), cached in $CACHE
+#   SHARE/kdk     the build's KDK, expanded (System/Library/Extensions + SystemVersion.plist)
 #   SHARE/py SHARE/py-x86_64 SHARE/site   arm64 and x86_64 CPython + the site-packages OCLP imports (universal)
 #   SHARE/patches.txt   the set's image patches that apply to this target and build (pipeline/patches.py plan)
 #   SHARE/optional.json the set's optional patches that ran or were skipped, with the reason
@@ -14,24 +14,31 @@
 set -eu
 SHARE=${1:?share}; TARGET=${2:?target json}; LOCK=${3:?inputs lock}; COMMON=${4:?common lock}; OCLP=${5:?OCLP commit}; SET=${6:?set}
 HERE=${0:A:h}; TOP=${HERE:h:h}; L=(python3 -I $TOP/pipeline/lock.py)
-CACHE=${CACHE:-$TOP/store/cache}; OCLP_REPO=${OCLP_REPO:-$TOP/store/oclp}
-in() { $L path $LOCK $1; }; common() { $L path $COMMON $1; }
+OCLP_REPO=${OCLP_REPO:-$TOP/store/oclp}
+# Every row handed on is copied first and checked as copied (lock.py stage, take, take-tree): never read by its row's
+# path after a check, which another process could change in between.
+stage() { $L stage $1 $2 $3 >/dev/null; }   # LOCK ROW DEST
 
 FOUNDATION=${7:-legacy}
 case $FOUNDATION in legacy|golden-first) ;; *) print -u2 "unknown foundation: $FOUNDATION"; exit 2 ;; esac
-KDKDMG=$(in kdk)
+mkdir -p $SHARE
+# Archives that are extracted or run (KDK, OCLP source, CPython) are copied into V, checked against their rows as they
+# are copied, and extracted from there afresh on every run.
+V=$(mktemp -d ${SHARE:A:h}/.inputs.XXXXXX); trap 'rm -rf $V' EXIT
+take() { $L take $1 $2 $(mktemp -d $V/$2.XXXXXX) ${3:-}; }
+KDKDMG=$(take $LOCK kdk)
 mkdir -p $SHARE/pristine $SHARE/oclp $SHARE/kdk $SHARE/hooks $SHARE/post
 cp -p $HERE/copy-hooks.py $SHARE/copy-hooks.py
 if [[ $FOUNDATION == legacy ]]; then
-    UNPACK=$(in unpack); LISTS=$(in lists)
+    UNPACK=$V/unpack; LISTS=$V/lists; stage $LOCK unpack $UNPACK; stage $LOCK lists $LISTS
     cp -c $UNPACK/payload.yaa $UNPACK/zip/AssetData/payloadv2/{links.txt,firmlinks_payload} $SHARE/pristine/
     cp -c $LISTS/{sys,data,data-symlinks}.tsv $SHARE/pristine/
     cp $HERE/firmlinks.tsv $SHARE/pristine/meta17.tsv; cp $HERE/rootuuid.tsv $SHARE/pristine/
-    for t in autool hmeta fl fl-noent; do cp -c $(common $t) $SHARE/pristine/; done
+    for t in autool hmeta fl fl-noent; do stage $COMMON $t $SHARE/pristine/$t; chmod 0755 $SHARE/pristine/$t; done
 else
     # Golden-first assembly reads its filesystem and donor artifacts explicitly.
     # Only the generic entitled firmlink tool is shared with pristine assembly.
-    cp -c $(common fl) $SHARE/pristine/fl
+    stage $COMMON fl $SHARE/pristine/fl; chmod 0755 $SHARE/pristine/fl
 fi
 
 # OCLP's source at the assembly's commit: from the repository (git archive), or, on a Mac without git (an Intel Mac
@@ -39,42 +46,40 @@ fi
 # (git archive of that commit) with OCLP.commit holding the full commit.
 # A store filled by `hao fetch` and `pipeline/place` has it as the oclp_source row instead (the commit is the archive's
 # pax comment, as git archive writes it).
+# Any archive (OCLP_TAR, store/oclp-source or the row's own) must be the oclp_source row's bytes; the commit text is
+# only checked for consistency.
 OCLP_TAR=${OCLP_TAR:-$TOP/store/oclp-source/$OCLP.tar}
-if [[ ! -f $OCLP_TAR && ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]]; then
-    OCLP_TAR=$(common oclp_source)
-fi
-if [[ -f $OCLP_TAR ]] && { [[ ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]] || ! command -v git >/dev/null 2>&1 || ! git --version >/dev/null 2>&1; }; then
-    tar -x -C $SHARE/oclp -f $OCLP_TAR
-    if [[ -f ${OCLP_TAR:r}.commit ]]; then OCLP_FULL=$(cat ${OCLP_TAR:r}.commit)
-    else OCLP_FULL=$(python3 -I -c 'import sys, tarfile; print(tarfile.open(sys.argv[1]).pax_headers.get("comment", ""))' $OCLP_TAR)
+if [[ ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]] || ! command -v git >/dev/null 2>&1 || ! git --version >/dev/null 2>&1; then
+    if [[ -f $OCLP_TAR ]]; then TAR=$(take $COMMON oclp_source $OCLP_TAR); else TAR=$(take $COMMON oclp_source); fi
+    tar -x -C $SHARE/oclp -f $TAR
+    if [[ -f $OCLP_TAR && -f ${OCLP_TAR:r}.commit ]]; then OCLP_FULL=$(cat ${OCLP_TAR:r}.commit)
+    else OCLP_FULL=$(python3 -I -c 'import sys, tarfile; print(tarfile.open(sys.argv[1]).pax_headers.get("comment", ""))' $TAR)
     fi
-    [[ $OCLP_FULL == $OCLP* ]] || { print -u2 "inputs.sh: $OCLP_TAR is OCLP ${OCLP_FULL:-(no commit)}, not $OCLP"; exit 1; }
+    [[ $OCLP_FULL == $OCLP* ]] || { print -u2 "inputs.sh: $TAR is OCLP ${OCLP_FULL:-(no commit)}, not $OCLP"; exit 1; }
 else
     git -C $OCLP_REPO archive $OCLP | tar -x -C $SHARE/oclp; OCLP_FULL=$(git -C $OCLP_REPO rev-parse $OCLP)
 fi
-cp $(common psp_$($L psp $SHARE/oclp)) $SHARE/oclp/Universal-Binaries.dmg
+stage $COMMON psp_$($L psp $SHARE/oclp) $SHARE/oclp/Universal-Binaries.dmg
 
-KDK=$($L kdk-name $KDKDMG); K=$CACHE/kdk-${${KDK:r}##*_}
-if [[ ! -f $K/System/Library/CoreServices/SystemVersion.plist ]]; then
-    W=$(mktemp -d); mkdir $W/m
-    hdiutil attach -readonly -nobrowse -mountpoint $W/m $KDKDMG >/dev/null
-    pkgutil --expand-full $W/m/KernelDebugKit.pkg $W/x >/dev/null; hdiutil detach $W/m >/dev/null
-    mkdir -p $K/System/Library/CoreServices
-    ditto $W/x/KDK.pkg/Payload/System/Library/Extensions $K/System/Library/Extensions
-    cp $W/x/KDK.pkg/Payload/System/Library/CoreServices/SystemVersion.plist $K/System/Library/CoreServices/
-    rm -rf $W
-fi
-ditto $K $SHARE/kdk/$KDK
+KDK=$($L kdk-name $KDKDMG)
+W=$(mktemp -d $V/kdk-x.XXXXXX); mkdir $W/m
+hdiutil attach -readonly -nobrowse -mountpoint $W/m $KDKDMG >/dev/null
+pkgutil --expand-full $W/m/KernelDebugKit.pkg $W/x >/dev/null; hdiutil detach $W/m >/dev/null
+K=$SHARE/kdk/$KDK; mkdir -p $K/System/Library/CoreServices
+ditto $W/x/KDK.pkg/Payload/System/Library/Extensions $K/System/Library/Extensions
+cp $W/x/KDK.pkg/Payload/System/Library/CoreServices/SystemVersion.plist $K/System/Library/CoreServices/
+rm -rf $W
 
 # Both CPythons: SHARE/py (arm64) and SHARE/py-x86_64; the assembly copies the one for the Mac it runs on to its py/.
 for arch dir in arm64 py x86_64 py-x86_64; do
-    PY=$CACHE/python/$arch
-    [[ -x $PY/python/bin/python3.12 ]] || { rm -rf $PY; mkdir -p $PY; tar -xzf $(common python_$arch) -C $PY; }
-    ditto $PY/python $SHARE/$dir
+    W=$(mktemp -d $V/py.XXXXXX); A=$(take $COMMON python_$arch)
+    tar -xzf $A -C $W
+    ditto $W/python $SHARE/$dir; rm -rf $W
 done
 # the x86_64 one runs in a Recovery (hao install from the stick), whose shared cache has no libedit/ncurses/panel
 python3 -I $TOP/pipeline/stages/weaken-dylibs.py $SHARE/py-x86_64/bin/python3.12
-ditto $(common python_site) $SHARE/site
+# the site-packages OCLP runs with: copied into SHARE/site and checked there as a tree (what is checked is what runs)
+$L take-tree $COMMON python_site $SHARE/site >/dev/null
 
 # A patch input: the Golden Gate build's row (GOLDEN_LOCK, golden-first only), else the donor build's, else common's.
 # Optional patches whose rows are not there, or whose group is in SKIP_OPTIONAL (space-separated), are left out of the
@@ -85,7 +90,8 @@ skip=(); for g in ${=SKIP_OPTIONAL:-}; do skip+=(--skip-optional $g); done
 python3 -I $TOP/pipeline/patches.py plan $SET $TARGET ${GOLDEN_LOCK:+${GOLDEN_LOCK:t}/}${LOCK:t:r} --locks ${GOLDEN_LOCK:+$GOLDEN_LOCK:}$LOCK:$COMMON \
     $skip --record $SHARE/optional.json > $SHARE/plan.txt
 awk '$1 != "recovery"' $SHARE/plan.txt > $SHARE/patches.txt; rm $SHARE/plan.txt   # recovery patches: pipeline/recovery
-row() { if [[ -n $GOLDEN_LOCK && -f $GOLDEN_LOCK/$1 ]]; then $L path $GOLDEN_LOCK $1; elif [[ -f $LOCK/$1 ]]; then in $1; else common $1; fi; }
+lock_of() { if [[ -n $GOLDEN_LOCK && -f $GOLDEN_LOCK/$1 ]]; then print $GOLDEN_LOCK; elif [[ -f $LOCK/$1 ]]; then print $LOCK; else print $COMMON; fi; }
+typeset -A staged   # row -> its checked copy, made once per run (a row used by two patches)
 i=0
 while read -r stage name ins; do
     i=$((i + 1))
@@ -98,10 +104,15 @@ while read -r stage name ins; do
     # metadata when cloning it into the share, so its generated indexes stay valid.
     # A row on the USB drive (KIT_ON_DRIVE, create-installer: the userspace images) is linked, never copied: the
     # stick writer moves it into the kit on that drive.
+    # The checked copy of such a row is made on that drive (clones) and linked.
     for n in ${=ins}; do
-        src=$(row $n)
-        if [[ -n ${KIT_ON_DRIVE:-} && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then ln -s $(realpath $src) $d/inputs/$n
-        else cp -Rpc $src $d/inputs/$n; fi
+        if [[ -n ${staged[$n]:-} && -L ${staged[$n]} ]]; then ln -s $(realpath ${staged[$n]}) $d/inputs/$n; continue; fi
+        if [[ -n ${staged[$n]:-} ]]; then cp -Rpc ${staged[$n]} $d/inputs/$n; continue; fi
+        src=$($L where $(lock_of $n) $n)
+        if [[ -n ${KIT_ON_DRIVE:-} && -e $src && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then
+            c=$(mktemp -d $KIT_ON_DRIVE/.checked.XXXXXX)/$n; stage $(lock_of $n) $n $c; ln -s $c $d/inputs/$n
+        else stage $(lock_of $n) $n $d/inputs/$n; fi
+        staged[$n]=$d/inputs/$n
     done
 done < $SHARE/patches.txt
 # A target without an OCLP hardware profile (the generic one: no OCLP patch sets) has none to record: null, said so.
