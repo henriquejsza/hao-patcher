@@ -1,0 +1,28 @@
+{
+ "revision": 1,
+ "pack": "base",
+ "stage": "post",
+ "inputs": [],
+ "status": "product",
+ "validated": false,
+ "files": [
+  {
+   "path": "private/var/db/com.apple.xpc.launchd/disabled.plist",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; apply.sh sets each label of src/disabled-daemons.txt to true (launchd's disable override), keeping every other entry; root:wheel 0644"
+   },
+   "content": "seed",
+   "reason": "launchd adds Apple's own entries at first boot, and the user can change any entry with launchctl enable/disable"
+  }
+ ],
+ "requires": {
+  "os": [
+   "26B131"
+  ],
+  "donor": "any",
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
+}

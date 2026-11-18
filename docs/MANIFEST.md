@@ -7,7 +7,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-57 patches: 53 installable, 2 undeclared (files not declared), 2 with a row missing.
+58 patches: 54 installable, 2 undeclared (files not declared), 2 with a row missing.
 
 Undeclared: opencore-generic, opencore-mbp92.
 
@@ -42,6 +42,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-shared-cache | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 22489f4a rebuilt-cache-fold-in-26B131-20261118-5aacad92 |
 | golden-gate-shared-cache-catalog | r5 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog c2398aee rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 |
 | golden-gate-store | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
+| golden-gate-unsupported-daemons | r1 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-update-policy | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-seed | r14 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-template | r11 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
@@ -196,6 +197,8 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: edited (3 edits) from Apple · appstored 26B131
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: edited (4 edits) from Apple · appstoreagent 26B131
   - `System/Applications/App Store.app/Contents/MacOS/App Store`: edited (1 edit) from hao · App Store 26B131, hao stub
+- **golden-gate-unsupported-daemons** r1
+  - `private/var/db/com.apple.xpc.launchd/disabled.plist`: from hao
 - **golden-gate-update-policy** r3
   - `Library/Preferences/com.apple.SoftwareUpdate.plist`: from hao
 - **golden-gate-user-seed** r14

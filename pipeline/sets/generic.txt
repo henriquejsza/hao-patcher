@@ -15,4 +15,5 @@ golden-gate-font-registry
 golden-gate-icon-caches
 golden-gate-update-policy
 golden-gate-deep-sleep-off
+golden-gate-unsupported-daemons
 hao-command
