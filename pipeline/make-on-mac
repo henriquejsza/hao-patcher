@@ -16,7 +16,7 @@ pipeline/unpack/ranged.py). --userspace-on DIR writes golden_gate_userspace's 23
 DIR (the USB drive) and links the row's artifact folder to it. The Tahoe donors are made in one x86_64 pass, and
 each work tree is deleted as soon as the rows made from it check (--keep keeps them).
 """
-import argparse, contextlib, json, os, shutil, subprocess, sys, tarfile, tempfile, time
+import argparse, contextlib, json, os, runpy, shutil, stat, subprocess, sys, tarfile, tempfile, time
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
@@ -97,14 +97,16 @@ class Run:
         print('  delete %s (its rows check)' % p, flush=True)
         shutil.rmtree(p)
 
-    def sh(self, *cmd, env=None):
-        line = ' '.join(str(c) for c in cmd)
+    def sh(self, *cmd, env=None, user=None):
+        """Run CMD in TOP, its output to the log; USER (uid, gid, groups) runs it as that user (from root)."""
+        line = ('(as uid %d) ' % user[0] if user else '') + ' '.join(str(c) for c in cmd)
         print('  $ ' + line, flush=True)
         self.log.write('$ %s\n' % line); self.log.flush()
         if self.dry:
             return
+        who = dict(user=user[0], group=user[1], extra_groups=user[2]) if user else {}
         r = subprocess.run([str(c) for c in cmd], stdout=self.log, stderr=subprocess.STDOUT,
-                           env=dict(os.environ, **(env or {})), cwd=TOP)
+                           env=dict(os.environ, **(env or {})), cwd=TOP, **who)
         if r.returncode:
             raise Failed('%s exited %d (see the log)' % (Path(str(cmd[0])).name if cmd[0] not in PY else cmd[2],
                                                          r.returncode))
@@ -131,6 +133,77 @@ class Run:
             if not self.dry:
                 subprocess.run(['hdiutil', 'detach', str(point)], capture_output=True)
         self.mounts.clear()
+
+
+def sudo_user(environ):
+    """(uid, gid, groups, name, home) of the user who ran sudo, from SUDO_UID and SUDO_GID."""
+    uid, gid = environ.get('SUDO_UID', ''), environ.get('SUDO_GID', '')
+    if not (uid.isdigit() and gid.isdigit() and int(uid) != 0):
+        raise Failed('hao_runtime is made by a tool that runs as an ordinary user, and this runs as root without '
+                     'SUDO_UID: run make-on-mac as an ordinary user, or with sudo from that user\'s account')
+    import pwd
+    entry = pwd.getpwuid(int(uid))
+    return int(uid), int(gid), user_groups(entry.pw_name, int(gid)), entry.pw_name, entry.pw_dir
+
+
+def user_groups(name, gid, grouplist=os.getgrouplist, limit=None):
+    """The user's groups for setgroups: their primary group first, at most NGROUPS_MAX (16 on macOS; an admin user
+    has more, and setgroups refuses a longer list). macOS's initgroups keeps the first 16 the same way; membership
+    beyond them is still answered by the directory service."""
+    limit = limit or os.sysconf('SC_NGROUPS_MAX')
+    return list(dict.fromkeys([gid] + list(grouplist(name, gid))))[:limit]
+
+
+def hand_over(top, uid, gid, readable=False):
+    """Give TOP and everything below it (no symlink followed) to UID, without ACLs (the tool checks that no one else
+    can write the folders it writes into). Modes are kept: they are part of a row's content sha256 (lock.py), so a
+    folder writable by others stays so and the tool names it. READABLE (the view, no row): every folder and file is
+    made readable by its owner, as it copies execute-only setuid files."""
+    for root, dirs, files in os.walk(top):
+        for name in [None] + dirs + files:
+            p = os.path.join(root, name) if name else root
+            st = os.lstat(p)
+            if stat.S_ISLNK(st.st_mode):
+                continue
+            os.chown(p, uid, gid, follow_symlinks=False)
+            if readable:
+                os.chmod(p, stat.S_IMODE(st.st_mode) | (0o700 if stat.S_ISDIR(st.st_mode) else 0o400))
+    subprocess.run(['/bin/chmod', '-R', '-N', str(top)], check=True)
+
+
+def let_in(folder, uid, name):
+    """Let UID (only) pass through FOLDER (root's work folder) to the view and the mounted images in it."""
+    if os.stat(folder).st_uid != uid:
+        subprocess.run(['/bin/chmod', '+a', 'user:%s allow search' % name, str(folder)], check=True)
+
+
+def user_tmp(who):
+    """The user's own temporary folder (DARWIN_USER_TEMP_DIR, under /var/folders), checked private to them."""
+    r = subprocess.run(['/usr/bin/getconf', 'DARWIN_USER_TEMP_DIR'], capture_output=True, text=True,
+                       user=who[0], group=who[1], extra_groups=who[2])
+    tmp = r.stdout.strip()
+    st = os.stat(tmp) if r.returncode == 0 and tmp else None
+    if st is None or st.st_uid != who[0] or st.st_mode & 0o022:
+        raise Failed('no private temporary folder for uid %d (getconf DARWIN_USER_TEMP_DIR: %r)' % (who[0], tmp))
+    return tmp
+
+
+def runtime_tool(r, tool, view, x86, top, euid=None, environ=None):
+    """Run hao-runtime's tool (it refuses root: it needs no privileges). As root under sudo it runs as the user who
+    ran sudo, who is given TOP (the archive folder it writes into) and the view (made as root: it reads execute-only
+    setuid files), a way through the work folder to the view and the mounted Rosetta image, and their own TMPDIR."""
+    environ = os.environ if environ is None else environ
+    if (os.geteuid() if euid is None else euid) != 0:
+        return r.sh(*PY, tool, view, x86, top)
+    uid, gid, groups, name, home = sudo_user(environ)
+    tmp = '$TMPDIR'
+    if not r.dry:
+        hand_over(top, uid, gid)
+        hand_over(view, uid, gid, readable=True)
+        let_in(r.work, uid, name)
+        tmp = user_tmp((uid, gid, groups))
+    return r.sh(*PY, tool, view, x86, top, user=(uid, gid, groups),
+                env=dict(TMPDIR=tmp, HOME=home, USER=name, LOGNAME=name))
 
 
 DONOR_ROWS = ['tahoe_kmutil', 'tahoe_os_cache_x86_64h', 'tahoe_basesystem', 'tahoe_native_donors',
@@ -282,7 +355,7 @@ def steps(r, fs, a):
         if tool is None or not tool.is_file():
             raise Failed('the runtime archive has no tools/hao-runtime-on-mac (set HAO_RUNTIME_ON_MAC to one)')
         rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
-        r.sh(*PY, tool, root_view(), rosetta / 'System/Library/dyld', top)
+        runtime_tool(r, tool, root_view(), rosetta / 'System/Library/dyld', top)
 
     def root_view():
         """A small real System root for runtime's tool: only the files its manifest reads (each program, the files its
@@ -330,6 +403,8 @@ def main():
     p.add_argument('--keep', action='store_true', help='keep the work trees (the donor pass) after their rows check')
     args = p.parse_args()
     release = json.loads(Path(args.release).read_text())
+    # git trusts this checkout in every producer (a user's checkout, run under sudo by create-installer)
+    os.environ.update(runpy.run_path(str(TOP / 'pipeline' / 'source_commit.py'))['git_env'](os.environ, TOP))
     fs, a = folders(release)
     made = [m['row'] for m in release.get('made_on_mac', [])]
     # shipped assets whose Apple-derived files are made here (release.json "completed_on_mac")

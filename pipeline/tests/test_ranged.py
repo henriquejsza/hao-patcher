@@ -188,6 +188,13 @@ class Mirror(unittest.TestCase):
         with mock.patch.dict(os.environ, {'HAO_MIRROR': ''}):
             self.assertEqual(ranged.mirrored(self.url, self.digest), self.url)
 
+    def test_the_mirrors_own_url_is_read_as_is_when_strict(self):
+        with self.env(strict=True):
+            url = ranged.mirrored(self.url, self.digest)
+            src = ranged.open_source(url)              # a second opener without the sha256 (inplace.check_signature)
+        self.assertEqual(src.url, self.srv.base + '/m/sha256/' + self.digest)
+        self.assertNotIn('/origin/x.ipsw', self.srv.httpd.hits)
+
     def test_an_ipv6_mirror_is_refused(self):
         with mock.patch.dict(os.environ, {'HAO_MIRROR': 'http://[fe80::1%25en0]:8080'}):
             with self.assertRaisesRegex(ranged.MirrorMiss, 'IPv4'):
