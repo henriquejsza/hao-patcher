@@ -132,9 +132,9 @@ def make_repo(path):
     return subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=path, capture_output=True, text=True).stdout.strip()
 
 
-def release_dir(path):
+def release_dir(path, signed=True):
     path.mkdir(parents=True)
-    for name in F['RELEASE_FILES']:
+    for name in F['RELEASE_FILES'] + (F['SIGNATURE_FILES'] if signed else ()):
         (path / name).write_text('%s\n' % name)
     (path / 'dss_shim.dylib').write_bytes(b'asset')
     return path
@@ -156,7 +156,7 @@ class Share(unittest.TestCase):
         info = F['prepare_share'](share, rel, commit, repo, 'ssh-ed25519 AAAA candidate\n',
                                   dict(COMMIT=commit, MIRROR='http://192.168.64.1:8765', MODEL='MacBookPro9,2',
                                        GUSER='tester'))
-        self.assertEqual(sorted(p.name for p in (share / 'in/release').iterdir()), sorted(F['RELEASE_FILES']))
+        self.assertEqual(sorted(p.name for p in (share / 'in/release').iterdir()), sorted(F['RELEASE_FILES'] + F['SIGNATURE_FILES']))
         self.assertFalse((share / 'in/release/dss_shim.dylib').exists())      # assets come from the mirror
         self.assertEqual(info['release_sha256'], F['sha256'](rel / 'release.json'))
         self.assertEqual((share / 'in/candidate-keys.pub').read_text(), 'ssh-ed25519 AAAA candidate\n')
@@ -185,6 +185,22 @@ class Share(unittest.TestCase):
         with self.assertRaises(SystemExit):
             F['prepare_share'](self.root / 'share', release_dir(self.root / 'release'), commit, repo,
                                '-----BEGIN OPENSSH PRIVATE KEY-----\n', {})
+
+    def test_an_unsigned_release_goes_without_signatures(self):
+        # v0.0.1 ships unsigned (owner waiver): the share carries release.json and SHA256SUMS, and hao in the guest decides
+        repo = self.root / 'repo'
+        commit = make_repo(repo)
+        share = self.root / 'share'
+        F['prepare_share'](share, release_dir(self.root / 'release', signed=False), commit, repo, None, {})
+        self.assertEqual(sorted(p.name for p in (share / 'in/release').iterdir()), ['SHA256SUMS', 'release.json'])
+
+    def test_a_release_without_sha256sums_is_refused(self):
+        repo = self.root / 'repo'
+        commit = make_repo(repo)
+        rel = release_dir(self.root / 'release', signed=False)
+        (rel / 'SHA256SUMS').unlink()
+        with self.assertRaises(SystemExit):
+            F['prepare_share'](self.root / 'share', rel, commit, repo, None, {})
 
     def test_reset_keeps_xcode_and_python(self):
         cmd = F['reset_command']('tester')

@@ -4,7 +4,7 @@
   pipeline/fresh-mac-run RELEASE_DIR COMMIT [--vm VMDIR] [--mirror URL] [--host-mirror URL] [--out DIR]
                          [--user NAME] [--model M] [--mirror-fill TOOL] [--timeout SECONDS]
 
-RELEASE_DIR is a cut's release folder (release.json, release.json.sig, SHA256SUMS, SHA256SUMS.sig and the assets).
+RELEASE_DIR is a cut's release folder (release.json, SHA256SUMS, their .sig files when signed, and the assets).
 VMDIR (default $HAO_FRESH_MAC_VM) is a Tahoe builder clone (pipeline/vm/clones.py) with Xcode, python.org's Python
 3.14 (root's alone) and an admin user NAME (default tester); it must be stopped.
 
@@ -12,7 +12,7 @@ VMDIR (default $HAO_FRESH_MAC_VM) is a Tahoe builder clone (pipeline/vm/clones.p
      http://127.0.0.1:8765) by sha256. Missing files are added first with `TOOL fill - --from RELEASE_DIR` (the
      assets from RELEASE_DIR, other downloads from their origin) when --mirror-fill (or $HAO_MIRROR_FILL) names the
      mirror's tool; anything still missing fails the run before the VM starts.
-  2. OUT/share/in: a git bundle of COMMIT, the release's four signed files, the candidate key line (this checkout's
+  2. OUT/share/in: a git bundle of COMMIT, the release's files (release.json, SHA256SUMS and their signatures when signed), the candidate key line (this checkout's
      tools/hao/data/candidate-keys.pub, when there) and the guest scripts. OUT/share/out is where the guest writes.
   3. The VM starts with OUT/share; the guest is reset (old local.hao.e2e.* jobs booted out, the user's checkout,
      downloads, store, build folders, stick image and hao caches and /Library/Logs/hao removed; Xcode and Python
@@ -47,7 +47,8 @@ TOP = Path(__file__).resolve().parents[1]
 PY = sys.executable
 SHARE = '/private/var/ssdshare'           # where the builder VM's agent mounts the share in full macOS
 LABEL = 'local.hao.e2e.fresh-mac'
-RELEASE_FILES = ('release.json', 'release.json.sig', 'SHA256SUMS', 'SHA256SUMS.sig')
+RELEASE_FILES = ('release.json', 'SHA256SUMS')                    # always
+SIGNATURE_FILES = ('release.json.sig', 'SHA256SUMS.sig')         # when signed: an owner-waived unsigned release has none
 MISS = re.compile(r'mirror miss |not served by the mirror|MirrorMiss|"ev": "fetch\.mirror-failed"')
 # what a run removes from the user's home before it starts (a clean base makes this moot)
 RESET_PATHS = ('hao-patcher', 'fetch', 'store', 'make-work*', 'stick.img', 'e2e', 'Library/Caches/hao',
@@ -189,6 +190,12 @@ def prepare_share(share, release_dir, commit, repo, key, params):
         if not src.is_file():
             raise SystemExit('fresh-mac-run: %s has no %s' % (release_dir, name))
         shutil.copyfile(src, inp / 'release' / name)
+    # The signatures go with the release when it has them. Whether an unsigned one may be used is hao's decision in the
+    # guest (create-installer accepts only the versions in data/unsigned-releases.json, checked against SHA256SUMS).
+    for name in SIGNATURE_FILES:
+        src = Path(release_dir) / name
+        if src.is_file():
+            shutil.copyfile(src, inp / 'release' / name)
     if key:
         if 'PRIVATE KEY' in key:
             raise SystemExit('fresh-mac-run: the candidate key file holds a private key')
