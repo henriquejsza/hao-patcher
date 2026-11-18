@@ -51,16 +51,18 @@ class RangeHandler(http.server.BaseHTTPRequestHandler):
             return
         a, b = rng.split('=')[1].split('-')
         a, b = int(a), min(int(b), len(data) - 1)
+        pad = b'x' * (getattr(self.server, 'pad', 0) if rng != 'bytes=0-0' else 0)   # more than was asked for
         self.send_response(206)
         self.send_header('Content-Range', 'bytes %d-%d/%d' % (a, b, len(data)))
-        self.send_header('Content-Length', str(b - a + 1)); self.end_headers()
-        self.wfile.write(data[a:b + 1])
+        self.send_header('Content-Length', str(b - a + 1 + len(pad))); self.end_headers()
+        self.wfile.write(data[a:b + 1] + pad)
 
 
 class Served:
     def __init__(self, files):
         self.httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), RangeHandler)
         self.httpd.files, self.httpd.flip, self.httpd.no_ranges, self.httpd.hits = files, None, False, []
+        self.httpd.handle_error = lambda *a: None      # a client that stops reading (a refused reply)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.base = 'http://127.0.0.1:%d' % self.httpd.server_address[1]
 
@@ -134,6 +136,13 @@ class Ranged(unittest.TestCase):
         raw.read(len(self.members['b.txt']))
         with self.assertRaises(ranged.PinError):
             raw.close()
+
+    def test_a_reply_longer_than_asked_is_refused_unread(self):
+        self.srv.httpd.pad = 1 << 20
+        src = ranged.HTTPSource(self.url, window=64 << 10)
+        with mock.patch.object(ranged.time, 'sleep', lambda s: None):
+            with self.assertRaisesRegex(OSError, 'larger than the'):
+                src.read_at(0, 100)
 
     def test_unpinned_reads_are_recorded(self):
         _, z = self.zip()

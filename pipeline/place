@@ -267,6 +267,12 @@ def place(release_path, cache, dry_run=False, out=print):
             except SystemExit as e:
                 problems.append('%s: %s is there and is not the row\'s bytes (%s); not overwritten' % (name, dest, e))
             continue
+        pinned = CLASSES.get(name, {}).get('source_sha256')
+        if pinned and entry['sha256'] != pinned:
+            # an archive this checkout pins (its producers run from it): only those bytes are unpacked
+            problems.append('%s: the release names %s, not the archive this checkout pins (%s); not placed'
+                            % (name, entry['sha256'], pinned))
+            continue
         if not dry_run:
             how = CLASSES.get(name, {}).get('unpack')
             try:

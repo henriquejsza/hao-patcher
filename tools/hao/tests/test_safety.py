@@ -277,5 +277,85 @@ class Verify(unittest.TestCase):
             self.assertEqual(len(VERIFY.hash_inside(root / 'y', root)), 64)
 
 
+class OthersCanChange(unittest.TestCase):
+    def test_the_tree_check_looks_inside(self):
+        import tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; (kit / 'hooks').mkdir(parents=True); (kit / 'hooks/run.sh').write_text('x')
+            self.assertIsNone(SAFE.others_can_change_tree(kit))
+            os.chmod(kit / 'hooks/run.sh', 0o666)
+            self.assertIn('run.sh can be written by others', SAFE.others_can_change_tree(kit))
+            self.assertIsNone(SAFE.others_can_change(kit))          # the folder check alone does not see it
+
+    def test_the_tree_check_follows_links_to_check_their_targets(self):
+        import tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir()
+            shared = Path(d) / 'shared'; shared.mkdir(); (shared / 'tool').write_text('x')
+            os.symlink(shared / 'tool', kit / 'tool')
+            self.assertIsNone(SAFE.others_can_change_tree(kit))
+            os.chmod(shared, 0o777)
+            self.assertIn('through', SAFE.others_can_change_tree(kit))
+            os.chmod(shared, 0o755)
+            os.symlink(shared, kit / 'dir'); os.symlink(kit, shared / 'loop')     # a folder link, and a loop
+            self.assertIsNone(SAFE.others_can_change_tree(kit))
+            os.chmod(shared / 'tool', 0o666)                                   # inside the linked folder
+            self.assertIn('tool can be written by others', SAFE.others_can_change_tree(kit))
+            os.chmod(shared / 'tool', 0o644)
+
+    def test_a_link_in_the_middle_of_a_chain_counts_for_the_kit(self):
+        import tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            safe = Path(d) / 'safe'; safe.mkdir(); (safe / 'run.sh').write_text('x')
+            middle = Path(d) / 'middle'; middle.mkdir(); os.symlink(safe, middle / 'current')
+            kit = Path(d) / 'kit'; kit.mkdir(); os.symlink(middle / 'current', kit / 'assembly-source')
+            self.assertIsNone(SAFE.others_can_change_tree(kit))
+            os.chmod(middle, 0o777)
+            self.assertIn('middle can be written by others', SAFE.others_can_change_tree(kit))
+            os.chmod(middle, 0o755)
+
+    def test_each_link_is_checked_even_to_a_target_seen_before(self):
+        import tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            safe = Path(d) / 'safe'; safe.mkdir(); (safe / 'run.sh').write_text('x')
+            middle = Path(d) / 'middle'; middle.mkdir(); os.symlink(safe / 'run.sh', middle / 'current')
+            kit = Path(d) / 'kit'; kit.mkdir()
+            os.symlink(safe / 'run.sh', kit / 'a-alias')                 # seen first: the target is recorded
+            os.symlink(middle / 'current', kit / 'b-script')             # same target, through another folder
+            os.chmod(middle, 0o777)
+            try:
+                self.assertIn('middle can be written by others', SAFE.others_can_change_tree(kit))
+            finally:
+                os.chmod(middle, 0o755)
+
+    def test_an_access_list_that_lets_others_write_counts(self):
+        import subprocess, tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            inner = Path(d) / 'a'; inner.mkdir()
+            subprocess.run(['/bin/chmod', '+a', 'everyone deny delete', str(inner)], check=True)
+            self.assertFalse(SAFE.acl_allows_write(inner))           # deny-only, as a home folder has
+            self.assertIsNone(SAFE.others_can_change(inner))
+            subprocess.run(['/bin/chmod', '+a', 'everyone allow add_file', str(inner)], check=True)
+            self.assertTrue(SAFE.acl_allows_write(inner))
+            self.assertIn('access list', SAFE.others_can_change(inner / 'x'))
+            subprocess.run(['/bin/chmod', '-N', str(inner)], check=True)
+
+    def test_a_folder_others_can_write_or_own_is_named(self):
+        import tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            inner = Path(d) / 'a' / 'b'; inner.mkdir(parents=True)
+            self.assertIsNone(SAFE.others_can_change(inner / 'not-yet'))
+            os.chmod(Path(d) / 'a', 0o777)
+            self.assertIn('can be written by others', SAFE.others_can_change(inner))
+            os.chmod(Path(d) / 'a', 0o1777)                       # sticky: others cannot replace our entries
+            self.assertIsNone(SAFE.others_can_change(inner))
+            os.chmod(Path(d) / 'a', 0o755)
+            me = os.geteuid()
+            self.assertIn('belongs to another user', SAFE.others_can_change(inner, euid=me + 1, env={}))
+            self.assertIsNone(SAFE.others_can_change(inner, euid=me + 1, env={}, owners=False))   # the USB installer
+            self.assertIsNone(SAFE.others_can_change(inner, euid=0, env={'SUDO_UID': str(me)}))   # sudo's user
+
+
+
 if __name__ == '__main__':
     unittest.main()

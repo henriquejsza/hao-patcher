@@ -212,6 +212,38 @@ class Lock(unittest.TestCase):
             with mock.patch.object(L, 'ignores_owners', return_value=False), self.assertRaises(SystemExit):
                 L.private_dir(str(parent))
 
+    def taken(self, p, name, stage=False):
+        """lock.py take (a file row) or stage (STAGE: any row) into a new folder: where the source is checked."""
+        out = Path(tempfile.mkdtemp(dir=self.d))
+        return lock('stage', p, name, out / 'x') if stage else lock('take', p, name, out)
+
+    def test_every_name_on_the_way_must_be_root_or_ours(self):
+        import runpy
+        from unittest import mock
+        L = runpy.run_path(str(TOP / 'pipeline/lock.py'), run_name='lock_test')
+        g = L['source_check'].__globals__
+        safe = self.d / 'safe'; safe.mkdir(); (safe / 'payload').write_bytes(b'abc')
+        middle = self.d / 'middle'; middle.mkdir(); os.symlink(safe, middle / 'current')
+        link = self.d / 'link'; os.symlink(middle / 'current' / 'payload', link)
+        L['source_check']('x.lock', 'kdk', str(link))           # all ours: no stop
+        # as another uid sees them, every name on the way (the link, the hop between, the file) is someone else's
+        with mock.patch.object(g['os'], 'geteuid', lambda: os.getuid() + 1), \
+                mock.patch.dict(g['os'].environ, {'SUDO_UID': ''}):
+            with self.assertRaises(SystemExit) as x:
+                L['source_check']('x.lock', 'kdk', str(link))
+        self.assertIn('belongs to another user', str(x.exception))
+        r = self.taken(self.write('kdk %s %s\n' % (self.sha, link)), 'kdk'); self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_dot_dot_after_a_link_is_taken_as_the_kernel_takes_it(self):
+        import runpy
+        L = runpy.run_path(str(TOP / 'pipeline/lock.py'), run_name='lock_test')
+        (self.d / 'a' / 'b').mkdir(parents=True); (self.d / 'c').mkdir()
+        os.symlink(self.d / 'a' / 'b', self.d / 'c' / 'jump')
+        names = L['names_on_the_way'](str(self.d / 'c' / 'jump' / '..' / 'x'))
+        real = Path(os.path.realpath(self.d))
+        self.assertIn(str(real / 'a' / 'b'), names)               # followed through the link, then '..' to a/
+        self.assertEqual(names[-1], str(real / 'a' / 'x'))          # not c/x, which folding '..' first would give
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))

@@ -82,6 +82,14 @@ class HTTPSource(Source):
         self.conn, self.host, self.target = cls(u.netloc, timeout=60), u.netloc, (u.path or '/') + (
             '?' + u.query if u.query else '')
 
+    @staticmethod
+    def _body(r, most):
+        """At most MOST bytes of response R's body; OSError when the server sends more (never read past MOST+1)."""
+        body = r.read(most + 1)
+        if len(body) > most:
+            raise OSError('reply larger than the %d bytes asked for' % most)
+        return body
+
     def _request(self, start, end):
         url = self.url
         for _ in range(5):
@@ -91,7 +99,7 @@ class HTTPSource(Source):
                                                            'User-Agent': 'hao-ranged/1'})
             r = self.conn.getresponse()
             if r.status in (301, 302, 303, 307, 308):
-                r.read(); self.conn.close(); self.conn = None
+                self.conn.close(); self.conn = None          # the redirect's body is not read
                 url = urllib.parse.urljoin(url, r.getheader('Location'))
                 continue
             return r
@@ -99,7 +107,7 @@ class HTTPSource(Source):
 
     def _size(self):
         r = self._request(0, 0)
-        body = r.read()
+        self._body(r, 1 << 16)                  # one byte asked for; an error page may be longer, never unbounded
         rng = r.getheader('Content-Range') or ''
         if r.status != 206 or not rng.startswith('bytes 0-0/'):
             raise OSError('%s does not serve byte ranges (HTTP %d)' % (self.url, r.status))
@@ -111,7 +119,7 @@ class HTTPSource(Source):
         for attempt in range(RETRIES):
             try:
                 r = self._request(off, end)
-                body = r.read()
+                body = self._body(r, end - off + 1)
                 if r.status != 206 or not (r.getheader('Content-Range') or '').startswith('bytes %d-%d/' % (off, end)):
                     raise OSError('HTTP %d, Content-Range %r for bytes %d-%d' % (r.status, r.getheader('Content-Range'),
                                                                                off, end))
