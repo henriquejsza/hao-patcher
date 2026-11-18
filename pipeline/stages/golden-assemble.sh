@@ -85,12 +85,19 @@ export TMPDIR="$W/tmp"
 bootstrap() {
     (cd "$G/assembly-source" && tar -cf - .) | (cd "$W/source" && tar -xf -) || return $?
     (cd "$G/$PYDIR" && tar -cf - .) | (cd "$W/py" && tar -xf -) || return $?
+    # Nothing this Python runs may write into the kit (the USB installer is checked against its manifest; a resumed
+    # install must still pass): hooks start it with -I, which ignores PYTHONDONTWRITEBYTECODE, so the copy itself is
+    # told, through the sitecustomize every start of it loads (-I keeps site-packages; only -S would skip it).
+    for sp in "$W"/py/lib/python3*/site-packages; do
+        if [ -d "$sp" ]; then printf 'import sys\nsys.dont_write_bytecode = True\n' > "$sp/sitecustomize.py" || return $?; fi
+    done
     (cd "$G/site" && tar -cf - .) | (cd "$W/site" && tar -xf -) || return $?
     "$W/py/bin/python3.12" -I -B "$W/source/copy-hooks.py" "$G/hooks" "$W/hooks" --owner "$OWNER" || return $?
     (cd "$G/post" && tar -cf - .) | (cd "$W/post" && tar -xf -) || return $?
     chown -R "$OWNER" "$W/source" "$W/py" "$W/site" "$W/post" || return $?
 }
 bootstrap || exit $?
+export PYTHONDONTWRITEBYTECODE=1    # and for any other Python a hook starts without -I
 # The tools the assembly and its hooks call that this Mac lacks (a Recovery): wrappers that run
 # source/recovery-tools.py with the kit's CPython, first on PATH; the kit's CPython is last on PATH (python3 where the Mac has none).
 recovery_tools() {
