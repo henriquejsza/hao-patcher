@@ -27,6 +27,14 @@ def runner(xcode='Xcode 27.2\nBuild version 27C5\n', metal=True):
 
 
 class Python(unittest.TestCase):
+    def test_the_root_python_rule_applies_only_to_a_root_run(self):
+        from unittest import mock
+        with mock.patch.object(D, 'check_interpreter', lambda: [D.check('python', 'fail', 'root rule')]):
+            with mock.patch.object(D.os, 'geteuid', lambda: 501):
+                self.assertFalse([x for x in D.checks(offline=True) if 'root rule' in str(x)])
+            with mock.patch.object(D.os, 'geteuid', lambda: 0):
+                self.assertTrue([x for x in D.checks(offline=True) if 'root rule' in str(x)])
+
     def test_wrong_python_on_a_build_mac_fails(self):
         r = D.check_python('build', P, version=(3, 12, 14), which=lambda n: '/x/' + n)
         self.assertEqual(state(r, 'python'), ['fail', 'ok'])       # the interpreter, then what the pipeline runs

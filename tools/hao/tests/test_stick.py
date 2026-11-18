@@ -59,6 +59,8 @@ class FakeHost:
         argv = [str(a) for a in argv]
         self.calls.append(argv)
         out = b''
+        if argv[:2] == ['sudo', '-n']:
+            argv = argv[2:]                 # the erase as a user: the same command through sudo
         if argv[:2] == ['diskutil', 'partitionDisk']:
             for name in ('EFI', 'HAOBOOT', 'HAO'):
                 (self.root / name).mkdir()
@@ -116,6 +118,20 @@ class StickTest(unittest.TestCase):
     def tearDown(self):
         STICK.DEDUPE_BYTES = self.dedupe
         self.tmp.cleanup()
+
+    def test_a_user_erases_through_sudo_and_gets_the_volumes(self):
+        with tempfile.TemporaryDirectory() as d:
+            host = FakeHost(d)
+            host.euid = lambda: 501
+            parts = STICK.partition(host, 'disk4', 1900)
+            erase = [x for x in host.calls if 'partitionDisk' in x]
+            self.assertEqual(erase[0][:2], ['sudo', '-n'])
+            self.assertTrue(all(x[:2] != ['sudo', '-n'] or x[2] in ('diskutil', 'chown') for x in host.calls))
+            self.assertEqual(set(parts), {'EFI', 'HAOBOOT', 'HAO'})
+            host = FakeHost(d + '/root'); Path(d + '/root').mkdir()
+            host.euid = lambda: 0
+            STICK.partition(host, 'disk4', 1900)
+            self.assertFalse([x for x in host.calls if x[0] == 'sudo'])      # as root: no sudo
 
     def test_writes_both_partitions(self):
         host = FakeHost(self.mnt)

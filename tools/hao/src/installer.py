@@ -1,4 +1,5 @@
-"""hao create-installer: the one command a user runs to make the USB installer (`sudo ./hao create-installer`).
+"""hao create-installer: the one command a user runs to make the USB installer (`./hao create-installer`; it asks for
+the password once, only to erase the USB drive).
 
 It asks only what it must, one question at a time, with numbered choices, then runs without further questions:
 
@@ -62,7 +63,7 @@ def _answer(c, prompt):
     except EOFError:
         raise Stopped('hao needs an answer and got none',
                       why='it was started without a keyboard to answer its questions',
-                      options=['run it in Terminal: sudo ./hao create-installer'],
+                      options=['run it in Terminal: ./hao create-installer'],
                       untouched='nothing was downloaded or written') from None
 
 
@@ -317,11 +318,29 @@ def load_release(path):
     return json.loads(Path(path).read_text())
 
 
+def administrator(c, host, disk, run=subprocess.run):
+    """As a user: ask for the password once, now, for the one step that needs it (erasing DISK); the erase commands
+    then run through sudo -n (stick.as_admin). As root: nothing to ask."""
+    if host.euid() == 0:
+        return
+    c.item('erasing the USB drive needs an administrator: macOS asks for your password (once, for that step only)',
+           'quiet', ev='admin.ask', disk=disk)
+    try:
+        ok = run(['sudo', '-v', '-p', 'Password to erase /%s (hao asks once): ' % ('dev/' + disk)]).returncode == 0
+    except OSError:
+        ok = False
+    if not ok:
+        raise Stopped('the USB drive was not erased: no administrator password was given',
+                      why='erasing a drive needs an administrator\'s password',
+                      options=['run ./hao create-installer again and type your password when asked'],
+                      untouched='nothing was written to the USB drive')
+
+
 def no_release(path):
     return Stopped('there is no release.json beside hao (%s)' % path,
                    why='it lists every file to download, each with its size and sha256; hao downloads nothing else',
                    options=['download the release archive from the project\'s GitHub releases page, unpack it and '
-                            'run sudo ./hao create-installer in its folder'],
+                            'run ./hao create-installer in its folder'],
                    untouched='nothing was downloaded or written')
 
 
@@ -477,10 +496,6 @@ def create_installer(a, c, host, acquire=None):
                           options=['name a new folder: --folder DIR'])
         image = str(folder)     # from here on it is written like an image: no root, no disk question, no erase
     if not a.dry_run and not image:
-        if host.euid() != 0:
-            raise Stopped('hao create-installer needs administrator rights to erase the USB drive',
-                          options=['run it again as: sudo ./hao create-installer'],
-                          untouched='nothing was downloaded or written')
         if release is None and not getattr(a, 'kit', None):
             raise no_release(release_path)
     ask_mac(a, c, host, release)
@@ -529,6 +544,8 @@ def create_installer(a, c, host, acquire=None):
         if image:
             disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
             c.item('USB installer image %s attached as /dev/%s' % (image, disk), 'files')
+        if not image:
+            administrator(c, host, disk)
         try:
             parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
                                   on_step=lambda text: c.item(text, 'steps', ok=True),

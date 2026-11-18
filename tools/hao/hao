@@ -95,7 +95,8 @@ HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on
         Both need root, SIP's filesystem protection off and AMFI relaxed, as the installer's Recovery starts; on a
         Mac's everyday macOS they stop before writing. LOCAL (default WORK/local) holds the assembly's copies and
         logs and must not be on the disk being erased.
-  hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (sudo; a USB drive)
+  hao create-installer [/dev/diskN] [--model M | --profile F] [--dry-run] [--confirm diskN]  (a USB drive; asks
+                      for the password once, to erase it)
         [--kit DIR] [--basesystem DMG] [--opencore ESP.tar] [--image FILE [--image-size BYTES]]
         asks which Mac (a proven model by default, this Mac, a profile file, or the generic image when the release
         carries one: --profile generic) and which external disk is the USB drive,
@@ -933,14 +934,14 @@ def stick_release(a, c):
         if recorded:
             raise CON.Stopped('the USB installer\'s release.json is gone (stick.json records one)',
                               why='the drive was changed after it was written', code=4,
-                              options=['write the USB installer again: sudo ./hao create-installer'])
+                              options=['write the USB installer again: ./hao create-installer'])
         c.item('this USB installer was written from a checkout: no release to check', 'files')
         return
     copy = signed_release(a, c, rel)
     if recorded and copy != rel and hashlib.sha256(Path(copy).read_bytes()).hexdigest() != recorded:
         raise CON.Stopped('the USB installer\'s release.json is not the one it was written with',
                           why='the drive was changed after it was written', code=4,
-                          options=['write the USB installer again: sudo ./hao create-installer'])
+                          options=['write the USB installer again: ./hao create-installer'])
 
 
 def kit_args(q):
