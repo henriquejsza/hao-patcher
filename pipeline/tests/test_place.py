@@ -130,23 +130,76 @@ class Verified(unittest.TestCase):
         self.assertTrue(all('not placed' in p for p in problems), problems)
         self.assertEqual(sorted(p.name for p in self.store.iterdir()), [])
 
+    def only_shim(self):
+        self.entries = {'shim': self.entries['shim']}
+        self.release.write_text(self.json.dumps({'assets': [self.entries['shim']]}))
+        return self.cache / 'sha256' / self.entries['shim']['sha256']
+
     def test_a_cache_entry_swapped_after_the_check_is_not_what_is_unpacked(self):
         g = P['place'].__globals__
-        real, path = g['sha256_fd'], self.cache / 'sha256' / self.entries['shim']['sha256']
+        real, path = g['private_copy'], self.only_shim()
 
-        def swap_after(fd):
-            digest = real(fd)
+        def swap_after(*a):
+            f = real(*a)
             other = self.root / 'other'
             other.write_bytes(b'not a tar')
             os.replace(other, path)
-            return digest
-        g['sha256_fd'] = swap_after
-        self.entries = {'shim': self.entries['shim']}
-        self.release.write_text(self.json.dumps({'assets': [self.entries['shim']]}))
-        placed, kept, problems, missing = self.place()
+            return f
+        g['private_copy'] = swap_after
+        try:
+            placed, kept, problems, missing = self.place()
+        finally:
+            g['private_copy'] = real
         self.assertEqual((placed, problems), (['shim'], []))
         self.assertEqual((self.store / 'shim' / 'ok.txt').read_bytes(), b'ok')
         self.assertEqual(path.read_bytes(), b'not a tar')
+
+    def test_a_cache_entry_rewritten_in_place_after_the_check_is_not_what_is_unpacked(self):
+        """Whoever can write the cached file's inode (a user-owned cache) changes it after it was checked: the open
+        file would read the new bytes; the private copy does not."""
+        import io, tarfile
+        g = P['place'].__globals__
+        real, path = g['private_copy'], self.only_shim()
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode='w') as t:
+            info = tarfile.TarInfo('ok.txt'); info.size = 2; t.addfile(info, io.BytesIO(b'no'))
+        evil = buf.getvalue()
+        self.assertEqual(len(evil), len(self.tar))
+        ino = path.stat().st_ino
+
+        def rewrite_after(*a):
+            f = real(*a)
+            with open(path, 'r+b') as w:
+                w.write(evil)
+            return f
+        g['private_copy'] = rewrite_after
+        try:
+            placed, kept, problems, missing = self.place()
+        finally:
+            g['private_copy'] = real
+        self.assertEqual((path.stat().st_ino, path.read_bytes()), (ino, evil))
+        self.assertEqual((placed, problems), (['shim'], []))
+        self.assertEqual((self.store / 'shim' / 'ok.txt').read_bytes(), b'ok')
+
+    def test_the_private_copy_is_unlinked_owned_and_closed_to_others(self):
+        path = self.only_shim()
+        with P['private_copy'](path, self.entries['shim'], self.root / 'near') as f:
+            st = os.fstat(f.fileno())
+            self.assertEqual((st.st_nlink, st.st_uid, st.st_mode & 0o077), (0, os.geteuid(), 0))
+            self.assertEqual(f.read(), self.tar)
+        self.assertEqual(list((self.root / 'near').iterdir()), [])
+
+    def test_the_private_copy_refuses_changed_bytes_and_links(self):
+        path = self.only_shim()
+        with self.assertRaisesRegex(P['PlaceError'], 'sha256'):
+            P['private_copy'](path, dict(self.entries['shim'], sha256='0' * 64), self.root)
+        with self.assertRaisesRegex(P['PlaceError'], 'bytes'):
+            P['private_copy'](path, dict(self.entries['shim'], size=1), self.root)
+        link = self.root / 'link'
+        link.symlink_to(path)
+        with self.assertRaises(P['PlaceError']):
+            P['private_copy'](link, self.entries['shim'], self.root)
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), ['cache', 'link', 'release.json'])
 
     def test_a_cache_entry_that_is_a_link_is_refused(self):
         for e, data in ((self.entries['blob'], self.blob), (self.entries['shim'], self.tar)):

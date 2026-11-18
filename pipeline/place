@@ -9,9 +9,10 @@ row's PATH: a file as an APFS clone of CACHE/sha256/SHA256 (a copy elsewhere), a
 PATH, and an archive whose release class says `unpack` ({"strip": N, "into": "parent"}) unpacked with its first N path
 parts dropped, into PATH's parent when `into` is parent (hao-runtime's public archive: its payload/ is the row). Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
 and matching is left alone; one in place that does not match is refused, never overwritten. Before it is used, each
-cached file is checked against the release's size and sha256 (64 lower-case hex digits) on an open file, never
-through a link: an archive is unpacked from that same open file, and a file is cloned into a private folder beside
-PATH, checked there and then moved to PATH.
+cached file is checked against the release's size and sha256 (64 lower-case hex digits), never through a link: an
+archive is hashed as it is copied into an unlinked file of this process beside PATH and unpacked from that copy (what
+is unpacked is what was checked, whoever can write the cache), and a file is cloned into a private folder beside PATH,
+checked there and then moved to PATH.
 
 Rows made on the Mac (the producers) and harvested rows are not downloads: they are listed as still missing. A placed
 row that waits for files made on this Mac is listed as waiting; a made-on-Mac file that is a plain copy out of another
@@ -96,6 +97,43 @@ def open_checked(path, entry):
         os.close(fd)
         raise
     return os.fdopen(fd, 'rb')
+
+
+def private_copy(path, entry, near):
+    """A private copy of PATH (opened without following a link) checked against ENTRY's size and sha256: the bytes are
+    hashed as they are copied into a file this process created (mode 0600) in folder NEAR and unlinked at once, so
+    no one can open or change it, and it is what is read after the check. The open copy, at its start."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError as x:
+        raise PlaceError('%s: %s' % (path, x.strerror))
+    out = None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise PlaceError('%s is not a regular file' % path)
+        near.mkdir(parents=True, exist_ok=True)
+        out = tempfile.TemporaryFile(dir=near)
+        st = os.fstat(out.fileno())
+        if st.st_nlink != 0 or st.st_uid != os.geteuid() or stat.S_IMODE(st.st_mode) & 0o077:
+            raise PlaceError('the private copy of %s in %s is not private' % (path, near))
+        h, size = hashlib.sha256(), 0
+        while block := os.read(fd, CHUNK):
+            h.update(block)
+            out.write(block)
+            size += len(block)
+        if size != entry['size']:
+            raise PlaceError('%s has %d bytes; the release pins %d' % (path, size, entry['size']))
+        if h.hexdigest() != entry['sha256']:
+            raise PlaceError('%s has sha256 %s; the release pins %s' % (path, h.hexdigest(), entry['sha256']))
+        out.flush()
+        out.seek(0)
+        return out
+    except BaseException:
+        if out is not None:
+            out.close()
+        raise
+    finally:
+        os.close(fd)
 
 
 def entry_problem(entry):
@@ -233,7 +271,7 @@ def place(release_path, cache, dry_run=False, out=print):
             how = CLASSES.get(name, {}).get('unpack')
             try:
                 if how or form == 'tar':
-                    with open_checked(src, entry) as f:
+                    with private_copy(src, entry, dest.parent) as f:
                         if how:
                             unpack_archive(f, dest, how)
                         else:
