@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-54 of 56 patches declare their files so far.
+55 of 57 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -100,6 +100,12 @@ Revision r9, status product. [Recipe](../patches/golden-gate-corespotlight-compa
   1. `load-corespotlight-compat`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/corespotlight_compat.dylib.
      Spotlight queries stop crashing the daemon: the compat library adds the CoreSpotlight getter 27.x's SpotlightDaemon calls and x86_64 CoreSpotlight lacks. Required (not weak) load; the x86_64 slice only.
 - `usr/lib/corespotlight_compat.dylib`: whole file from hao (row corespotlight_compat_shim). New file: adds -[CSSearchQueryContext compiledRankingFactsConfiguration] (src/corespotlight_compat.m, built by make). Installed mode 0755, owner root:wheel, flags restricted.
+
+## golden-gate-deep-sleep-off
+
+Revision r1, status product. [Recipe](../patches/golden-gate-deep-sleep-off/README.md)
+
+- `Library/LaunchDaemons/local.hao.deep-sleep-off.plist`: whole file from hao. Launchd daemon (root 644, Data volume): runs pmset -a standby 0 autopoweroff 0 hibernatemode 0 once, retrying until it succeeds, then leaves the marker /private/var/db/.hao-deep-sleep-off.
 
 ## golden-gate-dyld-internal
 

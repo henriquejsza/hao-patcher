@@ -36,6 +36,7 @@ golden-gate-font-registry         # fontd registries of this build: Setup's in p
 golden-gate-shader-caches         # HD 4000 Metal caches harvested from this build: system accounts in place, user trees into PerUserSeed/metal
 golden-gate-icon-caches           # IconServices store and root/Setup indexes harvested from this build; user index into PerUserSeed/is
 golden-gate-update-policy         # Background Security Improvements (splats) and macOS updates never install on their own: SoftwareUpdate prefs on Data
+golden-gate-deep-sleep-off        # deep sleep (standby, autopoweroff, hibernation) off by default, diag#79: a one-time pmset daemon on Data
 golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
 dev-diagnostics                   # dev only: hao-runtime measurement boot-args and the OpenCore file log (after hao-opencore)
