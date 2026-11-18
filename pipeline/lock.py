@@ -36,6 +36,7 @@ single file of `NAME SHA256-or-- PATH` rows is also read (tests, one-off locks).
 PATH (`store/...`, `patches/...`) is relative to the repository root.
 """
 import hashlib, json, os, re, stat, sys
+from pathlib import Path
 
 TOP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -232,6 +233,45 @@ def seal(lock, name):
     return '%s %s' % (h, name)
 
 
+def names_on_the_way(p, limit=40):
+    """Every name the kernel visits resolving P, links followed hop by hop (each link and each name its target passes
+    through), in order; OSError after LIMIT links (a loop)."""
+    # as the kernel reads it: '..' is taken after the link before it is followed, never folded away first
+    queue = (str(p) if os.path.isabs(p) else os.path.join(os.getcwd(), str(p))).split('/')[1:]
+    cur, out, hops = '/', [], 0
+    while queue:
+        c = queue.pop(0)
+        if c in ('', '.'):
+            continue
+        if c == '..':
+            cur = os.path.dirname(cur)
+            continue
+        name = os.path.join(cur, c)
+        out.append(name)
+        if os.path.islink(name):
+            hops += 1
+            if hops > limit:
+                raise OSError('%s: too many links' % p)
+            target = os.readlink(name)
+            if target.startswith('/'):
+                cur = '/'
+            queue = target.split('/')[1 if target.startswith('/') else 0:] + queue
+            continue
+        cur = name
+    return out
+
+
+def source_check(lock, name, p):
+    """Stop when a name on the way to row NAME's source P (links followed one at a time: names_on_the_way) belongs to
+    someone other than root, this user or the user who ran sudo. Its bytes are checked on the copy as well."""
+    mine = {0, os.geteuid()} | ({int(os.environ['SUDO_UID'])} if os.environ.get('SUDO_UID', '').isdigit() else set())
+    for q in names_on_the_way(p):
+        st = os.lstat(q)
+        # a volume mounted without ownership reports uid 99 for every entry; accepted there
+        if st.st_uid not in mine and not (st.st_uid == UNKNOWN_UID and ignores_owners(q)):
+            sys.exit('%s: %s belongs to another user (uid %d) (%s)' % (lock, q, st.st_uid, name))
+
+
 def path(lock, name):
     r = rows(lock) if not lock.endswith('.json') else \
         {k: (v['sha256'], resolve(v['path'])) for k, v in json.load(open(lock)).items() if isinstance(v, dict) and 'path' in v}
@@ -333,6 +373,7 @@ def take(lock, name, dest, src=None):
         sys.exit('%s: row %s has no sha256' % (lock, name))
     if not os.path.isfile(src):
         sys.exit('%s: %s is not a file (%s)' % (lock, src, name))
+    source_check(lock, name, src)
     out = os.path.join(dest, os.path.basename(src))
     if os.path.lexists(out):
         sys.exit('%s is there already (%s)' % (out, name))
@@ -409,6 +450,7 @@ def take_tree(lock, name, dest):
         sys.exit('%s: row %s has no sha256' % (lock, name))
     if not os.path.isdir(p):
         sys.exit('%s: %s is not a folder (%s)' % (lock, p, name))
+    source_check(lock, name, p)
     if os.path.lexists(dest):
         sys.exit('%s is there already (%s)' % (dest, name))
     import shutil
@@ -455,6 +497,7 @@ def stage(lock, name, dest, tool='cp'):
         sys.exit('%s: %s is not there (%s)' % (lock, p, name))
     if os.path.lexists(dest):
         sys.exit('%s: %s is there already (%s)' % (lock, dest, name))
+    source_check(lock, name, p)
     # copied into a private folder of this call, given to this user without ACL entries, then checked; only then
     # moved to DEST: no one else can open or change the copy between the check and its use
     stage_dir = private_dir(os.path.dirname(os.path.abspath(dest)))

@@ -225,8 +225,9 @@ class DiskTarget(Target):
 
     POLICIES = ('internal', 'external')
 
-    def __init__(self, disk, minimum_bytes, mount_root, confirm=None, sources=(), policy='internal'):
+    def __init__(self, disk, minimum_bytes, mount_root, confirm=None, sources=(), policy='internal', identity=None):
         super().__init__(mount_root)
+        self.identity = identity    # the identity the user confirmed (tools/hao disks.identity), or None
         if policy not in self.POLICIES:
             raise ValueError('disk policy %r: one of %s' % (policy, ', '.join(self.POLICIES)))
         self.policy = policy
@@ -284,6 +285,20 @@ class DiskTarget(Target):
                 return 'holds the build\'s own work folder or inputs, the disk it would erase'
         if self.confirm != self.name:
             return 'not confirmed: confirm_disk must be '+self.name
+        return self.identity_refusal(plist)
+
+    def identity_refusal(self, plist):
+        """Why the disk at this number is not the one the user confirmed (its disk_identity), or None. The copies before
+        the assembler starts can take minutes, and another disk can take the number meanwhile."""
+        if self.identity is None:
+            return None
+        try:
+            now = disk_identity(plist, self.name)
+        except (subprocess.CalledProcessError, plistlib.InvalidFileException, ValueError):
+            return 'diskutil cannot identify it'
+        if now != self.identity:
+            changed = ', '.join(sorted(k for k in set(now)|set(self.identity) if now.get(k) != self.identity.get(k)))
+            return 'it is not the disk that was confirmed (%s changed)' % changed
         return None
 
     def prepare(self, run, plist):
@@ -302,6 +317,9 @@ class DiskTarget(Target):
             device, _, rest = line.partition(' on ')
             if self.on(device,names):
                 raise ValueError('%s is still mounted at %s' % (device, rest.rsplit(' (',1)[0]))
+        why = self.identity_refusal(plist)       # again, right before partitionDisk (or the resume) uses it
+        if why:
+            raise ValueError('/dev/%s: %s; refusing' % (self.name, why))
         self.whole = '/dev/'+self.name
 
     def adopt(self, run, plist):
@@ -320,6 +338,19 @@ class DiskTarget(Target):
                                 accepted=self.whole is not None))
 
 
+def disk_identity(plist, name):
+    """tools/hao/src/disks.py identity(), the same fields from the same diskutil reads: media name, size, bus, device
+    path and the partitions' UUIDs. ValueError when diskutil names no device path for it."""
+    info = plist('diskutil','info','-plist',name)
+    parts = (plist('diskutil','list','-plist',name).get('AllDisksAndPartitions') or [{}])[0].get('Partitions',[])
+    if not (info.get('DeviceTreePath') or info.get('IORegistryEntryName')):
+        raise ValueError('no device path for '+name)
+    return {'media': (info.get('MediaName') or '').strip(), 'size': info.get('TotalSize') or info.get('Size'),
+            'bus': info.get('BusProtocol'), 'path': info.get('DeviceTreePath') or info.get('IORegistryEntryName'),
+            'partitions': sorted(p.get('DiskUUID') or p.get('VolumeUUID') or p.get('DeviceIdentifier','')[len(name):]
+                                 for p in parts)}
+
+
 def source_paths(config):
     """Folders and files the build reads or writes outside the target: none may live on a disk it erases."""
     paths = [config['work']]+[config[key] for key in ('python','payload','kernel','kdk','fl','esp','donor_tool')]
@@ -333,7 +364,8 @@ def target_for(config):
         raise ValueError('configuration must name exactly one target: image or disk')
     if 'disk' in config:
         return DiskTarget(config['disk'],config['size_bytes'],mounts,confirm=config.get('confirm_disk'),
-                          sources=source_paths(config),policy=config.get('disk_policy','internal'))
+                          sources=source_paths(config),policy=config.get('disk_policy','internal'),
+                          identity=config.get('disk_identity'))
     return ImageTarget(config['image'],config['size_bytes'],mounts)
 
 
@@ -791,7 +823,7 @@ def resume_point(config, prior):
     # Not compared: the work folder, the image (the failed run's is used) and the disk's name, which can change
     # between starts (bench 0745: disk0 in the failed run, disk1 after a restart). adopt() finds the failed run's
     # volumes by UUID in the named disk's container, and refuses a disk that does not hold them.
-    differ = sorted(k for k in keys - {'work','image','disk','confirm_disk'}
+    differ = sorted(k for k in keys - {'work','image','disk','confirm_disk','disk_identity'}
                     if same(prior['configuration'].get(k)) != config.get(k))
     if differ:
         raise ValueError('the kit\'s configuration differs from the failed run\'s (%s): start from an empty disk' % ', '.join(differ))

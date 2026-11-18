@@ -167,19 +167,30 @@ class BuildImageHere(unittest.TestCase):
             self.assertEqual([], ran)
 
 
-class OclpArchive(unittest.TestCase):
-    def test_check_here_wants_the_oclp_source_archive_not_the_vm(self):
+class OclpSource(unittest.TestCase):
+    def test_oclp_source_is_the_pinned_row_and_here_needs_no_vm(self):
+        # a Mac without git builds from the oclp_source row (its hash checked like every row), not an unpinned archive
+        self.assertIn('oclp_source', ASSETS.FIXED)
+        self.assertFalse(hasattr(ASSETS, 'oclp_archive'))
         with tempfile.TemporaryDirectory() as d:
             store = Path(d)
+            (store / 'oclp-source').mkdir()                  # the old unpinned archive is not looked at
+            (store / 'oclp-source/abc123.tar').write_bytes(b'')
             asm = store / 'a.json'; asm.write_text('{"oclp": "abc123"}')
             with mock.patch.object(ASSETS, 'rows', lambda *_: []):
-                self.assertEqual(['builder: missing oclp-source/abc123.tar (and .commit)'],
-                                 ASSETS.check(asm, store, here=True))
-                (store / 'oclp-source').mkdir()
-                (store / 'oclp-source/abc123.tar').write_bytes(b'')
-                (store / 'oclp-source/abc123.commit').write_text('abc123full\n')
                 self.assertEqual([], ASSETS.check(asm, store, here=True))
                 self.assertEqual(len(ASSETS.TOOLS), len(ASSETS.check(asm, store)))   # the VM build wants the VM
+
+
+class GitLess(unittest.TestCase):
+    def test_rows_need_no_git_when_the_assets_folder_holds_oclps_repository(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / 'oclp').mkdir()
+            asm = sorted((ASSETS.TOP / 'pipeline/assemblies').glob('*.json'))[0]
+            with mock.patch.object(ASSETS, 'oclp_psp', side_effect=FileNotFoundError('git')):
+                names = [r[0] for r in ASSETS.rows(asm, d)]
+            self.assertIn('oclp_source', names)
+            self.assertFalse(any(n.startswith('psp_') for n in names))
 
 
 class CheckAFolder(unittest.TestCase):

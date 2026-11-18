@@ -121,6 +121,18 @@ class Verified(unittest.TestCase):
         self.assertEqual((self.store / 'shim' / 'ok.txt').read_bytes(), b'ok')
         self.assertEqual([p.name for p in self.store.iterdir() if p.name.startswith('.')], [])
 
+    def test_an_archive_this_checkout_pins_is_placed_only_with_those_bytes(self):
+        g = P['place'].__globals__
+        g['CLASSES'] = {'shim': {'source_sha256': '0' * 64}}
+        placed, kept, problems, missing = self.place()
+        self.assertEqual(placed, ['blob'])
+        self.assertEqual(len(problems), 1)
+        self.assertIn('not the archive this checkout pins', problems[0])
+        self.assertFalse((self.store / 'shim').exists())
+        g['CLASSES'] = {'shim': {'source_sha256': self.entries['shim']['sha256']}}
+        placed, kept, problems, missing = self.place()
+        self.assertEqual((placed, problems), (['shim'], []))
+
     def test_a_cache_entry_changed_after_it_was_fetched_is_refused(self):
         for e in self.entries.values():
             (self.cache / 'sha256' / e['sha256']).write_bytes(b'swapped')

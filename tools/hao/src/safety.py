@@ -9,6 +9,8 @@
                          it), then listed, read, created in and appended to only through that descriptor, so a folder
                          swapped after the check changes nothing
   create(path, data)     a new file, never through a symlink or over an existing file; mode set on the descriptor
+  others_can_change(p)   the first folder at or above P another user could change, or None (checked before a root run
+                         reads or writes there)
   as_user(owner, fn)     fn() in a child with the sudo user's ids and groups, under a deadline
   text(s), clean(v)      external text for the terminal: control characters and bidi overrides made visible
 """
@@ -196,6 +198,142 @@ def create(path, data, mode=0o600, dir_fd=None):
     finally:
         os.close(fd)
     return Path(path)
+
+
+WRITE_RIGHTS = ('write', 'append', 'add_file', 'add_subdirectory', 'delete_child', 'delete', 'writeattr',
+                'writeextattr', 'writesecurity', 'chown')
+
+
+def acl_allows_write(path):
+    """Whether PATH's access list (macOS extended ACL, not followed through a link) has an allow entry with a right that
+    changes it or its contents. A deny-only list (a home folder's "everyone deny delete") is not one."""
+    import ctypes
+    import ctypes.util
+    libc = ctypes.CDLL(ctypes.util.find_library('c'), use_errno=True)
+    libc.acl_get_link_np.restype = ctypes.c_void_p
+    libc.acl_get_link_np.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    libc.acl_to_text.restype = ctypes.c_void_p
+    libc.acl_to_text.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    libc.acl_free.argtypes = [ctypes.c_void_p]
+    acl = libc.acl_get_link_np(os.fsencode(str(path)), 0x00000100)     # ACL_TYPE_EXTENDED
+    if not acl:
+        return ctypes.get_errno() not in (2, 45)            # ENOENT: no list; EOPNOTSUPP: the volume has none
+    try:
+        text = libc.acl_to_text(acl, None)
+        if not text:
+            return True                                                  # unreadable: assume the worst
+        try:
+            lines = ctypes.string_at(text).decode('utf-8', 'replace').splitlines()
+        finally:
+            libc.acl_free(text)
+    finally:
+        libc.acl_free(acl)
+    for line in lines[1:]:                                               # line 0: "!#acl 1"
+        fields = line.split(':')
+        if len(fields) >= 5 and fields[-2] == 'allow' and set(fields[-1].split(',')) & set(WRITE_RIGHTS):
+            return True
+    return False
+
+
+def others_can_change(path, env=None, euid=None, owners=True):
+    """The first existing folder at or above PATH (links resolved) that a user other than root, this one or the one who
+    ran sudo could change: writable by group or others without the sticky bit, or (OWNERS) owned by someone else.
+    None when there is none. On the USB installer (OWNERS False) only root runs, so only the mode bits count."""
+    env = os.environ if env is None else env
+    euid = os.geteuid() if euid is None else euid
+    allowed = {0, euid, UNKNOWN_UID}
+    if euid == 0 and env.get('SUDO_UID', '').isdigit():
+        allowed.add(int(env['SUDO_UID']))
+    raw = str(path) if os.path.isabs(path) else os.path.join(os.getcwd(), str(path))   # '..' kept for the kernel's reading
+    p = Path(os.path.realpath(raw)) if not os.path.lexists(raw) else raw
+    while not os.path.lexists(p) and Path(p) != Path(p).parent:
+        p = Path(p).parent
+    # every name on the way, links followed hop by hop, and the folders holding them
+    names = names_on_the_way(p)
+    chain = list(dict.fromkeys([os.path.realpath(p)] + [os.path.dirname(n) for n in names] +
+                               [str(x) for x in Path(os.path.realpath(p)).parents]))
+    for n in names:
+        st = os.lstat(n)
+        if owners and st.st_uid not in allowed:
+            return '%s belongs to another user (uid %d)' % (n, st.st_uid)
+    for folder in chain:
+        try:
+            st = os.stat(folder)
+        except OSError:
+            continue
+        sticky = stat.S_ISDIR(st.st_mode) and st.st_mode & stat.S_ISVTX
+        if st.st_mode & 0o022 and not sticky:
+            return '%s can be written by others' % folder
+        if owners and st.st_uid not in allowed:
+            return '%s belongs to another user (uid %d)' % (folder, st.st_uid)
+        if acl_allows_write(folder):
+            return '%s has an access list that lets others change it' % folder
+    return None
+
+
+def names_on_the_way(p, limit=40):
+    """Every name the kernel visits resolving P, links followed hop by hop (each link and each name its target passes
+    through), in order; OSError after LIMIT links (a loop)."""
+    # as the kernel reads it: '..' is taken after the link before it is followed, never folded away first
+    queue = (str(p) if os.path.isabs(p) else os.path.join(os.getcwd(), str(p))).split('/')[1:]
+    cur, out, hops = '/', [], 0
+    while queue:
+        c = queue.pop(0)
+        if c in ('', '.'):
+            continue
+        if c == '..':
+            cur = os.path.dirname(cur)
+            continue
+        name = os.path.join(cur, c)
+        out.append(name)
+        if os.path.islink(name):
+            hops += 1
+            if hops > limit:
+                raise OSError('%s: too many links' % p)
+            target = os.readlink(name)
+            if target.startswith('/'):
+                cur = '/'
+            queue = target.split('/')[1 if target.startswith('/') else 0:] + queue
+            continue
+        cur = name
+    return out
+
+
+def others_can_change_tree(path, env=None, euid=None, owners=True, _seen=None):
+    """others_can_change(PATH), then every folder and file below it (links are not followed and are themselves
+    checked): the first one another user could change, or None. For a tree root reads or runs from (a kit)."""
+    why = others_can_change(path, env, euid, owners)
+    if why or not os.path.isdir(path):
+        return why
+    env = os.environ if env is None else env
+    euid = os.geteuid() if euid is None else euid
+    allowed = {0, euid, UNKNOWN_UID} | ({int(env['SUDO_UID'])} if euid == 0 and env.get('SUDO_UID', '').isdigit() else set())
+    for top, dirs, files in os.walk(path):
+        for name in dirs + files:
+            p = os.path.join(top, name)
+            st = os.lstat(p)
+            if stat.S_ISLNK(st.st_mode):
+                if owners and st.st_uid not in allowed:
+                    return '%s belongs to another user (uid %d)' % (p, st.st_uid)
+                why = others_can_change(p, env, euid, owners)     # every hop of this link, even to a target seen before
+                if why:
+                    return '%s (through %s)' % (why, p)
+                target = os.path.realpath(p)
+                seen = set() if _seen is None else _seen
+                if target in seen:
+                    continue
+                seen.add(target)
+                why = others_can_change_tree(target, env, euid, owners, seen)   # what it reaches, and all in it
+                if why:
+                    return '%s (through %s)' % (why, p)
+                continue
+            if st.st_mode & 0o022:
+                return '%s can be written by others' % p
+            if owners and st.st_uid not in allowed:
+                return '%s belongs to another user (uid %d)' % (p, st.st_uid)
+            if acl_allows_write(p):
+                return '%s has an access list that lets others change it' % p
+    return None
 
 
 def expected_path(p):

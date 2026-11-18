@@ -7,7 +7,8 @@ the clone's `store` to DIR, checks every row and builds.
     check  every row the assembly reads is there and has its pinned hash; the builder's tools are there
 
 Rows are found as release-cut finds them (the set's recipes and the assembly's donor rows) plus the rows golden-run
-always reads (KDK, both CPythons, site packages, the firmlink tool, OpenCore, PatcherSupportPkg).
+always reads (KDK, both CPythons, site packages, the firmlink tool, OpenCore, PatcherSupportPkg, and OCLP's source as
+the pinned oclp_source row, which a Mac without git builds from).
 """
 import json
 import os
@@ -19,12 +20,11 @@ import subprocess
 TOP = Path(__file__).resolve().parents[3]
 # golden-run's own inputs besides the set's (its used_rows), and the USB installer's Recovery (create-installer); the
 # PatcherSupportPkg row follows from the OCLP commit
-FIXED = ('kdk', 'python_arm64', 'python_x86_64', 'python_site', 'fl', 'tahoe_basesystem')
+FIXED = ('kdk', 'python_arm64', 'python_x86_64', 'python_site', 'fl', 'tahoe_basesystem', 'oclp_source')
 # what the builder needs below store/ that no input row names: OCLP's source repository (git archive at the
 # assembly's commit) and the builder VM (base image, tools, vmctl's Python)
 TOOLS = ('oclp', 'vm/base', 'vm/bin', 'cache/vmctl-venv')
-# a Mac that builds without the VM (an Intel Mac) needs none of the VM, and no git: OCLP's source comes as an archive
-HERE_TOOLS = ('oclp-source',)
+# a Mac that builds without the VM (an Intel Mac) needs none of these and no git: OCLP's source is the oclp_source row
 
 
 def _lock():
@@ -32,18 +32,11 @@ def _lock():
 
 
 def oclp_psp(store, commit):
-    """The PatcherSupportPkg version OCLP at COMMIT expects (lock.py psp): from the source archive the assets folder
-    carries (oclp-source/COMMIT.tar), else from the repository at that commit."""
+    """The PatcherSupportPkg version OCLP at COMMIT expects (lock.py psp), from the repository at that commit."""
     import re
-    import tarfile
-    tar = Path(store) / 'oclp-source' / (commit + '.tar')
-    if tar.is_file():
-        with tarfile.open(tar) as t:
-            text = t.extractfile('opencore_legacy_patcher/constants.py').read().decode()
-    else:
-        text = subprocess.run(['git', '-C', str(Path(store) / 'oclp'), 'show',
-                               commit + ':opencore_legacy_patcher/constants.py'],
-                              capture_output=True, text=True, check=True).stdout
+    text = subprocess.run(['git', '-C', str(Path(store) / 'oclp'), 'show',
+                           commit + ':opencore_legacy_patcher/constants.py'],
+                          capture_output=True, text=True, check=True).stdout
     return re.search(r'patcher_support_pkg_version:\s*str\s*=\s*"([^"]+)"', text).group(1)
 
 
@@ -58,7 +51,10 @@ def rows(assembly_path, store):
     names = [r for r, _ in cut['rows_for'](assembly_path)]
     names += list(FIXED) + ['opencore_' + a.get('opencore', 'release')]
     if (Path(store) / 'oclp').exists():
-        names.append('psp_' + oclp_psp(store, a['oclp']))
+        try:
+            names.append('psp_' + oclp_psp(store, a['oclp']))
+        except (OSError, subprocess.CalledProcessError):
+            pass        # no git on this Mac: inputs.sh builds from the oclp_source row and checks its psp row itself
     out, seen = [], set()
     for name in names:
         if name in seen:
@@ -103,29 +99,11 @@ def check(assembly_path, store, here=False):
             problems.append('%s: missing (%s)' % (name, below))
         elif sha != '-' and lock['row_sha256'](str(where)) != sha:
             problems.append('%s: %s is not %s' % (name, below, sha))
-    if here:
-        a = json.loads(Path(assembly_path).read_text())
-        tar = Path(store) / 'oclp-source' / (a['oclp'] + '.tar')
-        if not tar.is_file() or not tar.with_suffix('.commit').is_file():
-            problems.append('builder: missing oclp-source/%s.tar (and .commit)' % a['oclp'])
-    else:
+    if not here:
         for tool in TOOLS:
             if not (Path(store) / tool).exists():
                 problems.append('builder: missing %s' % tool)
     return problems
-
-
-def oclp_archive(store, commit, dest):
-    """oclp-source/COMMIT.tar (git archive of OCLP at COMMIT) and COMMIT.commit (the full commit) in DEST, made from
-    STORE's OCLP repository: what a Mac without git builds from."""
-    out = Path(dest) / 'oclp-source'
-    out.mkdir(parents=True, exist_ok=True)
-    repo = str(Path(store) / 'oclp')
-    with (out / (commit + '.tar')).open('wb') as f:
-        subprocess.run(['git', '-C', repo, 'archive', '--format=tar', commit], stdout=f, check=True)
-    full = subprocess.run(['git', '-C', repo, 'rev-parse', commit], capture_output=True, text=True, check=True)
-    (out / (commit + '.commit')).write_text(full.stdout.strip() + '\n')
-    return 'oclp-source/%s.tar' % commit
 
 
 def clone(src, dest):
@@ -159,7 +137,4 @@ def make(dest, assembly_path, store):
         if (Path(store) / tool).exists() and not (dest / tool).exists():
             clone(Path(store) / tool, dest / tool)
             made.append(('builder', tool))
-    repo = Path(store) / 'oclp'
-    if (repo / '.git').exists() or (repo / 'HEAD').is_file():   # a git repository (a work tree or a bare one)
-        made.append(('builder', oclp_archive(store, json.loads(Path(assembly_path).read_text())['oclp'], dest)))
     return made

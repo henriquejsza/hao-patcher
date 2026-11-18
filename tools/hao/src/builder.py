@@ -36,6 +36,7 @@ import detect as DETECT
 import disks as DISKS
 import macos as MAC
 import assets as ASSETS
+import safety as SAFE
 
 TOP = Path(__file__).resolve().parents[3]
 ASSEMBLIES = TOP / 'pipeline' / 'assemblies'
@@ -99,6 +100,18 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
     work = Path(getattr(a, 'work', None) or BUILDS / datetime.datetime.now().strftime('%Y%m%d-%H%M%S')).resolve()
     record = None
     kit = Path(a.kit).resolve() if getattr(a, 'kit', None) else None
+    # what root reads and writes from here on (the kit, the work folder, this checkout's store) is no one else's to
+    # change: checked before anything is staged, and again for the folders staging made
+    on_stick = bool(os.environ.get('HAO_STICK'))
+
+    def no_one_else(*places, tree=()):
+        for where in places:
+            check = SAFE.others_can_change_tree if where in tree else SAFE.others_can_change
+            why = check(where, owners=not on_stick)
+            if why:
+                raise Stopped('nothing was erased: %s' % why, untouched='nothing was written to any disk',
+                              options=['make that folder yours and not writable by others (chmod go-w), or use another'])
+    no_one_else(work, TOP / 'store', *([kit] if kit else []), tree=[kit] if kit else [])
     if kit is None:
         record = work / 'record'
         cmd = [sys.executable, '-I', str(TOP / 'pipeline' / 'golden-run'), str(path), '--stage-kit',
@@ -119,7 +132,23 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
            [] if record is not None else ['--no-cryptex-cache']) + ['--disk', name,
            '--confirm-disk', name] + (['--external'] if policy == 'external' else []) + (
            ['--resume', str(prior)] if prior else [])
+    no_one_else(kit, local, tree=[kit])
+    if local.exists() and (not local.is_dir() or local.is_symlink() or any(local.iterdir())):
+        # the assembler's own folder is new (its configuration and copies are made there as root, never over old files)
+        raise Stopped('nothing was erased: %s is not a new, empty folder' % local, untouched='nothing was written to any disk',
+                      options=['remove it or name another work folder'])
     expect = getattr(a, 'disk_expect', None)
+    if expect:                      # the assembler checks it again right before it erases (golden-image.py DiskTarget)
+        import atexit
+        import shutil
+        import tempfile
+        private = tempfile.mkdtemp(prefix='hao-disk-')     # this user's, 0700: no one else can replace the file
+        atexit.register(shutil.rmtree, private, True)
+        ident = Path(private) / 'disk-identity.json'
+        fd = os.open(ident, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            f.write(json.dumps(expect['identity'], indent=1) + '\n')
+        cmd[cmd.index('--confirm-disk') + 2:cmd.index('--confirm-disk') + 2] = ['--disk-identity', str(ident)]
     if expect:                      # staging can take long: the confirmed disk must still be the one at this number
         why = DISKS.recheck(host, name, expect['identity'], expect['policy'], expect['minimum'], expect['sources'])
         if why:

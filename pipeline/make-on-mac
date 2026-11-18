@@ -19,7 +19,7 @@ golden_gate_userspace's 23 GB of disk images into DIR (the USB drive) and links 
 Tahoe donors are made in one x86_64 pass, and
 each work tree is deleted as soon as the rows made from it check (--keep keeps them).
 """
-import argparse, contextlib, hashlib, json, os, runpy, shutil, stat, subprocess, sys, tarfile, tempfile, time
+import argparse, contextlib, hashlib, json, os, runpy, shutil, stat, subprocess, sys, tarfile, tempfile, time, zlib
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
@@ -75,6 +75,7 @@ class Run:
         self.release, self.userspace_on, self.keep = release or {}, userspace_on, keep
         self.runtime_tool = runtime_tool
         self.mounts, self.private, self.inputs = {}, [], {}
+        self.cache = None       # the download cache (--cache), for archive_tool
 
     def stream(self, row):
         """(source, extra arguments) for a download row: a private snapshot of its local file (snapshot()) when it is
@@ -311,6 +312,98 @@ def user_tmp(who):
     return tmp
 
 
+MEMBER_LIMIT = 64 << 20     # a producer's own files (scripts, modules) are small
+
+
+def archive_tool(cache, release, row, tool_rel):
+    """(path, None) of a private copy of TOOL_REL (and the rest of its folder, which it imports) taken from ROW's
+    archive, the one the release pins (its sha256, also release-classes' source_sha256) and the download cache holds;
+    or (None, why not). The archive is hashed on the open file the members are read from, and the copy is made in a new
+    folder of this user's (mkdtemp; 0711, its files 0644/0755) that is what runs: nothing on the placed tree is trusted."""
+    import atexit, hashlib
+    classes = json.loads((TOP / 'pipeline/release-classes.json').read_text())
+    classes = classes.get('rows', classes)
+    entry = next((x for x in release.get('assets', []) if x.get('row') == row), None)
+    if entry is None:
+        return None, 'the release has no %s asset' % row
+    pinned = classes.get(row, {}).get('source_sha256')
+    if pinned and entry.get('sha256') != pinned:
+        return None, 'the release\'s %s archive is %s, not the %s this checkout pins' % (row, entry.get('sha256'), pinned)
+    if cache is None:
+        return None, 'no download cache named (--cache) to take it from its archive'
+    strip = int((classes.get(row, {}).get('unpack') or {}).get('strip', 0))
+    folder = Path(tool_rel).parent
+    try:
+        fd = os.open(Path(cache) / 'sha256' / entry['sha256'], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as x:
+        return None, 'the %s archive is not in the cache: %s' % (row, x.strerror)
+    # under /private/var/tmp (root's, sticky): the user the tool runs as under sudo can reach it, no one else can change it
+    base = Path(tempfile.mkdtemp(prefix='hao-producer-', dir='/private/var/tmp' if os.path.isdir('/private/var/tmp') else None))
+    atexit.register(shutil.rmtree, str(base), True)
+    os.chmod(base, 0o711)
+    with os.fdopen(fd, 'rb') as f:
+        st = os.fstat(f.fileno())
+        if not stat.S_ISREG(st.st_mode):
+            return None, 'the cached %s archive is not a file' % row
+        # one read: the bytes hashed are the bytes extracted, so nothing can change them in between; the copy is kept
+        # only when the whole archive hashes to its pin
+        h = hashlib.sha256()
+
+        size = entry.get('size')
+        seen = [0]
+
+        class Hashed:
+            def read(self, n=-1):
+                data = f.read(n)
+                seen[0] += len(data)
+                if isinstance(size, int) and seen[0] > size:     # never more than the release pins
+                    raise tarfile.TarError('the archive is larger than its pinned size')
+                h.update(data)
+                return data
+
+        total = [0]
+
+        def members(t):
+            with t:
+                for m in t:
+                    parts = Path(m.name).parts
+                    if not m.isfile() or len(parts) <= strip or '..' in parts or Path(m.name).is_absolute():
+                        continue
+                    rel = Path(*parts[strip:])
+                    if rel.parent != folder:
+                        continue
+                    total[0] += m.size
+                    if m.size > MEMBER_LIMIT or total[0] > 4 * MEMBER_LIMIT:
+                        raise tarfile.TarError('%s is larger than a producer\'s files can be' % m.name)
+                    out = base / rel
+                    out.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+                    data = t.extractfile(m).read()
+                    w = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                0o755 if m.mode & 0o111 else 0o644)
+                    with os.fdopen(w, 'wb') as o:
+                        o.write(data)
+        broken = None
+        try:
+            members(tarfile.open(fileobj=Hashed(), mode='r|*'))
+        except (tarfile.TarError, EOFError, zlib.error) as x:
+            broken = x                                  # the hash below says whether it is the pinned archive at all
+        for block in iter(lambda: f.read(1 << 20), b''):
+            seen[0] += len(block)
+            if isinstance(size, int) and seen[0] > size:
+                break
+            h.update(block)
+        if h.hexdigest() != entry['sha256'] or (isinstance(size, int) and seen[0] != size):
+            shutil.rmtree(base, True)
+            return None, 'the cached %s archive is not its pinned bytes' % row
+        if broken is not None:
+            shutil.rmtree(base, True)
+            return None, 'the %s archive could not be read: %s' % (row, broken)
+    tool = base / tool_rel
+    if not tool.is_file():
+        return None, 'the %s archive has no %s' % (row, tool_rel)
+    return tool, None
+
+
 def runtime_tool(r, tool, view, x86, top, euid=None, environ=None):
     """Run hao-runtime's tool (it refuses root: it needs no privileges). As root under sudo it runs as the user who
     ran sudo, who is given TOP (the archive folder it writes into) and the view (made as root: it reads execute-only
@@ -516,6 +609,11 @@ def steps(r, fs, a):
         from the placed archive, or --dev-runtime-tool for an archive older than it); it checks the whole payload."""
         top = P('hao_runtime').parent
         tool = find_runtime_tool(top, r.runtime_tool)
+        if tool == top / 'tools/hao-runtime-on-mac' and not r.dry:
+            # what runs is the pinned archive's own tools folder, copied from it here, not the placed one
+            tool, why = archive_tool(r.cache, r.release, 'hao_runtime', 'tools/hao-runtime-on-mac')
+            if why:
+                raise Failed('hao-runtime-on-mac not run: ' + why)
         rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
         runtime_tool(r, tool, root_view(), rosetta / 'System/Library/dyld', top)
 
@@ -565,6 +663,8 @@ def main():
     p.add_argument('--keep', action='store_true', help='keep the work trees (the donor pass) after their rows check')
     p.add_argument('--dev-runtime-tool', type=Path,
                    help='maintainers: hao-runtime-on-mac to use when the runtime archive carries none')
+    p.add_argument('--cache', type=Path, help='the download cache (hao fetch): producers that come in a downloaded '
+                   'archive are taken from it')
     args = p.parse_args()
     release = json.loads(Path(args.release).read_text())
     # git trusts this checkout in every producer (a user's checkout, run under sudo by create-installer)
@@ -582,6 +682,7 @@ def main():
     failed = []
     with open(log_path, 'a') as log:
         r = Run(fs, work, log, args.dry_run, release, args.userspace_on, args.keep, args.dev_runtime_tool)
+        r.cache = args.cache
         if args.userspace_on and 'golden_gate_userspace' in made:
             # images made onto another drive (an earlier USB drive, still mounted or not) are not this drive's
             linked = artifact(path(fs, 'golden_gate_userspace'))

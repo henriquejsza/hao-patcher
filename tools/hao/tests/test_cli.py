@@ -565,8 +565,13 @@ class BuilderTest(unittest.TestCase):
             self.assertIn('--stage-kit', stage)
             self.assertEqual(assemble[0], 'sh')
             self.assertTrue(assemble[1].endswith('/share/assembly-source/golden-assemble.sh'))
+            ident = assemble[assemble.index('--disk-identity') + 1]
             self.assertEqual(assemble[3:], [str(Path(d).resolve() / 'local'), '--disk', 'disk5',
-                                            '--confirm-disk', 'disk5', '--external'])
+                                            '--confirm-disk', 'disk5', '--disk-identity', ident, '--external'])
+            # what the user confirmed, for golden-image.py to compare right before it erases, in a folder of its own
+            self.assertEqual(json.loads(Path(ident).read_text()), DISKS.identity(host, 'disk5'))
+            self.assertEqual(oct(Path(ident).parent.stat().st_mode & 0o777), '0o700')
+            self.assertFalse(str(Path(ident).resolve()).startswith(str(Path(d).resolve())))
             self.assertIn('--collect-kit', collect)
             self.assertNotIn('--no-cryptex-cache', assemble)
             self.assertIn('built on /dev/disk5', out.getvalue())
@@ -596,7 +601,9 @@ class BuilderTest(unittest.TestCase):
             self.assertEqual(BUILD.install(a, c, host, run=run), 0)
             (assemble,) = ran
             self.assertEqual(assemble[2], str(kit.resolve()))
-            self.assertEqual(assemble[-4:], ['--disk', 'disk0', '--confirm-disk', 'disk0'])
+            self.assertEqual(assemble[-6:-2], ['--disk', 'disk0', '--confirm-disk', 'disk0'])
+            self.assertEqual(assemble[-2], '--disk-identity')
+            self.assertEqual(json.loads(Path(assemble[-1]).read_text()), DISKS.identity(host, 'disk0'))
             # nothing collects a stick's kit: the sealed cryptex images are not stored (they filled the stick)
             self.assertEqual(assemble[4], '--no-cryptex-cache')
             self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'hao-install-')))
@@ -635,6 +642,34 @@ class BuilderTest(unittest.TestCase):
             host.data_mount = None                  # no Data volume mounted (and mounting does not help): a warning
             c, _ = console('quiet')
             self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
+
+    def test_install_refuses_a_kit_or_work_folder_others_can_write(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'shared' / 'kit'; kit.mkdir(parents=True); (kit / 'kit.json').write_text('{}')
+            os.chmod(kit.parent, 0o777)
+            ran, run = self.fake_run()
+            c, _ = console('quiet')
+            try:
+                with self.assertRaises(CON.Stopped) as x:
+                    BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run)
+            finally:
+                os.chmod(kit.parent, 0o755)
+            self.assertIn('can be written by others', x.exception.what)
+            self.assertEqual(ran, [])                    # the assembler never ran
+
+    def test_install_refuses_a_work_folder_with_old_files(self):
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            local = Path(d) / 'local'; local.mkdir(); (local / 'config.json').write_text('{}')
+            ran, run = self.fake_run()
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), local=str(local)), c, host,
+                              run=run)
+            self.assertIn('not a new, empty folder', x.exception.what)
+            self.assertEqual(ran, [])
 
     def test_disk_identity_is_checked_again_before_the_assembler(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
