@@ -24,10 +24,19 @@ class Recipe(unittest.TestCase):
         text = (PATCH / 'apply.sh').read_text().replace('install -o root -g wheel ', 'install ') \
             .replace('install -d -o root -g wheel ', 'install -d ')
         with tempfile.TemporaryDirectory() as d:
-            env = dict(os.environ, DATA=d, P=str(PATCH))
+            data, p = Path(d) / 'data', Path(d) / 'p'
+            (p / 'inputs').mkdir(parents=True)
+            (p / 'src').symlink_to(PATCH / 'src')
+            for row in PJ['inputs']:
+                (p / 'inputs' / row).write_bytes(row.encode())
+            (p / 'inputs/hao_capture_plist').write_bytes(plistlib.dumps({'Label': 'local.hao.capture'}))
+            env = dict(os.environ, DATA=str(data), P=str(p))
             subprocess.run(['/bin/sh', '-eu', '-c', text], env=env, check=True, capture_output=True)
             for f in PJ['files']:
-                self.assertEqual((Path(d) / f['path']).read_bytes(), (PATCH / 'src' / Path(f['path']).name).read_bytes())
+                row = f['origin'].get('row')
+                want = (p / 'inputs' / row) if row else (PATCH / 'src' / Path(f['path']).name)
+                self.assertEqual((data / f['path']).read_bytes(), want.read_bytes(), f['path'])
+            d = str(data)
             self.assertTrue((Path(d) / 'private/var/db/hao-capture').is_dir())
 
 

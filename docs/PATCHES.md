@@ -47,9 +47,12 @@ Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-capture
 
-Revision r1, status dev. [Recipe](../patches/dev-capture/README.md)
+Revision r2, status dev. [Recipe](../patches/dev-capture/README.md)
 
 - `Library/Preferences/Logging/Subsystems/com.hao.plist`: whole file from hao. Data volume; src/com.hao.plist: the com.hao subsystem's messages persist at Info; root:wheel 0644.
+- `usr/local/libexec/hao-capture/hao-capture`: whole file from hao (row hao_capture_job). Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/hao-capture/<boot>/ (capped at 1 GB); root:wheel 0755. Installed mode 0755, owner root:wheel.
+- `usr/local/libexec/hao-capture/inventory.sh`: whole file from hao (row hao_capture_inventory). Data volume; runs swift-inspect dump-generic-metadata on each process; root:wheel 0755. Installed mode 0755, owner root:wheel.
+- `Library/LaunchDaemons/local.hao.capture.plist`: whole file from hao (row hao_capture_plist). Data volume; root job: at load (first run after 300 s), then every 1800 s, Background, low-priority I/O; root:wheel 0644. Installed mode 0644, owner root:wheel.
 
 ## dev-diagnostics
 

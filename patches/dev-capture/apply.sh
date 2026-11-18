@@ -5,3 +5,8 @@ install -d -o root -g wheel -m 755 "$DATA/Library/Preferences/Logging/Subsystems
 install -o root -g wheel -m 644 "$P/src/com.hao.plist" "$DATA/Library/Preferences/Logging/Subsystems/com.hao.plist"
 plutil -lint "$DATA/Library/Preferences/Logging/Subsystems/com.hao.plist"
 install -d -o root -g wheel -m 755 "$DATA/private/var/db/hao-capture"
+install -d -o root -g wheel -m 755 "$DATA/usr/local/libexec/hao-capture" "$DATA/Library/LaunchDaemons"
+install -o root -g wheel -m 755 "$P/inputs/hao_capture_job" "$DATA/usr/local/libexec/hao-capture/hao-capture"
+install -o root -g wheel -m 755 "$P/inputs/hao_capture_inventory" "$DATA/usr/local/libexec/hao-capture/inventory.sh"
+install -o root -g wheel -m 644 "$P/inputs/hao_capture_plist" "$DATA/Library/LaunchDaemons/local.hao.capture.plist"
+plutil -lint "$DATA/Library/LaunchDaemons/local.hao.capture.plist"
