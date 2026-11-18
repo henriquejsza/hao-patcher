@@ -26,6 +26,49 @@ def literal(eid, at, find, replace, kind='oclp', sign=None):
             'sign': sign}
 
 
+class RowCopies(unittest.TestCase):
+    """The rows the materialiser reads are checked copies in a private folder of the run, as the build's are."""
+
+    def setUp(self):
+        self.t = tempfile.TemporaryDirectory(); self.d = Path(self.t.name)
+        self.lock = self.d / 'lock'; self.lock.mkdir()
+        self.private = Path(M['LOCK']['private_dir'](str(self.d)))
+        self.file = self.d / 'store' / 'spec.bin'; self.file.parent.mkdir(); self.file.write_bytes(b'row bytes')
+        (self.lock / 'spec').write_text('%s %s\n' % (hashlib.sha256(b'row bytes').hexdigest(), self.file))
+        donor = self.d / 'store' / 'donors'; (donor / 'payload' / 'native').mkdir(parents=True)
+        (donor / 'payload' / 'native' / 'x').write_bytes(b'x')
+        (self.lock / 'tahoe_native_donors').write_text('%s %s\n' % (M['LOCK']['row_sha256'](str(donor)), donor))
+        (self.lock / 'missing').write_text('%s %s\n' % ('0' * 64, self.d / 'store' / 'not-there'))
+        self.rows = M['CheckedRows']({n: self.lock for n in ('spec', 'tahoe_native_donors', 'missing')}, self.private)
+
+    def tearDown(self):
+        self.t.cleanup()
+
+    def test_a_row_is_read_from_its_checked_copy(self):
+        src = M['Sources'](self.rows)
+        self.assertEqual(list(self.private.iterdir()), [], 'nothing is copied before it is read')
+        self.assertEqual(src.row_file('spec', 'x'), b'row bytes')
+        copy = Path(self.rows['spec'])
+        self.assertTrue(copy.is_relative_to(self.private))
+        self.file.write_bytes(b'other')                  # the store changes after the copy was checked
+        self.assertEqual(src.row_file('spec', 'x'), b'row bytes')
+        self.assertIs(self.rows['spec'], self.rows['spec'], 'one copy per run')
+
+    def test_a_row_that_does_not_check_stops_and_a_missing_one_is_not_resolved(self):
+        self.file.write_bytes(b'other')
+        with self.assertRaises(SystemExit):
+            M['Sources'](self.rows).row_file('spec', 'x')
+        with self.assertRaises(M['Unresolved']):
+            M['Sources'](self.rows).row_file('missing', 'x')
+
+    def test_donor_roots_come_from_checked_copies(self):
+        src = M['Sources'].from_repo(self.rows)
+        self.assertEqual(len(src.tahoe_roots), 1)
+        self.assertTrue(Path(src.tahoe_roots[0]).is_relative_to(self.private))
+        self.assertEqual(sorted(p.name for p in self.private.iterdir()), ['tahoe_native_donors'],
+                         'only the rows it reads are copied')
+
+
 class Materialize(unittest.TestCase):
     def setUp(self):
         self.d = Path(tempfile.mkdtemp())

@@ -42,11 +42,13 @@ its CDHash, size and LC_CODE_SIGNATURE/__LINKEDIT sizes only (tools/edit-engine/
 it as a note, not a problem); anything keyed on CDHashes must therefore be generated from the installed files.
 """
 import argparse
+from collections.abc import Mapping
 import hashlib
 import json
 import os
 from pathlib import Path
 import runpy
+import shutil
 import sys
 import tarfile
 
@@ -96,8 +98,9 @@ class Sources:
             oclp_map = [(e['destination'].lstrip('/'), e['operation'], e['support_package_relative_path'])
                         for e in m.get('entries', [])]
         tahoe = []
-        for row, path in sorted(assembly_rows.items()):
-            if row.startswith('tahoe_') and row.endswith('_donors') and Path(path, 'payload').is_dir():
+        for row in sorted(assembly_rows):          # only the donor rows are read (CheckedRows copies what is read)
+            path = assembly_rows.get(row) if row.startswith('tahoe_') and row.endswith('_donors') else None
+            if path and Path(path, 'payload').is_dir():
                 tahoe += [str(p) for p in sorted(Path(path, 'payload').iterdir()) if p.is_dir()]
         return cls(assembly_rows, str(Path(art) / 'payload') if art else None, oclp_map, system, tahoe)
 
@@ -433,18 +436,55 @@ def _materialize(ledger, root, sources, out, store_dir, pack_of, phase_of, repo,
     return report
 
 
-def repo_rows(build, golden=None):
-    """{row: path} from pipeline/inputs/golden/* (only golden/GOLDEN when given, as golden-run reads it),
+LOCK = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
+
+
+def repo_locks(build, golden=None):
+    """{row: its lock folder} from pipeline/inputs/golden/* (only golden/GOLDEN when given, as golden-run reads it),
     pipeline/inputs/BUILD and pipeline/inputs/common, first wins."""
-    lock = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
-    rows = {}
+    locks = {}
     for folder in (TOP / 'pipeline/inputs/golden', TOP / 'pipeline/inputs' / build, TOP / 'pipeline/inputs/common'):
         for sub in (([folder / golden] if golden else [folder / d for d in sorted(os.listdir(folder))])
                     if folder.name == 'golden' and folder.is_dir() else [folder]):
             if sub.is_dir():
-                for r, (_, path) in lock['rows'](str(sub)).items():
-                    rows.setdefault(r, path)
-    return rows
+                for r in LOCK['rows'](str(sub)):
+                    locks.setdefault(r, sub)
+    return locks
+
+
+def repo_rows(build, golden=None):
+    """{row: path} of repo_locks(): where each row's file is in the store (listings and tests; run() reads the rows
+    through CheckedRows)."""
+    tables = {}
+    for r, lock in repo_locks(build, golden).items():
+        tables.setdefault(lock, LOCK['rows'](str(lock)))
+    return {r: tables[lock][r][1] for r, lock in repo_locks(build, golden).items()}
+
+
+class CheckedRows(Mapping):
+    """{row: path} for the materialiser, as the build reads its rows: the first time a row is read it is copied into
+    FOLDER (a private folder of this run) and checked as copied (lock.py stage), and only that copy is read after.
+    A row whose file is not there is not resolved (KeyError: Sources reports it); one that does not check stops."""
+
+    def __init__(self, locks, folder):
+        self.locks, self.folder, self.copies = dict(locks), Path(folder), {}
+
+    def __getitem__(self, row):
+        if row not in self.copies:
+            lock = str(self.locks[row])
+            where = Path(LOCK['where'](lock, row))
+            if not os.path.lexists(where):
+                raise KeyError(row)
+            out = self.folder / row
+            out.mkdir(mode=0o700)
+            self.copies[row] = LOCK['stage'](lock, row, str(out / where.name))
+        return self.copies[row]
+
+    def __iter__(self):
+        return iter(self.locks)
+
+    def __len__(self):
+        return len(self.locks)
 
 
 def run(setfile, target, build, out, store=None, system=None, packs='auto', only=None, golden=None):
@@ -454,13 +494,18 @@ def run(setfile, target, build, out, store=None, system=None, packs='auto', only
     defs = patches['load_packs']()
     selected = patches['detect_packs'](target, defs) if packs == 'auto' else packs.split(',')
     ledger = ledger_mod['build'](setfile, target, '%s/%s' % (golden, build) if golden else build)
-    rows = repo_rows(build, golden)
-    member = {r: n for n, d in defs.items() for r in d.get('recipes', [])}
-    pack_of = lambda recipe: member.get(recipe) if member.get(recipe) in selected else None
-    phase_of = lambda pack: defs[pack]['phase']
-    report = materialize(ledger, TOP / 'patches', Sources.from_repo(rows, system), out,
-                         store or str(Path(out) / 'store'), pack_of, phase_of, only=set(only) if only else None,
-                         platform_data=SPEC.load_platform_data(target=target))
+    Path(out).mkdir(parents=True, exist_ok=True)
+    private = LOCK['private_dir'](str(out))      # the run's checked row copies, removed when it is done
+    try:
+        rows = CheckedRows(repo_locks(build, golden), private)
+        member = {r: n for n, d in defs.items() for r in d.get('recipes', [])}
+        pack_of = lambda recipe: member.get(recipe) if member.get(recipe) in selected else None
+        phase_of = lambda pack: defs[pack]['phase']
+        report = materialize(ledger, TOP / 'patches', Sources.from_repo(rows, system), out,
+                             store or str(Path(out) / 'store'), pack_of, phase_of, only=set(only) if only else None,
+                             platform_data=SPEC.load_platform_data(target=target))
+    finally:
+        shutil.rmtree(private, ignore_errors=True)
     return report, ledger
 
 
