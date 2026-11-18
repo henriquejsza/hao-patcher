@@ -1,6 +1,6 @@
 """Disk guard for a producer run: refuse to start without room, and remove the intermediates afterwards.
 
-A 26B131 fold-in run writes about 21 GB of intermediates under WORK (plus the whole disk image when it reads an image
+A 26B131 fold-in run writes about 29 GB of intermediates under WORK (plus the whole disk image when it reads an image
 repository) and a 7 GB family. Before anything is written,
 `check` refuses when the volume of WORK or OUTPUT has less than NEED_GB free (the two may share a volume; the larger
 need counts then). SHARED_CACHE_DISK_CHECK may name a site command that decides as well; it is run as
@@ -14,7 +14,7 @@ import subprocess
 
 from .exports import Refusal
 
-WORK_GB = 22      # intermediates of a 26B131 fold-in run
+WORK_GB = 30      # intermediates of a 26B131 fold-in run
 FAMILY_GB = 8     # the family itself
 
 
