@@ -88,6 +88,16 @@ runtime are skipped without it. No GPU workload runs. The framebuffer target
 tests in `patches/golden-gate-metal-framebuffer/build/tests` need their own
 environment.
 
+`tests/test_load_paths.py` scans every Mach-O of the HD 4000 Metal stack that the release assembly installs (OCLP's
+Metal, MTLCompiler and GPUCompiler frameworks with the compiler service, and the HD 4000 driver bundles; the recipes'
+files composed by `pipeline/materialize.py`) and fails on a load path that does not start with `/`,
+`@loader_path/` or `@executable_path/`: dyld refuses relative paths in the restricted, hardened MTLCompilerService.
+It lists `@rpath` links with their `LC_RPATH`s, and skips without the `oclp_hardware` row in the store:
+
+```sh
+python3.14 -I -B -m unittest discover -s tools/metal-fixes/tests -p test_load_paths.py
+```
+
 ## Limitations
 
 The MPS initializer repair is located by code shape (26A428 and 26B131); the library installers refuse a System library
@@ -99,5 +109,6 @@ Licensing: see [NOTICE.md](NOTICE.md).
 
 ## Revisions
 
+- r3 2026-11-17 `tests/test_load_paths.py`: no relative load path in the release image's Metal stack (the 31001 libLLVM.dylib's relative libLLVM_helper path crashed MTLCompilerService under hao-opencore r72's AMFI dyld policy).
 - r2 2026-11-11 MPS initializer repair located by masked context and resolved ObjC names instead of UUID and offset (26A428 and 26B131).
 - r1 2026-11-11 `metallibs` uses the Golden Gate profile for any 27.x System; `hello` added.
