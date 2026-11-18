@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-52 of 54 patches declare their files so far.
+53 of 55 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -323,6 +323,12 @@ Revision r6, status product. [Recipe](../patches/golden-gate-store/README.md)
 - `System/Applications/App Store.app/Contents/MacOS/App Store`: from hao · App Store 26B131, hao stub; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-store-catalog-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/libhao-appstore-policy.dylib.
      App Store: Apple-silicon-only apps download and install.
+
+## golden-gate-update-policy
+
+Revision r1, status product. [Recipe](../patches/golden-gate-update-policy/README.md)
+
+- `Library/Preferences/com.apple.SoftwareUpdate.plist`: whole file from hao. Data volume; apply.sh sets SplatEnabled false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644. Seed (macOS changes it after install): Softwareupdated adds its scan dates and offers to this file after install, and the user may turn Background Security Improvements or automatic updates back on in System Settings.
 
 ## golden-gate-user-seed
 

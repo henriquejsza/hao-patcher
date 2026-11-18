@@ -36,6 +36,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-shared-cache | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-shared-cache-catalog | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it |
 | golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
+| golden-gate-update-policy | r1 | post | product |  | x |  |  |  | **needs** | r1 2026-11-18 New: SplatEnabled off and the Install Tonight queue cleared, so no Background Security Improveme |
 | golden-gate-user-seed | r14 | post | product | caches | x |  |  |  | **needs** | r14 2026-11-17 Declares its scope (`requires`, docs/requires.md): the seed runtime and the payload layout of 2 |
 | golden-gate-user-template | r11 | post | product | caches | x |  |  |  | **needs** | r11 2026-11-17 Leaves out Mail's containers (8 of 336), fixes #47: a schema-0 Mail container was migrated unde |
 | golden-gate-userspace | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 The prespecialization gate refuses only a Swift-bearing image the overridden set gains. One it  |

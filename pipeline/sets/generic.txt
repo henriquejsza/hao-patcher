@@ -13,4 +13,5 @@ golden-gate-user-seed
 golden-gate-user-template
 golden-gate-font-registry
 golden-gate-icon-caches
+golden-gate-update-policy
 hao-command

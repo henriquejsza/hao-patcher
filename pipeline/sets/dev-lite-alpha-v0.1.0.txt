@@ -26,6 +26,7 @@ golden-gate-user-template
 golden-gate-font-registry
 golden-gate-shader-caches
 golden-gate-icon-caches
+golden-gate-update-policy
 dev-access
 dev-keepawake
 hao-command

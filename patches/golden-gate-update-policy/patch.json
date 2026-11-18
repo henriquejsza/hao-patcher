@@ -1,0 +1,20 @@
+{
+ "revision": 1,
+ "pack": "base",
+ "stage": "post",
+ "inputs": [],
+ "status": "product",
+ "validated": false,
+ "files": [
+  {
+   "path": "Library/Preferences/com.apple.SoftwareUpdate.plist",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; apply.sh sets SplatEnabled false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644"
+   },
+   "content": "seed",
+   "reason": "softwareupdated adds its scan dates and offers to this file after install, and the user may turn Background Security Improvements or automatic updates back on in System Settings"
+  }
+ ],
+ "requires": {"os": ["26B131"], "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
+}
