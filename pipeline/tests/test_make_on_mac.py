@@ -173,6 +173,47 @@ class MakeOnMac(unittest.TestCase):
         with self.assertRaises(M['Failed']):
             self.run_().input('oclp_hardware')
 
+    def userspace_row(self):
+        payload = self.d / 'artifact' / 'payload'; payload.mkdir(parents=True)
+        (payload / 'filesystem.dmg').write_bytes(b'system image')
+        (payload / 'userspace.json').write_text('{}')      # the producer's record, outside the row's hash
+        want = M['lock'].row_sha256(str(payload), without=('userspace.json',))
+        (self.lock / 'golden_gate_userspace').write_text('# hash: without userspace.json\n%s %s\n' % (want, payload))
+        self.row('darwin27_kernel', self.d / 'kernel' / 'out' / 'kernel', None)
+        return payload
+
+    def test_images_are_mounted_from_a_checked_copy_of_the_userspace_row(self):
+        payload = self.userspace_row()
+        r = self.run_()
+        mounted = []
+
+        def mount(image, name, passphrase=None):
+            mounted.append((image, image.read_bytes()))
+            return self.d / 'mnt'
+        r.mount, r.sh = mount, lambda *a, **k: None
+        todo = dict((rows[0], fn) for rows, fn in M['steps'](r, [self.lock], {'golden_build': 'G', 'donor_build': 'D'}))
+        (payload / 'filesystem.dmg').write_bytes(b'evil image')    # changed after the row checked: not the copy
+        with self.assertRaises(M['Failed']):
+            todo['darwin27_kernel']()
+        (payload / 'filesystem.dmg').write_bytes(b'system image')
+        todo['darwin27_kernel']()
+        image, data = mounted[0]
+        self.assertEqual(data, b'system image')
+        self.assertFalse(image.is_relative_to(payload), 'never the store path')
+        self.assertFalse((image.parent / 'userspace.json').exists(), 'only the checked entries are copied')
+        (payload / 'filesystem.dmg').write_bytes(b'evil image')
+        self.assertEqual(image.read_bytes(), b'system image')
+        r.close()
+
+    def test_the_userspace_copy_goes_on_its_drive_when_that_is_private(self):
+        self.userspace_row()
+        drive = self.d / 'drive'; drive.mkdir(mode=0o700)
+        r = M['Run']([self.lock], self.work, io.StringIO(), False, self.release, drive)
+        got = r.input('golden_gate_userspace')
+        self.assertTrue(got.is_relative_to(os.path.realpath(drive)))
+        self.assertEqual((got / 'filesystem.dmg').read_bytes(), b'system image')
+        r.close()
+
     def steps(self, a_bytes, b_fails=False):
         ran = []
         out = {n: self.d / n for n in 'abc'}

@@ -105,11 +105,12 @@ class Run:
             return entry['url'], extra
         raise Failed('no checked input for row %s' % row)
 
-    def private_folder(self):
-        """A new folder of this user's for checked copies, in the work folder or else the system's temporary folder:
-        each is resolved once to its real path, and that path (never the name it was given, which a link could
-        point elsewhere later) is checked (private_base), made in and returned. close() deletes it."""
-        for b in (self.work, Path(tempfile.gettempdir())):
+    def private_folder(self, near=None):
+        """A new folder of this user's for checked copies, in NEAR (the drive the source is on, so files clone), the
+        work folder or else the system's temporary folder: each is resolved once to its real path, and that path
+        (never the name it was given, which a link could point elsewhere later) is checked (private_base), made in
+        and returned. close() deletes it."""
+        for b in ([near] if near else []) + [self.work, Path(tempfile.gettempdir())]:
             base = Path(os.path.realpath(b))
             if private_base(base):
                 into = Path(tempfile.mkdtemp(prefix='checked-', dir=base))
@@ -146,9 +147,13 @@ class Run:
 
     def snapshot_tree(self, src, folder, row, want):
         """A copy of folder row ROW (SRC, of lock folder FOLDER) in a private_folder(), checked as a tree after it is
-        made (lock.py: its content sha256 WANT and its check lines). Its path."""
-        out = self.private_folder() / Path(src).name
-        shutil.copytree(src, out, symlinks=True)
+        made (lock.py: its content sha256 WANT and its check lines); only the entries that hash covers are copied,
+        files cloned where they can be. Its path."""
+        # golden_gate_userspace's images (23 GB) may be on the USB drive: its copy goes there when it can, as clones
+        near = self.userspace_on if row == 'golden_gate_userspace' else None
+        out = self.private_folder(near) / Path(src).name
+        out.mkdir(mode=0o700)
+        lock.copy_tree(src, out, lock.scope(str(folder), row), lock.without(str(folder), row))
         if lock.row_hash(str(folder), row, str(out)) != want or lock.check_row(str(folder), row, str(out)):
             raise Failed('input row %s: %s does not have the row\'s sha256' % (row, src))
         return out
@@ -370,7 +375,7 @@ def steps(r, fs, a):
     P = lambda row: path(fs, row)
 
     I = r.input        # an input row a producer reads: a checked private copy (Run.input)
-    userspace = lambda: artifact(P('golden_gate_userspace')) / 'payload'
+    userspace = lambda: I('golden_gate_userspace')   # its payload folder, a checked private copy (Run.input)
     root = lambda: r.mount(userspace() / 'filesystem.dmg', 'system')
     donor = TOP / 'store/inputs' / a['donor_build']
 
