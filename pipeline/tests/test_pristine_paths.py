@@ -1,7 +1,7 @@
-"""pipeline/stages/pristine.sh: a data-symlinks.tsv path that would leave the Data volume (absolute, or with a
-. or .. part) stops the stage before anything is removed or linked. The stage runs in the builder VM, so its loop is run
-here on a scratch folder with rm, mkdir and ln as they are. A path whose folders go through a link (one an earlier
-line made) stops it too."""
+"""pipeline/stages/pristine.sh: a data-symlinks.tsv path must name a place in the Data volume (relative, one plain
+name per folder: no . or .. part, no empty part, no trailing slash), and no folder above it may be a link (one an
+earlier line made); otherwise the stage stops before anything is removed or linked. The stage runs in the builder VM,
+so its loop is run here on a scratch folder with rm, mkdir and ln as they are."""
 from pathlib import Path
 import re
 import subprocess
@@ -35,7 +35,7 @@ class DataSymlinks(unittest.TestCase):
         self.assertIn('a b', made)
 
     def test_a_path_that_leaves_data_stops_the_stage(self):
-        for bad in ('../outside', 'Library/../../outside', '/etc/x', './x', 'a/./b'):
+        for bad in ('../outside', 'Library/../../outside', '/etc/x', './x', 'a/./b', 'Library/ok/', 'a//b'):
             with self.subTest(path=bad):
                 r, kept, made = self.run_loop([('Library/ok', 't'), (bad, 'evil')])
                 self.assertNotEqual(r.returncode, 0)
@@ -49,6 +49,12 @@ class DataSymlinks(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('SYMLINK-PATH-OUTSIDE escape/keep (through escape)', r.stdout)
         self.assertTrue(kept, 'nothing outside Data is removed')
+
+    def test_each_path_is_one_plain_name_per_folder(self):
+        r, kept, made = self.run_loop([('escape', '../outside'), ('escape/', 'evil')])
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('SYMLINK-PATH-OUTSIDE escape/', r.stdout)
+        self.assertTrue(kept)
 
     def test_a_path_through_a_link_deeper_down_stops_too(self):
         r, kept, made = self.run_loop([('a/b', '../../outside'), ('a/b/c/keep', 'evil')])
