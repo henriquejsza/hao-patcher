@@ -537,11 +537,12 @@ Revision r10, status product. [Recipe](../patches/golden-gate-windowserver-filte
 
 ## hao-command
 
-Revision r11, status product. [Recipe](../patches/hao-command/README.md)
+Revision r12, status product. [Recipe](../patches/hao-command/README.md)
 
 - `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython.
 - `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
 - `usr/local/lib/hao/hao`: whole file from every file under it from hao. Tools/hao from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh.
+- `private/var/log/hao`: whole file from hao. Hao's log folder on Data, root:wheel 755 (launchd would create it 744 for hao.aot.plist's log, and hao's per-user logs could not be written).
 
 ## hao-opencore
 

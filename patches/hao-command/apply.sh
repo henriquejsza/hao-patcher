@@ -17,6 +17,13 @@ if [ "$(id -u)" = 0 ]; then
         chmod go-w "$d"
     done
 fi
+# hao's log folder: hao and its launchd jobs log here (hao.aot.plist's aot-auto.log; each user's processes under
+# user/<uid>). Made root:wheel 755 here, because launchd creates a missing log folder 744 for the first job that names
+# it, and 744 keeps every user's process from reaching its own hao log.
+V="$DATA/private/var/log/hao"
+[ ! -L "$V" ] || { echo "hao-command: $V is a symlink: refusing to install through it" >&2; exit 1; }
+install -d -o root -g wheel -m 755 "$V"
+chmod 755 "$V"
 rm -rf "$L/python" "$L/hao"
 tar -xzf "$P/inputs/python_x86_64" -C "$L"
 [ -x "$L/python/bin/python3.12" ] || { echo "hao-command: the CPython archive has no python/bin/python3.12" >&2; exit 1; }

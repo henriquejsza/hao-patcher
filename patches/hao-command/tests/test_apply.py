@@ -50,6 +50,18 @@ class Apply(unittest.TestCase):
             self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/hao').is_file())
             self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/vendor/rich/LICENSE').is_file())
             self.assertFalse((data / 'usr/local/lib/hao/hao/tools/hao/tests').exists())
+            # hao's log folder exists 755 before first boot, so launchd never creates it 744
+            self.assertEqual(oct((data / 'private/var/log/hao').stat().st_mode & 0o777), '0o755')
+
+    def test_an_existing_744_log_folder_is_opened(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            def prepare(data):
+                (data / 'private/var/log/hao').mkdir(parents=True)
+                (data / 'private/var/log/hao').chmod(0o744)
+            r = self.run_apply(d, prepare=prepare)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(oct((d / 'data/private/var/log/hao').stat().st_mode & 0o777), '0o755')
 
     def test_a_launcher_link_to_a_folder_is_replaced(self):
         with tempfile.TemporaryDirectory() as d:
