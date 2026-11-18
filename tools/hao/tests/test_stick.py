@@ -469,6 +469,38 @@ class StickTest(unittest.TestCase):
         b.write_bytes(plistlib.dumps(STICK.opencore_config(oclp_config())))
         self.assertEqual(plistlib.loads(a.read_bytes()), plistlib.loads(b.read_bytes()))
 
+    def generic_config(self):
+        c = oclp_config()
+        c['Kernel']['Add'].insert(1, {'BundlePath': 'VirtualSMC.kext', 'Enabled': True})
+        c['NVRAM']['Add'][NV]['boot-args'] = '-v keepsyms=1 -no_compat_check debug=0x100'
+        c['PlatformInfo'] = {'UpdateSMBIOSMode': 'Create', 'Generic': {
+            'SystemProductName': 'MacBookPro9,2', 'SystemSerialNumber': '', 'MLB': '', 'SystemUUID': '', 'ROM': bytes(6)}}
+        return c
+
+    def test_generic_config_gets_lilubetaall_and_an_identity(self):
+        """The generic USB installer's Recovery draws only with -lilubetaall (Lilu 1.7.2 + VirtualSMC in QEMU), and its
+        blank machine identity is filled with random values, a new one per USB installer."""
+        a = STICK.opencore_config(self.generic_config())
+        b = STICK.opencore_config(self.generic_config())
+        self.assertIn('-lilubetaall', a['NVRAM']['Add'][NV]['boot-args'].split())
+        g, h = a['PlatformInfo']['Generic'], b['PlatformInfo']['Generic']
+        self.assertEqual((len(g['SystemSerialNumber']), len(g['MLB']), len(g['ROM'])), (12, 17, 6))
+        self.assertNotEqual(g['ROM'], bytes(6))
+        self.assertNotEqual(g['SystemSerialNumber'], h['SystemSerialNumber'])
+        self.assertNotEqual(g['SystemUUID'], h['SystemUUID'])
+
+    def test_generic_identity_already_set_is_kept(self):
+        c = self.generic_config()
+        c['PlatformInfo']['Generic'].update(SystemSerialNumber='C0000000000X', SystemUUID='U')
+        self.assertEqual(STICK.opencore_config(c)['PlatformInfo']['Generic']['SystemSerialNumber'], 'C0000000000X')
+
+    def test_mac_config_untouched_by_the_generic_changes(self):
+        c = oclp_config()
+        c['NVRAM']['Add'][NV]['boot-args'] = 'keepsyms=1'
+        out = STICK.opencore_config(c)
+        self.assertNotIn('-lilubetaall', out['NVRAM']['Add'][NV]['boot-args'].split())
+        self.assertNotIn('PlatformInfo', out)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -60,6 +60,35 @@ class StickError(Exception):
     pass
 
 
+def is_generic_config(c):
+    """The generic layout's config (VMs, PCs): it loads VirtualSMC, which a Mac's OCLP config never does (a Mac has an SMC)."""
+    return any(k.get('BundlePath') == 'VirtualSMC.kext' and k.get('Enabled') for k in c['Kernel']['Add'])
+
+
+def generic_args(c):
+    """-lilubetaall for the generic config: without it the Tahoe Recovery's GUI never draws in QEMU with OCLP's Lilu 1.7.2
+    and VirtualSMC (with it, the Language Chooser does: the generic USB installer's A/B, 2026-11-17)."""
+    return ['-lilubetaall'] if is_generic_config(c) else []
+
+
+IDENTITY_ALPHABET = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+
+
+def generic_identity(c):
+    """A generic config whose machine identity is blank (the tracked base config carries none) gets a random one, made
+    here for this USB installer: serial, board serial (MLB), system UUID, ROM. Random, never a real Mac's; the values
+    are returned in the config and so recorded with the USB installer's ESP. A Mac's config is left alone."""
+    if not is_generic_config(c):
+        return None
+    import secrets, uuid
+    g = c.setdefault('PlatformInfo', {}).setdefault('Generic', {})
+    if g.get('SystemSerialNumber') and g.get('SystemUUID'):
+        return None
+    pick = lambda n: ''.join(secrets.choice(IDENTITY_ALPHABET) for _ in range(n))
+    g.update(SystemSerialNumber=pick(12), MLB=pick(17), SystemUUID=str(uuid.uuid4()).upper(), ROM=secrets.token_bytes(6))
+    return g
+
+
 def opencore_config(c):
     """The stick's OpenCore config from the target's (a plist dict, changed in place and returned): netrec.sh's
     changes, so the stick boots the unsigned BaseSystem.dmg the way the NetBoot Recovery does."""
@@ -75,7 +104,8 @@ def opencore_config(c):
             k['Enabled'] = False
     nv = c['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
     args = nv['boot-args'].split()
-    nv['boot-args'] = ' '.join(args + [a for a in ['amfi=0x80'] if a not in args])
+    nv['boot-args'] = ' '.join(args + [a for a in ['amfi=0x80'] + generic_args(c) if a not in args])
+    generic_identity(c)
     rev = c['NVRAM']['Add'].get('4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102', {})
     if 'revpatch' in rev:
         rev['revpatch'] = ','.join(x for x in rev['revpatch'].split(',') if x != 'sbvmm')
