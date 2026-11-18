@@ -57,7 +57,7 @@
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revpatch=f16c": "RestrictEvents: the Ivy Bridge CoreGraphics F16C fix (see kext:RestrictEvents.kext)",
  "nvram-add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revpatch=sbvmm,f16c": "RestrictEvents: f16c (CoreGraphics on Ivy Bridge) and sbvmm (reports a VMM board so software update offers this Mac updates; OCLP adds it unless a serial is set)",
  "nvram-add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args": "the boot arguments; each argument's reason is in edits/config.json arg_reasons (checked by patches.py check)",
- "nvram-add:7C436110-AB2A-4BBB-A880-FE41995C9F82:csr-active-config=03080000": "SIP 0x803 (untrusted kexts, unrestricted filesystem, unauthenticated root): the image installs modified System files and third-party kexts. Security: known, user disclosure (SEC2)",
+ "nvram-add:7C436110-AB2A-4BBB-A880-FE41995C9F82:csr-active-config=03080000": "SIP 0x803 (untrusted kexts, unrestricted filesystem, unauthenticated root): the image installs modified System files and third-party kexts",
  "nvram-add:7C436110-AB2A-4BBB-A880-FE41995C9F82:csr-active-config=27080000": "dev images only (dev-diagnostics): 0x827 adds task-for-pid and unrestricted DTrace",
  "nvram-add:7C436110-AB2A-4BBB-A880-FE41995C9F82:run-efi-updater": "generic image only (opencore-generic, pack generic; from the tested QEMU reference): run-efi-updater=No: macOS never tries to run Apple's firmware updater, which has no firmware to update on a VM or PC and must not touch it",
  "nvram-delete:4D1EDE05-38C7-4A6A-9CC6-4BCCA8B38C14:DefaultBackgroundColor": "OpenCore replaces the stored value with the one above at every boot",
@@ -73,7 +73,7 @@
  "nvram-delete:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args": "OpenCore replaces any stored boot-args with the config's at every boot (a user's nvram boot-args does not persist)",
  "nvram-delete:7C436110-AB2A-4BBB-A880-FE41995C9F82:csr-active-config": "OpenCore replaces any stored SIP value with the config's at every boot",
  "nvram-delete:7C436110-AB2A-4BBB-A880-FE41995C9F82:run-efi-updater": "generic image only (opencore-generic, pack generic; from the tested QEMU reference): OpenCore replaces any stored value at every boot, so the No above always holds",
- "nvram:WriteFlash=True": "OCLP base: OpenCore's NVRAM Add values persist in flash (Startup Disk and boot-args survive). Security: weakened values persist for other boot paths; known (SEC2 P6)",
+ "nvram:WriteFlash=True": "OCLP base: OpenCore's NVRAM Add values persist in flash (Startup Disk and boot-args survive)",
  "security:AllowSetDefault=True": "OCLP base: Ctrl+Enter in the OpenCore picker sets the startup disk",
  "security:ApECID=0": "Apple Secure Boot ECID unused (SecureBootModel Disabled)",
  "security:AuthRestart=False": "no FileVault authenticated restart",
@@ -83,8 +83,8 @@
  "security:ExposeSensitiveData=15": "OCLP base: OpenCore publishes its version, boot path and OEM info to the OS (OCLP's tools read it)",
  "security:HaltLevel=2147483648": "OpenCore halts only on its own fatal errors (DEBUG_ERROR)",
  "security:ScanPolicy=0": "OCLP base: the picker scans every device and file system (USB installers, NetBoot)",
- "security:SecureBootModel=Disabled": "OCLP (security.py): Apple Secure Boot off, required for a modified kernel and System on this Mac. Security: no verified boot chain; known, user disclosure (SEC2)",
- "security:Vault=Optional": "OCLP base: OpenCore does not verify its own files (no vault). Security: EFI changes are not detected; known (SEC2 P6)",
+ "security:SecureBootModel=Disabled": "OCLP (security.py): Apple Secure Boot off, required for a modified kernel and System on this Mac",
+ "security:Vault=Optional": "OCLP base: OpenCore does not verify its own files (no vault)",
  "uefi-quirk:EnableVectorAcceleration": "OCLP base: SSE-accelerated hashing in OpenCore (faster boot)",
  "uefi-quirk:RequestBootVarRouting": "OCLP base: macOS's Startup Disk writes go to OpenCore's own boot variables, so macOS cannot make the firmware skip OpenCore"
 }
