@@ -232,9 +232,11 @@ class GenericImageTest(unittest.TestCase):
         with TwoProfiles() as r, FakeWriter() as w:
             fake = FakeAcquire()
             c, _, _ = console(['', '1', 'disk4'])
-            self.assertEqual(INST.create_installer(ns(dry_run=False, release=str(r.path), cache=str(r.cache)), c,
-                                                   host, acquire=fake.api), 0)
-            view = json.loads(Path(w.calls[0][1]['release']).read_text())
+            a = ns(dry_run=False, release=str(r.path), cache=str(r.cache))
+            self.assertEqual(INST.create_installer(a, c, host, acquire=fake.api), 0)
+            view = json.loads(Path(a.release_view['path']).read_text())
+            # the USB installer carries the signed release (beside its .sig), not the unsigned view
+            self.assertEqual(Path(w.calls[0][1]['release']), r.path)
         self.assertEqual(sorted(fake.fetched), ['UniversalMac_27.2.1_26B131_Restore.ipsw', 'esp_mbp92.tar'])
         rec = w.calls[0][1]['record']
         self.assertEqual((rec['model'], rec['target'], rec['assembly'], rec['unproven']),
@@ -252,7 +254,8 @@ class GenericImageTest(unittest.TestCase):
             a = ns(dry_run=False, profile='generic', disk='disk4', confirm='disk4', release=str(r.path),
                    cache=str(r.cache))
             self.assertEqual(INST.create_installer(a, c, host, acquire=fake.api), 0)
-            view = json.loads(Path(w.calls[0][1]['release']).read_text())
+            view = json.loads(Path(a.release_view['path']).read_text())
+            self.assertEqual(Path(w.calls[0][1]['release']), r.path)     # the signed release, not the view
         self.assertEqual(asked, [])
         self.assertEqual(sorted(fake.fetched), ['UniversalMac_27.2.1_26B131_Restore.ipsw', 'esp_generic.tar'])
         rec = w.calls[0][1]['record']
@@ -260,7 +263,7 @@ class GenericImageTest(unittest.TestCase):
         self.assertTrue(rec['unproven'])                  # the stick's install launcher passes --unproven
         self.assertEqual((view['assembly'], view['harvested'], [x['row'] for x in view['assets']]),
                          ('generic-26B131', ['caches'], ['esp_generic']))
-        self.assertEqual(Path(w.calls[0][1]['release']).parent, r.cache / 'releases')
+        self.assertEqual(Path(a.release_view['path']).parent, r.cache / 'releases')
 
     def test_this_unknown_mac_is_asked_and_stops_by_default(self):
         mini = dict(model='Macmini6,2', board=b'Mac-F65AE981FFA204ED\0')
