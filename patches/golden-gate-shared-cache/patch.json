@@ -1,5 +1,5 @@
 {
- "revision": 9,
+ "revision": 10,
  "pack": "base",
  "variant": "cache-fold",
  "stage": "oclp-hook",
@@ -345,5 +345,15 @@
    }
   }
  ],
- "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
+ "requires": {
+  "os": [
+   "26B131"
+  ],
+  "donor": [
+   "25G342"
+  ],
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
 }

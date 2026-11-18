@@ -1,4 +1,6 @@
 # Shared-cache fold-in, family B+catalog (golden-gate-shared-cache-catalog, set dev-bs-test-fold-catalog): family B
-# (row rebuilt_cache) built with runtime-perf's catalog of 320 Swift records; cache UUID b3c88154. Same
-# generator commit 86dd72e, same System, roots and provider bytes as B; interpose-check 24/24.
-d56244eab2a7006d3131685e91fc7cd7c9be9e286be6e660b9bd58ee2ae15c14 store/artifacts/rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e
+# (row rebuilt_cache) built with runtime-perf's catalog of 320 Swift records (catalog.json 248ec400; added 320, keys
+# 3082); cache UUID D3BDB76E. Same generator commit 5aacad92, flags (--swift-catalog in place of --no-swift-catalog),
+# System, roots and provider bytes as B. QEMU boot of aae0ab3 with it and row hao_runtime_fold_catalog: sshd, no panic.
+# hash: without build.json
+c2398aee822e20ab6ed6c183d5769ffd8aa20cd9927ba8df1c935b6835194c52 store/artifacts/rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92

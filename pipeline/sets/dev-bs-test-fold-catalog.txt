@@ -7,7 +7,7 @@ darwin27-kernel                   # Boot/System kernel collections around the 27
 golden-gate-userspace             # combined OS cryptex (x86_64 dyld cache, Tahoe DriverKit, cache repairs, code identity carrier in Security), IO80211/WiFiPeerToPeer/CoreWiFi compat, display shim. Second, same reason
 golden-gate-wifi-compat
 golden-gate-model-gates-mbp92
-hao-runtime-fold                  # fold-in only, in hao-runtime's place: the same installation with the payload built for the rebuilt family (row hao_runtime_fold, its cache UUID)
+hao-runtime-fold-catalog          # B+catalog only, in hao-runtime's place: the same installation with the payload built for the B+catalog family (row hao_runtime_fold_catalog, its cache UUID)
 golden-gate-dyld-internal         # dyld alone counts as an internal install (internalInstall() edit), so OCLP's Metal roots load without ic_csr_internal; after hao-runtime (its dyld)
 golden-gate-launchd-warm          # launchd starts kernelmanager_helper (RunAtLoad) for the OpenCore kexts' load reports and, until Setup is done, mbsystemadministration for loginwindow, both Interactive; after golden-gate-userspace (same launchd job cache)
 golden-gate-av1-encoder-x86       # VideoToolbox offers the AV1 software encoder to arm64 only: its x86_64 setup needs AVX2 (diag#0053)

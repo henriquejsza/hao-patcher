@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-53 of 55 patches declare their files so far.
+54 of 56 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -281,7 +281,7 @@ Revision r17, status product. [Recipe](../patches/golden-gate-shader-caches/READ
 
 ## golden-gate-shared-cache
 
-Revision r9, status product. [Recipe](../patches/golden-gate-shared-cache/README.md)
+Revision r10, status product. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
 - 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -291,7 +291,7 @@ Revision r9, status product. [Recipe](../patches/golden-gate-shared-cache/README
 
 ## golden-gate-shared-cache-catalog
 
-Revision r4, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
+Revision r5, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
 
 - 33 whole files from hao (row rebuilt_cache_catalog), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache-catalog`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -578,7 +578,7 @@ Revision r90, status product. [Recipe](../patches/hao-runtime/README.md)
 
 ## hao-runtime-fold
 
-Revision r9, status product. [Recipe](../patches/hao-runtime-fold/README.md)
+Revision r10, status product. [Recipe](../patches/hao-runtime-fold/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime_fold). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -590,6 +590,22 @@ Revision r9, status product. [Recipe](../patches/hao-runtime-fold/README.md)
 - `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime_fold). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
 - `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime_fold). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
 - `usr/lib/dyld`: whole file from hao (row hao_runtime_fold). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
+
+## hao-runtime-fold-catalog
+
+Revision r1, status experiment. [Recipe](../patches/hao-runtime-fold-catalog/README.md)
+
+- `usr/libexec/hao`: whole file from hao (row hao_runtime_fold_catalog). The hao launcher (B+catalog payload) that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold_catalog). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/libhao_identity.dylib`: whole file from hao (row hao_runtime_fold_catalog). Hao code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/libhao_async_contract.dylib`: whole file from hao (row hao_runtime_fold_catalog). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/hao/async-contract.json`: whole file from hao (row hao_runtime_fold_catalog). Which async contract provider hao loads (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/stub-identities`: whole file from hao (row hao_runtime_fold_catalog). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/trusted-cdhashes`: whole file from hao (row hao_runtime_fold_catalog). Cdhashes hao trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime_fold_catalog). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
+- `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime_fold_catalog). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
+- `usr/lib/dyld`: whole file from hao (row hao_runtime_fold_catalog). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
 ## metal-compiler-compat
