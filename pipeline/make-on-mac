@@ -79,7 +79,7 @@ class Run:
     def stream(self, row):
         """(source, extra arguments) for a download row: a private snapshot of its local file (snapshot()) when it is
         in place and has the row's sha256, else (a release download marked "stream") its URL. The release's member
-        pins, written to the work folder, are passed for either whenever the release has them."""
+        pins, written to a private_folder(), are passed for either whenever the release has them."""
         entry = next((d for d in self.release.get('downloads', []) if d['row'] == row), None)
         try:
             local = path(self.fs, row)
@@ -87,7 +87,7 @@ class Run:
             local = None
         extra = []
         if entry and entry.get('pins'):
-            pins = self.work / ('%s-pins.json' % row)
+            pins = self.private_folder() / ('%s-pins.json' % row)     # never through a name a link may move
             pins.write_text(json.dumps(entry['pins']))
             extra = ['--pins', pins]
         if local is not None and local.exists():
@@ -105,16 +105,23 @@ class Run:
             return entry['url'], extra
         raise Failed('no checked input for row %s' % row)
 
+    def private_folder(self):
+        """A new folder of this user's for checked copies, in the work folder or else the system's temporary folder:
+        each is resolved once to its real path, and that path (never the name it was given, which a link could
+        point elsewhere later) is checked (private_base), made in and returned. close() deletes it."""
+        for b in (self.work, Path(tempfile.gettempdir())):
+            base = Path(os.path.realpath(b))
+            if private_base(base):
+                into = Path(tempfile.mkdtemp(prefix='checked-', dir=base))
+                self.private.append(into)
+                return into
+        raise Failed('neither %s nor %s is private to this user' % (self.work, tempfile.gettempdir()))
+
     def snapshot(self, src, want):
         """A snapshot of file SRC that only this process's user can change, checked against sha256 WANT after it is
         made, so the producer reads the bytes that were checked: an APFS clone of SRC (a copy where no clone can be
-        made) in a new folder of this user's, under the work folder or else the system's temporary folder, whichever
-        no one else can write into or rename (private_base). Its path; close() deletes it."""
-        base = next((b for b in (self.work, Path(tempfile.gettempdir())) if private_base(b)), None)
-        if base is None:
-            raise Failed('neither %s nor %s is private to this user' % (self.work, tempfile.gettempdir()))
-        into = Path(tempfile.mkdtemp(prefix='checked-', dir=base))
-        self.private.append(into)
+        made) in a private_folder(). Its path."""
+        into = self.private_folder()
         out = into / Path(src).name
         if subprocess.run(['cp', '-c', str(src), str(out)], capture_output=True).returncode:
             with contextlib.suppress(FileNotFoundError):
@@ -190,9 +197,12 @@ class Run:
 
 
 def private_base(folder):
-    """True when FOLDER and every folder above it belong to this user or root and no one else can write them, or only
-    with the sticky bit (/private/tmp): no one else can rename or replace a folder this user makes in it."""
-    p = Path(os.path.realpath(folder))
+    """True when FOLDER (a real path: every part of it a folder, none a link) and every folder above it belong to
+    this user or root and no one else can write them, or only with the sticky bit (/private/tmp): no one else can
+    rename or replace a folder this user makes in it."""
+    p = Path(folder)
+    if not p.is_absolute():
+        return False
     for d in [p] + list(p.parents):
         try:
             st = os.lstat(d)

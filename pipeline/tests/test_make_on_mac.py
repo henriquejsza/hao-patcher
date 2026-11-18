@@ -67,7 +67,7 @@ class MakeOnMac(unittest.TestCase):
         self.assertEqual(src.read_bytes(), b'ipsw bytes')
         st = src.lstat()
         self.assertEqual((st.st_uid, st.st_nlink, st.st_mode & 0o777), (os.geteuid(), 1, 0o400))
-        self.assertTrue(src.parent.is_relative_to(self.work))
+        self.assertTrue(src.parent.is_relative_to(os.path.realpath(self.work)))
         r.close()
         self.assertFalse(src.parent.exists())
 
@@ -82,15 +82,16 @@ class MakeOnMac(unittest.TestCase):
         r.close()
 
     def test_a_snapshot_is_made_only_in_a_folder_no_one_else_can_write(self):
-        self.assertTrue(M['private_base'](self.work))
+        work = Path(os.path.realpath(self.work))
+        self.assertTrue(M['private_base'](work))
         os.chmod(self.work, 0o777)
-        self.assertFalse(M['private_base'](self.work))
+        self.assertFalse(M['private_base'](work))
         os.chmod(self.work, 0o1777)
-        self.assertTrue(M['private_base'](self.work))
+        self.assertTrue(M['private_base'](work))
         os.chmod(self.work, 0o700)
         os.chmod(self.d, 0o777)
         try:
-            self.assertFalse(M['private_base'](self.work), 'a folder above that others can write')
+            self.assertFalse(M['private_base'](work), 'a folder above that others can write')
             r = self.run_(self.release)
             with redirect_stdout(io.StringIO()):
                 src, extra = r.stream('ipsw_27_0')
@@ -114,6 +115,27 @@ class MakeOnMac(unittest.TestCase):
         with self.assertRaises(M['Failed']):
             self.stream()
         self.assertEqual(self.stream(self.release)[0], 'https://example.invalid/x.ipsw')
+
+    def test_a_folder_named_through_a_link_is_never_checked_or_used_by_that_name(self):
+        real = Path(os.path.realpath(self.work))
+        self.assertFalse(M['private_base'](Path('relative')))
+        alias = self.d / 'alias'
+        alias.symlink_to(real)
+        self.assertFalse(M['private_base'](alias), 'a link is not a folder')
+        r = M['Run']([self.lock], alias, io.StringIO(), False, self.release)
+        with redirect_stdout(io.StringIO()):
+            src, extra = r.stream('ipsw_27_0')
+        self.assertEqual(os.path.realpath(src), str(src), 'the path handed on has no link in it')
+        self.assertEqual(os.path.realpath(extra[1]), str(extra[1]), 'nor the pins')
+        self.assertTrue(src.is_relative_to(real))
+        elsewhere = self.d / 'elsewhere'
+        (elsewhere / src.parent.name).mkdir(parents=True)
+        (elsewhere / src.parent.name / src.name).write_bytes(b'evil bytes')
+        alias.unlink(); alias.symlink_to(elsewhere)          # the link is pointed elsewhere after the check
+        self.assertEqual(src.read_bytes(), b'ipsw bytes')
+        r.close()
+        self.assertFalse(src.parent.exists())
+        self.assertTrue((elsewhere / src.parent.name / src.name).exists(), 'close() deletes only what it made')
 
     def steps(self, a_bytes, b_fails=False):
         ran = []
