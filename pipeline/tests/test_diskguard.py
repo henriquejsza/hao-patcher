@@ -57,13 +57,15 @@ class DiskGuard(unittest.TestCase):
             a = json.loads((TOP / 'pipeline/assemblies/mbp92-26B131.json').read_text())
             a['disk_need_gb'] = 10 ** 12
             (Path(d) / 'a.json').write_text(json.dumps(a))
+            ledger = Path(d) / 'ledger'; ledger.write_text('')
             r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/golden-run'), str(Path(d) / 'a.json'),
                                 '--repo', str(Path(d) / 'repo'), '--work', str(Path(d) / 'work'),
                                 '--record', str(Path(d) / 'record')], capture_output=True, text=True,
-                               env={k: v for k, v in os.environ.items() if k != 'HAO_DISK_CHECK'})
+                               env=dict({k: v for k, v in os.environ.items() if k != 'HAO_DISK_CHECK'},
+                                        HAO_SWAP_LEDGER=str(ledger)))     # this Mac's live swaps are not this test's
             self.assertNotEqual(r.returncode, 0)
             self.assertIn('under the floor', r.stderr + r.stdout)
-            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ['a.json'])
+            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ['a.json', 'ledger'])
 
 
 if __name__ == '__main__':
