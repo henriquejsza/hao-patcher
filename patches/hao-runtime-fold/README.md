@@ -1,17 +1,17 @@
 # hao-runtime-fold
 
-[hao-runtime](../hao-runtime/README.md)'s installation for the shared-cache fold-in sets (`dev-bs-test-fold`,
-`dev-bs-test-fold-catalog`), in hao-runtime's place. The rebuilt cache family has its own cache UUID, and hao's
+[hao-runtime](../hao-runtime/README.md)'s installation for the shared-cache fold-in sets (`dev-bs-test-fold` and the
+release fold sets), in hao-runtime's place. The rebuilt cache family has its own cache UUID, and hao's
 generated data names the UUID it was made for, so these images take a payload built for that family (runtime builds
 it from research's generated lock for the family). The row is separate because `hao_runtime` is the payload of every
 other set (and `pipeline/latest`, `swaps.py` and release-cut read that row by name).
 
 ## Input
 
-`hao_runtime_fold` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261117-bfce4a1-fold, a payload folder as
-`hao_runtime` (payload-manifest sha256 checked by the row), from hao-runtime bfce4a1 for family B (cache 954aa5de,
+`hao_runtime_fold` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261118-cabc1d5-fold, a payload folder as
+`hao_runtime` (payload-manifest sha256 checked by the row), from hao-runtime cabc1d5 for family B (cache 31C0215A,
 row `rebuilt_cache`). Its records name that UUID only: the B+catalog family (row `rebuilt_cache_catalog`, set
-`dev-bs-test-fold-catalog`) has another UUID and needs its own payload before that set runs.
+`dev-bs-test-fold-catalog`) has another UUID and takes [hao-runtime-fold-catalog](../hao-runtime-fold-catalog/README.md).
 
 ## How it works
 
@@ -21,15 +21,18 @@ What it installs is hao-runtime's `files` list; it is not declared again here (t
 ## Verify
 
 - `python3.14 -I -B -m unittest discover -s patches/hao-runtime-fold/tests`: the hook is hao-runtime's on this row, and
-  only the two fold sets use it, in hao-runtime's place.
+  only the fold sets other than B+catalog use it, in hao-runtime's place.
 - On the image: `usr/lib/hao/install.json` and the payload's `build.json` name the fold family's cache UUID.
 
 ## Validation
 
-NEEDS VALIDATION: r7 not built or booted. The payload's own checks (in its README): units 1895/1895 name an image of
-954aa5de, 963 embedded, 965 of 969 AOT caches with none failed.
+NEEDS VALIDATION: r10 not built by golden-run. A QEMU boot of an aae0ab3 image with family 31C0215A and this payload
+swapped in reached sshd, with loginwindow and WindowServer up. The payload: 963 embedded, 965 of 969 AOT caches with
+none failed.
 
 ## Revisions
+- r10 2026-11-18 Row `hao_runtime_fold` -> hao-runtime cabc1d5 payload for fold family B 31C0215A (manifest 8e45ee9e,
+  libhao b739adbd). The B+catalog set takes hao-runtime-fold-catalog instead.
 - r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the fold payload for the rebuilt 26B131 family; x86-64-v2 like hao-runtime. Nothing it installs changes.
 - r7 2026-11-17 Row `hao_runtime_fold` -> hao-runtime bfce4a1 payload for fold family B 954aa5de (manifest cde83630,

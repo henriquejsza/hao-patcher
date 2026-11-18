@@ -7,7 +7,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-55 patches: 51 installable, 2 undeclared (files not declared), 2 with a row missing.
+57 patches: 53 installable, 2 undeclared (files not declared), 2 with a row missing.
 
 Undeclared: opencore-generic, opencore-mbp92.
 
@@ -21,6 +21,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
 | golden-gate-av1-encoder-x86 | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (hao-patcher 177dc8a1) |
+| golden-gate-deep-sleep-off | r2 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-dyld-internal | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-font-registry | r10 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | font_registry_golden_gate 5bf6a3d3 font-registry-26B131-20261115-e09b952363a1 |
 | golden-gate-hd4000-planes | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes bae5502e hd4000-planes-20261114-3030c66cd852 (hao-patcher 789a8c7d) |
@@ -38,8 +39,8 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-native-identities | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
 | golden-gate-root-launchservices | r5 | experiment | post | no: row root_launchservices_golden_gate | - | root_launchservices_golden_gate - root-launchservices-26B131-not-made-yet |
 | golden-gate-shader-caches | r17 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
-| golden-gate-shared-cache | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 2f5ee391 rebuilt-cache-fold-in-26B131-20261117-2b471bea |
-| golden-gate-shared-cache-catalog | r4 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog d56244ea rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e |
+| golden-gate-shared-cache | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 22489f4a rebuilt-cache-fold-in-26B131-20261118-5aacad92 |
+| golden-gate-shared-cache-catalog | r5 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog c2398aee rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 |
 | golden-gate-store | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-update-policy | r2 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-seed | r14 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
@@ -50,7 +51,8 @@ Undeclared: opencore-generic, opencore-mbp92.
 | hao-command | r11 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
 | hao-opencore | r83 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 76086196 payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 76086196 payload |
-| hao-runtime-fold | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 059bebad payload |
+| hao-runtime-fold | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | hao_runtime_fold 670b1410 payload |
+| hao-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | hao_runtime_fold_catalog 2046947d payload |
 | metal-compiler-compat | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
@@ -101,6 +103,8 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: edited (1 edit) from Apple
   - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: edited (1 edit) from Apple
   - `usr/lib/corespotlight_compat.dylib`: from hao (row corespotlight_compat_shim)
+- **golden-gate-deep-sleep-off** r2
+  - `Library/LaunchDaemons/local.hao.deep-sleep-off.plist`: from hao
 - **golden-gate-dyld-internal** r4
   - `usr/lib/dyld`: edited (1 edit) from hao · hao-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime)
 - **golden-gate-font-registry** r10
@@ -175,13 +179,13 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **golden-gate-shader-caches** r17
   - 72 files under `Library/Application Support/PerUserSeed/metal/`, from hao (row shader_caches_golden_gate)
   - 46 files under `private/var/folders/zz/`, from hao (row shader_caches_golden_gate)
-- **golden-gate-shared-cache** r9
+- **golden-gate-shared-cache** r10
   - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from hao (row rebuilt_cache)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from hao (row rebuilt_cache)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from hao (row rebuilt_cache)
   - `System/Library/CoreServices/golden-gate-shared-cache.json`: from hao
-- **golden-gate-shared-cache-catalog** r4
+- **golden-gate-shared-cache-catalog** r5
   - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from hao (row rebuilt_cache_catalog)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from hao (row rebuilt_cache_catalog)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache_catalog)
@@ -274,7 +278,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/LaunchDaemons/hao.aot.plist`: from hao (row hao_runtime)
   - `usr/lib/dyld`: from hao (row hao_runtime)
   - `usr/lib/hao/install.json`: from hao
-- **hao-runtime-fold** r9
+- **hao-runtime-fold** r10
   - `usr/libexec/hao`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold)
@@ -285,6 +289,18 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `usr/lib/hao/if`/ (folder): from every file under it from hao (row hao_runtime_fold)
   - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime_fold)
   - `usr/lib/dyld`: from hao (row hao_runtime_fold)
+  - `usr/lib/hao/install.json`: from hao
+- **hao-runtime-fold-catalog** r1
+  - `usr/libexec/hao`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/libhao_async_contract.dylib`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/async-contract.json`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/stub-identities`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/trusted-cdhashes`: from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/if`/ (folder): from every file under it from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime_fold_catalog)
+  - `usr/lib/dyld`: from hao (row hao_runtime_fold_catalog)
   - `usr/lib/hao/install.json`: from hao
 - **metal-compiler-compat** r11
   - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: from hao (row metal_compiler_compat)
@@ -438,7 +454,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | python_site | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc | caf664fc |
 | python_x86_64 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 | 0d6a4a29 |
 | rebuilt_cache | - | - | - | a8a847b6* | - | a8a847b6* | a8a847b6* | a8a847b6* | - | - | - | - |
-| rebuilt_cache_catalog | - | - | - | - | d56244ea | - | - | - | - | - | - | - |
+| rebuilt_cache_catalog | - | - | - | - | d56244ea* | - | - | - | - | - | - | - |
 | screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | - | 285943c0 | - | 285943c0 |
 | shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
 | store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52 | - | 032e5b52 | 032e5b52 |
@@ -489,12 +505,13 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - dev-diagnostics r10 is newer than every image built with it (newest r4).
 - golden-gate-appstore-slices r6 is newer than every image built with it (newest r2).
 - golden-gate-ids r3 is newer than every image built with it (newest r1).
-- golden-gate-shared-cache r9 is newer than every image built with it (newest r4).
-- golden-gate-shared-cache-catalog r4 is newer than every image built with it (newest r1).
+- golden-gate-shared-cache r10 is newer than every image built with it (newest r4).
+- golden-gate-shared-cache-catalog r5 is newer than every image built with it (newest r1).
 - hao-command r11 is newer than every image built with it (newest r10).
-- hao-runtime-fold r9 is newer than every image built with it (newest r4).
-- row hao_runtime_fold 059bebad is in no image yet (images have 3e4feeb7).
-- row rebuilt_cache 2f5ee391 is in no image yet (images have a8a847b6).
+- hao-runtime-fold r10 is newer than every image built with it (newest r4).
+- row hao_runtime_fold 670b1410 is in no image yet (images have 3e4feeb7).
+- row rebuilt_cache 22489f4a is in no image yet (images have a8a847b6).
+- row rebuilt_cache_catalog c2398aee is in no image yet (images have d56244ea).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.

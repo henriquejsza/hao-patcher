@@ -7,8 +7,8 @@ It exists because a set picks recipes, and a recipe names its rows: the two fami
 
 ## Input
 
-`rebuilt_cache_catalog` (`pipeline/inputs/25G342/`): rebuilt-cache-fold-in-catalog-26B131-20261114-86dd72e (cache
-UUID b3c88154), from the same generator commit, System view, roots and provider bytes as family B.
+`rebuilt_cache_catalog` (`pipeline/inputs/25G342/`): rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 (cache
+UUID D3BDB76E), from the same generator commit (5aacad92), System view, roots and provider bytes as family B.
 
 ## How it works
 
@@ -26,10 +26,14 @@ A change to that recipe's code reaches this one at the next build without a revi
 
 ## Validation
 
-NEEDS VALIDATION: not built or booted. Host tests only. The set takes the same `hao_runtime_fold` payload as B
-(runtime: the two families' images have the same UUIDs).
+NEEDS VALIDATION: r5 not built by golden-run. golden-gate-shared-cache's `fold.py install` ran on a copy of an aae0ab3
+image with the D3BDB76E family and row `hao_runtime_fold_catalog`'s payload (recipe hao-runtime-fold-catalog: hao's
+records name the cache UUID, so this family needs its own payload). That image booted in QEMU to sshd in 559 s, with
+no panic and no launchd refusal.
 
 ## Revisions
+- r5 2026-11-18 Row `rebuilt_cache_catalog`: rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 (cache UUID
+  D3BDB76E), family B r86 with the 320-record catalog; the set's runtime is now hao-runtime-fold-catalog.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.

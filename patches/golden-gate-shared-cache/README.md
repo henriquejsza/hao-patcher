@@ -12,8 +12,9 @@ reads false, 113 descriptor slots nulled) stays as it is.
 ## Input
 
 `rebuilt_cache` (`pipeline/inputs/25G342/`): the shared-cache generator's artifact
-(`rebuilt-cache-fold-in-26B131-20261117-2b471bea`, cache UUID 954aa5de), made from the System of an alpha-v0.1.0 image
-of main 2b471bea and its OS cryptex's x86_64 cache with the two later edit groups of step 3 taken back out.
+(`rebuilt-cache-fold-in-26B131-20261118-5aacad92`, cache UUID 31C0215A), made by tools/shared-cache r86 from the System
+of a dev-lite image of release/v0.0.1 aae0ab3 and its OS cryptex's x86_64 cache with the two later edit groups of step 3
+taken back out; no prebuilt loaders.
 The recipe reads:
 - `dyld_shared_cache_x86_64*`: the family (main, subcaches, `.map`, `.atlas`);
 - `retired-roots.txt`: the providers' install paths, one per line;
@@ -85,14 +86,14 @@ cryptex build that step 3 compares against. The compat libraries (`io80211_compa
 
 ## Validation
 
-NEEDS VALIDATION: r7 not built or booted. Host tests pass, with the real B and B+catalog artifacts read. Read against
-the System of an alpha-v0.1.0 image of main 2b471bea (the r7 artifact's source): steps 1 and 2 pass (all 26 providers);
-step 3 matches that image's cache with the prespecialization edits and model gates taken out, and the gates plan on the
-new family (3 sites in `.01`). The B+catalog row is still the 2026-11-14 family, whose libhelloblur and gpu-client
-predate main's. The fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), whose payload must name this
+NEEDS VALIDATION: r10 not built by golden-run. This recipe's `fold.py install` ran on a copy of an aae0ab3 image with
+the 31C0215A family and row `hao_runtime_fold`'s payload, and that image booted in QEMU to sshd with loginwindow and
+WindowServer up. The fold sets take row `hao_runtime_fold` (recipe hao-runtime-fold), whose payload must name this
 family's cache UUID.
 
 ## Revisions
+- r10 2026-11-18 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261118-5aacad92 (cache UUID 31C0215A), from
+  tools/shared-cache r86 on the System of release/v0.0.1 aae0ab3: no prebuilt loaders, the dylibs set at the cache base.
 - r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 cache family. Nothing it installs changes.
 - r7 2026-11-17 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261117-2b471bea (cache UUID 954aa5de), made from

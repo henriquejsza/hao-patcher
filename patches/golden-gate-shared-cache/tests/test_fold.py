@@ -287,9 +287,9 @@ class Format(unittest.TestCase):
             self.assertEqual(len(art['roots']), 26)
             self.assertIn('dyld_shared_cache_x86_64.map', art['inputs'])
             self.assertEqual(len(art['files']), 36)
-            gates = fold.model_gate_edits(folder)            # made before the model gates: step 4 renames them
-            self.assertEqual({n: [e[0] for e in c] for n, c in gates.items()},
-                             {'dyld_shared_cache_x86_64.01': [197117575, 646027599, 508183874]})
+            # made from an image with mbp92's model gates in place (3 renamed): nothing is left for step 4 to rename
+            with self.assertRaisesRegex(ValueError, 'expected MacBookPro9,2 once'):
+                fold.model_gates.plan_cache_family(folder, gates=('MacBookPro9,2', 'NacBookPro9,2'))
         if not found:
             self.skipTest('fold-in artifacts not in the store')
 
@@ -324,7 +324,8 @@ class Recipe(unittest.TestCase):
             b = sets[name]
             self.assertEqual(b.index(recipe) + 1, b.index('golden-gate-native-identities'), name)
             self.assertEqual(b[b.index(recipe) - len(extra.get(name, [])):b.index(recipe)], extra.get(name, []), name)
-            expect = ['hao-runtime-fold' if n == 'hao-runtime' else n for n in sets['dev-bs-test.txt']
+            runtime = 'hao-runtime-fold-catalog' if name == 'dev-bs-test-fold-catalog.txt' else 'hao-runtime-fold'
+            expect = [runtime if n == 'hao-runtime' else n for n in sets['dev-bs-test.txt']
                       if n not in dropped.get(name, [])]
             self.assertEqual([n for n in b if n != recipe and n not in extra.get(name, [])], expect, name)
 
