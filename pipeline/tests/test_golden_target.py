@@ -131,16 +131,23 @@ import subprocess
 layout = load('golden_layout', HERE.parent/'stages/golden-layout.py')
 
 ELIGIBLE = dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Physical', Removable=False, RemovableMedia=False,
-                Ejectable=False, BusProtocol='SATA', TotalSize=500*10**9, MediaName='Fixture SSD')
-READS = (['diskutil', 'info', '-plist'], ['diskutil', 'apfs', 'list', '-plist'], ['df', '-P'], ['mount'])
+                Ejectable=False, BusProtocol='SATA', TotalSize=500*10**9, MediaName='Fixture SSD',
+                DeviceTreePath='IODeviceTree:/PCI0@0/SATA@1F,2/PRT0@0/PMP@0')
+PARTITIONS = [dict(DeviceIdentifier='disk70s1', DiskUUID='E5A1-0001'), dict(DeviceIdentifier='disk70s2', DiskUUID='C0DE-0002')]
+# tools/hao disks.identity() of ELIGIBLE with PARTITIONS: what hao install writes for golden-image.py to compare
+IDENTITY = dict(media='Fixture SSD', size=500*10**9, bus='SATA', path='IODeviceTree:/PCI0@0/SATA@1F,2/PRT0@0/PMP@0',
+                partitions=['C0DE-0002', 'E5A1-0001'])
+READS = (['diskutil', 'info', '-plist'], ['diskutil', 'apfs', 'list', '-plist'], ['diskutil', 'list', '-plist'],
+         ['df', '-P'], ['mount'])
 
 
 class DiskCommands(RecordingCommands):
     """The fixture fake plus the reads a whole-disk target makes: the disk, the running root, df and mount.
     disk70 holds an old install (container disk72 on disk70s2) until partitionDisk replaces it with disk71."""
-    def __init__(self, config, info=ELIGIBLE, root='disk1s1s1', df=None, mounted=()):
+    def __init__(self, config, info=ELIGIBLE, root='disk1s1s1', df=None, mounted=(), partitions=PARTITIONS, swap_after=None):
         super().__init__(config)
         self.info = info; self.root = root; self.df = df or {}; self.still_mounted = list(mounted)
+        self.partitions = partitions; self.swap_after = swap_after; self.listed = 0
         self.partitioned = False
 
     def answer(self, a):
@@ -160,6 +167,11 @@ class DiskCommands(RecordingCommands):
         if a == ['mount']:
             return ''.join('%s on %s (apfs, local)\n' % row for row in
                            [('/dev/disk1s1s1', '/'), ('/dev/disk1s5', '/System/Volumes/Data')]+self.still_mounted).encode()
+        if a == ['diskutil', 'list', '-plist', 'disk70']:
+            self.listed += 1                # swap_after N: another disk has the number from the (N+1)th read on
+            parts = self.partitions if self.swap_after is None or self.listed <= self.swap_after else \
+                [dict(DeviceIdentifier='disk70s1', DiskUUID='0THER-0001')]
+            return plistlib.dumps({'AllDisksAndPartitions': [dict(DeviceIdentifier='disk70', Partitions=parts)]})
         if a[:2] == ['diskutil', 'unmountDisk']:
             return b''
         if a[:2] == ['diskutil', 'partitionDisk']:
@@ -170,6 +182,7 @@ class DiskCommands(RecordingCommands):
         a = list(map(str, command))
         if a[0] in ('df', 'mount') or a[:2] == ['diskutil', 'unmountDisk'] or (
                 a[:3] == ['diskutil', 'info', '-plist'] and a[3] in ('disk70', '/')) or (
+                a == ['diskutil', 'list', '-plist', 'disk70']) or (
                 a == ['diskutil', 'apfs', 'list', '-plist'] and not self.partitioned):
             self.entries.append(dict(command=a, environment=dict(env or {}), capture=capture))
             return self.answer(a)
@@ -312,6 +325,47 @@ class DiskTargetTests(unittest.TestCase):
         self.refused('not confirmed')
         del self.config['confirm_disk']; self.setUp(); del self.config['confirm_disk']
         self.refused('not confirmed')
+
+    def test_the_confirmed_identity_is_accepted_and_checked_twice(self):
+        self.config['disk_identity'] = IDENTITY
+        fake = DiskCommands(self.config)
+        record = self.assemble(fake)
+        commands = [row['command'] for row in fake.entries]
+        self.assertEqual(record['status'], 'assembled')
+        start = commands.index(['diskutil', 'partitionDisk', '/dev/disk70', 'GPT', 'APFS', 'Golden', '100%'])
+        reads = [i for i, c in enumerate(commands[:start]) if c == ['diskutil', 'list', '-plist', 'disk70']]
+        self.assertEqual(len(reads), 2)                     # in the checks, and after unmounting
+        self.assertGreater(reads[1], commands.index(['mount']))
+
+    def test_another_disk_at_the_number_is_refused(self):
+        self.config['disk_identity'] = dict(IDENTITY, media='Other SSD')
+        self.refused('not the disk that was confirmed \\(media changed\\)')
+        self.setUp(); self.config['disk_identity'] = dict(IDENTITY, partitions=['AAAA'])
+        self.refused('not the disk that was confirmed \\(partitions changed\\)')
+        info = dict(ELIGIBLE); del info['DeviceTreePath']
+        self.setUp(); self.config['disk_identity'] = IDENTITY
+        self.refused('diskutil cannot identify it', info=info)
+
+    def test_a_swap_after_the_checks_is_refused_before_partitioning(self):
+        self.config['disk_identity'] = IDENTITY
+        fake = DiskCommands(self.config, swap_after=1)
+        with self.assertRaisesRegex(ValueError, 'not the disk that was confirmed \\(partitions changed\\)'):
+            self.assemble(fake)
+        commands = [row['command'] for row in fake.entries]
+        self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in commands))
+
+    def test_the_identity_is_tools_hao_disks_identity(self):
+        # golden-image.py recomputes what tools/hao/src/disks.py identity() wrote: the same fields from the same reads
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'hao' / 'src'))
+        import disks as DISKS
+        class Host:
+            def run(self, argv, check=True, timeout=120):
+                out = DiskCommands(self.config).answer([str(x) for x in argv])
+                return subprocess.CompletedProcess(argv, 0, out, b'')
+        host = Host(); host.config = self.config
+        fake = DiskCommands(self.config)
+        self.assertEqual(golden.disk_identity(lambda *a: plistlib.loads(fake.answer(list(a))), 'disk70'), IDENTITY)
+        self.assertEqual(DISKS.identity(host, 'disk70'), IDENTITY)
 
     def test_still_mounted_after_unmount(self):
         fake = DiskCommands(self.config, mounted=[('/dev/disk72s1', '/Volumes/Old Mac')])

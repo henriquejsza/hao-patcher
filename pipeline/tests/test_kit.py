@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import runpy
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -85,6 +86,54 @@ class Kit(unittest.TestCase):
             self.assertEqual('external', config['disk_policy'])
             with self.assertRaises(ValueError):
                 KIT['render'](kit, '/k', '/l', disk='disk9', confirm_disk='disk9', disk_policy='any')
+
+    def test_disk_identity_goes_into_the_disk_configuration_only(self):
+        ident = dict(media='SSD', size=1, bus='SATA', path='IODeviceTree:/x', partitions=['A'])
+        with tempfile.TemporaryDirectory() as folder:
+            _, _, kit = self.configs(folder)
+            config = KIT['render'](kit, '/k', '/l', disk='disk9', confirm_disk='disk9', disk_identity=ident)
+            self.assertEqual(ident, config['disk_identity'])
+            self.assertNotIn('disk_identity', KIT['render'](kit, '/k', '/l', disk='disk9', confirm_disk='disk9'))
+            with self.assertRaises(ValueError):          # an image target has no disk to identify
+                KIT['render'](kit, '/k', '/l', disk_identity=ident)
+            self.assertNotIn('disk_identity', KIT['template'](config, 'a', '/k', '/l')['config'])
+
+    def test_render_refuses_a_file_that_is_no_disk_identity(self):
+        import io as _io, contextlib as _cl
+        with tempfile.TemporaryDirectory() as folder:
+            _, _, kit = self.configs(folder)
+            (Path(folder) / 'k').mkdir(); (Path(folder) / 'k/kit.json').write_text(json.dumps(kit))
+            for bad in ('null', '{}', '[]', '{"media": "x"}'):
+                (Path(folder) / 'id.json').write_text(bad)
+                with _cl.redirect_stderr(_io.StringIO()):
+                    rc = KIT['main'](['render', folder + '/k', folder + '/l', '--out', folder + '/c.json', '--disk',
+                                      'disk9', '--confirm-disk', 'disk9', '--disk-identity', folder + '/id.json'])
+                self.assertEqual(rc, 2, bad)
+            (Path(folder) / 'id.json').write_text(json.dumps(dict(media='m', size=1, bus='b', path='p', partitions=[])))
+            self.assertEqual(KIT['main'](['render', folder + '/k', folder + '/l', '--out', folder + '/c.json', '--disk',
+                                          'disk9', '--confirm-disk', 'disk9', '--disk-identity', folder + '/id.json']), 0)
+            self.assertEqual(json.loads((Path(folder) / 'c.json').read_text())['disk_identity']['media'], 'm')
+
+    def test_render_writes_a_new_configuration_never_through_a_link(self):
+        with tempfile.TemporaryDirectory() as folder:
+            _, _, kit = self.configs(folder)
+            (Path(folder) / 'k').mkdir(); (Path(folder) / 'k/kit.json').write_text(json.dumps(kit))
+            target = Path(folder) / 'elsewhere.json'; target.write_text('keep')
+            os.symlink(target, Path(folder) / 'c.json')
+            self.assertEqual(KIT['main'](['render', folder + '/k', folder + '/l', '--out', folder + '/c.json']), 0)
+            self.assertEqual(target.read_text(), 'keep')
+            self.assertFalse((Path(folder) / 'c.json').is_symlink())
+
+    def test_assemble_script_passes_the_disk_identity_to_render(self):
+        text = (TOP / 'pipeline/stages/golden-assemble.sh').read_text()
+        self.assertIn('--disk-identity) IDENTITY=$2; shift 2 ;;', text)
+        line = next(l for l in text.splitlines() if l.startswith('[ -z "$DISK" ] || set --'))
+        out = subprocess.run(['sh', '-c', 'DISK=disk9; CONFIRM=disk9; EXTERNAL=; IDENTITY="/a b/id.json"\n' + line +
+                              '\nprintf "%s|" "$@"'], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(out, '--disk|disk9|--confirm-disk|disk9|--disk-identity|/a b/id.json|')
+        out = subprocess.run(['sh', '-c', 'DISK=disk9; CONFIRM=disk9; EXTERNAL=; IDENTITY=\n' + line +
+                              '\nprintf "%s|" "$@"'], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(out, '--disk|disk9|--confirm-disk|disk9|')
 
     def test_no_cryptex_cache_drops_it(self):
         with tempfile.TemporaryDirectory() as folder:

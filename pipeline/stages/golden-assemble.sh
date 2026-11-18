@@ -1,5 +1,5 @@
 #!/bin/sh
-# golden-assemble.sh KIT LOCAL [--owner USER:GROUP] [--disk diskN --confirm-disk diskN [--external]] [--resume WORK]
+# golden-assemble.sh KIT LOCAL [--owner USER:GROUP] [--disk diskN --confirm-disk diskN [--external] [--disk-identity FILE]] [--resume WORK]
 #                     [--no-cryptex-cache]
 #
 # Assemble the Golden Gate image from a staged kit (pipeline/kit.py) on the Mac this runs on: the arm64 builder VM
@@ -15,14 +15,15 @@
 # Exit status: golden-image.py's, or the first failing copy's.
 set -u
 set -o pipefail
-[ $# -ge 2 ] || { echo 'usage: golden-assemble.sh KIT LOCAL [--owner U:G] [--disk diskN --confirm-disk diskN [--external]] [--resume WORK] [--no-cryptex-cache]' >&2; exit 2; }
+[ $# -ge 2 ] || { echo 'usage: golden-assemble.sh KIT LOCAL [--owner U:G] [--disk diskN --confirm-disk diskN [--external] [--disk-identity FILE]] [--resume WORK] [--no-cryptex-cache]' >&2; exit 2; }
 G=$1; W=$2; shift 2
-OWNER=root:wheel; DISK=; CONFIRM=; EXTERNAL=; RESUME=; NOCACHE=
+OWNER=root:wheel; DISK=; CONFIRM=; EXTERNAL=; RESUME=; NOCACHE=; IDENTITY=
 while [ $# -gt 0 ]; do
     case $1 in
         --owner) OWNER=$2; shift 2 ;;
         --disk) DISK=$2; shift 2 ;;
         --confirm-disk) CONFIRM=$2; shift 2 ;;
+        --disk-identity) IDENTITY=$2; shift 2 ;;
         --external) EXTERNAL=--external; shift ;;
         --resume) RESUME=$2; shift 2 ;;
         --no-cryptex-cache) NOCACHE=--no-cryptex-cache; shift ;;
@@ -114,7 +115,7 @@ export PATH="$W/recovery-bin:$PATH:$W/py/bin"
 echo "Assembly storage after local source/hook copies:"
 df -k "$W"
 set --
-[ -z "$DISK" ] || set -- --disk "$DISK" --confirm-disk "$CONFIRM" $EXTERNAL
+[ -z "$DISK" ] || set -- --disk "$DISK" --confirm-disk "$CONFIRM" $EXTERNAL ${IDENTITY:+--disk-identity "$IDENTITY"}
 [ -z "$NOCACHE" ] || set -- "$@" $NOCACHE
 "$W/py/bin/python3.12" -I -B "$W/source/kit.py" render "$G" "$W" --out "$W/config.json" "$@" || exit $?
 set --
