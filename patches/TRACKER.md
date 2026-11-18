@@ -42,7 +42,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r10 | post | product |  | x |  |  |  | **needs** | r10 2026-11-17 a candidate build's tools/hao/data/candidate-keys.pub is staged with hao (never tracked; releas |
-| hao-opencore | r81 | post | product |  | x | x |  |  | **needs** | r81 2026-11-17 Reason and provenance for opencore-mbp92's HIDProxyKernelMatch.kext (fixes #79). Nothing it ins |
+| hao-opencore | r82 | post | product |  | x | x |  |  | **needs** | r82 2026-11-17 Test: every non-Apple Mach-O the release image installs links by paths dyld follows under the r |
 | hao-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row hao_runtime (26B131, A family) is hao-runtime af5aa59, release/v0.0.1's security batch: AOT |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r11 | oclp-hook | product |  | x |  |  |  | **needs** | r11 2026-11-17 OCLP's GPUCompiler 31001 `libLLVM.dylib` names `libLLVM_helper.dylib` by an absolute path (`edi |

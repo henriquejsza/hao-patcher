@@ -166,6 +166,27 @@ What stays open (AMFI relaxed, owner D1): a restricted program that requires lib
 variables while `amfi_get_out_of_my_way` relaxes library validation, and a program that is neither hardened nor
 restricted still accepts an inserted library and keeps its Apple signature. Narrowing AMFI itself is v0.1.0 research.
 
+### Load paths
+
+The same policy also decides which load paths dyld follows (dyld-1378 `dyld/Loader.cpp`; AMFI 25G330
+`macos_dyld_policy_env_vars` and `macos_dyld_policy_at_path`), so it changes what a library the image adds may link:
+
+- With the path variables denied (a hardened program not entitled to them, or a restricted one without library
+  validation), dyld refuses every file-relative path, `System/...`, `./` and `../` alike: "relative path not allowed in
+  hardened program" (`isFileRelativePath`, checked on each path tried, after `@` expansion, so a relative `LC_RPATH`
+  entry fails the same way).
+- A restricted program (AMFI's at-path policy: `CS_RESTRICT` with `amfi_force_policy=8`, setugid, a `__RESTRICT`
+  segment, unless it requires library validation) gets no `@executable_path` expansion and no `@loader_path` in the main
+  executable's own `LC_RPATH`. A hardened program alone keeps both.
+
+OCLP's 31001 `libLLVM.dylib` linked its helper by a relative path, so the hardened, restricted MTLCompilerService
+could not open the 31001 compiler once r72 landed (fixed in metal-compiler-compat r11). `tests/test_load_paths.py`
+holds every non-Apple Mach-O the release image installs to this rule: OCLP's overlay, every file the set declares (as
+`pipeline/materialize.py` makes it), hao's payload and launch stubs, the bundled CPython. It also requires every
+`macho.add-dylib` edit to name an absolute path. A library is held to the rule whatever loads it; a program only when it
+can be hardened or restricted (runtime flag or entitlements). On the release set nothing else is refused: hao's stubs
+and launcher list `/usr/lib/hao` as an absolute `LC_RPATH`, and every added load names an absolute path.
+
 ## Inputs
 
 - `hao_runtime`: the unstamped `HaoExec.kext` and `stamp_identity.py` from a hao-runtime payload (its `build.json`
@@ -268,6 +289,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r82 2026-11-17 Test: every non-Apple Mach-O the release image installs links by paths dyld follows under the restored AMFI dyld policy (`tests/test_load_paths.py`, README "Load paths"). Nothing it installs changes.
 - r81 2026-11-17 Reason and provenance for opencore-mbp92's HIDProxyKernelMatch.kext (fixes #79). Nothing it installs changes.
 - r80 2026-11-17 Leftover settings removed (QEMU batch boot): `-nokcmismatchpanic` and `-pmap_pcid_disable` dropped from boot-args; RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet disabled; bootercfg and bootercfg-once no longer deleted. CryptexFixup stays.
 - r79 2026-11-17 CryptexFixup's reason is traced: without it the modified OS cryptex does not graft and the boot stops (QEMU). It stays. Declaration only.

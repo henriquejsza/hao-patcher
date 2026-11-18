@@ -527,7 +527,7 @@ Revision r10, status product. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r81, status product. [Recipe](../patches/hao-opencore/README.md)
+Revision r82, status product. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
