@@ -51,6 +51,9 @@ class Launcher(unittest.TestCase):
             self.assertIn('sudo chown -R root:wheel', r.stderr)
             self.assertFalse(marker.exists())                   # never started
 
+    def test_root_writes_no_bytecode_into_the_users_folder(self):
+        self.assertIn('exec "$ROOT_PY/bin/python3.14" -I -S -B "$0" "$@"', sh_part())
+
     def test_as_a_user_it_runs_python_from_path(self):
         r = subprocess.run([str(HAO), 'help'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
