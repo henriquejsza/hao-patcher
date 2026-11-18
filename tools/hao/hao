@@ -44,7 +44,7 @@ if [ "$(/usr/bin/id -u)" = 0 ]; then
         echo "  (python.org's installer leaves it writable by the admin group; do this right after installing it)" >&2
         exit 5
     fi
-    exec "$ROOT_PY/bin/python3.14" -I -S "$0" "$@"
+    exec "$ROOT_PY/bin/python3.14" -I -S -B "$0" "$@"     # -B: no root-owned bytecode in the user's folder
 fi
 for py in python3.14 python3; do
     if command -v "$py" >/dev/null 2>&1; then exec "$py" -I "$0" "$@"; fi

@@ -86,7 +86,10 @@ class FakeMac:
             return ('boot-args\t%s\n' % self.boot_args).encode() if self.boot_args else None
         if argv[:2] == ['sysctl', '-n']:
             return {'hw.model': self.model, 'machdep.cpu.brand_string': 'Intel(R) Core(TM) i7-3615QM CPU @ 2.30GHz',
-                    'hw.memsize': str(16 * GiB)}[argv[2]].encode()
+                    'hw.memsize': str(16 * GiB),
+                    # the 3615QM (Ivy Bridge): AVX 1.0, no AVX2
+                    'machdep.cpu.features': 'FPU VME SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2 POPCNT AES AVX1.0 RDRAND F16C',
+                    'machdep.cpu.leaf7_features': 'RDWRFSGS SMEP ERMS'}[argv[2]].encode()
         if argv[:2] == ['uname', '-m']:
             return self.machine.encode()
         if argv[0] == 'ioreg' and 'IODeviceTree' in argv and 'efi' in argv:
@@ -256,6 +259,19 @@ class DiskGateTest(unittest.TestCase):
         DISKS.refusal(host, 'disk5', 'external', 1)
         self.assertTrue(all(c[0] in ('diskutil', 'df') and c[1] in ('info', 'apfs', '-P') for c in host.calls))
         self.assertFalse(any(x in c for c in host.calls for x in ('eraseDisk', 'partitionDisk', 'unmountDisk')))
+
+
+class CPUFeaturesTest(unittest.TestCase):
+    """detect's CPU features: both sysctl keys, merged and sorted; a key the kernel lacks (Apple silicon) is skipped."""
+    def test_merged_and_missing_keys_skipped(self):
+        class Host:
+            def run(self, argv, check=True, timeout=120):
+                answers = {'machdep.cpu.features': b'sse avx1.0\n', 'machdep.cpu.leaf7_features': None}
+                out = answers[argv[2]]
+                if out is None:
+                    raise LP.PatchError('unknown oid')
+                return subprocess.CompletedProcess(argv, 0, out, b'')
+        self.assertEqual(DETECT.cpu_features(Host()), ['AVX1.0', 'SSE'])
 
 
 class VerifyTest(unittest.TestCase):
