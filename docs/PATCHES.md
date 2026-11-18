@@ -103,7 +103,7 @@ Revision r9, status product. [Recipe](../patches/golden-gate-corespotlight-compa
 
 ## golden-gate-deep-sleep-off
 
-Revision r1, status product. [Recipe](../patches/golden-gate-deep-sleep-off/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-deep-sleep-off/README.md)
 
 - `Library/LaunchDaemons/local.hao.deep-sleep-off.plist`: whole file from hao. Launchd daemon (root 644, Data volume): runs pmset -a standby 0 autopoweroff 0 hibernatemode 0 once, retrying until it succeeds, then leaves the marker /private/var/db/.hao-deep-sleep-off.
 

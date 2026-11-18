@@ -30,7 +30,11 @@ and the lid, stay on. A user can turn deep sleep back on with `pmset`, and the c
 
 ## Validation
 
-NEEDS VALIDATION: host tests only.
+Laptop 2026-11-18 (a MacBookPro9,2 running the v0.0.1 candidate C2, the recipe's file installed live): after two
+boots, standby 0, autopoweroff 0 and hibernatemode 0 on both power sources, the marker present and the job's last exit
+0; three software sleep/wake cycles with no hibernate or standby entry and no panic; a user's hibernatemode 3 kept
+across a reboot. Lid-close and battery cycles were not run (out of v0.0.1's scope).
 
 ## Revisions
+- r2 2026-11-18 Validated r1 on hardware (Validation); nothing it installs changes.
 - r1 2026-11-18 New: deep sleep off by default (diag#79), owner decision for v0.0.1.

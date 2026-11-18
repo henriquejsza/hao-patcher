@@ -1,10 +1,10 @@
 {
- "revision": 1,
+ "revision": 2,
  "pack": "base",
  "stage": "post",
  "inputs": [],
  "status": "product",
- "validated": false,
+ "validated": true,
  "files": [
   {
    "path": "Library/LaunchDaemons/local.hao.deep-sleep-off.plist",
@@ -22,5 +22,7 @@
   "cpu": "any",
   "gpu": "any",
   "firmware": "any"
- }
+ },
+ "validated_revision": 1,
+ "validated_digest": "cc8b2feaaf19898ac885a2ebe6e287dad328818b496b53c7b81a36dd6b8353eb"
 }
