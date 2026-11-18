@@ -466,7 +466,7 @@ No swapped files on it.
 
 Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3, set dev-bs-test).
 
-15 trial swaps not listed (15 resolved in the private resolution file).
+18 trial swaps not listed (15 resolved in the private resolution file).
 
 10 more swaps since the push are no longer there (restored or removed; read over SSH).
 
@@ -475,9 +475,6 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 | 2026-11-14 16:04:23 | `/usr/lib/hao/libhao.dylib` | b8f0480f | proven, row hao_runtime | there |
 | 2026-11-14 16:17:41 | `/Library/LaunchDaemons/org.hao.slice-guard.plist` | a53b4de7 | trial, recipe golden-gate-appstore-slices | there |
 | 2026-11-14 16:17:41 | `/usr/local/libexec/hao-slice-guard` | 45466f53 | trial, recipe golden-gate-appstore-slices | there |
-| 2026-11-14 19:26:05 | `/usr/lib/hao/store-policy-original-appstoreagent` | 99c826aa | trial, recipe golden-gate-store | there |
-| 2026-11-14 19:26:10 | `/usr/lib/hao/store-policy-original-appstored` | 3432336f | trial, recipe golden-gate-store | there |
-| 2026-11-14 19:28:31 | `/usr/lib/hao/libhao-appstore-policy.dylib` | abaa0356 | trial, recipe golden-gate-store | there |
 | 2026-11-14 19:57:09 | `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` | 54c07b4c | proven, row tahoe_native_donors | there |
 | 2026-11-15 16:25:50 | `/usr/lib/hao/libhao-imessage-wifi-test.dylib` | d5aa7a8c | trial, recipe golden-gate-ids | there |
 
@@ -528,8 +525,5 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
-- Test machine B: `/usr/lib/hao/store-policy-original-appstoreagent` (99c826aa) differs from image 8fb92d5: recipe golden-gate-store.
-- Test machine B: `/usr/lib/hao/store-policy-original-appstored` (3432336f) differs from image 8fb92d5: recipe golden-gate-store.
-- Test machine B: `/usr/lib/hao/libhao-appstore-policy.dylib` (abaa0356) differs from image 8fb92d5: recipe golden-gate-store.
 - Test machine B: `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` (54c07b4c) differs from image 8fb92d5: row tahoe_native_donors.
 - Test machine B: `/usr/lib/hao/libhao-imessage-wifi-test.dylib` (d5aa7a8c) differs from image 8fb92d5: recipe golden-gate-ids.

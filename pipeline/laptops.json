@@ -40,30 +40,6 @@
     "sha256": "45466f53d8f9f1f0cbf66019b21e4e8ea2849f76bf78ec45c188d70061a92d3e"
    },
    {
-    "date": "2026-11-14 19:26:05",
-    "now": "there",
-    "path": "/usr/lib/hao/store-policy-original-appstoreagent",
-    "payload": false,
-    "proven": false,
-    "sha256": "99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8"
-   },
-   {
-    "date": "2026-11-14 19:26:10",
-    "now": "there",
-    "path": "/usr/lib/hao/store-policy-original-appstored",
-    "payload": false,
-    "proven": false,
-    "sha256": "3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35"
-   },
-   {
-    "date": "2026-11-14 19:28:31",
-    "now": "there",
-    "path": "/usr/lib/hao/libhao-appstore-policy.dylib",
-    "payload": false,
-    "proven": false,
-    "sha256": "abaa035649659ca8a6dd865eb621f7c90d869653157117d4d5d4caa9f723a561"
-   },
-   {
     "date": "2026-11-14 19:57:09",
     "now": "there",
     "path": "/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources",
@@ -80,6 +56,6 @@
     "sha256": "d5aa7a8c7e8e0e021378886337324a4b61ea7733fb4b7739751f3038d9c28dd4"
    }
   ],
-  "trials": 15
+  "trials": 18
  }
 }

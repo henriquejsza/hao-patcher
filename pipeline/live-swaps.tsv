@@ -62,9 +62,9 @@ c754618c7398ce515f8d8bb702628b5ac5682141504f9d49b40c1964f8233565	/private/var/db
 a5f9e8a811294be180f10be671dd74524dc429c41a18018e7e942a07cae3fe4e	/private/var/db/hao/874c581c6de93cf0ab35ed0783f59398.aot	dropped: AOT cache for SystemUIServer generated with libhao 498f9dc for the Xcode X1 rerun; AOT caches are bound to their libhao and every payload generates its own
 303a156781ec5f9397a76b4251105e2b8043d3b4f6b4d1ced1ae39d2f8165a47	/private/var/db/hao/a11351ab1e983221ae60474cfb639cc2.aot	dropped: AOT cache for Xcode generated with libhao 498f9dc for the Xcode X1 rerun; AOT caches are bound to their libhao and every payload generates its own
 6f538c43328aa2fdc43ddd19dc1087915c86a22241fe719ae53eeac2d211e38b	/private/var/tmp/patcher-awdl-trace.d	dropped: dtrace script for diag#0044, not shipped
-99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8	/usr/lib/hao/store-policy-original-appstoreagent	recipe golden-gate-store
-3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35	/usr/lib/hao/store-policy-original-appstored	recipe golden-gate-store
-abaa035649659ca8a6dd865eb621f7c90d869653157117d4d5d4caa9f723a561	/usr/lib/hao/libhao-appstore-policy.dylib	recipe golden-gate-store
+99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8	/usr/lib/hao/store-policy-original-appstoreagent	dropped: replaced by golden-gate-store r3 edit specs (owner 2026-11-15 20:10)
+3432336f72e8d0819498dc972435fc7bae50326b66f2609c0dbc0becb1a22c35	/usr/lib/hao/store-policy-original-appstored	dropped: replaced by golden-gate-store r3 edit specs (owner 2026-11-15 20:10)
+abaa035649659ca8a6dd865eb621f7c90d869653157117d4d5d4caa9f723a561	/usr/lib/hao/libhao-appstore-policy.dylib	dropped: replaced by golden-gate-store r3 edit specs (owner 2026-11-15 20:10)
 3650372593a2db579895bbd992c7d633206e1cc1c17caccb36263e59fa9cb314	/usr/lib/hao/native-identities	dropped: not shipped
 ca73e04aba7c6c023cbb5d2076ac316c4fa47fe08fb915b28702a013763a479d	/usr/lib/hao/stub-identities	dropped: not shipped
 96b6631bb37addd157d21f9fa11214aadafdb1ba87b98039322e020b0f7b1c2d	/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent	dropped: not shipped
