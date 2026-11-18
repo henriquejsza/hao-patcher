@@ -24,6 +24,7 @@ TOP = Path(__file__).resolve().parents[2]
 LOCKS = ('pipeline/inputs/golden/26B131', 'pipeline/inputs/25G342', 'pipeline/inputs/common')
 HAO_RUNTIME_CODEID = '33a0a0404d3f5c3008c79e295026ea99bee563eb'
 PY = [sys.executable, '-I']
+NOT_COMPARED = 3     # built, but nothing here to compare it with (a made-on-Mac row without the store)
 
 
 def run(*args):
@@ -216,8 +217,9 @@ def main(argv=None):
             print('%s %s/%s' % (mine[n], args.row, n))
         path = str(TOP/path)
         if not os.path.isdir(path):
-            print('asset-build: %s has made-on-Mac files; no store copy here, compare the release asset' % args.row)
-            return 0
+            print('asset-build: %s: built, not compared (made-on-Mac files and no store copy here); compare the release '
+                  'asset' % args.row, file=sys.stderr)
+            return NOT_COMPARED
         bad = [n for n in names if L['sha256'](os.path.join(path, n)) != mine[n]]
         for n in bad:
             print('asset-build: %s/%s differs from the row\'s copy' % (args.row, n), file=sys.stderr)
