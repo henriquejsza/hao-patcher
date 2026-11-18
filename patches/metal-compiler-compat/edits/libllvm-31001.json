@@ -1,0 +1,28 @@
+{
+ "format": 1,
+ "path": "System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib",
+ "arch": "x86_64",
+ "origin": {
+  "kind": "oclp",
+  "name": "GPUCompiler 31001",
+  "note": "OCLP's 31001 GPUCompiler libLLVM.dylib (PatcherSupportPkg 2.0.5, hardware overlay), which links libLLVM_helper by a relative path"
+ },
+ "applied_by": "installer",
+ "edits": [
+  {
+   "id": "llvm-helper-absolute",
+   "kind": "literal",
+   "at": "0x780",
+   "find": "53 79 73 74 65 6D 2F 4C 69 62 72 61 72 79 2F 50 72 69 76 61 74 65 46 72 61 6D 65 77 6F 72 6B 73 2F 47 50 55 43 6F 6D 70 69 6C 65 72 2E 66 72 61 6D 65 77 6F 72 6B 2F 56 65 72 73 69 6F 6E 73 2F 33 31 30 30 31 2F 4C 69 62 72 61 72 69 65 73 2F 6C 69 62 4C 4C 56 4D 5F 68 65 6C 70 65 72 2E 64 79 6C 69 62 00 00 00 00",
+   "replace": "2F 53 79 73 74 65 6D 2F 4C 69 62 72 61 72 79 2F 50 72 69 76 61 74 65 46 72 61 6D 65 77 6F 72 6B 73 2F 47 50 55 43 6F 6D 70 69 6C 65 72 2E 66 72 61 6D 65 77 6F 72 6B 2F 56 65 72 73 69 6F 6E 73 2F 33 31 30 30 31 2F 4C 69 62 72 61 72 69 65 73 2F 6C 69 62 4C 4C 56 4D 5F 68 65 6C 70 65 72 2E 64 79 6C 69 62 00 00 00",
+   "reason": "Metal shaders that need the 31001 compiler build: MTLCompilerService runs hardened and dyld refuses the relative helper path, so the service crashed on every such request (Setup's shader effects vanished)"
+  }
+ ],
+ "sign": {
+  "mode": "adhoc",
+  "identifier": "libLLVM"
+ },
+ "expect": {
+  "10d32c52663c64690fce2029dd63785dedb23f0c0bf9aa50955b879db8e914f8": "7218c954a063e43d906dbe1ffa9836a3419d1e71ce7bb3b981ce614aad07b6e8"
+ }
+}

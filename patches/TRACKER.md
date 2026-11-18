@@ -45,7 +45,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | hao-opencore | r81 | post | product |  | x | x |  |  | **needs** | r81 2026-11-17 Reason and provenance for opencore-mbp92's HIDProxyKernelMatch.kext (fixes #79). Nothing it ins |
 | hao-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row hao_runtime (26B131, A family) is hao-runtime af5aa59, release/v0.0.1's security batch: AOT |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| metal-compiler-compat | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any;  |
+| metal-compiler-compat | r11 | oclp-hook | product |  | x |  |  |  | **needs** | r11 2026-11-17 OCLP's GPUCompiler 31001 `libLLVM.dylib` names `libLLVM_helper.dylib` by an absolute path (`edi |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
 | opencore-generic | r5 | post | experiment |  |  |  |  |  | **needs** | r5 2026-11-17 Row qemu_reference_efi is now made by pipeline/unpack/qemu-reference from its downloads: the sam |
