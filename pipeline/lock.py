@@ -281,6 +281,78 @@ def take(lock, name, dest, src=None):
     return out
 
 
+def _clone(src, dst):
+    """Clone file SRC to DST (APFS clonefile, never following a link, owned by the caller), else copy it."""
+    try:
+        import ctypes
+        clonefile = ctypes.CDLL(None, use_errno=True).clonefile
+    except (OSError, AttributeError):
+        clonefile = None
+    if clonefile is None or clonefile(os.fsencode(src), os.fsencode(dst), 3):   # CLONE_NOFOLLOW | CLONE_NOOWNERCOPY
+        import shutil
+        shutil.copy2(src, dst, follow_symlinks=False)
+
+
+def copy_tree(src, dest, only=None, without=()):
+    """Copy folder SRC into the existing folder DEST: the entries a row's sha256 covers (ONLY, WITHOUT: as
+    content_sha256), with their permission bits and links as links, files cloned where they can be. Nothing outside
+    the row's hash is copied, so a checked copy holds only checked bytes."""
+    modes = []
+    for d, dirs, files in os.walk(src):
+        rel_d = os.path.relpath(d, src)
+        keep = []
+        for f in sorted(dirs + files):
+            p = os.path.join(d, f)
+            rel = os.path.normpath(os.path.join(rel_d, f))
+            if only is not None and not in_scope(rel, only):
+                continue
+            if any(rel == w or rel.startswith(w.rstrip('/') + '/') for w in without):
+                continue
+            q = os.path.join(dest, rel)
+            st = os.lstat(p)
+            if stat.S_ISLNK(st.st_mode):
+                os.symlink(os.readlink(p), q)
+            elif stat.S_ISDIR(st.st_mode):
+                os.mkdir(q, 0o700)
+                modes.append((q, stat.S_IMODE(st.st_mode)))
+                keep.append(f)
+            elif stat.S_ISREG(st.st_mode):
+                _clone(p, q)
+            else:
+                sys.exit('%s: not a file, folder or symlink' % p)
+        dirs[:] = [x for x in dirs if x in keep]
+    for q, mode in reversed(modes):
+        os.chmod(q, mode)
+
+
+def take_tree(lock, name, dest):
+    """A copy of folder row NAME in DEST (made here; it must not exist), checked as a tree after it is made (its
+    content sha256 and check lines): read the copy, never the row's path, which may change after a check. Stops
+    unless the row has a sha256 and the copy has it; on a failure only DEST, which this call made, is removed."""
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    if want == '-':
+        sys.exit('%s: row %s has no sha256' % (lock, name))
+    if not os.path.isdir(p):
+        sys.exit('%s: %s is not a folder (%s)' % (lock, p, name))
+    os.mkdir(dest, 0o700)
+    try:
+        copy_tree(p, dest, scope(lock, name), without(lock, name))
+        if row_hash(lock, name, dest) != want:
+            sys.exit('%s: %s is not %s (%s)' % (lock, p, want, name))
+        bad = check_row(lock, name, dest)
+        if bad:
+            sys.exit('\n'.join('%s: %s' % (lock, b) for b in bad))
+        os.chmod(dest, 0o755)
+    except BaseException:
+        import shutil
+        shutil.rmtree(dest, ignore_errors=True)
+        raise
+    return dest
+
+
 def row_identity(sha, p, store):
     """What a row's input is, independent of the store's location: its sha256 column; for a '-' row the file's own
     content digest, else (a folder, or not there yet) its path relative to the store (outside the store: the path).
@@ -490,5 +562,5 @@ def verify_store(*argv):
 
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
-    print({'path': path, 'take': take, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
+    print({'path': path, 'take': take, 'take-tree': take_tree, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
            'oclp-keys': oclp_keys, 'verify-store': verify_store}[cmd](*args))

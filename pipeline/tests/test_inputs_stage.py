@@ -136,6 +136,37 @@ class InputsStage(unittest.TestCase):
         self.assertIn('has no row python_site', r.stderr)
         self.assertTrue((share / 'oclp/opencore_legacy_patcher/constants.py').is_file())
 
+    def site_row(self, extra_line=''):
+        site = self.d / 'store-site'
+        (site / 'requests').mkdir(parents=True, exist_ok=True)
+        (site / 'requests' / '__init__.py').write_text('ok = 1\n')
+        (site / 'requests' / '__init__.py').chmod(0o644)
+        (site / 'link.py').unlink(missing_ok=True); (site / 'link.py').symlink_to('requests/__init__.py')
+        (site / 'extra.py').write_text('evil = 1\n')       # not in the row's hash (# hash: without extra.py)
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock
+        want = lock.row_sha256(str(site), without=('extra.py',))
+        (self.common / 'python_site').write_text('%s%s %s\n' % (extra_line, want, site))
+        return site
+
+    def test_python_site_is_a_copy_checked_as_a_tree(self):
+        site = self.site_row('# hash: without extra.py\n')
+        r, share = self.run_stage()
+        self.assertNotIn('python_site', r.stderr)
+        self.assertEqual((share / 'site/requests/__init__.py').read_text(), 'ok = 1\n')
+        self.assertEqual(os.readlink(share / 'site/link.py'), 'requests/__init__.py')
+        self.assertFalse((share / 'site/extra.py').exists(), 'bytes outside the checked tree never reach the share')
+        (site / 'requests' / '__init__.py').write_text('ok = 2\n')      # changed after the run: the copy is not
+        self.assertEqual((share / 'site/requests/__init__.py').read_text(), 'ok = 1\n')
+
+    def test_a_changed_python_site_stops_and_leaves_nothing(self):
+        site = self.site_row('# hash: without extra.py\n')
+        (site / 'requests' / '__init__.py').write_text('evil = 1\n')
+        r, share = self.run_stage()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('(python_site)', r.stderr)
+        self.assertFalse((share / 'site').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

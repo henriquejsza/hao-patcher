@@ -76,7 +76,8 @@ for arch dir in arm64 py x86_64 py-x86_64; do
 done
 # the x86_64 one runs in a Recovery (hao install from the stick), whose shared cache has no libedit/ncurses/panel
 python3 -I $TOP/pipeline/stages/weaken-dylibs.py $SHARE/py-x86_64/bin/python3.12
-ditto $(common python_site) $SHARE/site
+# the site-packages OCLP runs with: copied into SHARE/site and checked there as a tree (what is checked is what runs)
+$L take-tree $COMMON python_site $SHARE/site >/dev/null
 
 # A patch input: the Golden Gate build's row (GOLDEN_LOCK, golden-first only), else the donor build's, else common's.
 # Optional patches whose rows are not there, or whose group is in SKIP_OPTIONAL (space-separated), are left out of the

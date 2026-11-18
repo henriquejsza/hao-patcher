@@ -62,6 +62,44 @@ class Lock(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertEqual(self.f.read_bytes(), b'abc')
 
+    def tree_row(self):
+        t = self.d / 'tree'; (t / 'sub').mkdir(parents=True)
+        (t / 'sub' / 'a').write_bytes(b'a'); (t / 'sub' / 'a').chmod(0o755)
+        (t / 'sub').chmod(0o750)
+        (t / 'ln').symlink_to('sub/a')
+        (t / 'notes').write_bytes(b'not hashed')
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock as L
+        want = L.row_sha256(str(t), without=('notes',))
+        d = self.d / 'treelock'; d.mkdir()
+        (d / 'site').write_text('# hash: without notes\n%s %s\n' % (want, t))
+        return t, d, want, L
+
+    def test_take_tree_copies_and_checks_the_tree(self):
+        t, d, want, L = self.tree_row()
+        out = self.d / 'copy'
+        r = lock('take-tree', d, 'site', out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(L.row_sha256(str(out), without=('notes',)), want)
+        self.assertEqual(((out / 'sub').stat().st_mode & 0o777, (out / 'sub' / 'a').stat().st_mode & 0o777), (0o750, 0o755))
+        self.assertEqual(os.readlink(out / 'ln'), 'sub/a')
+        self.assertFalse((out / 'notes').exists(), 'what the row does not hash is not copied')
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        self.assertEqual((out / 'sub' / 'a').read_bytes(), b'a')
+
+    def test_take_tree_refuses_a_changed_tree_and_an_existing_destination(self):
+        t, d, want, L = self.tree_row()
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        r = lock('take-tree', d, 'site', self.d / 'copy')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('(site)', r.stderr)
+        self.assertFalse((self.d / 'copy').exists())
+        (t / 'sub' / 'a').write_bytes(b'a')
+        there = self.d / 'there'; there.mkdir(); (there / 'keep').write_bytes(b'k')
+        r = lock('take-tree', d, 'site', there)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual((there / 'keep').read_bytes(), b'k', 'a destination this call did not make is left alone')
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))
