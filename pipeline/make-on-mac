@@ -290,7 +290,8 @@ def hand_over(top, uid, gid, readable=False):
             os.chown(p, uid, gid, follow_symlinks=False)
             if readable:
                 os.chmod(p, stat.S_IMODE(st.st_mode) | (0o700 if stat.S_ISDIR(st.st_mode) else 0o400))
-    subprocess.run(['/bin/chmod', '-R', '-N', str(top)], check=True)
+    # not chmod -R -N: it fails on a dangling link; links carry no data another user could write through
+    subprocess.run(['/usr/bin/find', str(top), '!', '-type', 'l', '-exec', '/bin/chmod', '-N', '{}', '+'], check=True)
 
 
 def let_in(folder, uid, name):

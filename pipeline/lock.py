@@ -251,7 +251,11 @@ def path(lock, name):
 def _no_acl(path, tree=False):
     """Remove every ACL entry of PATH (and of every entry under it, no link followed, when TREE)."""
     import subprocess
-    if subprocess.run(['/bin/chmod'] + (['-R'] if tree else []) + ['-N', path], capture_output=True).returncode:
+    # chmod -R -N follows a symbolic link (relative ones then resolve from the wrong folder and fail), so every entry
+    # but the links is cleared; a link carries no data another user could write through.
+    command = (['/usr/bin/find', path, '!', '-type', 'l', '-exec', '/bin/chmod', '-N', '{}', '+'] if tree
+               else ['/bin/chmod', '-h', '-N', path])
+    if subprocess.run(command, capture_output=True).returncode:
         sys.exit('%s: its access control entries could not be removed' % path)
 
 

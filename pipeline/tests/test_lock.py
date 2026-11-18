@@ -168,6 +168,22 @@ class Lock(unittest.TestCase):
                     self.assertEqual(made.stat().st_mode & 0o7022, 0, 'no set-id bit, no one else may write it')
         self.assertEqual([p.name for p in self.d.rglob('.stage-*')], [], 'no staging folder is left')
 
+    def test_acls_are_cleared_in_a_tree_with_framework_links(self):
+        # OCLP's partial frameworks: links to Versions/Current/... with no Current folder, so they dangle; chmod -R -N
+        # fails on a dangling link (the OCLP hardware row, candidate 02b692df's create-installer)
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock as L
+        fw = self.d / 'tree' / 'Lib' / 'X.framework'
+        (fw / 'Versions' / 'A' / 'Resources').mkdir(parents=True)
+        (fw / 'Versions' / 'A' / 'X').write_bytes(b'x')
+        (fw / 'Resources').symlink_to('Versions/Current/Resources')
+        (fw / 'X').symlink_to('Versions/Current/X')
+        self.grant(fw / 'Versions' / 'A' / 'X'); self.grant(fw)
+        L._no_acl(str(self.d / 'tree'), tree=True)
+        for p in [self.d / 'tree'] + list((self.d / 'tree').rglob('*')):
+            if not p.is_symlink():
+                self.assertEqual(self.acl(p), [], p)
+
     def test_the_staging_folder_is_private(self):
         sys.path.insert(0, str(TOP / 'pipeline'))
         import lock as L
