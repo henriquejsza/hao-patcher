@@ -14,11 +14,10 @@ from .cache import CacheFile, CacheFamily
 from .cache_exports import CacheDependency, FinalGraph, path_trie, export_trie
 from .exports import Image, cstring, require, span, uleb
 from .imports import Import, chained_imports, classic_imports, provider, sleb
-from .pbl import main_validation
+from .pbl import VERSION, main_validation
 from .provider_identity import x86_slice
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = 0x1bffc401
 SYNTHETIC_NAMES = ('__OBJC_RO', '__OBJC_RW')
 TREAT_AS_WEAK = (
     '__Znwm', '__ZnwmRKSt9nothrow_t', '__Znam', '__ZnamRKSt9nothrow_t',
@@ -303,7 +302,7 @@ def read_set(data, cached_count, *, app):
         pathoff, depsoff, kindoff, fixupoff, altoff, fvioff, bits, regionsoff, depcount, bindoff, bindcount = struct.unpack_from('<10HI', loader, 32)
         require(pathoff >= 448, 'loader path overlaps fixed header')
         for start, extent in ((depsoff, depcount * 2), (kindoff, depcount if kindoff else 0),
-                              (fvioff, 56 if fvioff else 0), (regionsoff, (bits >> 4) * 16), (bindoff, bindcount * 8)):
+                              (fvioff, 56 if fvioff else 0), (regionsoff, (bits >> 5) * 16), (bindoff, bindcount * 8)):
             require(not extent or start >= 448, 'loader array overlaps fixed header')
             span(loader, start, extent)
         path, _ = cstring(loader, pathoff)
@@ -313,7 +312,7 @@ def read_set(data, cached_count, *, app):
             require(dep == 0x7fff or dep & 0x7fff < (count if dep & 0x8000 else cached_count), 'dependent loader ref out of range')
         kinds = list(span(loader, kindoff, depcount)) if kindoff else [0] * depcount
         require(all(value <= 15 for value in kinds), 'unknown dependency attributes')
-        region_count = bits >> 4
+        region_count = bits >> 5          # 27: 11 bits after five flags (bit 4: TLVs pre-keyed)
         regions = []
         for number in range(region_count):
             word, fileoff, filesize = struct.unpack('<QII', span(loader, regionsoff + number * 16, 16))
@@ -324,7 +323,7 @@ def read_set(data, cached_count, *, app):
         span(loader, overrideoff, overridecount * 8)
         overrides = [bind_target(struct.unpack_from('<Q', loader, overrideoff + number * 8)[0], cached_count, count) for number in range(overridecount)]
         row = {'path': path, 'index': index, 'offset': offset, 'flags': flags, 'uuid': loader[8:24].hex(), 'cpu_subtype': struct.unpack_from('<I', loader, 24)[0],
-               'properties': bits & 15, 'dependencies': list(deps), 'dependency_attributes': kinds, 'regions': regions, 'binds': binds,
+               'properties': bits & 31, 'dependencies': list(deps), 'dependency_attributes': kinds, 'regions': regions, 'binds': binds,
                'exports_offset': struct.unpack_from('<Q', loader, 64)[0], 'exports_size': struct.unpack_from('<I', loader, 72)[0],
                'objc_info_offset': struct.unpack_from('<I', loader, 56)[0], 'twin_index': struct.unpack_from('<H', loader, 60)[0],
                'file_validation_offset': fvioff, 'override_bind_count': overridecount, 'override_binds': overrides,

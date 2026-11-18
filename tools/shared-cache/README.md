@@ -156,6 +156,7 @@ output alone is not a deployable artifact. Existing runtime override gates remai
 in force; host lookup checks do not establish boot success or a speedup.
 
 ## Revisions
+- r88 2026-11-18 Prebuilt loaders in 27's layout (26B131): a TLV pre-keyed flag at +0x2c bit 4, an 11-bit regionsCount, +0x26 left 0, versionHash 0x9593b355 (source.patch, read_set). The generator maps 27's 568-byte cache header. Regenerated from stock 262FA161: 3944 of 3945 cached loaders and 2324 of 2376 program sets match byte for byte; the rest are open.
 - r87 2026-11-18 Regenerate Swift conformance lookups from final image sections before loader finalization; verify keys with Apple’s reader and update signatures and UUID references.
 - r86 2026-11-18 No prebuilt loaders: the dylibs loader-set address is the cache base, not 0. 26B131's dyld calls validHeader on it without a null check, and 0 faulted launchd at boot; at the base it reads the header magic and falls back to JIT loaders.
 - r85 2026-11-15 Disk guard: a build checks free space on its work and output volumes (and an optional site check

@@ -2,10 +2,13 @@
 import struct
 from .exports import cstring, require, span
 
+# PrebuiltLoaderSet versionHash of 27 (26B131)'s dyld (validHeader): dyld-1378's layout with the TLV flag at +0x2c bit 4
+VERSION = 0x9593b355
+
 
 def main_validation(data):
     magic, version, length, count, array = struct.unpack("<5I", span(data, 0, 20))
-    require((magic, version) == (0x73703464, 0x1bffc401), "unknown PBL set schema")
+    require((magic, version) == (0x73703464, VERSION), "unknown PBL set schema")
     require(length == len(data) and count > 0, "invalid PBL set length/count")
     span(data, array, count * 4)
     offset = struct.unpack_from("<I", data, array)[0]
