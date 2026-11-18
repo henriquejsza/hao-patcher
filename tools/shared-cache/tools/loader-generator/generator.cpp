@@ -382,6 +382,11 @@ int main(int argc, char** argv) {
     mainMF->withFileLayout(diag, ^(const mach_o::Layout& layout) {
         Loader::LoadOptions::Finder finder = ^(Diagnostics& localDiag, mach_o::Platform platform, const char* path, const Loader::LoadOptions& options) {
             uint32_t imageIndex;
+            // As dyld's path variants: a Catalyst process takes a dylib's /System/iOSSupport twin first
+            if (platform == mach_o::Platform::macCatalyst && path[0] == '/' && strncmp(path, "/System/iOSSupport/", 19) != 0) {
+                std::string twin = std::string("/System/iOSSupport") + path;
+                if (cache->hasImagePath(twin.c_str(), imageIndex)) return (const Loader*)cachedSet->atIndex(imageIndex);
+            }
             if (cache->hasImagePath(path, imageIndex)) return (const Loader*)cachedSet->atIndex(imageIndex);
             if (const auto* loader = cachedSet->findLoader(*statePtr, path)) return (const Loader*)loader;
             return Loader::getLoader(localDiag, *statePtr, path, options);
