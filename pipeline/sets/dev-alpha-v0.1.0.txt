@@ -33,4 +33,5 @@ golden-gate-unsupported-daemons   # Apple services this hardware cannot run (App
 dev-access
 dev-diagnostics
 dev-keepawake
+dev-session
 hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao

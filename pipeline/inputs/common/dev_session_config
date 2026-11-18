@@ -1,0 +1,2 @@
+# dev-session (dev sets only): the test account name and the GUI helper path and signing identifier (private, never in git)
+8786bcbc9481b7227ec7a326eb3c25af51fbaf581b60c7527e756ae97bbcf807  store/inputs/dev-session/session.conf

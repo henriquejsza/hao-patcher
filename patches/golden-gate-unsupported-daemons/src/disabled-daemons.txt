@@ -3,3 +3,4 @@
 # LABEL  REASON (S18)
 com.apple.modelmanagerd   Apple Intelligence model manager; needs Apple silicon. On 26B131 Intel images it respawns every 1-3 s on IPC from runningboardd and gamepolicyd, each instance gone after a memory-limit warning: 26 instances in 44 s and 62% of the first-login tail (bench2 2026-11-18, laptop 2; C3 sample, #19)
 com.apple.modelcatalogd   Apple Intelligence model catalog (asset downloads for modelmanagerd); needs Apple silicon; 6.6 s CPU in the same 44 s first-login tail (bench2 2026-11-18, #19)
+com.apple.prngseedd   seputil --daemonize-reseed reseeds the kernel PRNG from the Secure Enclave's TRNG; an Intel Mac without a SEP has none, so seputil exits 0 without finishing its XPC activity and launchd starts it again every ~10 s: 595 exits in one C5 boot (laptop 2, 2026-11-18, c5-cb1-list), 154 in 37 min of the next. Tahoe's seputil is arm64e-only, so on Intel Tahoe the job never runs
