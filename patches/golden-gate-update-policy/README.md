@@ -1,21 +1,21 @@
 # golden-gate-update-policy
 
-Background Security Improvements (Rapid Security Responses, "splats" in Apple's code) do not
+Background Security Improvements (Rapid Security Responses, "splats" in Apple's code) and macOS updates do not
 download or install on their own. A splat replaces the OS and App cryptex in Preboot (`cryptex1/current`), and this
 image modifies that cryptex: the x86_64 dyld cache that hao-runtime's caches are bound to, the cryptex graft that
 boots only because its root-hash check is lifted, and rows keyed by build 26B131. A splat that installs either
 undoes those changes or stops the boot at the graft. hao
-releases carry Apple's fixes instead. Release notes: "Background Security Improvements are off: Apple's security
+releases carry Apple's fixes instead. A macOS update replaces the system the same way (owner decision,
+2026-11-18). Release notes: "Background Security Improvements are off: Apple's security
 responses replace parts of the system hao modifies; hao releases carry them instead."
 
 Scan, XProtect and system data files (`AutomaticCheckEnabled`, `AutomaticDownload`, `ConfigDataInstall`,
-`CriticalUpdateInstall`) and macOS updates (`AutomaticallyInstallMacOSUpdates`) keep Apple's defaults. They do not
-control splats (below).
+`CriticalUpdateInstall`) keep Apple's defaults. They do not control splats (below).
 
 ## What it changes (Data volume)
 | Path | Change |
 |---|---|
-| `Library/Preferences/com.apple.SoftwareUpdate.plist` | `SplatEnabled` false; `AutoInstallProductKeys` and `FirstInstallTonightDateDictionary` removed (no update queued for Install Tonight); other keys kept; created if missing; root:wheel 0644 |
+| `Library/Preferences/com.apple.SoftwareUpdate.plist` | `SplatEnabled` false, `AutomaticallyInstallMacOSUpdates` false; `AutoInstallProductKeys` and `FirstInstallTonightDateDictionary` removed (no update queued for Install Tonight); other keys kept; created if missing; root:wheel 0644 |
 
 The file is a seed: softwareupdated adds its state after install, and the user can turn the setting back on in
 System Settings > Privacy & Security > Background Security Improvements.
@@ -47,7 +47,9 @@ code):
 - Install Tonight: after a splat downloads, the completion block (0x1bf61fa98) always queues it
   (`_setMobileSoftwareUpdateDescriptorToInstallLater:` 0x1bf61fbf8, `armObserverWithMode:` 0x1bf61fc0c, log "Auto
   updates enabled, queuing splat for tonight"). `-[SUOSUAutoUpdatePolicy isProductEligibleForAutoUpdate:]` gates a
-  splat on `splatEnabled` (0x1bf673290) and other updates on `doesMacOSAutoUpdate` (0x1bf6732c0).
+  splat on `splatEnabled` (0x1bf673290) and other updates on `doesMacOSAutoUpdate` (0x1bf6732c0), whose value is
+  the `AutomaticallyInstallMacOSUpdates` key (`-[SUPreferenceManager automaticallyInstallMacOSUpdates]`, 0x1b5141da4;
+  System Settings' switch is `-[SUOSUShimController isAutomaticallyInstallMacOSUpdatesPreferenceEnabled]`, 0x1bf65cf88).
 - Both checks first accept a product key that is already in `AutoInstallProductKeys`: `containsObject:` at 0x1bf673050
   and `_enabledForAutoInstallTonight:` at 0x1bf682850. They do this before they look at `splatEnabled`. For this
   reason the queue is cleared.
@@ -67,7 +69,7 @@ downloaded, notified, queued or installed automatically.
 tree, with and without an existing file.
 
 On the image, after `softwareupdate --list` (a forced scan): `defaults read /Library/Preferences/com.apple.SoftwareUpdate`
-shows `SplatEnabled = 0`, and no `AutoInstallProductKeys` or
+shows `SplatEnabled = 0` and `AutomaticallyInstallMacOSUpdates = 0`, and no `AutoInstallProductKeys` or
 `FirstInstallTonightDateDictionary` entry for the `_rsr` product. `/var/log/install.log` has "Splat is disabled" or
 "is not eligible for auto update because automatic splat updates are disabled". It has no "queuing splat for
 tonight" line. The same is true after a reboot.
@@ -77,4 +79,5 @@ tonight" line. The same is true after a reboot.
 NEEDS VALIDATION: host-tested only (apply.sh on a stand-in Data tree); not built into an image or booted yet.
 
 ## Revisions
+- r2 2026-11-18 AutomaticallyInstallMacOSUpdates off too (owner), so no macOS update installs on its own either.
 - r1 2026-11-18 New: SplatEnabled off and the Install Tonight queue cleared, so no Background Security Improvement installs on its own.

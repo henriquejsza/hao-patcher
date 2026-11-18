@@ -326,9 +326,9 @@ Revision r6, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 ## golden-gate-update-policy
 
-Revision r1, status product. [Recipe](../patches/golden-gate-update-policy/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-update-policy/README.md)
 
-- `Library/Preferences/com.apple.SoftwareUpdate.plist`: whole file from hao. Data volume; apply.sh sets SplatEnabled false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644. Seed (macOS changes it after install): Softwareupdated adds its scan dates and offers to this file after install, and the user may turn Background Security Improvements or automatic updates back on in System Settings.
+- `Library/Preferences/com.apple.SoftwareUpdate.plist`: whole file from hao. Data volume; apply.sh sets SplatEnabled and AutomaticallyInstallMacOSUpdates false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644. Seed (macOS changes it after install): Softwareupdated adds its scan dates and offers to this file after install, and the user may turn Background Security Improvements or automatic updates back on in System Settings.
 
 ## golden-gate-user-seed
 

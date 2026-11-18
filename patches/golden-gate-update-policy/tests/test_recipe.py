@@ -1,4 +1,4 @@
-"""apply.sh on a stand-in Data tree: the keys softwareupdated reads for splats are off, the Install
+"""apply.sh on a stand-in Data tree: the keys softwareupdated reads for splats and macOS updates are off, the Install
 Tonight queue is empty, and every other key is kept.
 python3.14 -I -B -m unittest discover -s patches/golden-gate-update-policy/tests"""
 import datetime
@@ -46,7 +46,7 @@ class Apply(unittest.TestCase):
         chowns = self.run_apply(self.data)
         p = self.prefs()
         self.assertIs(p['SplatEnabled'], False)
-        self.assertNotIn('AutomaticallyInstallMacOSUpdates', p)   # macOS updates keep Apple's default
+        self.assertIs(p['AutomaticallyInstallMacOSUpdates'], False)
         self.assertNotIn('AutoInstallProductKeys', p)
         self.assertNotIn('FirstInstallTonightDateDictionary', p)
         self.assertEqual(stat.S_IMODE((self.data / REL).stat().st_mode), 0o644)
@@ -69,7 +69,7 @@ class Apply(unittest.TestCase):
         self.assertIs(p['SplatEnabled'], False)
         self.assertNotIn('AutoInstallProductKeys', p)
         self.assertNotIn('FirstInstallTonightDateDictionary', p)
-        self.assertIs(p['AutomaticallyInstallMacOSUpdates'], True)    # kept as found
+        self.assertIs(p['AutomaticallyInstallMacOSUpdates'], False)   # was True
         for k in ('AutomaticCheckEnabled', 'AutomaticDownload', 'CriticalUpdateInstall', 'ConfigDataInstall'):
             self.assertIs(p[k], False, k)                       # kept as found
         self.assertEqual(p['LastSuccessfulDate'], when)
