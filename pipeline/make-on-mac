@@ -115,6 +115,7 @@ class Run:
             if private_base(base):
                 into = Path(tempfile.mkdtemp(prefix='checked-', dir=base))
                 self.private.append(into)
+                lock.own(str(into))           # no ACL entry inherited from BASE
                 return into
         raise Failed('neither %s nor %s is private to this user' % (self.work, tempfile.gettempdir()))
 
@@ -129,6 +130,7 @@ class Run:
                 out.unlink()
             with open(src, 'rb') as f, open(out, 'xb') as o:
                 shutil.copyfileobj(f, o, 1 << 22)
+        lock.own(str(out))                    # this user's, no ACL entry (a clone or copy keeps the source's)
         os.chmod(out, 0o400)
         fd = os.open(out, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
         try:
@@ -154,6 +156,7 @@ class Run:
         out = self.private_folder(near) / Path(src).name
         out.mkdir(mode=0o700)
         lock.copy_tree(src, out, lock.scope(str(folder), row), lock.without(str(folder), row))
+        lock.own(str(out))
         if lock.row_hash(str(folder), row, str(out)) != want or lock.check_row(str(folder), row, str(out)):
             raise Failed('input row %s: %s does not have the row\'s sha256' % (row, src))
         return out

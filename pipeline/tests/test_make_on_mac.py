@@ -214,6 +214,18 @@ class MakeOnMac(unittest.TestCase):
         self.assertEqual((got / 'filesystem.dmg').read_bytes(), b'system image')
         r.close()
 
+    def test_a_snapshot_keeps_no_acl_of_its_source(self):
+        import subprocess
+        subprocess.run(['/bin/chmod', '+a', 'everyone allow write,append,writeattr', str(self.ipsw)], check=True)
+        acl = lambda p: [l for l in subprocess.run(['/bin/ls', '-lde', str(p)], capture_output=True,
+                                                  text=True).stdout.splitlines()[1:] if l.strip()[:1].isdigit()]
+        self.assertTrue(acl(self.ipsw))
+        r = self.run_(self.release)
+        with redirect_stdout(io.StringIO()):
+            src, extra = r.stream('ipsw_27_0')
+        self.assertEqual((acl(src), acl(src.parent)), ([], []))
+        r.close()
+
     def steps(self, a_bytes, b_fails=False):
         ran = []
         out = {n: self.d / n for n in 'abc'}

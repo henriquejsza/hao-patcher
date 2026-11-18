@@ -136,6 +136,47 @@ class Lock(unittest.TestCase):
         (d / 'tool').write_text('- pipeline/lock.py\n')     # a '-' row of this checkout: pinned by the commit
         self.assertEqual(lock('stage', d, 'tool', self.d / 'tool-copy').returncode, 0)
 
+    @staticmethod
+    def acl(p):
+        out = subprocess.run(['/bin/ls', '-lde', str(p)], capture_output=True, text=True).stdout
+        return [l.strip() for l in out.splitlines()[1:] if l.strip()[:1].isdigit()]
+
+    def grant(self, p):
+        """An ACL entry that lets everyone write P: the source's, which no checked copy may keep."""
+        subprocess.run(['/bin/chmod', '+a', 'everyone allow write,append,delete,writeattr,writeextattr', str(p)],
+                       check=True)
+        self.assertTrue(self.acl(p))
+
+    def test_no_copy_keeps_the_sources_acl_or_set_id_bits(self):
+        t, d, want, L = self.tree_row()
+        self.grant(t / 'sub' / 'a'); self.grant(t / 'sub'); self.grant(t)
+        self.grant(self.f); self.f.chmod(0o4777)
+        (d / 'kdk').write_text('%s %s\n' % (self.sha, self.f))
+        out = self.d / 'out'; out.mkdir()
+        for args, made in ((('stage', d, 'site', self.d / 'staged'), self.d / 'staged'),
+                           (('stage', d, 'kdk', self.d / 'kdk-copy'), self.d / 'kdk-copy'),
+                           (('take-tree', d, 'site', self.d / 'taken'), self.d / 'taken'),
+                           (('take', d, 'kdk', out), out / 'payload')):
+            with self.subTest(how=args[0]):
+                r = lock(*args)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                for p in [made] + (list(made.rglob('*')) if made.is_dir() else []):
+                    if not p.is_symlink():
+                        self.assertEqual(self.acl(p), [], p)
+                        self.assertEqual(p.lstat().st_uid, os.geteuid(), p)
+                if made.is_file():
+                    self.assertEqual(made.stat().st_mode & 0o7022, 0, 'no set-id bit, no one else may write it')
+        self.assertEqual([p.name for p in self.d.rglob('.stage-*')], [], 'no staging folder is left')
+
+    def test_the_staging_folder_is_private(self):
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock as L
+        parent = self.d / 'parent'; parent.mkdir()
+        subprocess.run(['/bin/chmod', '+a', 'everyone allow add_file,add_subdirectory,file_inherit,directory_inherit',
+                        str(parent)], check=True)
+        p = Path(L.private_dir(str(parent)))
+        self.assertEqual((p.stat().st_mode & 0o777, self.acl(p)), (0o700, []))
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))
