@@ -74,7 +74,19 @@ def facts(host):
                         _str(d.get('name'))})
     return {'model': model, 'board_id': _str(pe.get('board-id')), 'cpu': cpu,
             'memory_bytes': int(mem) if mem.isdigit() else None, 'machine': _text(host, 'uname', '-m'),
-            'devices': devices, 'firmware_vendor': firmware_vendor(host)}
+            'devices': devices, 'firmware_vendor': firmware_vendor(host), 'cpu_features': cpu_features(host)}
+
+
+def cpu_features(host):
+    """The CPU's feature flags (machdep.cpu.features and leaf7_features), upper case and sorted: what tells a Broadwell
+    (AVX2, BMI2, ...) from an Ivy Bridge (AVX1.0 only). Empty where the kernel has neither (Apple silicon)."""
+    out = set()
+    for key in ('machdep.cpu.features', 'machdep.cpu.leaf7_features'):
+        try:
+            out |= set(_text(host, 'sysctl', '-n', key).upper().split())
+        except Exception:
+            continue
+    return sorted(out)
 
 
 def firmware_vendor(host):
@@ -159,7 +171,7 @@ def profile(f, packs=None, rules=None):
                          'patchsets': r['patchsets']} for d, r in matched],
             'oclp_patchsets': patchsets, 'patchsets_source': source, 'packs': chosen, 'proven': proven,
             'proven_model': bool(chosen) and all(proven.values()), 'notes': notes,
-            'firmware_vendor': f.get('firmware_vendor'),
+            'firmware_vendor': f.get('firmware_vendor'), 'cpu_features': f.get('cpu_features', []),
             'unknown': [{'role': d['role'], 'device': '%s:%s' % (d['vendor'], d['device']), 'name': d.get('name')}
                         for d in unknown]}
 
