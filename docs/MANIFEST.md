@@ -18,7 +18,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
 | dev-diagnostics | r10 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
-| dev-session | r1 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | dev_session_config 8786bcbc session.conf |
+| dev-session | r2 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | dev_session_config 8786bcbc session.conf |
 | golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
 | golden-gate-av1-encoder-x86 | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (hao-patcher 177dc8a1) |
@@ -43,7 +43,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-shared-cache | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 22489f4a rebuilt-cache-fold-in-26B131-20261118-5aacad92 |
 | golden-gate-shared-cache-catalog | r5 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog c2398aee rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 |
 | golden-gate-store | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
-| golden-gate-unsupported-daemons | r2 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
+| golden-gate-unsupported-daemons | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-update-policy | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-seed | r14 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-template | r11 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
@@ -96,7 +96,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **dev-keepawake** r3
   - `Library/LaunchDaemons/dev.hao.keepawake.plist`: from hao
   - `Library/LaunchDaemons/dev.hao.power.plist`: from hao
-- **dev-session** r1
+- **dev-session** r2
   - `usr/local/libexec/dev-session`: from hao
   - `Library/LaunchDaemons/dev.hao.session.plist`: from hao
   - `private/var/db/hao-dev/session.conf`: from hao (row dev_session_config)
@@ -203,7 +203,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: edited (3 edits) from Apple · appstored 26B131
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: edited (4 edits) from Apple · appstoreagent 26B131
   - `System/Applications/App Store.app/Contents/MacOS/App Store`: edited (1 edit) from hao · App Store 26B131, hao stub
-- **golden-gate-unsupported-daemons** r2
+- **golden-gate-unsupported-daemons** r3
   - `private/var/db/com.apple.xpc.launchd/disabled.plist`: from hao
 - **golden-gate-update-policy** r3
   - `Library/Preferences/com.apple.SoftwareUpdate.plist`: from hao

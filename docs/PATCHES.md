@@ -76,7 +76,7 @@ Revision r3, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
 ## dev-session
 
-Revision r1, status dev. [Recipe](../patches/dev-session/README.md)
+Revision r2, status dev. [Recipe](../patches/dev-session/README.md)
 
 - `usr/local/libexec/dev-session`: whole file from hao. Data volume; src/dev-session.zsh, root:wheel 0755: makes the test account (random password, root-only), automatic login, Setup panes seen, screen lock off, GUI helper TCC grants.
 - `Library/LaunchDaemons/dev.hao.session.plist`: whole file from hao. Data volume; runs dev-session at every boot (idempotent); root:wheel 0644.
@@ -341,7 +341,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 ## golden-gate-unsupported-daemons
 
-Revision r2, status product. [Recipe](../patches/golden-gate-unsupported-daemons/README.md)
+Revision r3, status product. [Recipe](../patches/golden-gate-unsupported-daemons/README.md)
 
 - `private/var/db/com.apple.xpc.launchd/disabled.plist`: whole file from hao. Data volume; apply.sh sets each label of src/disabled-daemons.txt to true (launchd's disable override), keeping every other entry; root:wheel 0644. Seed (macOS changes it after install): Launchd adds Apple's own entries at first boot, and the user can change any entry with launchctl enable/disable.
 
