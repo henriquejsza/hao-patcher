@@ -11,14 +11,15 @@ stops the run. Exit 0 when every row checks; 1 names the rows that do not.
 
 A download the release marks "stream" (the IPSW, the installer) is not in the store: its producer reads only the
 members it needs from its URL, each checked against the release's pins (pipeline/unpack/ranged.py); a local row
-file is used instead when it is there and has the row's sha256 (the release's pins still apply to it). With HAO_MIRROR
+file is used instead when it is there and has the row's sha256: a private snapshot of it is checked and read, and
+the release's pins still apply to it. With HAO_MIRROR
 set, the producers read a streamed download from the local mirror by the whole file's sha256 (the IPSW's from its
 pins' "ipsw_sha256", the installer's from --installer-sha256; pipeline/unpack/ranged.py). --userspace-on DIR writes
 golden_gate_userspace's 23 GB of disk images into DIR (the USB drive) and links the row's artifact folder to it. The
 Tahoe donors are made in one x86_64 pass, and
 each work tree is deleted as soon as the rows made from it check (--keep keeps them).
 """
-import argparse, contextlib, json, os, runpy, shutil, stat, subprocess, sys, tarfile, tempfile, time
+import argparse, contextlib, hashlib, json, os, runpy, shutil, stat, subprocess, sys, tarfile, tempfile, time
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
@@ -73,29 +74,68 @@ class Run:
         self.fs, self.work, self.log, self.dry = fs, work, log, dry
         self.release, self.userspace_on, self.keep = release or {}, userspace_on, keep
         self.runtime_tool = runtime_tool
-        self.mounts = {}
+        self.mounts, self.private = {}, []
 
     def stream(self, row):
-        """(source, extra arguments) for a download row: its local file when it is in place and has the row's
-        sha256, else (a release download marked "stream") its URL. A release's pins, written to the work folder, are
-        passed for either."""
+        """(source, extra arguments) for a download row: a private snapshot of its local file (snapshot()) when it is
+        in place and has the row's sha256, else (a release download marked "stream") its URL. The release's member
+        pins, written to the work folder, are passed for either whenever the release has them."""
         entry = next((d for d in self.release.get('downloads', []) if d['row'] == row), None)
         try:
             local = path(self.fs, row)
         except Failed:
             local = None
         extra = []
-        if entry and entry.get('stream'):
+        if entry and entry.get('pins'):
             pins = self.work / ('%s-pins.json' % row)
             pins.write_text(json.dumps(entry['pins']))
             extra = ['--pins', pins]
         if local is not None and local.exists():
-            if lock.rows(str(find(self.fs, row)))[row][0] != '-' and checks(self.fs, row):
+            want = lock.rows(str(find(self.fs, row)))[row][0]
+            if want != '-' and self.dry:
                 return local, extra
-            print('  %s: %s does not have the row\'s sha256; not used' % (row, local), flush=True)
-        if extra:
+            if want != '-' and local.is_file():
+                try:
+                    return self.snapshot(local, want), extra
+                except Failed as e:
+                    print('  %s: %s; not used' % (row, e), flush=True)
+            else:
+                print('  %s: %s has no sha256 in its row; not used' % (row, local), flush=True)
+        if extra and entry.get('stream'):
             return entry['url'], extra
         raise Failed('no checked input for row %s' % row)
+
+    def snapshot(self, src, want):
+        """A snapshot of file SRC that only this process's user can change, checked against sha256 WANT after it is
+        made, so the producer reads the bytes that were checked: an APFS clone of SRC (a copy where no clone can be
+        made) in a new folder of this user's, under the work folder or else the system's temporary folder, whichever
+        no one else can write into or rename (private_base). Its path; close() deletes it."""
+        base = next((b for b in (self.work, Path(tempfile.gettempdir())) if private_base(b)), None)
+        if base is None:
+            raise Failed('neither %s nor %s is private to this user' % (self.work, tempfile.gettempdir()))
+        into = Path(tempfile.mkdtemp(prefix='checked-', dir=base))
+        self.private.append(into)
+        out = into / Path(src).name
+        if subprocess.run(['cp', '-c', str(src), str(out)], capture_output=True).returncode:
+            with contextlib.suppress(FileNotFoundError):
+                out.unlink()
+            with open(src, 'rb') as f, open(out, 'xb') as o:
+                shutil.copyfileobj(f, o, 1 << 22)
+        os.chmod(out, 0o400)
+        fd = os.open(out, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            st = os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.geteuid() or st.st_nlink != 1 \
+                    or stat.S_IMODE(st.st_mode) & 0o277:
+                raise Failed('the snapshot of %s is not a private file' % src)
+            h = hashlib.sha256()
+            while block := os.read(fd, 1 << 22):
+                h.update(block)
+        finally:
+            os.close(fd)
+        if h.hexdigest() != want:
+            raise Failed('%s does not have the row\'s sha256' % src)
+        return out
 
     def discard(self, p):
         """Delete a work tree whose rows are made and checked (unless --keep)."""
@@ -140,6 +180,29 @@ class Run:
             if not self.dry:
                 subprocess.run(['hdiutil', 'detach', str(point)], capture_output=True)
         self.mounts.clear()
+
+    def close(self):
+        """Detach every image and delete the snapshots."""
+        self.unmount_all()
+        for d in self.private:
+            shutil.rmtree(d, ignore_errors=True)
+        self.private.clear()
+
+
+def private_base(folder):
+    """True when FOLDER and every folder above it belong to this user or root and no one else can write them, or only
+    with the sticky bit (/private/tmp): no one else can rename or replace a folder this user makes in it."""
+    p = Path(os.path.realpath(folder))
+    for d in [p] + list(p.parents):
+        try:
+            st = os.lstat(d)
+        except OSError:
+            return False
+        if not stat.S_ISDIR(st.st_mode) or st.st_uid not in (0, os.geteuid()):
+            return False
+        if st.st_mode & 0o022 and not st.st_mode & stat.S_ISVTX:
+            return False
+    return True
 
 
 def sudo_user(environ):
@@ -481,7 +544,7 @@ def main():
         try:
             failed = run_steps(steps(r, fs, a), fs, made, args.only, args.dry_run)
         finally:
-            r.unmount_all()
+            r.close()
     rest = [x for x in made if x not in failed and not args.dry_run and not checks(fs, x)
             and (not args.only or x in args.only)]
     bad = failed + rest
