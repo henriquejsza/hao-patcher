@@ -1,6 +1,7 @@
 """pipeline/fresh-mac-run with a fake VM: the share, the result read from a guest's output, the pass rule."""
 from pathlib import Path
 import json
+import os
 import runpy
 import subprocess
 import tempfile
@@ -266,6 +267,7 @@ class Run(unittest.TestCase):
         self.assertFalse(vm.up)
         for key in ('seconds', 'stages', 'mirror_misses', 'stick_sha256', 'stick_allocated_bytes', 'logs'):
             self.assertIn(key, r)
+        self.assertTrue(os.access(Path(r['share']) / 'in/params', os.W_OK))     # removable again
 
     def test_a_failing_guest_still_stops_the_vm(self):
         vm = FakeVM(commit=self.head, rc=1, stick=None)

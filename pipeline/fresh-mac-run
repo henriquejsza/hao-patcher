@@ -113,13 +113,13 @@ sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/hao/hao create-installer --m
     < /dev/null > "$O/create-installer.jsonl" 2> "$O/create-installer.err"
 rc=$?; mark create-installer-end rc=$rc
 echo $rc > "$O/create-installer.rc"
-if [ -f "$HOME/stick.img" ]; then
+if [ $rc = 0 ] && [ -f "$HOME/stick.img" ]; then
     mark stick-hash-start
     stat -f '%z %b' "$HOME/stick.img" > "$O/stick.stat"
     shasum -a 256 "$HOME/stick.img" | cut -d' ' -f1 > "$O/stick.sha256"
     mark stick-hash-end
-    sudo rm -f "$HOME/stick.img"
 fi
+sudo rm -f "$HOME/stick.img"     # a failed run leaves a partly written image
 exit $rc
 '''
 
@@ -168,13 +168,18 @@ def key_line(top=TOP):
     return '\n'.join(lines) + '\n' if lines else None
 
 
+def writable(top):
+    """in/ is read-only while the guest runs; afterwards it is the owner's to move or remove again."""
+    for p in [Path(top), *Path(top).rglob('*')]:
+        if not p.is_symlink():
+            p.chmod(0o755 if p.is_dir() else 0o644)
+
+
 def prepare_share(share, release_dir, commit, repo, key, params):
     """OUT/share: in/ (bundle, release files, key, scripts, params; read-only) and an empty out/."""
     share = Path(share)
     if share.exists():
-        for p in [share, *share.rglob('*')]:           # in/ is left read-only
-            if p.is_dir() and not p.is_symlink():
-                p.chmod(0o755)
+        writable(share)
         shutil.rmtree(share)
     inp, out = share / 'in', share / 'out'
     (inp / 'release').mkdir(parents=True)
@@ -464,6 +469,7 @@ def main(argv=None, vm=None, store=None, check=on_mirror, run=subprocess.run, ne
     finally:
         record['wall_seconds'] = round(time.monotonic() - t0)
         collect(share / 'out', record)
+        writable(share / 'in')
     # 4. the result
     return finish()
 
