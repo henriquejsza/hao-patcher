@@ -332,7 +332,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-store/README.md)
 
 ## golden-gate-unsupported-daemons
 
-Revision r1, status product. [Recipe](../patches/golden-gate-unsupported-daemons/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-unsupported-daemons/README.md)
 
 - `private/var/db/com.apple.xpc.launchd/disabled.plist`: whole file from hao. Data volume; apply.sh sets each label of src/disabled-daemons.txt to true (launchd's disable override), keeping every other entry; root:wheel 0644. Seed (macOS changes it after install): Launchd adds Apple's own entries at first boot, and the user can change any entry with launchctl enable/disable.
 
