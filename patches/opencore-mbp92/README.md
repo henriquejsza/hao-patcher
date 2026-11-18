@@ -39,6 +39,7 @@ NEEDS VALIDATION (r4): HIDProxyKernelMatch.kext. Proof is one boot (no inactive 
 NEEDS VALIDATION: the split itself is not built yet. The same step was in hao-opencore until r66.
 
 ## Revisions
+- r5 2026-11-17 HIDProxyKernelMatch.kext removed (r4): on hardware the Bluetooth HID-proxy devices stay stuck terminating under the kernel HID driver too, so the kext changed nothing. Five sleep/wake cycles woke without a panic with or without it (#79 stays open: the panic needs EHC1 to go to Off).
 - r4 2026-11-17 Adds HIDProxyKernelMatch.kext (codeless) to Kernel.Add: the Bluetooth HID-proxy devices go to the kernel HID driver, so EHCI can power off on wake (fixes #79).
 - r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): this Mac's display and Ethernet kexts. Nothing it installs changes.

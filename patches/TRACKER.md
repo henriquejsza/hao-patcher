@@ -42,14 +42,14 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r10 | post | product |  | x |  |  |  | **needs** | r10 2026-11-17 a candidate build's tools/hao/data/candidate-keys.pub is staged with hao (never tracked; releas |
-| hao-opencore | r82 | post | product |  | x | x |  |  | **needs** | r82 2026-11-17 Test: every non-Apple Mach-O the release image installs links by paths dyld follows under the r |
+| hao-opencore | r83 | post | product |  | x | x |  |  | **needs** | r83 2026-11-17 HIDProxyKernelMatch.kext's reason and provenance removed with the kext (opencore-mbp92 r5). Dec |
 | hao-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row hao_runtime (26B131, A family) is hao-runtime af5aa59, release/v0.0.1's security batch: AOT |
 | hao-runtime-fold | r9 | oclp-hook | product |  |  |  |  |  | **needs** | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | metal-compiler-compat | r11 | oclp-hook | product |  | x |  |  |  | **needs** | r11 2026-11-17 OCLP's GPUCompiler 31001 `libLLVM.dylib` names `libLLVM_helper.dylib` by an absolute path (`edi |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
 | opencore-generic | r5 | post | experiment |  |  |  |  |  | **needs** | r5 2026-11-17 Row qemu_reference_efi is now made by pipeline/unpack/qemu-reference from its downloads: the sam |
-| opencore-mbp92 | r4 | post | product |  | x | x |  |  | **needs** | r4 2026-11-17 Adds HIDProxyKernelMatch.kext (codeless) to Kernel.Add: the Bluetooth HID-proxy devices go to th |
+| opencore-mbp92 | r5 | post | product |  | x | x |  |  | **needs** | r5 2026-11-17 HIDProxyKernelMatch.kext removed (r4): on hardware the Bluetooth HID-proxy devices stay stuck te |
 | rec-audio | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | rec-bluetooth-input | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | rec-brightness-keys | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |

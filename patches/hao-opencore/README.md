@@ -289,6 +289,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r83 2026-11-17 HIDProxyKernelMatch.kext's reason and provenance removed with the kext (opencore-mbp92 r5). Declaration only.
 - r82 2026-11-17 Test: every non-Apple Mach-O the release image installs links by paths dyld follows under the restored AMFI dyld policy (`tests/test_load_paths.py`, README "Load paths"). Nothing it installs changes.
 - r81 2026-11-17 Reason and provenance for opencore-mbp92's HIDProxyKernelMatch.kext (fixes #79). Nothing it installs changes.
 - r80 2026-11-17 Leftover settings removed (QEMU batch boot): `-nokcmismatchpanic` and `-pmap_pcid_disable` dropped from boot-args; RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet disabled; bootercfg and bootercfg-once no longer deleted. CryptexFixup stays.

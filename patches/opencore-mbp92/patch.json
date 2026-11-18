@@ -1,18 +1,8 @@
 {
- "revision": 4,
+ "revision": 5,
  "pack": "mbp92",
  "stage": "post",
  "status": "product",
- "files": [
-  {
-   "path": "EFI/OC/Kexts/HIDProxyKernelMatch.kext",
-   "tree": true,
-   "origin": {
-    "kind": "hao",
-    "note": "codeless: Contents/Info.plist only, src/HIDProxyKernelMatch-Info.plist, written by src/hid_proxy.py, which also adds its Kernel.Add entry to EFI/OC/config.plist (Kernel 27.x)"
-   }
-  }
- ],
  "validated": false,
  "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": ["intel-ivb"], "firmware": ["none"]}
 }

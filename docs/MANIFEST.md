@@ -7,9 +7,9 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-54 patches: 51 installable, 1 undeclared (files not declared), 2 with a row missing.
+54 patches: 50 installable, 2 undeclared (files not declared), 2 with a row missing.
 
-Undeclared: opencore-generic.
+Undeclared: opencore-generic, opencore-mbp92.
 
 | Patch | Rev | Status | Stage | Installable | Sets | Rows (sha256, artifact, source commit) |
 |---|---|---|---|---|---|---|
@@ -47,14 +47,14 @@ Undeclared: opencore-generic.
 | golden-gate-wifi-compat | r3 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace) |
 | golden-gate-windowserver-filter | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | hao-command | r10 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
-| hao-opencore | r82 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 788389cd payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| hao-opencore | r83 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 788389cd payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 788389cd payload |
 | hao-runtime-fold | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 059bebad payload |
 | metal-compiler-compat | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
 | opencore-generic | r5 | experiment | post | undeclared | generic | qemu_reference_efi 57e3f1c3 qemu-reference-efi-20261117; oclp_source ff509df0 oclp-source.tar |
-| opencore-mbp92 | r4 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | - |
+| opencore-mbp92 | r5 | product | post | undeclared | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | - |
 | rec-audio | r5 | product | recovery | yes | recovery | - |
 | rec-bluetooth-input | r5 | product | recovery | yes | recovery | - |
 | rec-brightness-keys | r5 | product | recovery | yes | recovery | - |
@@ -252,7 +252,7 @@ Undeclared: opencore-generic.
   - `usr/local/bin/hao`: from hao
   - `usr/local/lib/hao/python`/ (folder): from every file under it from hao (row python_x86_64)
   - `usr/local/lib/hao/hao`/ (folder): from every file under it from hao
-- **hao-opencore** r82
+- **hao-opencore** r83
   - `EFI/OC/config.plist`: edited (5 edits) from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it
   - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi)
   - `EFI/OC/Kexts/HaoExec.kext`/ (folder): from every file under it from hao · HaoExec.kext (row hao_runtime)
@@ -292,8 +292,6 @@ Undeclared: opencore-generic.
 - **metalold-selectors** r9
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `usr/lib/libmetalold-selectors.dylib`: from hao (row metalold_selectors)
-- **opencore-mbp92** r4
-  - `EFI/OC/Kexts/HIDProxyKernelMatch.kext`/ (folder): from every file under it from hao
 - **rec-audio** r5
   - `System/Library/Extensions/AppleHDA.kext`: from OCLP · AppleHDA 26.0 Beta 1
   - `System/Library/Extensions/IOAudioFamily.kext`: from Tahoe donor · Tahoe IOAudioFamily.kext
@@ -509,7 +507,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-user-template r11 is newer than every image built with it (newest r7).
 - golden-gate-userspace r90 is newer than every image built with it (newest r81).
 - golden-gate-windowserver-filter r10 is newer than every image built with it (newest r7).
-- hao-opencore r82 is newer than every image built with it (newest r65).
+- hao-opencore r83 is newer than every image built with it (newest r65).
 - hao-runtime r90 is newer than every image built with it (newest r82).
 - hao-runtime-fold r9 is newer than every image built with it (newest r4).
 - metal-compiler-compat r11 is newer than every image built with it (newest r8).

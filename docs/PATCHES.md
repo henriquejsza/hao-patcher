@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-53 of 54 patches declare their files so far.
+52 of 54 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -527,7 +527,7 @@ Revision r10, status product. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r82, status product. [Recipe](../patches/hao-opencore/README.md)
+Revision r83, status product. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -612,12 +612,6 @@ Revision r9, status product. [Recipe](../patches/metalold-selectors/README.md)
   1. `weak-load-metalold-selectors`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetalold-selectors.dylib.
      The driver loads the Metal selector shim, so frameworks that send newer Metal selectors get an answer instead of an unrecognized-selector crash; weak, so the driver still loads without the library.
 - `usr/lib/libmetalold-selectors.dylib`: whole file from hao (row metalold_selectors). New file: Metal selector shim built by build/make, ad hoc signed. Installed mode 0755, owner root:wheel, flags restricted.
-
-## opencore-mbp92
-
-Revision r4, status product. [Recipe](../patches/opencore-mbp92/README.md)
-
-- `EFI/OC/Kexts/HIDProxyKernelMatch.kext`: whole file from every file under it from hao. Codeless: Contents/Info.plist only, src/HIDProxyKernelMatch-Info.plist, written by src/hid_proxy.py, which also adds its Kernel.Add entry to EFI/OC/config.plist (Kernel 27.x).
 
 ## rec-audio
 
@@ -724,4 +718,4 @@ Revision r5, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
 ## Not declared yet
 
-opencore-generic
+opencore-generic, opencore-mbp92
