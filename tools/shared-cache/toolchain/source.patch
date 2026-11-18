@@ -316,7 +316,7 @@ index fd28975..9b7bb38 100644
      }
      else if ( log.searching ) {
 diff --git a/dyld/PrebuiltLoader.cpp b/dyld/PrebuiltLoader.cpp
-index a8d75e8..ceee928 100644
+index a8d75e8..a31dd3c 100644
 --- a/dyld/PrebuiltLoader.cpp
 +++ b/dyld/PrebuiltLoader.cpp
 @@ -1296,7 +1296,8 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
@@ -329,7 +329,48 @@ index a8d75e8..ceee928 100644
  
      // append path to serialization
      p->pathOffset    = allocator.size() - serializationStart;
-@@ -1395,6 +1396,23 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+@@ -1314,6 +1315,27 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+ 
+     // append dependents to serialization
+     uint32_t depCount = jitLoader.dependentCount();
++    // 27 (26B131): a cached dylib that links nothing but names an umbrella (LC_SUB_FRAMEWORK) gets that umbrella as a
++    // regular dependent (stock: libsystem_kernel -> libSystem.B), which orders libSystem's initializer before it
++    __block uint32_t umbrellaIndex = UINT32_MAX;
++    if ( depCount == 0 && jitLoader.dylibInDyldCache ) {
++        ((mach_o::UnsafeHeader*)mf)->forEachLoadCommandSafe(^(const load_command* cmd, bool& stop) {
++            if ( cmd->cmd != LC_SUB_FRAMEWORK )
++                return;
++            const char* umbrella = (const char*)cmd + ((const sub_framework_command*)cmd)->umbrella.offset;
++            char umbrellaPath[PATH_MAX];
++            if ( strcmp(umbrella, "System") == 0 )
++                strlcpy(umbrellaPath, "/usr/lib/libSystem.B.dylib", sizeof(umbrellaPath));
++            else
++                snprintf(umbrellaPath, sizeof(umbrellaPath), "/System/Library/Frameworks/%s.framework/Versions/A/%s", umbrella, umbrella);
++            uint32_t index;
++            if ( state.config.dyldCache.indexOfPath(umbrellaPath, index) )
++                umbrellaIndex = index;
++            stop = true;
++        });
++    }
++    if ( umbrellaIndex != UINT32_MAX )
++        depCount = 1;
+     p->depCount = depCount;
+     allocator.align(sizeof(LoaderRef));
+     uint16_t depLoaderRefsArrayOffset = allocator.size() - serializationStart;
+@@ -1322,7 +1344,11 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+     BumpAllocatorPtr<LoaderRef>      depArray(allocator, serializationStart + depLoaderRefsArrayOffset);
+     Loader::LinkedDylibAttributes depAttrs[depCount+1];
+     bool                  hasNonRegularLink = false;
+-    for ( uint32_t depIndex = 0; depIndex < depCount; ++depIndex ) {
++    if ( umbrellaIndex != UINT32_MAX ) {
++        depAttrs[0] = Loader::LinkedDylibAttributes::regular;
++        depArray.get()[0] = LoaderRef(false, umbrellaIndex);
++    }
++    for ( uint32_t depIndex = 0; umbrellaIndex == UINT32_MAX && depIndex < depCount; ++depIndex ) {
+         Loader* depLoader = jitLoader.dependent(state, depIndex, &depAttrs[depIndex]);
+         if ( depAttrs[depIndex] != Loader::LinkedDylibAttributes::regular )
+             hasNonRegularLink = true;
+@@ -1395,6 +1421,23 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
      bool buildingMacOSCache = jitLoader.dylibInDyldCache && isMacOSOrCataylyst;
      p->supportsCatalyst     = buildingMacOSCache && ((mach_o::UnsafeHeader*)mf)->builtForPlatform(Platform::macCatalyst);
      p->isCatalystOverride   = false;
