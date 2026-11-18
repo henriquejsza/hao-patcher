@@ -32,12 +32,12 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-libraries | r23 | oclp-hook | product |  | x | x |  |  | **needs** | r23 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
 | golden-gate-metal27 | r6 | oclp-hook | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | golden-gate-model-gates-mbp92 | r1 | oclp-hook | product |  | x |  |  |  | **needs** | r1 2026-11-17 New (GEN1): golden-gate-userspace's model-gates edit, declared for pack mbp92; the 9,2 and its n |
-| golden-gate-native-identities | r11 | oclp-hook | product |  | x | x |  |  | **needs** | r11 2026-11-17 Declares its scope (`requires`, docs/requires.md): programs.txt pins tuples measured on 26B131' |
+| golden-gate-native-identities | r12 | oclp-hook | product |  | x | x |  |  | **needs** | r12 2026-11-18 appstored and appstoreagent insert the store policy library under its new path (golden-gate-sto |
 | golden-gate-root-launchservices | r5 | post | experiment | boot-seeds |  |  |  |  | **needs** | r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes. |
 | golden-gate-shader-caches | r17 | post | product | caches | x |  |  |  | **needs** | r17 2026-11-17 The system accounts' Metal cache files (46, under private/var/folders) are declared `"content": |
 | golden-gate-shared-cache | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261118-5aacad92 (cache UUID 31C0215A), from |
 | golden-gate-shared-cache-catalog | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-18 Row `rebuilt_cache_catalog`: rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 (cache UUID |
-| golden-gate-store | r6 | oclp-hook | product |  |  |  |  |  | **needs** | r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
+| golden-gate-store | r7 | oclp-hook | product |  |  |  |  |  | **needs** | r7 2026-11-18 The policy library is installed as usr/lib/hao/hao-appstore-policy.dylib, and the three specs lo |
 | golden-gate-unsupported-daemons | r3 | post | product |  | x |  |  |  | **needs** | r3 2026-11-18 com.apple.prngseedd disabled: it needs a Secure Enclave and respawned every ~10 s (CB1). |
 | golden-gate-update-policy | r3 | post | product |  | x |  |  |  | ok (r2) | r3 2026-11-18 Validated r2 on hardware (Validation); nothing it installs changes. |
 | golden-gate-user-seed | r14 | post | product | caches | x |  |  |  | **needs** | r14 2026-11-17 Declares its scope (`requires`, docs/requires.md): the seed runtime and the payload layout of 2 |

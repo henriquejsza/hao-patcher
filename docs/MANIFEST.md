@@ -37,12 +37,12 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-metal-libraries | r23 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
 | golden-gate-metal27 | r6 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
 | golden-gate-model-gates-mbp92 | r1 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-native-identities | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
+| golden-gate-native-identities | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
 | golden-gate-root-launchservices | r5 | experiment | post | no: row root_launchservices_golden_gate | - | root_launchservices_golden_gate - root-launchservices-26B131-not-made-yet |
 | golden-gate-shader-caches | r17 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
 | golden-gate-shared-cache | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 22489f4a rebuilt-cache-fold-in-26B131-20261118-5aacad92 |
 | golden-gate-shared-cache-catalog | r5 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog c2398aee rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 |
-| golden-gate-store | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
+| golden-gate-store | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-unsupported-daemons | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-update-policy | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-seed | r14 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
@@ -171,7 +171,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from hao (row metal27_installed)
 - **golden-gate-model-gates-mbp92** r1
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: edited (1 edit) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)
-- **golden-gate-native-identities** r11
+- **golden-gate-native-identities** r12
   - `usr/lib/hao/native-identities`: from hao
   - `System/Library/CoreServices/golden-gate-native-identities.json`: from hao
   - `usr/lib/hao/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor
@@ -198,8 +198,8 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache_catalog)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from hao (row rebuilt_cache_catalog)
   - `System/Library/CoreServices/golden-gate-shared-cache.json`: from hao
-- **golden-gate-store** r6
-  - `usr/lib/hao/libhao-appstore-policy.dylib`: from hao (row store_service)
+- **golden-gate-store** r7
+  - `usr/lib/hao/hao-appstore-policy.dylib`: from hao (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: edited (3 edits) from Apple · appstored 26B131
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: edited (4 edits) from Apple · appstoreagent 26B131
   - `System/Applications/App Store.app/Contents/MacOS/App Store`: edited (1 edit) from hao · App Store 26B131, hao stub
@@ -406,11 +406,11 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-metal-framebuffer | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r10* | r10* | r13 | r13 | r13 |
 | golden-gate-metal-libraries | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r23 | r23 | r23 |
 | golden-gate-model-gates-mbp92 | - | - | - | - | - | - | - | - | - | - | - | r1 | r1 | r1 |
-| golden-gate-native-identities | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r11 | r11 | r11 |
+| golden-gate-native-identities | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r11* | r11* | r11* |
 | golden-gate-shader-caches | r14* | r14* | r14* | r14* | r14* | r14* | r14* | r14* | r14* | r14* | r14* | r17 | r17 | r17 |
 | golden-gate-shared-cache | - | - | - | r3* | - | r4* | r4* | r4* | - | - | - | - | - | - |
 | golden-gate-shared-cache-catalog | - | - | - | - | r1* | - | - | - | - | - | - | - | - | - |
-| golden-gate-store | - | - | - | - | - | r1* | r2* | r2* | r4* | - | r4* | r6 | r6 | r6 |
+| golden-gate-store | - | - | - | - | - | r1* | r2* | r2* | r4* | - | r4* | r6* | r6* | r6* |
 | golden-gate-update-policy | - | - | - | - | - | - | - | - | - | - | - | r2* | r2* | r2* |
 | golden-gate-user-seed | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r14 | r14 | r14 |
 | golden-gate-user-template | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* | r7* | r7* | r11 | r11 | r11 |
@@ -515,8 +515,10 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - dev-diagnostics r10 is newer than every image built with it (newest r4).
 - golden-gate-appstore-slices r6 is newer than every image built with it (newest r2).
 - golden-gate-ids r3 is newer than every image built with it (newest r1).
+- golden-gate-native-identities r12 is newer than every image built with it (newest r11).
 - golden-gate-shared-cache r10 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r5 is newer than every image built with it (newest r1).
+- golden-gate-store r7 is newer than every image built with it (newest r6).
 - golden-gate-update-policy r3 is newer than every image built with it (newest r2).
 - hao-command r12 is newer than every image built with it (newest r10).
 - hao-opencore r84 is newer than every image built with it (newest r83).

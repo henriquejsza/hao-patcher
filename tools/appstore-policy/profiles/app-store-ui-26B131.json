@@ -13,7 +13,7 @@
       "kind": "op",
       "op": "macho.add-dylib",
       "args": {
-        "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+        "path": "/usr/lib/hao/hao-appstore-policy.dylib"
       },
       "reason": "edit"
     }

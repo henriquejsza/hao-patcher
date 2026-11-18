@@ -49,7 +49,7 @@
    "kind": "op",
    "op": "macho.add-dylib",
    "args": {
-    "path": "/usr/lib/hao/libhao-appstore-policy.dylib"
+    "path": "/usr/lib/hao/hao-appstore-policy.dylib"
    },
    "reason": "App Store: Apple-silicon-only apps download and install"
   }
@@ -65,6 +65,6 @@
   ]
  },
  "expect": {
-  "99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8": "9322e3fe8cf614d33d0e5415ee850d61992cdc6e5aa3561ff1ad3f8457dc0cb5"
+  "99c826aab3b02b21fa9aa925d4e3303e86377376889f00cd79d5f7dcf3242cd8": "6fbc36a323d14f46ee5c0e25f4b09ff0ca420055c4253bc9d5c134cc262d5f3a"
  }
 }
