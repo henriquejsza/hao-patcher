@@ -702,6 +702,23 @@ class BuilderTest(unittest.TestCase):
             self.assertEqual((x.exception.code, ran), (4, []))
             self.assertIn('install (a different size)', x.exception.what)
 
+    def test_install_turns_ownership_on_for_the_kits_volume(self):
+        class Host:
+            def __init__(self, enabled):
+                self.enabled, self.calls = enabled, []
+            def run(self, argv, check=True, timeout=120):
+                argv = [str(x) for x in argv]
+                self.calls.append(argv)
+                out = plistlib.dumps({'MountPoint': '/Volumes/HAO', 'GlobalPermissionsEnabled': self.enabled}) \
+                    if argv[:2] == ['diskutil', 'info'] else b''
+                return subprocess.CompletedProcess(argv, 0, out, b'')
+        off, on = Host(False), Host(True)
+        c, _ = console('quiet')
+        self.assertTrue(BUILD.kit_ownership(c, off, '/Volumes/HAO/kit'))
+        self.assertIn(['diskutil', 'enableOwnership', '/Volumes/HAO'], off.calls)
+        self.assertFalse(BUILD.kit_ownership(c, on, '/Volumes/HAO/kit'))      # already on: nothing to do
+        self.assertFalse(any(x[:2] == ['diskutil', 'enableOwnership'] for x in on.calls))
+
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:

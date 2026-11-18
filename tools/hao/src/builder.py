@@ -628,6 +628,29 @@ def check_trace(top):
     return f
 
 
+def kit_ownership(c, host, kit):
+    """Turn ownership on for the volume the kit is on, when it is off: a Recovery mounts the USB installer's HAO
+    "noowners", so every file there reads as owned by an unknown user, and the install's own checks of its private
+    copies (made under its work folder there, as root) refuse them. Root only; a failure is a warning (the install then
+    says which step refused)."""
+    try:
+        info = plistlib.loads(host.run(['diskutil', 'info', '-plist', str(Path(kit).resolve())], check=False).stdout
+                              or b'{}')
+    except ValueError:
+        return False
+    if info.get('GlobalPermissionsEnabled', True):
+        return False
+    mount = info.get('MountPoint')
+    r = host.run(['diskutil', 'enableOwnership', mount], check=False) if mount else None
+    ok = bool(r and r.returncode == 0)
+    c.event('kit.ownership', mount=mount, enabled=ok)
+    if ok:
+        c.item('ownership on for %s (the install checks who owns its working copies)' % mount, 'files', ok=True)
+    else:
+        c.warning('ownership could not be turned on for %s: the install may refuse its own working copies' % mount)
+    return ok
+
+
 def check_drive(a, c):
     """Before the install erases anything: the USB installer the kit is on must match the manifest create-installer
     wrote (owner O-1: custody plus an integrity check). A kit not on a USB installer (build-disk, --kit elsewhere) has
@@ -742,6 +765,7 @@ def install(a, c, host, run=subprocess.call):
         raise Stopped('not confirmed', untouched='nothing was written')
     if not getattr(a, 'local', None) and not getattr(a, 'work', None):
         a.work = str(Path(a.kit).resolve().parent / ('hao-install-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))
+    kit_ownership(c, host, a.kit)
     work = assemble_onto(a, c, host, path, info, 'internal', run)
     write_install_record(c, host, DISKS.normalize(a.disk),
                          install_record(a, c, profile, path, asm, groups, DISKS.normalize(a.disk), a.kit))
