@@ -2,4 +2,6 @@
 # f479d6c7: reproducible from source with Xcode 27.2: compat.dylib is linked with a fixed install name (its header and
 # UUID no longer depend on the build folder; code identical to fa444101) and build.json holds content hashes only.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
-e4780509508e78e9d9d9ba183de244d42d350993efeb0251510c91603e97a47e store/artifacts/live-text-26B131-20261116-f479d6c7/compiler-service
+# 20261118: the same build at 46289f6d (live-text-26B131-20261118-46289f6d); only build.json's compat_revision changes (58 -> 59,
+# cache/metallib's current revision), so asset-build reproduces the row; the dylib is the f479d6c7 bytes.
+954ee9d09a60008fb272dfa8c27b51673de320a77008e8e7252d7ed1697eed35 store/artifacts/live-text-26B131-20261118-46289f6d/compiler-service
