@@ -118,6 +118,29 @@ class Key(unittest.TestCase):
                                       + ['builder apfs_prepare_cryptex 1']), base)
 
 
+class TargetLines(unittest.TestCase):
+    def lines(self, data, model='M'):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d)/'target-data.json'
+            path.write_text(json.dumps(data))
+            saved = {k: os.environ.get(k) for k in ('HAO_TARGET_MODEL', 'HAO_TARGET_DATA')}
+            os.environ.update(HAO_TARGET_MODEL=model, HAO_TARGET_DATA=str(path))
+            try:
+                return cc.target_lines()
+            finally:
+                for k, v in saved.items():
+                    os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
+    def test_only_the_model_and_its_model_gates_count(self):
+        """The model's OpenCore reasons in platform_data do not change the images, so they do not rebuild them."""
+        gates = {'model_gates': {'renamed': 'X'}}
+        base = self.lines(gates)
+        self.assertEqual(self.lines(dict(gates, opencore_reasons={'kext:A.kext': 'r'})), base)
+        self.assertNotEqual(self.lines({'model_gates': {'renamed': 'Y'}}), base)
+        self.assertNotEqual(self.lines(gates, model='N'), base)
+        self.assertEqual(self.lines({'opencore_generic': True})[1], 'target model_gates none')
+
+
 class Copy(unittest.TestCase):
     def test_sparse_copy_is_byte_identical_and_keeps_holes(self):
         with tempfile.TemporaryDirectory() as tmp:

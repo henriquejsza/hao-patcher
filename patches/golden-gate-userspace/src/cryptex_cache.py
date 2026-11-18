@@ -123,11 +123,14 @@ def host_lines(folder, rows, driverkit, donor_tool):
 
 
 def target_lines():
-    """The target the images are made for: its model and its platform data (HAO_TARGET_MODEL, HAO_TARGET_DATA), which
-    decide the model-gate edits (src/model_gates.py), so a cached image pair is reused only for the same target."""
+    """The target the images are made for: its model and the part of its platform data the images depend on
+    (HAO_TARGET_MODEL, HAO_TARGET_DATA's "model_gates", which decide the model-gate edits of src/model_gates.py), so a
+    cached image pair is reused only for the same target. Other platform data (the model's OpenCore reasons) does not
+    change the images and does not enter the key."""
     path = os.environ.get('HAO_TARGET_DATA')
-    data = sha256(path) if path else 'none'
-    return [f'target model {os.environ.get("HAO_TARGET_MODEL") or "none"}', f'target data {data}']
+    gates = json.loads(Path(path).read_text()).get('model_gates') if path and Path(path).is_file() else None
+    data = hashlib.sha256(json.dumps(gates, sort_keys=True).encode()).hexdigest() if gates is not None else 'none'
+    return [f'target model {os.environ.get("HAO_TARGET_MODEL") or "none"}', f'target model_gates {data}']
 
 
 def guest_lines():

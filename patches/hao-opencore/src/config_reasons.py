@@ -1,8 +1,9 @@
 """Every enabled part of an image's OpenCore config.plist has a recorded reason (PROTOCOL S18).
 
-  config_reasons.py check CONFIG [--reasons FILE] [--kexts DIR]
+  config_reasons.py check CONFIG [--reasons FILE] [--kexts DIR] [--target-data FILE]
         exit 1 and name each element without a reason; with --kexts (the ESP's EFI/OC/Kexts), also each enabled
-        kext whose files are not exactly the ones kext-provenance.json pins
+        kext whose files are not exactly the ones kext-provenance.json pins. The target's platform_data
+        (--target-data, default HAO_TARGET_DATA) adds the model's own reasons and kext provenance
   config_reasons.py list CONFIG                       print the config's elements, one per line
 
 An element is one setting someone chose: an enabled kext, Kernel Patch or Block entry, ACPI or DeviceProperties
@@ -14,6 +15,7 @@ each element to its reason; a reason that starts with "UNTRACED:" says what is n
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import plistlib
 import sys
@@ -55,8 +57,17 @@ def elements(config):
     return sorted(out)
 
 
-def load_reasons(path=REASONS):
-    reasons = json.loads(Path(path).read_text())
+def target_data(path=None):
+    """The target's platform_data (HAO_TARGET_DATA, docs/layout.md), {} when there is none. A model's own reasons
+    ("opencore_reasons"), its kext provenance ("kext_provenance") and whether it is the generic image
+    ("opencore_generic") live there, so this OS-layer file names no model."""
+    path = path or os.environ.get('HAO_TARGET_DATA')
+    return json.loads(Path(path).read_text()) if path and Path(path).is_file() else {}
+
+
+def load_reasons(path=REASONS, data=None):
+    """config-reasons.json plus the target's opencore_reasons (a model's entry replaces the base one of that name)."""
+    reasons = dict(json.loads(Path(path).read_text()), **(data or {}).get('opencore_reasons', {}))
     bad = [k for k, v in reasons.items() if not isinstance(v, str) or not v.strip()]
     if bad:
         raise ValueError('empty reasons: ' + ', '.join(bad))
@@ -64,20 +75,17 @@ def load_reasons(path=REASONS):
 
 
 GENERIC_ONLY = 'generic image only'
-GENERIC_PRODUCT = 'iMac20,1'
+def is_generic(config, data=None):
+    """The generic image's config (opencore-generic): its target says so ("opencore_generic" in platform_data) and
+    the SMBIOS is created on firmware that has none."""
+    return (bool((data or {}).get('opencore_generic'))
+            and config.get('PlatformInfo', {}).get('UpdateSMBIOSMode') == 'Create')
 
 
-def is_generic(config):
-    """The generic model's config (opencore-generic): SMBIOS iMac20,1, created on firmware that has none."""
-    info = config.get('PlatformInfo', {})
-    return (info.get('Generic', {}).get('SystemProductName') == GENERIC_PRODUCT
-            and info.get('UpdateSMBIOSMode') == 'Create')
-
-
-def missing(config, reasons):
+def missing(config, reasons, data=None):
     """Elements without a reason, and elements whose reason is the generic image's in a config that is not it
     (VirtualSMC and the non-Apple-firmware quirks never reach a Mac's image)."""
-    generic = is_generic(config)
+    generic = is_generic(config, data)
     return [e for e in elements(config) if e not in reasons
             or (reasons[e].startswith(GENERIC_ONLY) and not generic)]
 
@@ -113,25 +121,29 @@ def main():
     parser.add_argument('--reasons', type=Path, default=REASONS)
     parser.add_argument('--kexts', type=Path, help="the ESP's EFI/OC/Kexts: also check each enabled kext's provenance")
     parser.add_argument('--provenance', type=Path, default=PROVENANCE)
+    parser.add_argument('--target-data', type=Path, help="the target's platform_data (default: HAO_TARGET_DATA)")
     args = parser.parse_args()
+    data = target_data(args.target_data)
     with open(args.config, 'rb') as f:
         config = plistlib.load(f)
     if args.command == 'list':
         print('\n'.join(elements(config)))
         return 0
-    lacking = missing(config, load_reasons(args.reasons))
+    reasons = load_reasons(args.reasons, data)
+    lacking = missing(config, reasons, data)
     if lacking:
         print('config-reasons: no recorded reason (patches/hao-opencore/src/config-reasons.json), or a generic-image-only'
               ' element in a model image, for:', file=sys.stderr)
         print('\n'.join('  ' + e for e in lacking), file=sys.stderr)
         return 1
     if args.kexts:
-        bad = provenance_problems(config, args.kexts, json.loads(args.provenance.read_text()))
+        provenance = dict(json.loads(args.provenance.read_text()), **data.get('kext_provenance', {}))
+        bad = provenance_problems(config, args.kexts, provenance)
         if bad:
             print('config-reasons: kexts whose source is not the pinned upstream one:', file=sys.stderr)
             print('\n'.join('  ' + b for b in bad), file=sys.stderr)
             return 1
-    untraced = sum(1 for e in elements(config) if load_reasons(args.reasons)[e].startswith('UNTRACED:'))
+    untraced = sum(1 for e in elements(config) if reasons[e].startswith('UNTRACED:'))
     print(f'config-reasons: every element of {args.config.name} has a reason ({untraced} untraced, under test)')
     return 0
 

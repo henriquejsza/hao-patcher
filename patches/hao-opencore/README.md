@@ -1,9 +1,11 @@
 # hao-opencore
 
-Configures the image's OpenCore so the MacBookPro9,2 boots the Darwin 27.0 x86_64 kernel: the kernel repairs and
+Configures the image's OpenCore so the machine boots the Darwin 27 x86_64 kernel: the kernel repairs and
 IntelCommpage that let this kernel start on Ivy Bridge hardware, `HaoExec` for arm64-only programs, and the boot
-arguments below. The MacBookPro9,2's early Tahoe display and Ethernet drivers are
-[opencore-mbp92](../opencore-mbp92/README.md)'s (pack mbp92), which runs just before this recipe. It writes the end-user configuration: no OpenCore log
+arguments below. A model's own drivers and settings are its model pack's (for example
+[opencore-mbp92](../opencore-mbp92/README.md), which runs just before this recipe); the reasons for its
+model-generated kexts (USB map, ECM override) and their provenance are its target's `platform_data`
+(`opencore_reasons`, `kext_provenance`), so nothing here names a model. It writes the end-user configuration: no OpenCore log
 and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `dev`).
 
 ## How it works
@@ -94,7 +96,7 @@ from OCLP's config (reasons there). OCLP's `-nokcmismatchpanic` (for RSRHelper) 
 | `-lilubetaall` | Lets Lilu-based OCLP kexts load on an unknown kernel version. |
 | `amfi_get_out_of_my_way=1` | `hao-runtime` signs each program's x86_64 slice ad hoc with its own entitlements, including Apple-private ones (launchd: Preboot, graftdmg, trust caches). With AMFIPass alone, AMFI rejects `/sbin/launchd` and the kernel panics. |
 | `amfi_force_policy=8` | AMFI's dyld policy counts an entitled (`CS_RESTRICT`) program as restricted again, as with SIP on, so dyld denies it the `DYLD_*` path variables unless it also requires library validation. Bit 0x8 (`forceDefaultDyldEnvVarsPolicy`) is read only by the dyld environment policy. See [AMFI dyld policy](#amfi-dyld-policy). |
-| `auxKCAtBoot=false` | kernelmanagerd skips building an auxiliary kernel collection at boot and loads the System collection at once. 27's kmutil cannot build an x86_64 collection ("unsupported arch: x86_64 / Unsupported collection kind"), so the build of the only candidate, 27's codeless `AppleMobileDevice.kext` (from 27's Data template), failed at every boot and held the System collection, and with it the Capri framebuffer and WindowServer, back 18.5 s (23 s on the first boot). The codeless kext's personality still loads. Details: [Aux KC gate](#aux-kc-gate). |
+| `auxKCAtBoot=false` | kernelmanagerd skips building an auxiliary kernel collection at boot and loads the System collection at once. 27's kmutil cannot build an x86_64 collection ("unsupported arch: x86_64 / Unsupported collection kind"), so the build of the only candidate, 27's codeless `AppleMobileDevice.kext` (from 27's Data template), failed at every boot and held the System collection, and with it the framebuffer and WindowServer, back 18.5 s (23 s on the first boot). The codeless kext's personality still loads. Details: [Aux KC gate](#aux-kc-gate). |
 
 `ic_csr_internal=1` is no longer written, and removed if present: 27's x86_64 dyld scans the disk for shared-cache
 overrides (OCLP's on-disk Metal and MetalOld) only when it counts as an internal install. It used to make IntelCommpage
@@ -124,7 +126,7 @@ kernel): kernelmanagerd logs "performing auxiliary activation" (43.94 / 48.04), 
 clean up and build from approvals"). The helper is spawned for that request, starts (10 s), loads the Boot and System
 collections, finds `/Library/Apple/System/Library/Extensions/AppleMobileDevice.kext` as the only candidate and fails
 ("building auxiliary kext collection failed ... unsupported arch: x86_64"). Only then (67.08 / 66.49) does kernelmanagerd
-log "Preparing collection load into kernel"; the kernel loads the System collection at 68.03 / 67.47 and the Capri
+log "Preparing collection load into kernel"; the kernel loads the System collection at 68.03 / 67.47 and the
 framebuffer is published 0.3 s later.
 
 27.2's `/usr/libexec/kernelmanagerd` (KernelManagement_executables-514.40.8, the one the image runs): when the
@@ -221,7 +223,7 @@ entry differs from the trampoline".
 
 On the built ESP, `plutil -lint` passes and Kernel.Add has `IntelCommpage.kext` and `HaoExec.kext`. After a boot,
 the ESP's OpenCore log shows each repair and both kexts applied once. On the running system:
-`kmutil showloaded | grep -iE 'hao|commpage|Capri|HD4000|BCM5701'`, `sysctl kern.hao` after the first arm64-only
+`kmutil showloaded | grep -iE 'hao|commpage'` (and the model's display and Ethernet drivers, its pack's Verify), `sysctl kern.hao` after the first arm64-only
 exec, and the boot log line "HaoExec: arm64-only executables now run through /usr/libexec/hao".
 
 AMFI dyld policy: the build log has `amfi-dyld.json` (AMFI UUID, Darwin version, site), and a dev image's OpenCore
@@ -250,7 +252,7 @@ Build the x86_64 probes (no graphics run on the build host):
 python3.14 patches/hao-opencore/tests/iosurface_probe.py NEW_DIRECTORY --sdk SDK_PATH
 ```
 
-Copy the binaries to the target (QEMU or the MacBookPro9,2). Run `iosurface-value` and `iosurface-value-cow` (the
+Copy the binaries to the target (QEMU or a Mac running the image). Run `iosurface-value` and `iosurface-value-cow` (the
 second carries WebContent's hardened-process and CoW containment entitlements) with byte counts `16`, `1024`,
 `4096`, `8192`, `65536` and `1048576`; each must exit 0 and print `roundtrip=1`. Run `cow-guard-control` and
 `cow-guard-control-cow` with `entry 0`, `entry 1`, `copy 0` and `copy 1`: only `cow-guard-control-cow entry 1`
@@ -258,6 +260,9 @@ must still die with VM guard flavor 13 (status 137), which shows the fix leaves 
 has a 15-second alarm. Finally load a website in Safari and scroll, navigate and reload.
 
 ## Validation
+NEEDS VALIDATION (r85): an image build of each target in which `apply.sh` and the final EFI check print "every element
+of config.plist has a reason" with the target's `platform_data`. Host: the recorded 26B131 mbp92 EFIs of 2026-11-18 pass
+with mbp92's `platform_data` and fail without it (the moved kexts), as main's check passes them.
 NEEDS VALIDATION (r73): the generic elements in a built generic image (GEN2). Both recorded 9,2 EFIs (golden-26B131-20261117-011907, -20261116-111912) still pass the check.
 NEEDS VALIDATION (r72): the AMFI dyld policy patch. Host tests bind it on three recorded 26B131 Boot KCs. It needs
 an image build and a laptop boot passing the AMFI checks under Verify.
@@ -286,9 +291,10 @@ the result above stands for dev builds. A non-dev build (`mbp92-26B131.json`, wi
 boot-args) has not been booted yet.
 Earlier: Host tests pass, and the binder verifies every fileset member and repair site against the
 reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox adapters pass in QEMU; a full
-Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
+Golden Gate boot to the desktop on the laptop was not yet proven.
 
 ## Revisions
+- r85 2026-11-18 Names no model (S15): the reasons and provenance of the mbp92 target's OCLP-generated kexts (USB-Map, USB-Map-Tahoe, ECM-Override) moved to the mbp92 target's `platform_data`, and `config_reasons.py` reads the target's (`--target-data`, default `HAO_TARGET_DATA`). The generic image is known from its target (`opencore_generic`), not an SMBIOS model. README wording names no model or GPU. Nothing it installs changes.
 - r84 2026-11-18 Reasons and tests state what each setting does and why, with no review IDs or weakness notes (owner: no vulnerability details in public text). Nothing it installs changes.
 - r83 2026-11-17 HIDProxyKernelMatch.kext's reason and provenance removed with the kext (opencore-mbp92 r5). Declaration only.
 - r82 2026-11-17 Test: every non-Apple Mach-O the release image installs links by paths dyld follows under the restored AMFI dyld policy (`tests/test_load_paths.py`, README "Load paths"). Nothing it installs changes.
