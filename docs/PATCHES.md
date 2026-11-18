@@ -47,16 +47,14 @@ Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-diagnostics
 
-Revision r9, status dev. [Recipe](../patches/dev-diagnostics/README.md)
+Revision r10, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
-  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
+  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
      Hao-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
-     - `-nokcmismatchpanic`: OCLP adds it with RSRHelper whenever SIP is lowered (efi_builder/security.py, OCLP issue 1019): the kernel does not panic when a kernel collection's UUID differs from the one recorded, as after a rebuilt or root-patched collection.
-     - `-pmap_pcid_disable`: Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it, the QEMU boots that worked did not) while the first hardware boots stalled; the next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. Effect: the kernel logs 'PMAP: PCID feature disabled' instead of 'PMAP: PCID enabled'. Stays until a laptop boot without it shows the same result.
      - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
      - `hao_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
@@ -529,25 +527,23 @@ Revision r10, status product. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r79, status product. [Recipe](../patches/hao-opencore/README.md)
+Revision r80, status product. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
      The Darwin 27 kernel starts on Ivy Bridge: the kernel repairs in Kernel.Patch (on 26B131: early VM range initialization, ascending early kernel-map bounds, the bootstrap physical-page alias code and its registration call) and the IntelCommpage.kext Kernel.Add entry, computed by tools/kc-binder from the BootKC this image links.
   2. `no-opencore-log`: plist.set Misc:Debug:Target = 0.
      An end-user image writes no OpenCore log and shows no OpenCore text (Target 0: logging off; it also saves the file writes at every boot); dev sets get the file log from dev-diagnostics (pack dev).
-  3. `boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -pmap_pcid_disable amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false".
-     The Intel Mac boots Darwin 27 with its Lilu-based drivers loading, PCID off, hao's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection.
+  3. `boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false".
+     The Intel Mac boots Darwin 27 with its Lilu-based drivers loading, hao's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
-     - `-nokcmismatchpanic`: OCLP adds it with RSRHelper whenever SIP is lowered (efi_builder/security.py, OCLP issue 1019): the kernel does not panic when a kernel collection's UUID differs from the one recorded, as after a rebuilt or root-patched collection.
-     - `-pmap_pcid_disable`: Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it, the QEMU boots that worked did not) while the first hardware boots stalled; the next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. Effect: the kernel logs 'PMAP: PCID feature disabled' instead of 'PMAP: PCID enabled'. Stays until a laptop boot without it shows the same result.
      - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
      - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
-  4. `clear-boot-logging-overrides`: plist.set NVRAM:Delete:7C436110-AB2A-4BBB-A880-FE41995C9F82 = ["boot-args", "csr-active-config", "bootercfg", "bootercfg-once"].
-     The next OpenCore boot deletes the firmware's boot logging overrides, so they cannot hide early-boot output.
+  4. `clear-boot-logging-overrides`: plist.set NVRAM:Delete:7C436110-AB2A-4BBB-A880-FE41995C9F82 = ["boot-args", "csr-active-config"].
+     OpenCore deletes the stored boot-args and csr-active-config before writing its own, so the image's values apply (bootercfg and bootercfg-once, a boot-logging investigation's, are no longer deleted: leftover-settings audit, 2026-11-17).
   5. `no-apple-debug`: plist.set Misc:Debug:AppleDebug = false.
      A normal boot shows only the Apple logo (owner 2026-11-13): no boot.efi or apfs.efi debug lines; the OpenCore archive is the RELEASE build unless the assembly asks for debug.
 - `EFI/OC/Kexts/IntelCommpage.kext`: whole file from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi). EFI/OC/Kexts/IntelCommpage.kext of the row, copied with ditto; src/kc_bind.py refuses unless its files are the ones the kernel_repair_binding profile lists; its __DATA,__ic_table (r42) must equal the table for this image's BootKC, or in binder-only mode is written for it (a kext without the table: every collection-dependent line of row intel_commpage_abi must hold).

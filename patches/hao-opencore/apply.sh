@@ -63,18 +63,21 @@ with open(p,'rb') as f:d=plistlib.load(f)
 d['Kernel']['Add']=[x for x in d['Kernel']['Add'] if x.get('BundlePath')!='HaoExec.kext']
 d['Kernel']['Add'].append(dict(Arch='x86_64',BundlePath='HaoExec.kext',Comment='hao: route unprepared arm64-only executables, UUID-bound',Enabled=True,ExecutablePath='Contents/MacOS/HaoExec',PlistPath='Contents/Info.plist',MinKernel='27.0.0',MaxKernel='27.99.99'))
 n=d['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
-# Firmware boot.efi logging overrides are independent of kernel boot-args.
-# A one-shot override may already be consumed by the time macOS can inspect it.
-# Clear only these diagnostic overrides at the next OpenCore boot.
-remove=d['NVRAM'].setdefault('Delete',{}).setdefault('7C436110-AB2A-4BBB-A880-FE41995C9F82',[])
-for key in ('bootercfg', 'bootercfg-once'):
-    n.pop(key,None)
-    if key not in remove:remove.append(key)
+# OCLP kexts this image does not need (leftover-settings audit, 2026-11-17): RSRHelper, KDKlessWorkaround and
+# CatalinaIntelI210Ethernet stay in the ESP but are not loaded. QEMU showed the image boots without the first two;
+# this Mac's wired Ethernet is the BCM5701 (opencore-mbp92), not an I210. CryptexFixup stays: without it the modified
+# OS cryptex does not graft.
+for k in d['Kernel']['Add']:
+    if k.get('BundlePath') in ('RSRHelper.kext', 'KDKlessWorkaround.kext', 'CatalinaIntelI210Ethernet.kext'):
+        k['Enabled']=False
 # debug=0x100 waits for a debugger after a panic; the machine then needs a person to power-cycle it.
 # Without it a panic reboots into the NetBoot default and the panic text stays in NVRAM (aapl,panic-info).
 # -v and startup_debug=1 (verbose text on screen, extra kernel startup logging) are off: the early-boot
 # evidence is the unified log (and, in bench images, OpenCore's file log from dev-diagnostics).
-args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'hao_crash=1', 'ic_csr_internal=1')]
+# -nokcmismatchpanic (OCLP's, for RSRHelper) and -pmap_pcid_disable (a 2026-11-02 PCID test that changed nothing) are
+# not needed either (leftover-settings audit, 2026-11-17).
+args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'hao_crash=1',
+                                                             '-nokcmismatchpanic', '-pmap_pcid_disable', 'ic_csr_internal=1')]
 # amfi_get_out_of_my_way=1: hao gives each arm64-only program an ad-hoc signed x86_64 slice carrying the
 # program's own (Apple-private) entitlements; AMFIPass alone kills such a PID 1 (experimental sets only).
 # hao_crash=1 (crash lines on the console) and the measurement switches (hao_nx_stats, hao_bridge_stats,
@@ -82,7 +85,7 @@ args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v',
 # amfi_force_policy=8: AMFI's dyld policy counts an entitled (CS_RESTRICT) program as restricted again, as with SIP on
 # (force_policy bit 0x8 is read only there; one that requires library validation keeps the path variables, as with SIP
 # on). Hardened programs are src/amfi_dyld.py's Kernel.Patch.
-for arg in ('-lilubetaall', '-pmap_pcid_disable', 'amfi_get_out_of_my_way=1', 'amfi_force_policy=8',
+for arg in ('-lilubetaall', 'amfi_get_out_of_my_way=1', 'amfi_force_policy=8',
             # kernelmanagerd skips the boot-time Aux KC build. 27's kmutil cannot build an x86_64 collection, so the
             # build (of the codeless AppleMobileDevice) failed at every boot and held the System KC back ~18 s.
             'auxKCAtBoot=false'):

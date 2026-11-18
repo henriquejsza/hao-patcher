@@ -34,9 +34,8 @@ class BootLoggingTests(unittest.TestCase):
     def test_targeted_cleanup_preserves_unrelated_variables_and_route(self):
         original = self.fixture(); result = self.apply(copy.deepcopy(original))
         added = result['NVRAM']['Add'][APPLE]
-        for name in ('bootercfg', 'bootercfg-once'):
-            self.assertNotIn(name, added)
-            self.assertIn(name, result['NVRAM']['Delete'][APPLE])
+        # bootercfg and bootercfg-once are no longer cleared (a boot-logging investigation's; audit 2026-11-17)
+        self.assertEqual(result['NVRAM']['Delete'][APPLE], ['boot-args'])
         self.assertEqual(added['efi-boot-device'], original['NVRAM']['Add'][APPLE]['efi-boot-device'])
         self.assertEqual(added['csr-active-config'], original['NVRAM']['Add'][APPLE]['csr-active-config'])
         self.assertEqual(result['NVRAM']['Add']['other-guid'], original['NVRAM']['Add']['other-guid'])
@@ -48,7 +47,7 @@ class BootLoggingTests(unittest.TestCase):
     def test_no_measurement_switches_whatever_the_environment(self):
         # hao_crash and hao-runtime's measurement switches are dev-diagnostics' (pack dev); hao-opencore writes the
         # same boot-args in every build, IMAGE_DEV_BUILD or not, and removes a hao_crash=1 it finds.
-        release = '-lilubetaall -pmap_pcid_disable amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false'.split()
+        release = '-lilubetaall amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false'.split()
         for dev in (None, '0', '1'):
             with self.subTest(dev=dev):
                 args = self.apply(self.fixture(), dev)['NVRAM']['Add'][APPLE]['boot-args'].split()
@@ -59,12 +58,18 @@ class BootLoggingTests(unittest.TestCase):
         value['NVRAM']['Add'][APPLE]['boot-args'] += ' hao_crash=1'
         self.assertNotIn('hao_crash=1', self.apply(value)['NVRAM']['Add'][APPLE]['boot-args'].split())
 
-    def test_missing_or_consumed_overrides_still_deleted_idempotently(self):
+    def test_idempotent_and_the_leftover_settings_are_gone(self):
         value = self.fixture()
-        for name in ('bootercfg', 'bootercfg-once'): value['NVRAM']['Add'][APPLE].pop(name)
+        value['NVRAM']['Add'][APPLE]['boot-args'] += ' -nokcmismatchpanic -pmap_pcid_disable'
+        value['Kernel']['Add'] = [dict(BundlePath=b, Enabled=True) for b in
+                                  ('Lilu.kext', 'CryptexFixup.kext', 'RSRHelper.kext', 'KDKlessWorkaround.kext',
+                                   'CatalinaIntelI210Ethernet.kext')]
         result = self.apply(value)
         self.assertEqual(self.apply(result), result)
-        self.assertEqual(result['NVRAM']['Delete'][APPLE], ['boot-args', 'bootercfg', 'bootercfg-once'])
+        args = result['NVRAM']['Add'][APPLE]['boot-args'].split()
+        self.assertNotIn('-nokcmismatchpanic', args); self.assertNotIn('-pmap_pcid_disable', args)
+        enabled = {k['BundlePath'] for k in result['Kernel']['Add'] if k['Enabled']}
+        self.assertEqual(enabled, {'Lilu.kext', 'CryptexFixup.kext', 'HaoExec.kext'})
 
 
 class DyldGate(unittest.TestCase):

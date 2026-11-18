@@ -54,9 +54,9 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
   stamp is not re-signed (OpenCore does not check the kext's signature). Not declared yet: the HaoExec `Kernel.Add` entry (no append
   in `plist.set`). The `boot-args` value is the one without the dev-only statistics arguments. `tests/test_edits.py`
   proves the values against `apply.sh`.
-- The next OpenCore boot deletes the Apple boot-GUID `bootercfg` and `bootercfg-once` variables (firmware
-  logging overrides independent of kernel boot-args); see the
-  [OpenCore configuration reference](https://dortania.github.io/docs/latest/Configuration.html).
+- Kernel.Add keeps OCLP's RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet entries (and their bundles) but
+  sets them `Enabled` false. QEMU booted the image without the first two, and this Mac's wired Ethernet is the BCM5701.
+  CryptexFixup stays on: without it the modified OS cryptex does not graft and the boot stops.
 
 ## Why each setting is there
 
@@ -70,8 +70,7 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
 
 `apply.sh` runs `src/config_reasons.py check` on the config it has just written and stops the build on an element
 without a reason; `tests/test_config_reasons.py` covers it (and a real config with `HAO_OPENCORE_IMAGE_CONFIG`). A
-reason that starts with `UNTRACED:` says what is not known yet and which laptop test settles it (CryptexFixup,
-RSRHelper, KDKlessWorkaround, the Intel I210 Ethernet driver and the bootercfg deletes: the LS1 batch boot). The list
+reason that starts with `UNTRACED:` says what is not known yet and which test settles it. The list
 was taken from a real image build's finished config, not from a QEMU test ESP. Those carry VirtualSMC and OVMF quirks
 a real image does not have.
 
@@ -86,13 +85,13 @@ Every enabled kext must also come from a known source ([src/kext-provenance.json
 ## Boot arguments
 
 Every argument's reason is also in [edits/config.json](edits/config.json) (`arg_reasons`), and `patches.py check`
-refuses a boot-args value with an argument that has none. `keepsyms=1`, `ipc_control_port_options=0` and
-`-nokcmismatchpanic` come from OCLP's config (reasons there).
+refuses a boot-args value with an argument that has none. `keepsyms=1` and `ipc_control_port_options=0` come
+from OCLP's config (reasons there). OCLP's `-nokcmismatchpanic` (for RSRHelper) is removed, as is `-pmap_pcid_disable`
+(a 2026-11-02 PCID test that changed nothing); a boot-args value carrying either loses it.
 
 | Argument | Why |
 |---|---|
 | `-lilubetaall` | Lets Lilu-based OCLP kexts load on an unknown kernel version. |
-| `-pmap_pcid_disable` | Not known to be needed. Added 2026-11-02 to rule out PCID (the i5-3210M has it; the QEMU boots that worked did not) while the first hardware boots stalled. The next hardware boot stalled the same with it, so PCID was not a cause, and no boot has run without it since. The kernel logs `PMAP: PCID feature disabled` (without it: `PMAP: PCID enabled`). It stays until a laptop boot without it shows the same result. |
 | `amfi_get_out_of_my_way=1` | `hao-runtime` signs each program's x86_64 slice ad hoc with its own entitlements, including Apple-private ones (launchd: Preboot, graftdmg, trust caches). With AMFIPass alone, AMFI rejects `/sbin/launchd` and the kernel panics. |
 | `amfi_force_policy=8` | AMFI's dyld policy counts an entitled (`CS_RESTRICT`) program as restricted again, as with SIP on, so dyld denies it the `DYLD_*` path variables unless it also requires library validation. Bit 0x8 (`forceDefaultDyldEnvVarsPolicy`) is read only by the dyld environment policy. See [AMFI dyld policy](#amfi-dyld-policy). |
 | `auxKCAtBoot=false` | kernelmanagerd skips building an auxiliary kernel collection at boot and loads the System collection at once. 27's kmutil cannot build an x86_64 collection ("unsupported arch: x86_64 / Unsupported collection kind"), so the build of the only candidate, 27's codeless `AppleMobileDevice.kext` (from 27's Data template), failed at every boot and held the System collection, and with it the Capri framebuffer and WindowServer, back 18.5 s (23 s on the first boot). The codeless kext's personality still loads. Details: [Aux KC gate](#aux-kc-gate). |
@@ -269,6 +268,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r80 2026-11-17 Leftover settings removed (QEMU batch boot): `-nokcmismatchpanic` and `-pmap_pcid_disable` dropped from boot-args; RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet disabled; bootercfg and bootercfg-once no longer deleted. CryptexFixup stays.
 - r79 2026-11-17 CryptexFixup's reason is traced: without it the modified OS cryptex does not graft and the boot stops (QEMU). It stays. Declaration only.
 - r78 2026-11-17 Reasons for the generic image's run-efi-updater (Add No, and its Delete), from the QEMU reference: no firmware updater on a VM or PC. Generic-only, so a Mac image still refuses them. Declaration only.
 - r77 2026-11-17 config-reasons.json has OCLP's `revblock=media`: the reasons check runs inside this recipe, before golden-gate-live-text-service turns it into `none`, and the r70 build stopped on it. Declaration only.
