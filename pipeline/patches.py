@@ -920,7 +920,8 @@ def recipe_digest(name, root=os.path.join(TOP, 'patches'), inputs=os.path.join(T
         dirs[:] = sorted(x for x in dirs if x != '__pycache__' and not (rel == '.' and x in DIGEST_SKIP)
                          and not (rel == 'build' and x == 'build'))
         for f in sorted(files):
-            if (rel == '.' and f in DIGEST_SKIP) or f.endswith('.pyc') or f == '.DS_Store':
+            # read-from-share.txt says only where the assembly reads an input from (the kit, not a copy): same bytes
+            if (rel == '.' and f in DIGEST_SKIP) or f.endswith('.pyc') or f in ('.DS_Store', 'read-from-share.txt'):
                 continue
             with open(os.path.join(dirpath, f), 'rb') as fh:
                 h.update(b'file\0%s\0%s\n' % (os.path.normpath(os.path.join(rel, f)).encode(),
