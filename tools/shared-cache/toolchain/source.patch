@@ -1,5 +1,5 @@
 diff --git a/build-scripts/prebuilt-loader-hash.sh b/build-scripts/prebuilt-loader-hash.sh
-index 98b0119..e75ffde 100755
+index 98b0119..2e61847 100755
 --- a/build-scripts/prebuilt-loader-hash.sh
 +++ b/build-scripts/prebuilt-loader-hash.sh
 @@ -5,7 +5,7 @@ echo -e "#include \"PrebuiltLoader.h\"\n#include \"PrebuiltObjC.h\"\n#include \"
@@ -11,6 +11,13 @@ index 98b0119..e75ffde 100755
  
  grep -A100 "class dyld4::PrebuiltLoader"                                            ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/pbl.ast
  grep -A100 "struct dyld4::PrebuiltLoaderSet"                                        ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/pbls.ast
+@@ -17,4 +17,5 @@ grep -A100 "struct dyld4::Loader::FileValidationInfo"
+ grep -A100 "class dyld3::MapView<struct prebuilt_objc::ObjCStringKeyOnDisk"         ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/objc_sels.ast
+ grep -A100 "class dyld3::MultiMapView<struct prebuilt_objc::ObjCStringKeyOnDisk"    ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/objc_objects.ast
+ grep -A100 "class objc::SelectorHashTable"                                          ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/shared_cache_objc_sels.ast
+-cat ${DERIVED_FILE_DIR}/pbl.ast ${DERIVED_FILE_DIR}/pbls.ast ${DERIVED_FILE_DIR}/pblsobjc.ast ${DERIVED_FILE_DIR}/pbldeps.ast ${DERIVED_FILE_DIR}/dylibpatch.ast ${DERIVED_FILE_DIR}/fvi.ast ${DERIVED_FILE_DIR}/objc_sels.ast ${DERIVED_FILE_DIR}/objc_objects.ast ${DERIVED_FILE_DIR}/shared_cache_objc_sels.ast ${DERIVED_FILE_DIR}/btabs.ast | md5 | awk '{print "#define PREBUILTLOADER_VERSION 0x" substr($0,0,8)}' > ${DERIVED_FILE_DIR}/PrebuiltLoader_version.h
++# 27 (26B131)'s dyld checks versionHash 0x9593b355: the md5 of its own layout dump, which these sources cannot reproduce
++echo "#define PREBUILTLOADER_VERSION 0x9593b355" > ${DERIVED_FILE_DIR}/PrebuiltLoader_version.h
 diff --git a/cache_builder/NewSharedCacheBuilder.cpp b/cache_builder/NewSharedCacheBuilder.cpp
 index 6ddc1c4..f15fb5b 100644
 --- a/cache_builder/NewSharedCacheBuilder.cpp
@@ -278,6 +285,58 @@ index fd28975..9b7bb38 100644
          }
      }
      else if ( log.searching ) {
+diff --git a/dyld/PrebuiltLoader.cpp b/dyld/PrebuiltLoader.cpp
+index a8d75e8..ceee928 100644
+--- a/dyld/PrebuiltLoader.cpp
++++ b/dyld/PrebuiltLoader.cpp
+@@ -1296,7 +1296,8 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+ 
+     // record offset of load command that specifies fixups (LC_DYLD_INFO or LC_DYLD_CHAINED_FIXUPS)
+     const MachOFile* mf = jitLoader.mf(state);
+-    p->fixupsLoadCommandOffset = mf->getFixupsLoadCommandFileOffset();
++    // 27 (26B131) writes 0 here and never reads it
++    p->fixupsLoadCommandOffset = 0;
+ 
+     // append path to serialization
+     p->pathOffset    = allocator.size() - serializationStart;
+@@ -1395,6 +1396,23 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+     bool buildingMacOSCache = jitLoader.dylibInDyldCache && isMacOSOrCataylyst;
+     p->supportsCatalyst     = buildingMacOSCache && ((mach_o::UnsafeHeader*)mf)->builtForPlatform(Platform::macCatalyst);
+     p->isCatalystOverride   = false;
++    p->tlvsPreKeyed         = false;
++    if ( jitLoader.dylibInDyldCache && jitLoader.hasTLVs ) {
++        // 27: set when every TLV thunk of the cached dylib already carries the cache builder's key
++        __block bool sawThunk = false, allKeyed = true;
++        intptr_t slide = (intptr_t)((mach_o::UnsafeHeader*)mf)->getSlide();
++        ((mach_o::UnsafeHeader*)mf)->forEachSection(^(const mach_o::UnsafeHeader::SectionInfo& sectInfo, bool& stop) {
++            if ( (sectInfo.flags & SECTION_TYPE) != S_THREAD_LOCAL_VARIABLES )
++                return;
++            const uint64_t* words = (const uint64_t*)(sectInfo.address + slide);
++            for ( uint64_t i = 0; i + 3 <= sectInfo.size / sizeof(uint64_t); i += 3 ) {
++                sawThunk = true;
++                if ( words[i + 1] == 0 )
++                    allKeyed = false;
++            }
++        });
++        p->tlvsPreKeyed = sawThunk && allKeyed;
++    }
+     p->indexOfTwin          = kNoUnzipperedTwin;
+     p->reserved1            = 0;
+     if ( buildingMacOSCache ) {
+diff --git a/dyld/PrebuiltLoader.h b/dyld/PrebuiltLoader.h
+index ab19eb4..062b06c 100644
+--- a/dyld/PrebuiltLoader.h
++++ b/dyld/PrebuiltLoader.h
+@@ -144,7 +144,8 @@ public:
+                         isOverridable        :  1,      // if in dyld cache, can roots override it
+                         supportsCatalyst     :  1,      // if false, this cannot be used in catalyst process
+                         isCatalystOverride   :  1,      // catalyst side of unzippered twin
+-                        regionsCount         : 12;
++                        tlvsPreKeyed         :  1,      // 27 (26B131): the cache builder keyed this dylib's TLV thunks; dyld skips setUpThreadLocals
++                        regionsCount         : 11;
+     uint16_t            regionsOffset;                  // offset to Region array
+ 
+     uint16_t            depCount;
 diff --git a/include/mach-o/dyld.h b/include/mach-o/dyld.h
 index 7bf19c0..de6aa56 100644
 --- a/include/mach-o/dyld.h

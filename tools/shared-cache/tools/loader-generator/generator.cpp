@@ -45,6 +45,9 @@ struct ImageLayout {
 // Offline VM-layout view. ARM host pages are 16K, while these x86 cache
 // mappings can be only 4K aligned. Retain direct file mappings where possible;
 // copy only the unaligned mappings into private anonymous host pages.
+// dyld-1378's header ends at 552; 27 (26B131) appends 16 bytes (mappings at 568). Fields before 552 are unchanged.
+static bool headerSizeKnown(uint32_t mappingOffset) { return mappingOffset == 552 || mappingOffset == 568; }
+
 static std::vector<const DyldSharedCache*> mapOffline(const char* path) {
     auto headerOf = [](const char* file, uint8_t bytes[4096], struct stat& st) {
         int fd = ::open(file, O_RDONLY);
@@ -60,7 +63,7 @@ static std::vector<const DyldSharedCache*> mapOffline(const char* path) {
     if (initial < 0) return {};
     ::close(initial);
     const auto* header = (const dyld_cache_header*)first;
-    if (memcmp(header->magic, "dyld_v1  x86_64", 15) || header->mappingOffset != 552 || !header->mappingCount || header->mappingCount > 8) return {};
+    if (memcmp(header->magic, "dyld_v1  x86_64", 15) || !headerSizeKnown(header->mappingOffset) || !header->mappingCount || header->mappingCount > 8) return {};
     const auto* maps = (const dyld_cache_mapping_info*)(first + header->mappingOffset);
     uint64_t base = maps[0].address, size = header->sharedRegionSize;
     size_t page = (size_t)::sysconf(_SC_PAGESIZE);
@@ -74,7 +77,7 @@ static std::vector<const DyldSharedCache*> mapOffline(const char* path) {
         int fd = headerOf(file, raw, stat);
         if (fd < 0) return nullptr;
         const auto* h = (const dyld_cache_header*)raw;
-        if (memcmp(h->magic, "dyld_v1  x86_64", 15) || h->mappingOffset != 552 || !h->mappingCount || h->mappingCount > 8) { ::close(fd); return nullptr; }
+        if (memcmp(h->magic, "dyld_v1  x86_64", 15) || !headerSizeKnown(h->mappingOffset) || !h->mappingCount || h->mappingCount > 8) { ::close(fd); return nullptr; }
         const auto* mappings = (const dyld_cache_mapping_info*)(raw + h->mappingOffset);
         for (uint32_t i = 0; i < h->mappingCount; ++i) {
             const auto& mapping = mappings[i];
@@ -145,7 +148,11 @@ int main(int argc, char** argv) {
     const auto* mainHeader = (const mach_o::UnsafeHeader*)mainMF;
     if (auto error = mainHeader->valid(selectedSliceSize)) { fprintf(stderr,"invalid executable: %s\n",error.message()); return 2; }
     auto caches = mapOffline(cachePath);
-    if (caches.size() != expectedFiles || caches.front()->imagesCount() != expectedImages) { fprintf(stderr,"required cache family incomplete\n"); return 2; }
+    if (caches.size() != expectedFiles || caches.front()->imagesCount() != expectedImages) {
+        fprintf(stderr,"required cache family incomplete: %zu files (expected %lu), %u images (expected %lu)\n", caches.size(), expectedFiles,
+                caches.empty() ? 0u : caches.front()->imagesCount(), expectedImages);
+        return 2;
+    }
     const auto* cache = caches.front();
     std::vector<char> cachedSetBytes;
     const PrebuiltLoaderSet* cachedSet = nullptr;
@@ -159,7 +166,7 @@ int main(int argc, char** argv) {
             if (cachedSet->size() != cachedSetBytes.size()) return 2;
         }
     }
-    if (!cachedMode && (cachedSet == nullptr || !cachedSet->hasValidMagic() || ((const uint32_t*)cachedSet)[1] != 0x1bffc401 || cachedSet->loaderCount() != cache->imagesCount())) {
+    if (!cachedMode && (cachedSet == nullptr || !cachedSet->hasValidMagic() || ((const uint32_t*)cachedSet)[1] != 0x9593b355 || cachedSet->loaderCount() != cache->imagesCount())) {
         fprintf(stderr,"unsupported cached loader schema\n"); return 2;
     }
     const uint32_t imageCount = cache->imagesCount();

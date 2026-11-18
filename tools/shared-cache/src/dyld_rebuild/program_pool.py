@@ -4,6 +4,7 @@ import struct
 from .cache_exports import path_trie
 from .exports import require,span,cstring
 from .loader_generation import read_set
+from .pbl import VERSION
 from .lookup_tables import write_path_trie
 
 MIRRORING='/System/Applications/iPhone Mirroring.app/Contents/MacOS/iPhone Mirroring'
@@ -13,7 +14,7 @@ RETIRED_HASH='86cf4ca08e839199787c93a4c0c1ff5aafe46c4d'
 def main_identity(data):
     """Decode path and optional validation without requiring a CDHash flag."""
     magic,version,length,count,array=struct.unpack('<5I',span(data,0,20))
-    require((magic,version)==(0x73703464,0x1bffc401) and length==len(data) and count>0,
+    require((magic,version)==(0x73703464,VERSION) and length==len(data) and count>0,
             'unsupported program set header')
     offset=struct.unpack_from('<I',span(data,array,4))[0]
     loader=span(data,offset,len(data)-offset)
