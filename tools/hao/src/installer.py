@@ -189,6 +189,12 @@ def release_view(release, name):
     return out
 
 
+def signed_release(a, release_path):
+    """The release file the USB installer carries: the signed one beside its .sig (hao install checks that signature),
+    never profile_release's unsigned view, which only steers the downloads and the rows made here."""
+    return getattr(a, 'signed_release_path', None) or release_path
+
+
 def profile_release(a, path, release, cache):
     """(path, release) the rest of create-installer reads: RELEASE itself when it carries one image profile (or knows
     none), else its view for the chosen profile (release_view), written beside the downloads: the download, the rows
@@ -477,6 +483,7 @@ def create_installer(a, c, host, acquire=None):
     if getattr(a, 'kit', None) and not getattr(a, 'assembly', None):
         a.assembly = kit_assembly(a.kit)
     if release:
+        a.signed_release_path = release_path   # the signed release (and its .sig) is what the USB installer carries
         release_path, release = profile_release(a, release_path, release, cache)
     a.sources = input_paths(a, cache, release_path)
     if folder is not None:
@@ -564,7 +571,7 @@ def create_installer(a, c, host, acquire=None):
         record['profile'] = a.image_profile
     if folder is not None:
         try:
-            rec = STICK.write_kit(folder, kit, TOP, release_path if release else None, record)
+            rec = STICK.write_kit(folder, kit, TOP, signed_release(a, release_path) if release else None, record)
         except (STICK.StickError, OSError, LP.PatchError) as x:
             raise Stopped('writing the folder failed', cause=str(x).splitlines()[0], options=[REPORT])
         c.item('%s  hao, the kit (%.1f GB), install and report; checked file by file' % (folder, rec['kit_bytes'] / 1e9),
@@ -575,7 +582,8 @@ def create_installer(a, c, host, acquire=None):
                'installer does: ./install)' % folder, more=left)
         return 0
     try:
-        rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
+        rec = STICK.write(host, disk, basesystem, opencore, kit, TOP,
+                          release=signed_release(a, release_path) if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)
     except (STICK.StickError, OSError, LP.PatchError) as x:
         raise Stopped('writing the USB installer failed', cause=str(x).splitlines()[0],
