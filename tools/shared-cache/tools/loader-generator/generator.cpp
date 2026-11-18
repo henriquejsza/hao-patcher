@@ -271,11 +271,13 @@ int main(int argc, char** argv) {
             if (!rootFiles.count(batchRows.back()[0])) return 2;
         }
         if (batchRows.empty()) return 2;
-        unsigned live = 0, failures = 0;
+        unsigned live = 0, failures = 0, skipped = 0;
         bool child = false;
         auto reap = [&]() {
             int status = 0;
-            if (wait(&status) < 0 || !WIFEXITED(status) || WEXITSTATUS(status)) ++failures;
+            if (wait(&status) < 0 || !WIFEXITED(status)) ++failures;
+            else if (WEXITSTATUS(status) == 3) ++skipped;
+            else if (WEXITSTATUS(status)) ++failures;
             --live;
         };
         for (const auto& row : batchRows) {
@@ -301,7 +303,7 @@ int main(int argc, char** argv) {
         }
         if (!child) {
             while (live) reap();
-            printf("batch programs=%zu failures=%u\n", batchRows.size(), failures);
+            printf("batch programs=%zu failures=%u skipped=%u\n", batchRows.size(), failures, skipped);
             return failures ? 2 : 0;
         }
     }
@@ -420,6 +422,18 @@ int main(int argc, char** argv) {
             status = 0;
         }
     });
-    if (diag.hasError()) fprintf(stderr,"generation refused: %s\n",diag.errorMessageCStr());
+    if (diag.hasError()) {
+        // dyld itself makes no prebuilt launch set for a process whose closure interposes; it uses JIT loaders
+        if (strstr(diag.errorMessageCStr(), "interposing")) {
+            fprintf(stderr,"generation skipped (interposing): %s\n",diag.errorMessageCStr());
+            return 3;
+        }
+        // dyld would refuse to launch this program (a required symbol is missing): no set; the producer reports it
+        if (strstr(diag.errorMessageCStr(), "Symbol not found")) {
+            fprintf(stderr,"generation skipped (unlaunchable): %s\n",diag.errorMessageCStr());
+            return 3;
+        }
+        fprintf(stderr,"generation refused: %s\n",diag.errorMessageCStr());
+    }
     return status;
 }

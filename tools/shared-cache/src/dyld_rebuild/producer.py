@@ -51,21 +51,37 @@ def serialize(helper, manifest, collection, directory, *, programs=False, cached
     subprocess.run([*command, str(directory / 'batch-output'), 'program-batch', str(images), str(count),
                     str(mapping), str(cached), str(batch)], check=True)
     rows = []
+    jit = []
     for index, path in enumerate(paths):
         blob = directory / f'program-{index:04d}.pbl'
+        if not blob.exists():
+            log = (directory / f'program-{index:04d}.log').read_text(errors='replace')
+            if 'generation skipped (interposing)' in log:
+                jit.append((path, 'interposing closure: dyld uses JIT loaders'))
+            elif 'generation skipped (unlaunchable)' in log:
+                why = log.split('generation skipped (unlaunchable): ', 1)[1].splitlines()[0]
+                print(f'program not launchable on this image, no set: {path}: {why}', flush=True)
+                jit.append((path, 'unlaunchable: ' + why))
+            else:
+                require(False, 'program serializer refused ' + path)
+            continue
         data = blob.read_bytes()
         parsed = read_set(data, images, app=True)
         rows.append(dict(main_identity(data), file=blob.name, size=len(data), sha256=sha(blob),
                          loader_count=len(parsed['loaders'])))
     inventory = read(collection['inventory'])
+    kept = set(paths) - {path for path, _ in jit}
     entries = {key: path for key, path in inventory['original_keys'].items()
-               if not key.startswith('/cdhash/') and path in paths}
+               if not key.startswith('/cdhash/') and path in kept}
+    retired = list(inventory['retired_programs']) + [
+        dict(path=path, reason=reason,
+             retired_keys=sorted(k for k, v in inventory['original_keys'].items() if v == path)) for path, reason in jit]
     for row in sorted(rows, key=lambda r: r['path'].encode()):
         if row['check_cdhash']:
             entries['/cdhash/' + row['cdhash']] = row['path']
     return write(directory / 'result.json', dict(schema=1, programs=rows,
                  required_program_paths=inventory['required_program_paths'],
-                 retired_programs=inventory['retired_programs'], program_trie_entries=entries))
+                 retired_programs=retired, program_trie_entries=entries))
 
 
 def _loaders(system, os_root, app, data, program_files, intake, assembly, meta, work):
