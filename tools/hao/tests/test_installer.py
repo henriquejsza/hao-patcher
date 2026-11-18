@@ -389,6 +389,14 @@ class CreateInstallerTest(unittest.TestCase):
             self.assertIn(str((Path(d) / 'Volumes/Ext/kit').resolve()), got)      # the link's target folder
             self.assertIn(str(Path(d) / 'Volumes/Ext'), got)                       # nearest existing folder of --work
 
+    def test_folder_must_be_new_or_empty(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / 'old').write_text('x')
+            c, out, _ = console([])
+            with self.assertRaises(CON.Stopped) as x:
+                INST.create_installer(ns(folder=d, dry_run=False), c, FakeMac())
+            self.assertIn('is not a new or empty folder', x.exception.what)
+
     def test_staged_kit_is_removed_after_the_write_unless_kept(self):
         with tempfile.TemporaryDirectory() as d:
             def staged():

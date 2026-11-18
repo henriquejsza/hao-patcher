@@ -458,6 +458,12 @@ def create_installer(a, c, host, acquire=None):
     c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which USB drive, then works on '
             'its own.', 'quiet')
     image = getattr(a, 'image', None)
+    folder = Path(a.folder).expanduser().resolve() if getattr(a, 'folder', None) else None
+    if folder is not None:      # HAO's contents only, for a volume made elsewhere (a NetBoot Recovery fetches it)
+        if folder.exists() and (not folder.is_dir() or any(folder.iterdir())):
+            raise Stopped('%s is not a new or empty folder' % folder, untouched='nothing was downloaded or written',
+                          options=['name a new folder: --folder DIR'])
+        image = str(folder)     # from here on it is written like an image: no root, no disk question, no erase
     if not a.dry_run and not image:
         if host.euid() != 0:
             raise Stopped('hao create-installer needs administrator rights to erase the USB drive',
@@ -473,14 +479,18 @@ def create_installer(a, c, host, acquire=None):
     if release:
         release_path, release = profile_release(a, release_path, release, cache)
     a.sources = input_paths(a, cache, release_path)
-    if image:
+    if folder is not None:
+        info = dict(DeviceIdentifier='folder', MediaName=str(folder), TotalSize=None)
+    elif image:
         info = dict(DeviceIdentifier='image', MediaName=str(image), TotalSize=a.image_size)
     else:
         info = ask_disk(a, c, host, minimum, a.sources)
     disk = DISKS.normalize(a.disk) if not image else None
     c.print('', 'quiet')
     profile, path, asm, groups = BUILD.resolve(a, c, 'create-installer')
-    if image:
+    if folder is not None:
+        c.print('Folder %s  (the USB installer\'s HAO volume only: hao, the kit, install and report)' % folder)
+    elif image:
         c.print('Drive  image file %s (%s, sparse)' % (image, human_size(a.image_size)))
     else:
         c.print('Drive  %s  external, big enough %s' % (DISKS.label(info), c.ok))
@@ -497,7 +507,10 @@ def create_installer(a, c, host, acquire=None):
     if make_here and not a.dry_run:
         check_space(c, release, cache, info.get('TotalSize') or info.get('Size'))
     parts = None
-    if not a.dry_run:
+    if not a.dry_run and folder is not None:
+        (folder / STICK.BUILD_DIR).mkdir(parents=True, exist_ok=True)
+        a.drive_build = folder / STICK.BUILD_DIR
+    elif not a.dry_run:
         # erase the drive first: the userspace images are made straight onto it
         opencore = opencore_input(a, asm)
         if image:
@@ -549,6 +562,18 @@ def create_installer(a, c, host, acquire=None):
                   unproven=list(getattr(a, 'unproven_reasons', None) or []))   # its install launcher passes --unproven
     if getattr(a, 'image_profile', None):
         record['profile'] = a.image_profile
+    if folder is not None:
+        try:
+            rec = STICK.write_kit(folder, kit, TOP, release_path if release else None, record)
+        except (STICK.StickError, OSError, LP.PatchError) as x:
+            raise Stopped('writing the folder failed', cause=str(x).splitlines()[0], options=[REPORT])
+        c.item('%s  hao, the kit (%.1f GB), install and report; checked file by file' % (folder, rec['kit_bytes'] / 1e9),
+               'steps', ok=True)
+        c.event('stick.written', stick=rec)
+        left = finish_kit(a, c, kit) + [STICK.CUSTODY]
+        c.done('USB installer contents written to %s (a volume with these files at its root installs as the USB '
+               'installer does: ./install)' % folder, more=left)
+        return 0
     try:
         rec = STICK.write(host, disk, basesystem, opencore, kit, TOP, release=release_path if release else None,
                           record=record, on_step=lambda text: c.item(text, 'steps', ok=True), parts=parts)
