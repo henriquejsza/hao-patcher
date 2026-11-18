@@ -55,7 +55,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | hao-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | hao_runtime_fold_catalog 2046947d payload |
 | metal-compiler-compat | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat 954ee9d0 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
-| metalold-selectors | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
+| metalold-selectors | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors 7075829d metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
 | opencore-generic | r5 | experiment | post | undeclared | generic | qemu_reference_efi 57e3f1c3 qemu-reference-efi-20261117; oclp_source ff509df0 oclp-source.tar |
 | opencore-mbp92 | r5 | product | post | undeclared | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | - |
 | rec-audio | r5 | product | recovery | yes | recovery | - |
@@ -308,7 +308,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib`: edited (1 edit) from OCLP · GPUCompiler 31001
 - **metal-metalold** r4
   - `System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`: edited (1 edit) from Apple macOS 13 · macOS 13.2.1 (22D68) Metal 306.3.5 (row metalold_22d68)
-- **metalold-selectors** r9
+- **metalold-selectors** r10
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `usr/lib/libmetalold-selectors.dylib`: from hao (row metalold_selectors)
 - **rec-audio** r5
@@ -412,7 +412,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | hao-runtime | r78* | r80* | r80* | - | - | - | - | - | r80* | r82* | r82* | r90 | r90 | r90 |
 | hao-runtime-fold | - | - | - | r3* | r3* | r4* | r4* | r4* | - | - | - | - | - | - |
 | metal-compiler-compat | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r8* | r8* | r11* | r11* | r11* |
-| metalold-selectors | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r9 | r9 | r9 |
+| metalold-selectors | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r9* | r9* | r9* |
 | opencore-mbp92 | - | - | - | - | - | - | - | - | - | - | - | r5 | r5 | r5 |
 
 | Row | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d | e49b304 | 31355fe | 51466eb | d733864 | d0c96b9 |
@@ -446,7 +446,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6* | 6dba1ab6* | 107a877d | 107a877d | 107a877d |
 | metal_quad_runtime_golden_gate | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 |
 | metallib_repairs_golden_gate | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 | 969f39b2 |
-| metalold_selectors | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 | c9d748d7 |
+| metalold_selectors | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* | c9d748d7* |
 | oclp_hardware | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 | b8d2c7e4 |
 | opencore_release | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a | 2608743a |
 | psp_2.0.5 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 | 1c290781 |
@@ -512,8 +512,10 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - hao-opencore r84 is newer than every image built with it (newest r83).
 - hao-runtime-fold r10 is newer than every image built with it (newest r4).
 - metal-compiler-compat r12 is newer than every image built with it (newest r11).
+- metalold-selectors r10 is newer than every image built with it (newest r9).
 - row hao_runtime_fold 670b1410 is in no image yet (images have 3e4feeb7).
 - row metal_compiler_compat 954ee9d0 is in no image yet (images have 66e1e6dd, e4780509).
+- row metalold_selectors 7075829d is in no image yet (images have c9d748d7).
 - row rebuilt_cache 22489f4a is in no image yet (images have a8a847b6).
 - row rebuilt_cache_catalog c2398aee is in no image yet (images have d56244ea).
 - Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.

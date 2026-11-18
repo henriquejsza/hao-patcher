@@ -94,6 +94,13 @@ def helloblur(tmp, out, args):
 
 
 
+def selectors(tmp, out, args):
+    run(*PY, 'patches/metalold-selectors/build/make', tmp)
+    out.mkdir()
+    shutil.copy(one(Path(tmp)/'metalold-selectors-*/libmetalold-selectors.dylib'), out/'libmetalold-selectors.dylib')
+    return out
+
+
 def framebuffer(tmp, out, args):
     run(*PY, 'patches/golden-gate-metal-framebuffer/build/metal-framebuffer', 'build', Path(tmp)/'fb')
     out.mkdir()
@@ -159,6 +166,7 @@ ASSETS = {
     'oclp_source': tool('pipeline/unpack/build-tools', 'oclp-source-rebuild', name='oclp-source.tar'),
     'hd4000_planes': hd4000,
     'libhelloblur': helloblur,
+    'metalold_selectors': selectors,
     'metal_framebuffer': framebuffer,
     'metal_argbuf': argbuf,
     'metal_compiler_compat': live_text('compiler-service'),

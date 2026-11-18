@@ -634,7 +634,7 @@ Revision r4, status unfinished. [Recipe](../patches/metal-metalold/README.md)
 
 ## metalold-selectors
 
-Revision r9, status product. [Recipe](../patches/metalold-selectors/README.md)
+Revision r10, status product. [Recipe](../patches/metalold-selectors/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metalold-selectors`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetalold-selectors.dylib.

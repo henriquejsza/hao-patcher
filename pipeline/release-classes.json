@@ -74,7 +74,10 @@
   "metalold_selectors": {
    "class": "ours",
    "publish": "tar",
-   "reason": "libmetalold-selectors.dylib compiled from patches/metalold-selectors/build/src/metalold_selectors.m (our source) and its build.json; no Apple code, no private paths"
+   "include": [
+    "libmetalold-selectors.dylib"
+   ],
+   "reason": "libmetalold-selectors.dylib compiled from patches/metalold-selectors/build/src/metalold_selectors.m (our source), the only file the recipe installs; build.json is left out (it holds the build's commit and date); no Apple code, no private paths"
   },
   "metal_framebuffer": {
    "class": "ours",

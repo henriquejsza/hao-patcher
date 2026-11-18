@@ -96,6 +96,7 @@ answer for each. Its table adds to MetalOld's base classes and does not depend o
 HD 4000 driver, so it could ship in the 3802 Metal payload for every legacy GPU.
 
 ## Validation
+Laptop 2026-11-18, candidate C3 (release/v0.0.1 d0c96b9): the installed dylib is 36faea40, WindowServer loads it, the accelerated desktop and the Metal probes pass with no MetalOld or shim crash (r10).
 Laptop 2026-11-11, image 4d1c48c (26B131): the accelerated desktop and the Metal paths of Maps, Safari and Preview run on the HD 4000.
 Earlier: Host tests cover every answer, the kill switch and the Mach-O, and
 on the target a native probe of `setForwardProgressUsage:` fails without the shim and
@@ -103,6 +104,7 @@ succeeds with it. Quick Look of USDZ files and WindowServer's desktop effects on
 built image remain open, and nothing has been checked on 26B131.
 
 ## Revisions
+- r10 2026-11-18 Row metalold_selectors hashes and publishes only libmetalold-selectors.dylib (`# hash: release-files`), so `tools/asset-build` reproduces it from source; the folder and the installed dylib (36faea40) are unchanged.
 - r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`.
 - r8 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 

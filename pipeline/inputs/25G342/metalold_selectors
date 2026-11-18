@@ -1,2 +1,4 @@
 # Metal selectors shim for OCLP's MetalOld stack, made by patches/metalold-selectors/build/make.
-c9d748d72f7116668712e481e9ee53f016a6b2ea7b8078f3738f3706cf5f36ac store/artifacts/metalold-selectors-20261105-03d169d7ddae
+# 20261118: hash and publish only the dylib (build.json carries the build's commit and date); the folder is unchanged.
+# hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
+7075829d542cf44e6ef26adb507f9368ecde098c77616a0eb80e0e5c15222c7e store/artifacts/metalold-selectors-20261105-03d169d7ddae

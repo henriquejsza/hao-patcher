@@ -50,7 +50,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | hao-runtime-fold-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-18 New: the B+catalog set's runtime payload (row `hao_runtime_fold_catalog`, hao-runtime 3a6a5d9 fo |
 | metal-compiler-compat | r12 | oclp-hook | product |  | x |  |  |  | **needs** | r12 2026-11-18 Row metal_compiler_compat is the same tools/live-text build at 46289f6d: build.json records com |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
-| metalold-selectors | r9 | oclp-hook | product |  | x | x |  |  | ok (r3) | r9 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware |
+| metalold-selectors | r10 | oclp-hook | product |  | x | x |  |  | ok | r10 2026-11-18 Row metalold_selectors hashes and publishes only libmetalold-selectors.dylib (`# hash: release- |
 | opencore-generic | r5 | post | experiment |  |  |  |  |  | **needs** | r5 2026-11-17 Row qemu_reference_efi is now made by pipeline/unpack/qemu-reference from its downloads: the sam |
 | opencore-mbp92 | r5 | post | product |  | x | x |  |  | **needs** | r5 2026-11-17 HIDProxyKernelMatch.kext removed (r4): on hardware the Bluetooth HID-proxy devices stay stuck te |
 | rec-audio | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |

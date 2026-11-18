@@ -495,7 +495,7 @@ class ReleaseFilesScope(unittest.TestCase):
                 only = self.L['scope'](str(f.parent), f.name)
                 entry = classes[f.name]
                 self.assertEqual(only, entry['include'] + [m['path'] for m in entry.get('made_on_mac_files', [])])
-        self.assertEqual(found, 7)
+        self.assertEqual(found, 8)
 
 
 class HashWithout(unittest.TestCase):
