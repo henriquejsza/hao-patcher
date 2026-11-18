@@ -18,7 +18,7 @@ from dyld_rebuild.lookup_tables import uleb_bytes
 
 def minimal_set():
     data = bytearray(84 + 448 + 3)
-    struct.pack_into('<5I', data, 0, 0x73703464, 0x1bffc401, len(data), 1, 80)
+    struct.pack_into('<5I', data, 0, 0x73703464, 0x9593b355, len(data), 1, 80)
     struct.pack_into('<I', data, 80, 84)
     struct.pack_into('<IHH', data, 84, 0x6c347964, 3, 0)
     struct.pack_into('<H', data, 84 + 32, 448)
@@ -27,6 +27,20 @@ def minimal_set():
 
 
 class LoaderGenerationTests(unittest.TestCase):
+    def test_27_bitfield_regions_after_five_flags(self):
+        """26B131's PrebuiltLoader: +0x2c bit 4 is the TLV pre-keyed flag and regionsCount is 11 bits from bit 5."""
+        data = minimal_set()
+        data += bytes(32)
+        struct.pack_into('<I', data, 8, len(data))
+        loader = 84
+        struct.pack_into('<HH', data, loader + 0x2c, (2 << 5) | 0x10 | 1, len(data) - 32 - loader)
+        row = read_set(data, 1, app=False)['loaders'][0]
+        self.assertEqual(len(row['regions']), 2)
+        self.assertEqual(row['properties'], 0x11)
+        with self.assertRaises(ValueError):    # dyld-1378's 12-bit field would read 4 regions past the end
+            struct.pack_into('<H', data, loader + 0x2c, (4 << 5) | 1)
+            read_set(data, 1, app=False)
+
     def test_classic_uint64_wrap_vm_bounds_and_target_changes(self):
         image = Image('/main', [CacheDependency('/lib', 0xc)], {})
         # Address advance wraps from 16 to 8; all actual writes remain bounded.

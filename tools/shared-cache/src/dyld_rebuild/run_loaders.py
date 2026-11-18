@@ -237,15 +237,38 @@ def dependencies(data):
     return deps,rpaths
 
 
+def has_x86_64(data):
+    """Whether a Mach-O file (thin or fat) has an x86_64 slice."""
+    magic,=struct.unpack_from('>I',data,0)
+    if magic in (0xcafebabe,0xcafebabf):
+        count,=struct.unpack_from('>I',data,4);require(count<64,'fat header count')
+        width=20 if magic==0xcafebabe else 32
+        return any(struct.unpack_from('>I',data,8+i*width)[0]==0x01000007 for i in range(count))
+    if magic==0xcffaedfe:   # little-endian MH_MAGIC_64
+        return struct.unpack_from('<I',data,4)[0]==0x01000007
+    return False
+
+
 def retirement_records(original, original_keys, views):
-    """Programs in Apple's cache that are not on the input System (a patch removed them, e.g. hide-iphone-mirroring):
-    no loader, and their trie keys are dropped."""
+    """Programs in Apple's cache that have no loader here; their trie keys are dropped. Either they are not on the input
+    System (a patch removed them, e.g. hide-iphone-mirroring), or the file there has no x86_64 slice: 27's x86_64 cache
+    carries sets for programs the System ships arm64-only, which x86_64 dyld never launches."""
     rows=[]
     for path in sorted(original):
         lookup=views.resolve(path)
         if lookup['found'] is None:
             rows.append(dict(path=path,original_pool_offset=original[path]['offset'],retired_keys=original[path]['keys'],
                              source_absence=lookup))
+            continue
+        physical=Path(lookup['found']['path'])
+        try:
+            head=physical.read_bytes()[:4096]
+        except PermissionError:
+            require(views.program_files is not None,'unreadable program and no --program-files: '+path)
+            head=(views.program_files/path.lstrip('/')).read_bytes()[:4096]
+        if not has_x86_64(head):
+            rows.append(dict(path=path,original_pool_offset=original[path]['offset'],retired_keys=original[path]['keys'],
+                             reason='no x86_64 slice'))
     return rows
 
 
@@ -256,7 +279,7 @@ def collect_program_inputs(source_manifest, candidate_manifest, views, output):
     finally:original.close()
     views.verify_privileged_programs(required)
     retired=retirement_records(required,keys,views)
-    if retired:print('programs not on this System, retired: '+', '.join(r['path'] for r in retired),flush=True)
+    if retired:print('programs retired (not on this System, or no x86_64 slice): %d' % len(retired),flush=True)
     programs=sorted(set(required)-{r['path'] for r in retired})
     require(programs,'current source has no retained programs')
     candidate,candidate_pins=open_family(candidate_manifest)

@@ -33,7 +33,62 @@ def write(path, value):
     return pin(path)
 
 
-def serialize(helper, manifest, collection, directory, *, programs=False, cached=None):
+def x86_64_uuid(path):
+    """LC_UUID of the x86_64 slice of a Mach-O file (thin or fat), or None."""
+    import struct
+    data = Path(path).read_bytes()
+    off = None
+    magic, = struct.unpack_from('>I', data, 0)
+    if magic in (0xcafebabe, 0xcafebabf):
+        count, = struct.unpack_from('>I', data, 4)
+        for i in range(min(count, 64)):
+            if magic == 0xcafebabe:
+                cpu, _, o, _, _ = struct.unpack_from('>IIIII', data, 8 + i * 20)
+            else:
+                cpu, _, o, _, _, _ = struct.unpack_from('>IIQQII', data, 8 + i * 32)
+            if cpu == 0x01000007:
+                off = o
+    elif struct.unpack_from('<II', data, 0) == (0xfeedfacf, 0x01000007):
+        off = 0
+    if off is None:
+        return None
+    _, _, _, ncmds, _, _ = struct.unpack_from('<IiiIII', data, off + 4)
+    at = off + 32
+    for _ in range(ncmds):
+        cmd, size = struct.unpack_from('<II', data, at)
+        if cmd == 0x1b:
+            return data[at + 8:at + 24].hex()
+        at += size
+    return None
+
+
+def clear_same_uuid_overrides(blob, views, images):
+    """27's cached loaders are all isOverridable with no file validation, so any on-disk file at a cached path counts as
+    a root and drops every dependent to JIT loaders. 27's x86_64 OS cryptex ships libsystem_kernel/platform/pthread as
+    files with the cache images' own UUIDs, so stock's set is never used either. A cached loader stays overridable unless
+    every on-disk copy (System, OS and App cryptex views) carries the cache image's x86_64 LC_UUID; a real root still wins."""
+    data = bytearray(Path(blob).read_bytes())
+    cleared = []
+    for row in read_set(bytes(data), images, app=False)['loaders']:
+        copies = [views.roots[v] / row['path'].lstrip('/') for v in ('system', 'os', 'app') if views.roots.get(v) is not None]
+        copies = [c for c in copies if c.is_file()]
+        if not copies:
+            continue
+        try:
+            uuids = {x86_64_uuid(c) for c in copies}
+        except Exception:   # unreadable or not Mach-O: keep it overridable
+            continue
+        if uuids == {row['uuid']}:
+            at = row['offset'] + 0x2c
+            bits = int.from_bytes(data[at:at + 2], 'little')
+            if bits & 2:
+                data[at:at + 2] = (bits & ~2).to_bytes(2, 'little')
+                cleared.append(row['path'])
+    Path(blob).write_bytes(bytes(data))
+    return cleared
+
+
+def serialize(helper, manifest, collection, directory, *, programs=False, cached=None, views=None):
     directory.mkdir()
     main, count, images, inputs = cache_manifest(manifest)
     files, paths = load_root_manifest(collection['root']['path'])
@@ -43,7 +98,10 @@ def serialize(helper, manifest, collection, directory, *, programs=False, cached
     if not programs:
         blob = directory / 'cached-dylibs.pbl'
         subprocess.run([*command, str(blob), 'cached', str(images), str(count), str(mapping), '-'], check=True)
-        return write(directory / 'result.json', dict(mode='cached', cache_inputs=inputs,
+        cleared = clear_same_uuid_overrides(blob, views, images) if views is not None else []
+        if cleared:
+            print('cached loaders not overridable (on-disk copies are the cache images): ' + ', '.join(cleared), flush=True)
+        return write(directory / 'result.json', dict(mode='cached', cache_inputs=inputs, not_overridable=cleared,
                      cached_set=dict(file=blob.name, size=blob.stat().st_size, sha256=sha(blob))))
     batch = directory / 'batch.tsv'
     batch.write_text(''.join(f'{path}\t{directory}/program-{i:04d}.pbl\t{directory}/program-{i:04d}.log\n'
@@ -51,21 +109,37 @@ def serialize(helper, manifest, collection, directory, *, programs=False, cached
     subprocess.run([*command, str(directory / 'batch-output'), 'program-batch', str(images), str(count),
                     str(mapping), str(cached), str(batch)], check=True)
     rows = []
+    jit = []
     for index, path in enumerate(paths):
         blob = directory / f'program-{index:04d}.pbl'
+        if not blob.exists():
+            log = (directory / f'program-{index:04d}.log').read_text(errors='replace')
+            if 'generation skipped (interposing)' in log:
+                jit.append((path, 'interposing closure: dyld uses JIT loaders'))
+            elif 'generation skipped (unlaunchable)' in log:
+                why = log.split('generation skipped (unlaunchable): ', 1)[1].splitlines()[0]
+                print(f'program not launchable on this image, no set: {path}: {why}', flush=True)
+                jit.append((path, 'unlaunchable: ' + why))
+            else:
+                require(False, 'program serializer refused ' + path)
+            continue
         data = blob.read_bytes()
         parsed = read_set(data, images, app=True)
         rows.append(dict(main_identity(data), file=blob.name, size=len(data), sha256=sha(blob),
                          loader_count=len(parsed['loaders'])))
     inventory = read(collection['inventory'])
+    kept = set(paths) - {path for path, _ in jit}
     entries = {key: path for key, path in inventory['original_keys'].items()
-               if not key.startswith('/cdhash/') and path in paths}
+               if not key.startswith('/cdhash/') and path in kept}
+    retired = list(inventory['retired_programs']) + [
+        dict(path=path, reason=reason,
+             retired_keys=sorted(k for k, v in inventory['original_keys'].items() if v == path)) for path, reason in jit]
     for row in sorted(rows, key=lambda r: r['path'].encode()):
         if row['check_cdhash']:
             entries['/cdhash/' + row['cdhash']] = row['path']
     return write(directory / 'result.json', dict(schema=1, programs=rows,
                  required_program_paths=inventory['required_program_paths'],
-                 retired_programs=inventory['retired_programs'], program_trie_entries=entries))
+                 retired_programs=retired, program_trie_entries=entries))
 
 
 def _loaders(system, os_root, app, data, program_files, intake, assembly, meta, work):
@@ -75,7 +149,7 @@ def _loaders(system, os_root, app, data, program_files, intake, assembly, meta, 
                                         views, work / 'program-inputs')
     print('Build host loader serializer', flush=True)
     helper = loader(work / 'loader')
-    cached = serialize(helper, assembly['path'], collection, work / 'cached')
+    cached = serialize(helper, assembly['path'], collection, work / 'cached', views=views)
     md = read(meta)
     allocation = md['outputs']['metadata-layout.json']
     layout = read(allocation)
@@ -98,7 +172,7 @@ def _loaders(system, os_root, app, data, program_files, intake, assembly, meta, 
          '--header-report', work / 'headers/report.json', '--pbl-report', cached['path'], '--output', work / 'cached-family')
     cached_manifest = work / 'cached-family/build-report.json'
     final_collection = collect_program_inputs(source['path'], cached_manifest, views, work / 'final-program-inputs')
-    serialize(helper, cached_manifest, final_collection, work / 'cached-final')
+    serialize(helper, cached_manifest, final_collection, work / 'cached-final', views=views)
     programs = serialize(helper, cached_manifest, final_collection, work / 'programs', programs=True,
                          cached=work / 'cached-final/cached-dylibs.pbl')
     _run(work, 'program-finalize', 'tools/finalize-program-loaders.py', '--cache-manifest', cached_manifest,
@@ -131,6 +205,9 @@ def build(system, os_root, app, data, build_id, selection, work, output, program
                                  global_sha256=global_['sha256'], structural_sha256=structure['sha256'],
                                  patch_sha256=patch['patch_report']['sha256'],
                                  lookup_sha256=patch['lookup_report']['sha256'])['assembled_manifest']
+    from .swift_conformance import regenerate
+    print('Rebuild Swift conformance lookups', flush=True)
+    assembly = regenerate(assembly['path'], work / 'conformance')
     md = read(meta)
     allocation = md['outputs']['metadata-layout.json']
     layout = read(allocation)
@@ -168,6 +245,7 @@ def build(system, os_root, app, data, build_id, selection, work, output, program
     (output / (BASE + '.map')).write_text(text)
     selected = json.loads(Path(selection).read_text())['providers']
     (output / 'retired-roots.txt').write_text(''.join(path.lstrip('/') + '\n' for path in selected.values()))
+    optimizations['swift']['conformance'] = read(assembly)['conformance']
     write(output / 'optimizations.json', optimizations)
     run = read(intake['run-provenance.json'])
     write(output / 'provider-provenance.json', dict(schema=1, build=build_id, provider_sources=run['provider_sources']))

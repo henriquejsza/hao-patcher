@@ -1,5 +1,5 @@
 diff --git a/build-scripts/prebuilt-loader-hash.sh b/build-scripts/prebuilt-loader-hash.sh
-index 98b0119..e75ffde 100755
+index 98b0119..2e61847 100755
 --- a/build-scripts/prebuilt-loader-hash.sh
 +++ b/build-scripts/prebuilt-loader-hash.sh
 @@ -5,7 +5,7 @@ echo -e "#include \"PrebuiltLoader.h\"\n#include \"PrebuiltObjC.h\"\n#include \"
@@ -11,6 +11,13 @@ index 98b0119..e75ffde 100755
  
  grep -A100 "class dyld4::PrebuiltLoader"                                            ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/pbl.ast
  grep -A100 "struct dyld4::PrebuiltLoaderSet"                                        ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/pbls.ast
+@@ -17,4 +17,5 @@ grep -A100 "struct dyld4::Loader::FileValidationInfo"
+ grep -A100 "class dyld3::MapView<struct prebuilt_objc::ObjCStringKeyOnDisk"         ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/objc_sels.ast
+ grep -A100 "class dyld3::MultiMapView<struct prebuilt_objc::ObjCStringKeyOnDisk"    ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/objc_objects.ast
+ grep -A100 "class objc::SelectorHashTable"                                          ${DERIVED_FILE_DIR}/test.out | grep -B100 -m1 sizeof= > ${DERIVED_FILE_DIR}/shared_cache_objc_sels.ast
+-cat ${DERIVED_FILE_DIR}/pbl.ast ${DERIVED_FILE_DIR}/pbls.ast ${DERIVED_FILE_DIR}/pblsobjc.ast ${DERIVED_FILE_DIR}/pbldeps.ast ${DERIVED_FILE_DIR}/dylibpatch.ast ${DERIVED_FILE_DIR}/fvi.ast ${DERIVED_FILE_DIR}/objc_sels.ast ${DERIVED_FILE_DIR}/objc_objects.ast ${DERIVED_FILE_DIR}/shared_cache_objc_sels.ast ${DERIVED_FILE_DIR}/btabs.ast | md5 | awk '{print "#define PREBUILTLOADER_VERSION 0x" substr($0,0,8)}' > ${DERIVED_FILE_DIR}/PrebuiltLoader_version.h
++# 27 (26B131)'s dyld checks versionHash 0x9593b355: the md5 of its own layout dump, which these sources cannot reproduce
++echo "#define PREBUILTLOADER_VERSION 0x9593b355" > ${DERIVED_FILE_DIR}/PrebuiltLoader_version.h
 diff --git a/cache_builder/NewSharedCacheBuilder.cpp b/cache_builder/NewSharedCacheBuilder.cpp
 index 6ddc1c4..f15fb5b 100644
 --- a/cache_builder/NewSharedCacheBuilder.cpp
@@ -70,6 +77,21 @@ index c541e04..9e7636a 100644
  
  namespace dyld4 {
  
+diff --git a/common/MachOAnalyzer.cpp b/common/MachOAnalyzer.cpp
+index bdf7f5e..ab941f6 100644
+--- a/common/MachOAnalyzer.cpp
++++ b/common/MachOAnalyzer.cpp
+@@ -4501,7 +4501,9 @@ void MachOAnalyzer::forEachBindTarget_ChainedFixups(Diagnostics& diag, void (^ha
+     // The C++ spec says main executables can define non-weak functions which override weak-defs in dylibs
+     // This happens automatically for anything bound at launch, but the dyld cache is pre-bound so we need
+     // to patch any binds that are overridden by this non-weak in the main executable.
+-    if ( diag.noError() && this->isMainExecutable() && this->hasWeakDefs() ) {
++    // 27 (26B131): main-executable treat-as-weak overrides are no longer bind targets; dyld handles them at launch
++    // (JustInTimeLoader::handleStrongWeakDefOverrides), and stock program sets carry only the import table
++    if ( false && diag.noError() && this->isMainExecutable() && this->hasWeakDefs() ) {
+         MachOAnalyzer::forEachTreatAsWeakDef(^(const char* symbolName) {
+             BindTargetInfo info;
+             info.targetIndex = targetIndex;
 diff --git a/common/MachOFile.cpp b/common/MachOFile.cpp
 index 4e4fcc1..00c5b8e 100644
 --- a/common/MachOFile.cpp
@@ -137,6 +159,21 @@ index 4e4fcc1..00c5b8e 100644
              callback(cdHash);
              return;
          }
+diff --git a/common/MachOLayout.cpp b/common/MachOLayout.cpp
+index 62ea086..13ac94b 100644
+--- a/common/MachOLayout.cpp
++++ b/common/MachOLayout.cpp
+@@ -499,7 +499,9 @@ void Fixups::forEachBindTarget_ChainedFixups(Diagnostics& diag, void (^handler)(
+     // The C++ spec says main executables can define non-weak functions which override weak-defs in dylibs
+     // This happens automatically for anything bound at launch, but the dyld cache is pre-bound so we need
+     // to patch any binds that are overridden by this non-weak in the main executable.
+-    if ( diag.noError() && this->layout.mf->isMainExecutable() && this->layout.mf->hasWeakDefs() ) {
++    // 27 (26B131): main-executable treat-as-weak overrides are no longer bind targets; dyld handles them at launch
++    // (JustInTimeLoader::handleStrongWeakDefOverrides), and stock program sets carry only the import table
++    if ( false && diag.noError() && this->layout.mf->isMainExecutable() && this->layout.mf->hasWeakDefs() ) {
+         dyld3::MachOFile::forEachTreatAsWeakDef(^(const char* symbolName) {
+             BindTargetInfo info;
+             info.targetIndex = targetIndex;
 diff --git a/common/MachOLoaded.cpp b/common/MachOLoaded.cpp
 index 2dcf7e1..6b40ebb 100644
 --- a/common/MachOLoaded.cpp
@@ -278,6 +315,99 @@ index fd28975..9b7bb38 100644
          }
      }
      else if ( log.searching ) {
+diff --git a/dyld/PrebuiltLoader.cpp b/dyld/PrebuiltLoader.cpp
+index a8d75e8..a31dd3c 100644
+--- a/dyld/PrebuiltLoader.cpp
++++ b/dyld/PrebuiltLoader.cpp
+@@ -1296,7 +1296,8 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+ 
+     // record offset of load command that specifies fixups (LC_DYLD_INFO or LC_DYLD_CHAINED_FIXUPS)
+     const MachOFile* mf = jitLoader.mf(state);
+-    p->fixupsLoadCommandOffset = mf->getFixupsLoadCommandFileOffset();
++    // 27 (26B131) writes 0 here and never reads it
++    p->fixupsLoadCommandOffset = 0;
+ 
+     // append path to serialization
+     p->pathOffset    = allocator.size() - serializationStart;
+@@ -1314,6 +1315,27 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+ 
+     // append dependents to serialization
+     uint32_t depCount = jitLoader.dependentCount();
++    // 27 (26B131): a cached dylib that links nothing but names an umbrella (LC_SUB_FRAMEWORK) gets that umbrella as a
++    // regular dependent (stock: libsystem_kernel -> libSystem.B), which orders libSystem's initializer before it
++    __block uint32_t umbrellaIndex = UINT32_MAX;
++    if ( depCount == 0 && jitLoader.dylibInDyldCache ) {
++        ((mach_o::UnsafeHeader*)mf)->forEachLoadCommandSafe(^(const load_command* cmd, bool& stop) {
++            if ( cmd->cmd != LC_SUB_FRAMEWORK )
++                return;
++            const char* umbrella = (const char*)cmd + ((const sub_framework_command*)cmd)->umbrella.offset;
++            char umbrellaPath[PATH_MAX];
++            if ( strcmp(umbrella, "System") == 0 )
++                strlcpy(umbrellaPath, "/usr/lib/libSystem.B.dylib", sizeof(umbrellaPath));
++            else
++                snprintf(umbrellaPath, sizeof(umbrellaPath), "/System/Library/Frameworks/%s.framework/Versions/A/%s", umbrella, umbrella);
++            uint32_t index;
++            if ( state.config.dyldCache.indexOfPath(umbrellaPath, index) )
++                umbrellaIndex = index;
++            stop = true;
++        });
++    }
++    if ( umbrellaIndex != UINT32_MAX )
++        depCount = 1;
+     p->depCount = depCount;
+     allocator.align(sizeof(LoaderRef));
+     uint16_t depLoaderRefsArrayOffset = allocator.size() - serializationStart;
+@@ -1322,7 +1344,11 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+     BumpAllocatorPtr<LoaderRef>      depArray(allocator, serializationStart + depLoaderRefsArrayOffset);
+     Loader::LinkedDylibAttributes depAttrs[depCount+1];
+     bool                  hasNonRegularLink = false;
+-    for ( uint32_t depIndex = 0; depIndex < depCount; ++depIndex ) {
++    if ( umbrellaIndex != UINT32_MAX ) {
++        depAttrs[0] = Loader::LinkedDylibAttributes::regular;
++        depArray.get()[0] = LoaderRef(false, umbrellaIndex);
++    }
++    for ( uint32_t depIndex = 0; umbrellaIndex == UINT32_MAX && depIndex < depCount; ++depIndex ) {
+         Loader* depLoader = jitLoader.dependent(state, depIndex, &depAttrs[depIndex]);
+         if ( depAttrs[depIndex] != Loader::LinkedDylibAttributes::regular )
+             hasNonRegularLink = true;
+@@ -1395,6 +1421,23 @@ void PrebuiltLoader::serialize(Diagnostics& diag, RuntimeState& state, const Jus
+     bool buildingMacOSCache = jitLoader.dylibInDyldCache && isMacOSOrCataylyst;
+     p->supportsCatalyst     = buildingMacOSCache && ((mach_o::UnsafeHeader*)mf)->builtForPlatform(Platform::macCatalyst);
+     p->isCatalystOverride   = false;
++    p->tlvsPreKeyed         = false;
++    if ( jitLoader.dylibInDyldCache && jitLoader.hasTLVs ) {
++        // 27: set when every TLV thunk of the cached dylib already carries the cache builder's key
++        __block bool sawThunk = false, allKeyed = true;
++        intptr_t slide = (intptr_t)((mach_o::UnsafeHeader*)mf)->getSlide();
++        ((mach_o::UnsafeHeader*)mf)->forEachSection(^(const mach_o::UnsafeHeader::SectionInfo& sectInfo, bool& stop) {
++            if ( (sectInfo.flags & SECTION_TYPE) != S_THREAD_LOCAL_VARIABLES )
++                return;
++            const uint64_t* words = (const uint64_t*)(sectInfo.address + slide);
++            for ( uint64_t i = 0; i + 3 <= sectInfo.size / sizeof(uint64_t); i += 3 ) {
++                sawThunk = true;
++                if ( words[i + 1] == 0 )
++                    allKeyed = false;
++            }
++        });
++        p->tlvsPreKeyed = sawThunk && allKeyed;
++    }
+     p->indexOfTwin          = kNoUnzipperedTwin;
+     p->reserved1            = 0;
+     if ( buildingMacOSCache ) {
+diff --git a/dyld/PrebuiltLoader.h b/dyld/PrebuiltLoader.h
+index ab19eb4..062b06c 100644
+--- a/dyld/PrebuiltLoader.h
++++ b/dyld/PrebuiltLoader.h
+@@ -144,7 +144,8 @@ public:
+                         isOverridable        :  1,      // if in dyld cache, can roots override it
+                         supportsCatalyst     :  1,      // if false, this cannot be used in catalyst process
+                         isCatalystOverride   :  1,      // catalyst side of unzippered twin
+-                        regionsCount         : 12;
++                        tlvsPreKeyed         :  1,      // 27 (26B131): the cache builder keyed this dylib's TLV thunks; dyld skips setUpThreadLocals
++                        regionsCount         : 11;
+     uint16_t            regionsOffset;                  // offset to Region array
+ 
+     uint16_t            depCount;
 diff --git a/include/mach-o/dyld.h b/include/mach-o/dyld.h
 index 7bf19c0..de6aa56 100644
 --- a/include/mach-o/dyld.h

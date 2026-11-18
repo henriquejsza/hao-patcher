@@ -131,7 +131,33 @@ NEEDS VALIDATION: no family built by this revision has been booted yet. A boot o
 See [NOTICE.md](NOTICE.md): the vendored frida-gum and Swift headers and Apple's open-source headers and the patch
 against dyld keep their own licences. The rest is covered by the repository's MIT license.
 
+## Rebuild Swift conformance lookups
+
+Cache builders can regenerate type, metadata and foreign-name lookups from the
+final image sections and ObjC identities. The normal build does this before
+loader finalization. Each key is checked with Apple's runtime table reader;
+Python separately checks all values and duplicate chains.
+
+```sh
+# Inspect a family and emit regenerated table blobs (no cache writes).
+python3.14 -I tools/shared-cache/make swift-conformance --cache CACHE --output NEW_DIRECTORY
+# Emit a signed family from a pinned bootstrap manifest.
+python3.14 -I tools/shared-cache/make swift-conformance --manifest MANIFEST --output NEW_DIRECTORY
+```
+
+Set `CACHE_TOOLCHAIN` to a `toolchain/make` output. `--writer` reuses a compiled
+adapter. `--replay-existing` with `--cache` calibrates serialization against the
+existing records instead of scanning sections.
+
+The signed stage preserves table addresses and refuses tables larger than their
+original reservations. It updates subcache UUIDs, the main UUID directory and
+signatures; the normal producer subsequently rebuilds external sidecars. A stage
+output alone is not a deployable artifact. Existing runtime override gates remain
+in force; host lookup checks do not establish boot success or a speedup.
+
 ## Revisions
+- r88 2026-11-18 Prebuilt loaders in 27's layout (26B131): a TLV pre-keyed flag at +0x2c bit 4, an 11-bit regionsCount, +0x26 left 0, versionHash 0x9593b355 (source.patch, read_set). The generator maps 27's 568-byte cache header. Main executables no longer get the treat-as-weak operator binds (27 resolves them at launch), and a Catalyst program takes iOSSupport twins first. A cached dylib that links nothing but names an umbrella gets that umbrella as its dependent. Regenerated from stock 262FA161: the cached set and 2375 of 2376 program sets match byte for byte (open: one weak link satisfied only by a cache alias).
+- r87 2026-11-18 Regenerate Swift conformance lookups from final image sections before loader finalization; verify keys with Apple’s reader and update signatures and UUID references.
 - r86 2026-11-18 No prebuilt loaders: the dylibs loader-set address is the cache base, not 0. 26B131's dyld calls validHeader on it without a null check, and 0 faulted launchd at boot; at the base it reads the header magic and falls back to JIT loaders.
 - r85 2026-11-15 Disk guard: a build checks free space on its work and output volumes (and an optional site check
   command) before writing, and removes its intermediates when the family is written (`--keep-work` keeps them).

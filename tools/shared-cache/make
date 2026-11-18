@@ -29,6 +29,9 @@ def mounted(image):
 
 
 def main():
+    if len(sys.argv)>1 and sys.argv[1]=='swift-conformance':
+        from dyld_rebuild.swift_conformance import main as conformance_main
+        return conformance_main(sys.argv[2:])
     if len(sys.argv)>1 and sys.argv[1]=='inventory':
         from dyld_rebuild.swift_inventory import main as inventory_main
         return inventory_main(sys.argv[2:])
