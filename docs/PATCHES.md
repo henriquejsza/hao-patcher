@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-57 of 59 patches declare their files so far.
+58 of 60 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -44,6 +44,12 @@ Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 - `Library/LaunchDaemons/local.testssh.plist`: whole file from hao. Data volume; src/local.testssh.plist: launchd runs sshd -i per connection on port 22; root:wheel 0644.
 - `private/var/root/.testssh/screensharing-users`: whole file from hao (row screensharing_users). Data volume; the account names allowed to use Screen Sharing, one per line; root:wheel 0600.
 - `Library/LaunchDaemons/dev.hao.screensharing.plist`: whole file from hao. Data volume; src/dev.hao.screensharing.plist: at every boot, the accounts in screensharing-users join com.apple.access_screensharing and Apple's Screen Sharing service is enabled and loaded (LAN, port 5900); root:wheel 0644; dev images only.
+
+## dev-capture
+
+Revision r1, status dev. [Recipe](../patches/dev-capture/README.md)
+
+- `Library/Preferences/Logging/Subsystems/com.hao.plist`: whole file from hao. Data volume; src/com.hao.plist: the com.hao subsystem's messages persist at Info; root:wheel 0644.
 
 ## dev-diagnostics
 

@@ -1,0 +1,24 @@
+{
+ "revision": 1,
+ "pack": "dev",
+ "stage": "post",
+ "inputs": [],
+ "status": "dev",
+ "validated": false,
+ "files": [
+  {
+   "path": "Library/Preferences/Logging/Subsystems/com.hao.plist",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; src/com.hao.plist: the com.hao subsystem's messages persist at Info; root:wheel 0644"
+   }
+  }
+ ],
+ "requires": {
+  "os": "any",
+  "donor": "any",
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
+}
