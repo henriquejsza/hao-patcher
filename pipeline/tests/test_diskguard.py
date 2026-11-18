@@ -60,7 +60,10 @@ class DiskGuard(unittest.TestCase):
             r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/golden-run'), str(Path(d) / 'a.json'),
                                 '--repo', str(Path(d) / 'repo'), '--work', str(Path(d) / 'work'),
                                 '--record', str(Path(d) / 'record')], capture_output=True, text=True,
-                               env={k: v for k, v in os.environ.items() if k != 'HAO_DISK_CHECK'})
+                               env=dict({k: v for k, v in os.environ.items() if k != 'HAO_DISK_CHECK'},
+                                        # the host's live-swap ledger is not this test's: an open proven swap
+                                        # there would stop golden-run before the disk check
+                                        HAO_SWAP_LEDGER=str(Path(d) / 'no-ledger.tsv')))
             self.assertNotEqual(r.returncode, 0)
             self.assertIn('under the floor', r.stderr + r.stdout)
             self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ['a.json'])
