@@ -261,16 +261,22 @@ def take(lock, name, dest, src=None):
     if not os.path.isfile(src):
         sys.exit('%s: %s is not a file (%s)' % (lock, src, name))
     out = os.path.join(dest, os.path.basename(src))
-    h = hashlib.sha256()
+    h, made = hashlib.sha256(), None
     try:
         with open(src, 'rb') as f, open(out, 'xb') as o:
+            made = os.fstat(o.fileno())          # only what this call created is removed on failure
             for b in iter(lambda: f.read(1 << 22), b''):
                 h.update(b); o.write(b)
         if h.hexdigest() != want:
             sys.exit('%s: %s is not %s (%s)' % (lock, src, want, name))
     except BaseException:
-        if os.path.exists(out):
-            os.unlink(out)
+        if made is not None:
+            try:
+                st = os.lstat(out)
+                if (st.st_dev, st.st_ino) == (made.st_dev, made.st_ino):
+                    os.unlink(out)
+            except OSError:
+                pass
         raise
     return out
 

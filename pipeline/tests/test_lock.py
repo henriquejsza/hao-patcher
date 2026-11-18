@@ -51,6 +51,17 @@ class Lock(unittest.TestCase):
         r = lock('take', p, 'kdk', out / 'o1', self.f)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_take_never_removes_a_file_it_did_not_create(self):
+        p = self.write('kdk %s %s\n' % (self.sha, self.f))
+        out = self.d / 'out'; out.mkdir()
+        (out / 'payload').write_bytes(b'already here')
+        r = lock('take', p, 'kdk', out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual((out / 'payload').read_bytes(), b'already here')
+        r = lock('take', p, 'kdk', self.d)          # the source's own folder as the destination
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(self.f.read_bytes(), b'abc')
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))
