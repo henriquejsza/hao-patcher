@@ -100,6 +100,42 @@ class Lock(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertEqual((there / 'keep').read_bytes(), b'k', 'a destination this call did not make is left alone')
 
+    def test_stage_copies_a_row_and_checks_the_copy(self):
+        t, d, want, L = self.tree_row()
+        os.utime(t / 'sub' / 'a', ns=(10**18, 10**18))
+        (d / 'kdk').write_text('%s %s\n' % (self.sha, self.f))
+        out = self.d / 'staged'
+        r = lock('stage', d, 'site', out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(L.row_sha256(str(out), without=('notes',)), want)
+        self.assertEqual((out / 'sub' / 'a').stat().st_mtime_ns, 10**18, 'metadata kept, as cp -Rp')
+        self.assertTrue((out / 'notes').exists(), 'every entry is copied, as before')
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        self.assertEqual((out / 'sub' / 'a').read_bytes(), b'a')
+        r = lock('stage', d, 'kdk', self.d / 'kdk-copy')
+        self.assertEqual((r.returncode, (self.d / 'kdk-copy').read_bytes()), (0, b'abc'))
+        self.assertEqual(lock('where', d, 'kdk').stdout.strip(), str(self.f))
+
+    def test_stage_refuses_changed_bytes_existing_destinations_and_unpinned_rows(self):
+        t, d, want, L = self.tree_row()
+        (t / 'sub' / 'a').write_bytes(b'evil')
+        r = lock('stage', d, 'site', self.d / 'staged')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse((self.d / 'staged').exists(), 'a copy that does not check is removed')
+        (d / 'kdk').write_text('%s %s\n' % ('0' * 64, self.f))
+        r = lock('stage', d, 'kdk', self.d / 'kdk-copy')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse((self.d / 'kdk-copy').exists())
+        there = self.d / 'there'; there.write_bytes(b'keep')
+        (d / 'kdk').write_text('%s %s\n' % (self.sha, self.f))
+        self.assertNotEqual(lock('stage', d, 'kdk', there).returncode, 0)
+        self.assertEqual(there.read_bytes(), b'keep', 'a destination this call did not make is left alone')
+        (d / 'loose').write_text('- %s\n' % self.f)
+        r = lock('stage', d, 'loose', self.d / 'loose-copy')
+        self.assertIn('no sha256', r.stderr)
+        (d / 'tool').write_text('- pipeline/lock.py\n')     # a '-' row of this checkout: pinned by the commit
+        self.assertEqual(lock('stage', d, 'tool', self.d / 'tool-copy').returncode, 0)
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))

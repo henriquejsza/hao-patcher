@@ -353,6 +353,56 @@ def take_tree(lock, name, dest):
     return dest
 
 
+def where(lock, name):
+    """Row NAME's path, unchecked: only to decide where a checked copy goes (stage), never to read it."""
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    return r[name][1]
+
+
+def stage(lock, name, dest, tool='cp'):
+    """Copy row NAME to DEST (made here; it must not exist) as before a check (cp -Rpc: clones, every entry and its
+    metadata; TOOL ditto: ditto), then check the copy (its sha256 or content sha256 and check lines): what is
+    checked is what later steps read, never the row's path, which may change after a check. A '-' row is copied only
+    when it is part of this checkout (pinned by the commit). On a failure only DEST, which this call made, is
+    removed."""
+    import shutil, subprocess
+    r = rows(lock)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    if want == '-' and not in_checkout(p):
+        sys.exit('%s: row %s has no sha256' % (lock, name))
+    if not os.path.exists(p):
+        sys.exit('%s: %s is not there (%s)' % (lock, p, name))
+    if os.path.lexists(dest):
+        sys.exit('%s: %s is there already (%s)' % (lock, dest, name))
+    made = False
+    try:
+        cmd = ['/usr/bin/ditto', p, dest] if tool == 'ditto' else ['/bin/cp', '-Rpc' if os.path.isdir(p) else '-pc', p, dest]
+        if subprocess.run(cmd).returncode:
+            made = os.path.lexists(dest)
+            sys.exit('%s: copying %s failed (%s)' % (lock, p, name))
+        made = True
+        st = os.lstat(dest)
+        if stat.S_ISLNK(st.st_mode) or stat.S_ISDIR(st.st_mode) != os.path.isdir(p):
+            sys.exit('%s: the copy of %s is not a %s (%s)' % (lock, p, 'folder' if os.path.isdir(p) else 'file', name))
+        if want != '-' and row_hash(lock, name, dest) != want:
+            sys.exit('%s: %s is not %s (%s)' % (lock, p, want, name))
+        bad = check_row(lock, name, dest)
+        if bad:
+            sys.exit('\n'.join('%s: %s' % (lock, b) for b in bad))
+    except BaseException:
+        if made:
+            if os.path.isdir(dest) and not os.path.islink(dest):
+                shutil.rmtree(dest, ignore_errors=True)
+            else:
+                os.unlink(dest)
+        raise
+    return dest
+
+
 def row_identity(sha, p, store):
     """What a row's input is, independent of the store's location: its sha256 column; for a '-' row the file's own
     content digest, else (a folder, or not there yet) its path relative to the store (outside the store: the path).
@@ -562,5 +612,5 @@ def verify_store(*argv):
 
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
-    print({'path': path, 'take': take, 'take-tree': take_tree, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
+    print({'path': path, 'take': take, 'take-tree': take_tree, 'stage': stage, 'where': where, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
            'oclp-keys': oclp_keys, 'verify-store': verify_store}[cmd](*args))

@@ -15,7 +15,9 @@ set -eu
 SHARE=${1:?share}; TARGET=${2:?target json}; LOCK=${3:?inputs lock}; COMMON=${4:?common lock}; OCLP=${5:?OCLP commit}; SET=${6:?set}
 HERE=${0:A:h}; TOP=${HERE:h:h}; L=(python3 -I $TOP/pipeline/lock.py)
 OCLP_REPO=${OCLP_REPO:-$TOP/store/oclp}
-in() { $L path $LOCK $1; }; common() { $L path $COMMON $1; }
+# Every row handed on is copied first and checked as copied (lock.py stage, take, take-tree): never read by its row's
+# path after a check, which another process could change in between.
+stage() { $L stage $1 $2 $3 >/dev/null; }   # LOCK ROW DEST
 
 FOUNDATION=${7:-legacy}
 case $FOUNDATION in legacy|golden-first) ;; *) print -u2 "unknown foundation: $FOUNDATION"; exit 2 ;; esac
@@ -28,15 +30,15 @@ KDKDMG=$(take $LOCK kdk)
 mkdir -p $SHARE/pristine $SHARE/oclp $SHARE/kdk $SHARE/hooks $SHARE/post
 cp -p $HERE/copy-hooks.py $SHARE/copy-hooks.py
 if [[ $FOUNDATION == legacy ]]; then
-    UNPACK=$(in unpack); LISTS=$(in lists)
+    UNPACK=$V/unpack; LISTS=$V/lists; stage $LOCK unpack $UNPACK; stage $LOCK lists $LISTS
     cp -c $UNPACK/payload.yaa $UNPACK/zip/AssetData/payloadv2/{links.txt,firmlinks_payload} $SHARE/pristine/
     cp -c $LISTS/{sys,data,data-symlinks}.tsv $SHARE/pristine/
     cp $HERE/firmlinks.tsv $SHARE/pristine/meta17.tsv; cp $HERE/rootuuid.tsv $SHARE/pristine/
-    for t in autool hmeta fl fl-noent; do cp -c $(common $t) $SHARE/pristine/; done
+    for t in autool hmeta fl fl-noent; do stage $COMMON $t $SHARE/pristine/$t; chmod 0755 $SHARE/pristine/$t; done
 else
     # Golden-first assembly reads its filesystem and donor artifacts explicitly.
     # Only the generic entitled firmlink tool is shared with pristine assembly.
-    cp -c $(common fl) $SHARE/pristine/fl
+    stage $COMMON fl $SHARE/pristine/fl; chmod 0755 $SHARE/pristine/fl
 fi
 
 # OCLP's source at the assembly's commit: from the repository (git archive), or, on a Mac without git (an Intel Mac
@@ -57,7 +59,7 @@ if [[ ! -d $OCLP_REPO/.git && ! -f $OCLP_REPO/HEAD ]] || ! command -v git >/dev/
 else
     git -C $OCLP_REPO archive $OCLP | tar -x -C $SHARE/oclp; OCLP_FULL=$(git -C $OCLP_REPO rev-parse $OCLP)
 fi
-cp $(common psp_$($L psp $SHARE/oclp)) $SHARE/oclp/Universal-Binaries.dmg
+stage $COMMON psp_$($L psp $SHARE/oclp) $SHARE/oclp/Universal-Binaries.dmg
 
 KDK=$($L kdk-name $KDKDMG)
 W=$(mktemp -d $V/kdk-x.XXXXXX); mkdir $W/m
@@ -88,7 +90,8 @@ skip=(); for g in ${=SKIP_OPTIONAL:-}; do skip+=(--skip-optional $g); done
 python3 -I $TOP/pipeline/patches.py plan $SET $TARGET ${GOLDEN_LOCK:+${GOLDEN_LOCK:t}/}${LOCK:t:r} --locks ${GOLDEN_LOCK:+$GOLDEN_LOCK:}$LOCK:$COMMON \
     $skip --record $SHARE/optional.json > $SHARE/plan.txt
 awk '$1 != "recovery"' $SHARE/plan.txt > $SHARE/patches.txt; rm $SHARE/plan.txt   # recovery patches: pipeline/recovery
-row() { if [[ -n $GOLDEN_LOCK && -f $GOLDEN_LOCK/$1 ]]; then $L path $GOLDEN_LOCK $1; elif [[ -f $LOCK/$1 ]]; then in $1; else common $1; fi; }
+lock_of() { if [[ -n $GOLDEN_LOCK && -f $GOLDEN_LOCK/$1 ]]; then print $GOLDEN_LOCK; elif [[ -f $LOCK/$1 ]]; then print $LOCK; else print $COMMON; fi; }
+typeset -A staged   # row -> its checked copy, made once per run (a row used by two patches)
 i=0
 while read -r stage name ins; do
     i=$((i + 1))
@@ -101,10 +104,15 @@ while read -r stage name ins; do
     # metadata when cloning it into the share, so its generated indexes stay valid.
     # A row on the USB drive (KIT_ON_DRIVE, create-installer: the userspace images) is linked, never copied: the
     # stick writer moves it into the kit on that drive.
+    # The checked copy of such a row is made on that drive (clones) and linked.
     for n in ${=ins}; do
-        src=$(row $n)
-        if [[ -n ${KIT_ON_DRIVE:-} && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then ln -s $(realpath $src) $d/inputs/$n
-        else cp -Rpc $src $d/inputs/$n; fi
+        if [[ -n ${staged[$n]:-} && -L ${staged[$n]} ]]; then ln -s $(realpath ${staged[$n]}) $d/inputs/$n; continue; fi
+        if [[ -n ${staged[$n]:-} ]]; then cp -Rpc ${staged[$n]} $d/inputs/$n; continue; fi
+        src=$($L where $(lock_of $n) $n)
+        if [[ -n ${KIT_ON_DRIVE:-} && -e $src && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then
+            c=$(mktemp -d $KIT_ON_DRIVE/.checked.XXXXXX)/$n; stage $(lock_of $n) $n $c; ln -s $c $d/inputs/$n
+        else stage $(lock_of $n) $n $d/inputs/$n; fi
+        staged[$n]=$d/inputs/$n
     done
 done < $SHARE/patches.txt
 # A target without an OCLP hardware profile (the generic one: no OCLP patch sets) has none to record: null, said so.

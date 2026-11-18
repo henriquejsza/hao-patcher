@@ -167,6 +167,135 @@ class InputsStage(unittest.TestCase):
         self.assertIn('(python_site)', r.stderr)
         self.assertFalse((share / 'site').exists())
 
+    def test_tools_and_psp_are_the_checked_bytes_even_when_swapped_after_a_check(self):
+        """A cp on PATH that swaps fl and the PatcherSupportPkg image before copying them: what was checked by path
+        is not what was copied. The share must hold the rows' bytes (copied, then checked as copied)."""
+        swap = self.fakes / 'cp'
+        swap.write_text('#!/bin/sh\nfor a; do case "$a" in */fl|*/Universal-Binaries.dmg) [ -f "$a" ] && '
+                        'printf evil > "$a";; esac; done\nexec /bin/cp "$@"\n')
+        swap.chmod(0o755)
+        r, share = self.run_stage()
+        self.assertIn('has no row python_site', r.stderr)
+        self.assertEqual((share / 'pristine/fl').read_bytes(), b'fl tool')
+        self.assertEqual((share / 'pristine/fl').stat().st_mode & 0o777, 0o755)
+        self.assertEqual((share / 'oclp/Universal-Binaries.dmg').read_bytes(), b'psp')
+
+    def test_a_changed_tool_stops_and_is_not_staged(self):
+        (self.files / 'fl').write_bytes(b'evil')
+        r, share = self.run_stage()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('(fl)', r.stderr)
+        self.assertFalse((share / 'pristine/fl').exists())
+
+    def patch_rows(self):
+        """A set of two real hook recipes whose rows are fake folders here; the Golden Gate build's lock, donor lock
+        and common as golden-first reads them. The run goes on past the patch inputs (the target needs a profile)."""
+        import shutil
+        site = self.site_row('# hash: without extra.py\n')
+        golden = self.d / 'golden' / '26B131'; golden.mkdir(parents=True)
+        donor = self.d / '25G342'; donor.mkdir()
+        for f in self.lock.iterdir():
+            shutil.copy(f, donor / f.name)
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock
+        rows = {}
+        for name in ('hd4000_planes', 'ids_service'):
+            t = self.d / 'rows' / name; t.mkdir(parents=True)
+            (t / 'payload.bin').write_bytes(name.encode())
+            (golden / name).write_text('%s %s\n' % (lock.row_sha256(str(t)), t))
+            rows[name] = t
+        (self.d / 'set.txt').write_text('golden-gate-hd4000-planes\ngolden-gate-ids\n')
+        return golden, donor, rows
+
+    def run_golden(self, golden, donor, share='share', **env):
+        e = dict(os.environ, PATH='%s:%s' % (self.fakes, os.environ['PATH']), FAKE_LOG=str(self.log),
+                 OCLP_REPO=str(self.d / 'no-repo'), GOLDEN_LOCK=str(golden), **env)
+        share = self.d / share
+        r = subprocess.run(['zsh', str(TOP / 'pipeline/stages/inputs.sh'), share, TOP / 'pipeline/targets/mbp92.json',
+                            donor, self.common, COMMIT[:9], self.d / 'set.txt', 'golden-first'],
+                           capture_output=True, text=True, env=e)
+        return r, share
+
+    def test_patch_inputs_are_checked_copies(self):
+        golden, donor, rows = self.patch_rows()
+        r, share = self.run_golden(golden, donor)
+        got = sorted(share.glob('hooks/*/inputs/*/payload.bin'))
+        self.assertEqual([p.read_bytes() for p in got], [b'hd4000_planes', b'ids_service'], r.stderr)
+
+    def test_a_changed_patch_input_stops_and_is_not_staged(self):
+        golden, donor, rows = self.patch_rows()
+        (rows['ids_service'] / 'payload.bin').write_bytes(b'evil')
+        r, share = self.run_golden(golden, donor)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('(ids_service)', r.stderr)
+        self.assertEqual(list(share.glob('hooks/*/inputs/ids_service')), [])
+
+    def test_a_patch_input_on_the_usb_drive_is_linked_to_a_checked_copy_there(self):
+        import shutil
+        golden, donor, rows = self.patch_rows()
+        drive = self.d / 'drive' / '.hao-build'; drive.mkdir(parents=True)
+        moved = drive / 'hd4000_planes'
+        shutil.move(rows['hd4000_planes'], moved)
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock
+        (golden / 'hd4000_planes').write_text('%s %s\n' % (lock.row_sha256(str(moved)), moved))
+        r, share = self.run_golden(golden, donor, KIT_ON_DRIVE=os.path.realpath(drive))
+        link = next(share.glob('hooks/*/inputs/hd4000_planes'))
+        self.assertTrue(link.is_symlink(), r.stderr)
+        target = Path(os.path.realpath(link))
+        self.assertNotEqual(target, Path(os.path.realpath(moved)), 'a checked copy, not the row\'s own folder')
+        self.assertTrue(target.is_relative_to(os.path.realpath(drive)), 'on the drive, where the USB installer adopts it')
+        (moved / 'payload.bin').write_bytes(b'evil')
+        self.assertEqual((link / 'payload.bin').read_bytes(), b'hd4000_planes')
+
+    def legacy_rows(self):
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock
+        store = self.files / 'store'
+        unpack = store / 'unpack'; (unpack / 'zip/AssetData/payloadv2').mkdir(parents=True)
+        (unpack / 'payload.yaa').write_bytes(b'yaa')
+        for n in ('links.txt', 'firmlinks_payload'):
+            (unpack / 'zip/AssetData/payloadv2' / n).write_bytes(n.encode())
+        lists = store / 'lists'; lists.mkdir()
+        for n in ('sys', 'data', 'data-symlinks'):
+            (lists / (n + '.tsv')).write_text('Library/x\t../y\n')
+        for name, t in (('unpack', unpack), ('lists', lists)):
+            (self.lock / name).write_text('%s %s\n' % (lock.row_sha256(str(t)), t))
+        for t in ('autool', 'hmeta', 'fl-noent'):
+            self.row(self.common, t, t, t.encode() + b' tool')
+        return store
+
+    def run_legacy(self, share='share', **env):
+        e = dict(os.environ, PATH='%s:%s' % (self.fakes, os.environ['PATH']), FAKE_LOG=str(self.log),
+                 OCLP_REPO=str(self.d / 'no-repo'), **env)
+        share = self.d / share
+        r = subprocess.run(['zsh', str(TOP / 'pipeline/stages/inputs.sh'), share, self.d / 'target.json', self.lock,
+                            self.common, COMMIT[:9], self.d / 'set.txt', 'legacy'], capture_output=True, text=True, env=e)
+        return r, share
+
+    def test_legacy_pristine_inputs_are_the_checked_bytes_even_when_swapped_after_a_check(self):
+        store = self.legacy_rows()
+        swap = self.fakes / 'cp'                  # swaps any store file it is asked to copy, then copies
+        swap.write_text('#!/bin/sh\nfor a; do case "$a" in %s/*) [ -f "$a" ] && printf evil > "$a";; esac; done\n'
+                        'exec /bin/cp "$@"\n' % store)
+        swap.chmod(0o755)
+        r, share = self.run_legacy()
+        self.assertIn('has no row python_site', r.stderr)
+        p = share / 'pristine'
+        self.assertEqual([(p / n).read_bytes() for n in ('payload.yaa', 'links.txt', 'data-symlinks.tsv')],
+                         [b'yaa', b'links.txt', b'Library/x\t../y\n'])
+        self.assertEqual([(p / t).read_bytes() for t in ('autool', 'hmeta', 'fl-noent')],
+                         [b'autool tool', b'hmeta tool', b'fl-noent tool'])
+        self.assertTrue(all((p / t).stat().st_mode & 0o777 == 0o755 for t in ('autool', 'hmeta', 'fl', 'fl-noent')))
+
+    def test_a_changed_list_stops_before_anything_of_it_is_staged(self):
+        store = self.legacy_rows()
+        (store / 'lists' / 'data-symlinks.tsv').write_text('../../etc\tx\n')
+        r, share = self.run_legacy()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('(lists)', r.stderr)
+        self.assertFalse((share / 'pristine/data-symlinks.tsv').exists())
+
 
 if __name__ == '__main__':
     unittest.main()
