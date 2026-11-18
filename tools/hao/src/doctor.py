@@ -183,13 +183,21 @@ def check_signature(release, purpose, keys_path=None):
             try:
                 SIGN.load_keys(keys_path)
             except SIGN.SignatureError as x:
+                if SIGN.waiver('v0.0.1'):     # v0.0.1 ships unsigned (owner waiver): no keys yet is expected
+                    return [check('signature', 'warn', '%s (v0.0.1 ships unsigned, owner waiver)' % x)]
                 return [check('signature', 'fail', str(x), 'the owner\'s public key goes in tools/hao/data/release-keys.pub')]
         return [check('signature', 'warn', 'no release.json beside hao: no signature to check')]
     try:
-        SIGN.verified(release, SIGN.load_keys(keys_path))
+        try:
+            keys = SIGN.load_keys(keys_path)
+        except SIGN.SignatureError:
+            keys = {}                                # v0.0.1: no keys; only an owner-waived unsigned release passes
+        SIGN.verified(release, keys)
         _, kid, hashed = SIGN._VERIFIED[os.path.abspath(str(release))]
     except SIGN.SignatureError as x:
         return [check('signature', 'fail', 'release.json: %s' % x, 'download the release again from its GitHub page')]
+    if SIGN.is_unsigned(kid):
+        return [check('signature', 'warn', 'release.json is an UNSIGNED release: %s; %s' % (kid, hashed))]
     return [check('signature', 'ok', 'release.json signed (key %s, %s)' % (kid, hashed))]
 
 

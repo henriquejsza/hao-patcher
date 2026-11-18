@@ -764,7 +764,13 @@ def cmd_verify_release(a, c, opener=None):
     try:
         keys = SIGN.load_keys(getattr(a, 'keys', None))
     except SIGN.SignatureError as x:
-        raise CON.Stopped(str(x), why='a release is verified against the owner\'s keys, which come with hao', code=4)
+        if getattr(a, 'keys', None):
+            raise CON.Stopped(str(x), why='a release is verified against the owner\'s keys', code=4)
+        # v0.0.1 ships unsigned and without keys: an owner-waived release still checks out by its checksums; any
+        # signature then fails as untrusted
+        keys = {}
+        c.item('this hao carries no release keys: only an owner-waived unsigned release can pass', 'quiet', ok=False,
+               ev='release.keys', keys=None)
     target, stick = a.target, os.environ.get('HAO_STICK')
     here = None
     if target is None and stick:
@@ -807,13 +813,16 @@ def cmd_verify_release(a, c, opener=None):
         c.item('%-4s  %-9s  %s' % (k['state'], k['name'], SAFE.text(k['detail'])), 'quiet',
                ok={'PASS': True, 'FAIL': False}.get(k['state']), ev='release.check', **{
                    x: y for x, y in k.items() if x in ('name', 'state', 'file')})
+    if any(str(k.get('key', '')).startswith(SIGN.UNSIGNED) for k in checks):
+        c.item('UNSIGNED release (owner waiver): nothing proves who made it; the checksums prove it is unchanged',
+               'quiet', ok=False, ev='release.unsigned')
     candidate = any(SIGN.is_candidate(k.get('key')) for k in checks)
     if candidate:
         c.item('CANDIDATE, not a release: signed with the candidate key, for testing only', 'quiet', ok=False,
                ev='release.candidate')
     n = RC.summary(checks)
     if n['FAIL']:
-        raise CON.Stopped('%d of %d checks failed: this is not the release the owner signed, or it was changed'
+        raise CON.Stopped('%d of %d checks failed: this is not the release that was published, or it was changed'
                           % (n['FAIL'], len(checks)), why='a signature, a file or the tag does not match',
                           untouched='nothing was changed', options=[
                               'download the release again from its GitHub release page',
@@ -886,6 +895,9 @@ def signed_release(a, c, path, required=True):
                               % path.name,
                           untouched='nothing was downloaded or written',
                           options=['download the release again from its GitHub release page'], code=4)
+    if SIGN.is_unsigned(kid):
+        c.item('%s is an UNSIGNED release: %s; %s. Its files are checked by sha256 only' % (path.name, kid, hashed),
+               'quiet', ok=False, ev='release.unsigned', reason=kid)
     c.item('%s signed (key %s, %s)' % (path.name, kid, hashed), 'files', ok=True, ev='release.signature',
            checked=True, key=kid, hash=hashed)
     return copy

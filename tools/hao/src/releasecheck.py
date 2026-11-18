@@ -69,12 +69,36 @@ def _text(s):
     return SAFE.text(s)
 
 
-def signed(folder, name, keys):
+def waived_version(folder, tag=None):
+    """The release version an owner waiver may cover here: TAG, else the version release.json (in FOLDER or the folder
+    above it) claims. Only a version on hao's own list (signing.waiver) lets a missing signature pass."""
+    if tag:
+        return tag
+    for f in (Path(folder), Path(folder).parent):
+        try:
+            return SIGN.release_version(SIGN._read(f / 'release.json', SIGN.RELEASE_LIMIT, 'release.json'))
+        except SIGN.SignatureError:
+            continue
+    return None
+
+
+def signed(folder, name, keys, tag=None):
     """(bytes or None, check or None): FOLDER/NAME verified against FOLDER/NAME.sig; (None, None) when NAME is not
-    there at all."""
+    there at all. With no signature file and an owner waiver for this release (v0.0.1 shipped unsigned), the bytes are
+    used and the check is SKIP, saying so: the checksums still decide."""
     path = Path(folder) / name
     if not os.path.lexists(path) and not os.path.lexists(SIGN.signature_of(path)):
         return None, None
+    if os.path.lexists(path) and not os.path.lexists(SIGN.signature_of(path)):
+        version = waived_version(folder, tag)
+        reason = SIGN.waiver(version)
+        if reason:
+            try:
+                data = SIGN._read(path, SIGN.RELEASE_LIMIT, name)
+            except SIGN.SignatureError as x:
+                return None, check('signature', 'FAIL', '%s: %s' % (name, x), file=name)
+            return data, check('signature', 'SKIP', '%s: UNSIGNED release %s (%s): its checksums decide' % (
+                name, version, reason), file=name, key='%s %s' % (SIGN.UNSIGNED, version))
     try:
         data = SIGN._read(path, SIGN.RELEASE_LIMIT, name)
         sig = SIGN._read(SIGN.signature_of(path), SIGN.SIG_LIMIT, name + '.sig')
@@ -220,8 +244,8 @@ def tag_checks(release, tag, opener, offline, here=None):
 def check_folder(folder, keys, cache=None, tag=None, opener=None, offline=False, here=None):
     folder = Path(folder)
     out = []
-    sums_bytes, c1 = signed(folder, 'SHA256SUMS', keys)
-    rel_bytes, c2 = signed(folder, 'release.json', keys)
+    sums_bytes, c1 = signed(folder, 'SHA256SUMS', keys, tag)
+    rel_bytes, c2 = signed(folder, 'release.json', keys, tag)
     out += [c for c in (c1, c2) if c]
     if c1 is None and c2 is None:
         return [check('signature', 'FAIL', 'no release.json or SHA256SUMS in %s' % folder)]
@@ -308,7 +332,7 @@ def download(tag, opener, beside=None, dest=None, keys=None):
             (dest / name).write_bytes((Path(beside) / name).read_bytes())
     for name in ('SHA256SUMS', 'SHA256SUMS.sig'):
         get(lay['source'], tag, name, dest / 'source')
-    rel_bytes, _ = signed(dest, 'release.json', keys) if keys is not None else (None, None)
+    rel_bytes, _ = signed(dest, 'release.json', keys, tag) if keys is not None else (None, None)
     try:                                       # the assets release is found by the verified release.json only
         name = json.loads(rel_bytes).get('release') if rel_bytes is not None else None
     except (ValueError, AttributeError):
@@ -319,9 +343,9 @@ def download(tag, opener, beside=None, dest=None, keys=None):
     return dest
 
 
-def sums_checks(folder, keys, label, lists):
+def sums_checks(folder, keys, label, lists, tag=None):
     """A release's SHA256SUMS in FOLDER: signed, and listing LISTS {name: sha256 or None (only listed)}."""
-    sums_bytes, c = signed(Path(folder), 'SHA256SUMS', keys)
+    sums_bytes, c = signed(Path(folder), 'SHA256SUMS', keys, tag)
     if c is None:
         return [check('sums', 'FAIL', 'the %s release has no SHA256SUMS' % label)]
     out = [dict(c, detail='%s %s' % (label, c['detail']))]
@@ -347,10 +371,10 @@ def tag_extra(dest, keys, tag):
     source release lists the tag's archive."""
     rel = Path(dest) / 'release.json'
     digest = hashlib.sha256(rel.read_bytes()).hexdigest() if rel.is_file() else None
-    out = sums_checks(Path(dest) / 'assets', keys, 'assets', {'release.json': digest}) if digest else [
+    out = sums_checks(Path(dest) / 'assets', keys, 'assets', {'release.json': digest}, tag) if digest else [
         check('sums', 'FAIL', 'no release.json beside hao to find the assets release by (download it as the release '
                               'notes say, or give the folder: hao verify-release FOLDER)')]
-    return out + sums_checks(Path(dest) / 'source', keys, 'source', {'hao-patcher-%s.tar' % tag: None})
+    return out + sums_checks(Path(dest) / 'source', keys, 'source', {'hao-patcher-%s.tar' % tag: None}, tag)
 
 
 def summary(checks):

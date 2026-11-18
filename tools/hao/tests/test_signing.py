@@ -290,6 +290,17 @@ class Commands(unittest.TestCase):
             self.assertIn('not signed by hao', r.stdout + r.stderr)
             self.assertFalse((Path(d) / 'cache').exists())
 
+    def test_fetch_takes_the_owner_waived_v001_unsigned_and_says_so(self):
+        with tempfile.TemporaryDirectory() as d:
+            rel = Path(d) / 'release.json'
+            rel.write_text(json.dumps({'version': 'v0.0.1', 'downloads': [
+                {'name': 'a.bin', 'url': 'file:///nonexistent', 'size': 1, 'sha256': '0' * 64}]}))
+            r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
+            self.assertNotEqual(r.returncode, 4, r.stdout + r.stderr)        # past the signature; the fake URL fails
+            self.assertIn('UNSIGNED release', r.stdout + r.stderr)
+            rel.write_text(rel.read_text().replace('v0.0.1', 'v0.0.2'))       # not waived: refused
+            self.assertEqual(self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d}).returncode, 4)
+
     def test_fetch_refuses_a_release_signed_by_another_key(self):
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d)

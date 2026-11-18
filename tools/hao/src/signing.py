@@ -23,6 +23,7 @@ the tests' own keys only.
 """
 import base64
 import hashlib
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -33,6 +34,9 @@ KEYS = HERE.parent / 'data' / 'release-keys.pub'
 # benches can test a cut before the owner signs it. It is never in the repository; a final cut has release-keys.pub only.
 CANDIDATE_KEYS = HERE.parent / 'data' / 'candidate-keys.pub'
 CANDIDATE = ' (CANDIDATE key, not a release key)'
+# owner waivers: releases accepted without a signature (data/unsigned-releases.json), by version
+UNSIGNED_LIST = HERE.parent / 'data' / 'unsigned-releases.json'
+UNSIGNED = 'UNSIGNED'
 SIG_LIMIT = 4096
 RELEASE_LIMIT = 16 << 20
 
@@ -304,6 +308,11 @@ def load_keys(path=None, candidates=None):
     return keys
 
 
+def is_unsigned(fingerprint):
+    """Whether a fingerprint verified_release() returned is an unsigned release's (owner waiver)."""
+    return isinstance(fingerprint, str) and fingerprint.startswith(UNSIGNED)
+
+
 def is_candidate(fingerprint):
     """Whether a fingerprint verify() returned is a candidate key's."""
     return isinstance(fingerprint, str) and fingerprint.endswith(CANDIDATE)
@@ -379,11 +388,61 @@ def signature_of(path):
     return Path(str(path) + '.sig')
 
 
+def waiver(version, path=None):
+    """The owner's words when release VERSION may be used unsigned (data/unsigned-releases.json), else None."""
+    try:
+        d = json.loads(Path(path or UNSIGNED_LIST).read_text())
+    except (OSError, ValueError):
+        return None
+    r = d.get('releases') if isinstance(d, dict) else None
+    return r.get(version) if isinstance(r, dict) and isinstance(version, str) and isinstance(r.get(version), str) else None
+
+
+def release_version(data):
+    try:
+        v = json.loads(data).get('version')
+    except (ValueError, AttributeError):
+        return None
+    return v if isinstance(v, str) else None
+
+
+def check_sums(path, data):
+    """When SHA256SUMS lies beside PATH, PATH's DATA must be the file it lists (SignatureError otherwise)."""
+    sums = Path(path).parent / 'SHA256SUMS'
+    if not os.path.lexists(sums):
+        return False
+    text = _read(sums, 1 << 20, 'SHA256SUMS').decode('utf-8', errors='replace')
+    want = None
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1].lstrip('*') == Path(path).name:
+            want = parts[0].lower()
+    if want is None:
+        raise SignatureError('SHA256SUMS beside %s does not list it' % Path(path).name)
+    if hashlib.sha256(data).hexdigest() != want:
+        raise SignatureError('%s is not the file SHA256SUMS lists (changed or damaged)' % Path(path).name)
+    return True
+
+
 def verified_release(path, keys=None):
     """(private copy of PATH, fingerprint, hash): PATH and PATH.sig read once, verified, and the same bytes
-    written with the signature into a new 0700 folder, which every later step reads instead of PATH."""
+    written with the signature into a new 0700 folder, which every later step reads instead of PATH. A release with no
+    signature file at all whose version has an owner waiver (waiver()) is accepted: the fingerprint is then
+    "UNSIGNED (owner waiver)", and when SHA256SUMS lies beside it, it must be the file listed there."""
     path = Path(path)
     data = _read(path, RELEASE_LIMIT, 'release file')
+    if not os.path.lexists(signature_of(path)):
+        reason = waiver(release_version(data))
+        if reason:
+            sums = check_sums(path, data)
+            import safety as SAFE
+            folder = Path(tempfile.mkdtemp(prefix='hao-release-'))
+            import atexit
+            import shutil
+            atexit.register(shutil.rmtree, str(folder), True)
+            copy = SAFE.create(folder / path.name, data, 0o644)
+            return copy, '%s (owner waiver: %s)' % (UNSIGNED, reason), 'sha256 checked against SHA256SUMS' if sums \
+                else 'no SHA256SUMS beside it'
     sig = _read(signature_of(path), SIG_LIMIT, 'signature beside %s (%s.sig)' % (path.name, path.name))
     kid, hashed = verify(data, sig.decode('utf-8', errors='replace'), load_keys() if keys is None else keys)
     import safety as SAFE

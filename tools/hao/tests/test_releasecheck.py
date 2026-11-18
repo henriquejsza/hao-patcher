@@ -31,6 +31,12 @@ def sign_into(folder, name):
 
 KEYS = SIGN.parse_keys(sshsig_files(SECRET, b'')[0])
 
+# these tests judge signatures: no owner waiver applies unless a test names one (Unsigned below)
+_NO_WAIVERS = tempfile.NamedTemporaryFile('w', suffix='.json', delete=False)
+_NO_WAIVERS.write('{"releases": {}}')
+_NO_WAIVERS.close()
+SIGN.UNSIGNED_LIST = Path(_NO_WAIVERS.name)
+
 
 def release_folder(d, asset=b'asset bytes', sign=True):
     d = Path(d)
@@ -315,6 +321,76 @@ class Candidate(unittest.TestCase):
         r = __import__('subprocess').run(['/usr/bin/git', '-C', str(TOOL.parents[1]), 'ls-files',
                                           'tools/hao/data/candidate-keys.pub'], capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), '')
+
+
+class Unsigned(unittest.TestCase):
+    """Owner 2026-11-18: "Ship v0.0.1 as unsigned". A release on hao's waiver list with no signature file is used, said
+    to be unsigned everywhere, and still checked against SHA256SUMS; anything else unsigned is refused."""
+    def setUp(self):
+        self.d = tempfile.TemporaryDirectory()
+        self.addCleanup(self.d.cleanup)
+        waivers = Path(self.d.name) / 'unsigned.json'
+        waivers.write_text(json.dumps({'releases': {'v0.0.1': 'owner 2026-11-18: "Ship v0.0.1 as unsigned"'}}))
+        self.real = SIGN.UNSIGNED_LIST
+        SIGN.UNSIGNED_LIST = waivers
+        self.addCleanup(setattr, SIGN, 'UNSIGNED_LIST', self.real)
+
+    def folder(self, version='v0.0.1', asset=b'asset bytes'):
+        f = Path(self.d.name) / version
+        f.mkdir()
+        release_folder(f, asset=asset, sign=False)
+        if version != 'v0.0.1':
+            rel = json.loads((f / 'release.json').read_text())
+            rel['version'] = version
+            (f / 'release.json').write_text(json.dumps(rel))
+            (f / 'SHA256SUMS').write_text('%s  release.json\n' % hashlib.sha256((f / 'release.json').read_bytes())
+                                         .hexdigest())
+        return f
+
+    def test_the_waived_release_is_used_and_said_unsigned(self):
+        copy, kid, how = SIGN.verified_release(self.folder() / 'release.json', KEYS)
+        self.assertTrue(SIGN.is_unsigned(kid))
+        self.assertIn('Ship v0.0.1 as unsigned', kid)
+        self.assertEqual(how, 'sha256 checked against SHA256SUMS')
+
+    def test_a_checksum_mismatch_is_still_refused(self):
+        f = self.folder()
+        (f / 'release.json').write_text((f / 'release.json').read_text().replace('27.2.1', '27.2.9'))
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.verified_release(f / 'release.json', KEYS)
+
+    def test_a_bad_signature_or_another_version_is_still_refused(self):
+        f = self.folder()
+        (f / 'release.json.sig').write_text(sshsig_files(b'\x55' * 32, b'other')[1])
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.verified_release(f / 'release.json', KEYS)
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.verified_release(self.folder('v0.0.2') / 'release.json', KEYS)
+
+    def test_verify_release_passes_with_unsigned_said_and_fails_a_changed_file(self):
+        checks = RC.check_folder(self.folder(), KEYS, offline=True)
+        self.assertEqual([k['state'] for k in checks if k['name'] == 'signature'], ['SKIP', 'SKIP'])
+        self.assertTrue(all('UNSIGNED release v0.0.1' in k['detail'] for k in checks if k['name'] == 'signature'))
+        self.assertNotIn('FAIL', [k['state'] for k in checks])
+        bad = RC.check_folder(self._tampered(), KEYS, offline=True)
+        self.assertIn(('files', 'FAIL'), states(bad))
+
+    def test_the_real_command_with_no_keys_accepts_v001_and_refuses_a_change(self):
+        import subprocess
+        good = self.folder()
+        r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'hao'), 'verify-release', str(good), '--offline'],
+                           capture_output=True, text=True, env=dict(os.environ, HAO_LOGS=self.d.name))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('UNSIGNED release', r.stdout + r.stderr)
+        r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'hao'), 'verify-release', str(self._tampered()),
+                            '--offline'], capture_output=True, text=True, env=dict(os.environ, HAO_LOGS=self.d.name))
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+
+    def _tampered(self):
+        f = Path(self.d.name) / 'tampered'
+        f.mkdir()
+        release_folder(f, asset=b'tampered!!!', sign=False)
+        return f
 
 
 class Command(unittest.TestCase):
