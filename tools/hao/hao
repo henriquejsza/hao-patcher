@@ -896,7 +896,7 @@ def signed_create(a, c):
     path = Path(a.release) if a.release else HERE / 'release.json'
     if os.path.lexists(path):
         a.release = str(signed_release(a, c, path))     # whenever a release will be read: unsigned stops (exit 4)
-    elif a.plan or (not a.dry_run and not a.image and not a.kit):
+    elif a.plan or (not a.dry_run and not a.image and not getattr(a, 'folder', None) and not a.kit):
         raise INST.no_release(path)                     # create-installer's own refusal for these runs; nothing read
     else:
         # a run that may go on without a release (--dry-run, --image, --kit): create-installer is given a name that
@@ -1016,6 +1016,8 @@ def main():
     q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/hao/builds/DATE)')
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
     q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
+    q.add_argument('--folder', help='(developers) write only the USB installer\'s HAO contents (hao, the kit, install, '
+                   'report, manifest) into a new folder, for a volume made elsewhere; no root, no drive')
     q.add_argument('--image', help='(developers) write a raw USB installer image FILE instead of a drive; no root needed')
     q.add_argument('--prelinked', action='store_true',
                    help='(development) the kit must carry prelinked kernel collections; by default it carries none and '
