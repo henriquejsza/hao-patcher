@@ -1,4 +1,4 @@
-"""src/amfi_dyld.py: hardened programs keep AMFI's dyld environment policy (SEC10).
+"""src/amfi_dyld.py: hardened programs keep AMFI's dyld environment policy.
 Synthetic bytes always; with HAO_OPENCORE_BOOT_KC=KC[:KC...] also real Boot KCs, through the binder as make.sh stages it."""
 import os
 from pathlib import Path

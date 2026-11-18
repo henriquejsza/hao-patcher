@@ -1,44 +1,54 @@
 {
-  "revision": 83,
-  "pack": "base",
-  "stage": "post",
-  "inputs": [
-    "hao_runtime",
-    "kernel_repair_efi",
-    "kernel_repair_binding",
-    "intel_commpage_abi"
+ "revision": 84,
+ "pack": "base",
+ "stage": "post",
+ "inputs": [
+  "hao_runtime",
+  "kernel_repair_efi",
+  "kernel_repair_binding",
+  "intel_commpage_abi"
+ ],
+ "status": "product",
+ "validated": false,
+ "files": [
+  {
+   "path": "EFI/OC/config.plist",
+   "edits": "edits/config.json"
+  },
+  {
+   "path": "EFI/OC/Kexts/IntelCommpage.kext",
+   "tree": true,
+   "origin": {
+    "kind": "hao",
+    "row": "kernel_repair_efi",
+    "name": "IntelCommpage.kext",
+    "note": "EFI/OC/Kexts/IntelCommpage.kext of the row, copied with ditto; src/kc_bind.py refuses unless its files are the ones the kernel_repair_binding profile lists; its __DATA,__ic_table (r42) must equal the table for this image's BootKC, or in binder-only mode is written for it (a kext without the table: every collection-dependent line of row intel_commpage_abi must hold)"
+   }
+  },
+  {
+   "path": "EFI/OC/Kexts/HaoExec.kext",
+   "tree": true,
+   "origin": {
+    "kind": "hao",
+    "row": "hao_runtime",
+    "name": "HaoExec.kext",
+    "note": "the row's HaoExec.kext, copied with ditto; its executable is declared on its own below: stamp_identity.py (also from the row) stamps it for this image's BootKC"
+   }
+  },
+  {
+   "path": "EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec",
+   "edits": "edits/haoexec-identity.json"
+  }
+ ],
+ "requires": {
+  "os": [
+   "26B131"
   ],
-  "status": "product",
-  "validated": false,
-  "files": [
-    {
-      "path": "EFI/OC/config.plist",
-      "edits": "edits/config.json"
-    },
-    {
-      "path": "EFI/OC/Kexts/IntelCommpage.kext",
-      "tree": true,
-      "origin": {
-        "kind": "hao",
-        "row": "kernel_repair_efi",
-        "name": "IntelCommpage.kext",
-        "note": "EFI/OC/Kexts/IntelCommpage.kext of the row, copied with ditto; src/kc_bind.py refuses unless its files are the ones the kernel_repair_binding profile lists; its __DATA,__ic_table (r42) must equal the table for this image's BootKC, or in binder-only mode is written for it (a kext without the table: every collection-dependent line of row intel_commpage_abi must hold)"
-      }
-    },
-    {
-      "path": "EFI/OC/Kexts/HaoExec.kext",
-      "tree": true,
-      "origin": {
-        "kind": "hao",
-        "row": "hao_runtime",
-        "name": "HaoExec.kext",
-        "note": "the row's HaoExec.kext, copied with ditto; its executable is declared on its own below: stamp_identity.py (also from the row) stamps it for this image's BootKC"
-      }
-    },
-    {
-      "path": "EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec",
-      "edits": "edits/haoexec-identity.json"
-    }
+  "donor": [
+   "25G342"
   ],
-  "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
 }

@@ -113,7 +113,7 @@ the unified log (and the ESP log in dev sets), and without `debug=0x100` a panic
 instead of waiting for a debugger.
 
 Every end-user set includes this recipe, so every image ships with AMFI relaxed (`amfi_get_out_of_my_way=1`). That
-is the owner's decision (2026-11-17, D1: "Ship, disclose"), stated in the install flow and the release notes. Its status
+is the owner's decision (2026-11-17: "Ship, disclose"), stated in the install flow and the release notes. Its status
 is `product`.
 
 ## Aux KC gate
@@ -289,6 +289,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the MacBookPro9,2 is not yet proven.
 
 ## Revisions
+- r84 2026-11-18 Reasons and tests state what each setting does and why, with no review IDs or weakness notes (owner: no vulnerability details in public text). Nothing it installs changes.
 - r83 2026-11-17 HIDProxyKernelMatch.kext's reason and provenance removed with the kext (opencore-mbp92 r5). Declaration only.
 - r82 2026-11-17 Test: every non-Apple Mach-O the release image installs links by paths dyld follows under the restored AMFI dyld policy (`tests/test_load_paths.py`, README "Load paths"). Nothing it installs changes.
 - r81 2026-11-17 Reason and provenance for opencore-mbp92's HIDProxyKernelMatch.kext (fixes #79). Nothing it installs changes.
