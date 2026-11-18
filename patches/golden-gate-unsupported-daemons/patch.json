@@ -1,10 +1,10 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "base",
  "stage": "post",
  "inputs": [],
  "status": "product",
- "validated": true,
+ "validated": false,
  "files": [
   {
    "path": "private/var/db/com.apple.xpc.launchd/disabled.plist",
@@ -24,7 +24,5 @@
   "cpu": "any",
   "gpu": "any",
   "firmware": "any"
- },
- "validated_revision": 1,
- "validated_digest": "92741eca6ca903b3d468daa240e30e7829d0df21441108a49abf72e4eacb8fe8"
+ }
 }
