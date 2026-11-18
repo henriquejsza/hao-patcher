@@ -1,0 +1,48 @@
+{
+ "revision": 1,
+ "pack": "dev",
+ "stage": "post",
+ "inputs": [
+  "dev_session_config"
+ ],
+ "status": "dev",
+ "validated": false,
+ "files": [
+  {
+   "path": "usr/local/libexec/dev-session",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; src/dev-session.zsh, root:wheel 0755: makes the test account (random password, root-only), automatic login, Setup panes seen, screen lock off, GUI helper TCC grants"
+   }
+  },
+  {
+   "path": "Library/LaunchDaemons/dev.hao.session.plist",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; runs dev-session at every boot (idempotent); root:wheel 0644"
+   }
+  },
+  {
+   "path": "private/var/db/hao-dev/session.conf",
+   "origin": {
+    "kind": "hao",
+    "row": "dev_session_config",
+    "note": "Data volume; the account name and the GUI helper's path and identifier (private input), root:wheel 0600"
+   }
+  },
+  {
+   "path": "private/var/db/.AppleSetupDone",
+   "origin": {
+    "kind": "hao",
+    "note": "Data volume; empty marker, root:wheel 0644: the dev image skips Setup Assistant (the script makes the account)"
+   }
+  }
+ ],
+ "requires": {
+  "os": "any",
+  "donor": "any",
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
+}

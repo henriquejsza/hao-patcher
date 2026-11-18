@@ -13,6 +13,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | dev-access | r8 | post | dev |  |  |  |  |  | **needs** | r8 2026-11-17 Every path in apply.sh is quoted: the user's install runs posts from the installer volume ("/Vol |
 | dev-diagnostics | r10 | post | dev |  |  |  |  |  | **needs** | r10 2026-11-17 The dev boot-args follow hao-opencore r80: no `-nokcmismatchpanic`, no `-pmap_pcid_disable`. |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
+| dev-session | r1 | post | dev |  |  |  |  |  | **needs** | r1 2026-11-18 New (owner: dev images come up unlocked and drivable). |
 | golden-gate-appstore-slices | r6 | post | diagnostic |  |  | x |  |  | **needs** | r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | golden-gate-av1-encoder-x86 | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-corespotlight-compat | r9 | oclp-hook | product |  | x | x |  |  | ok (r4) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |

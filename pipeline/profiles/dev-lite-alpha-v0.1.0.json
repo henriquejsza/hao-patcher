@@ -4,6 +4,7 @@
  "recipes": [
   "golden-gate-store",
   "dev-access",
-  "dev-keepawake"
+  "dev-keepawake",
+  "dev-session"
  ]
 }

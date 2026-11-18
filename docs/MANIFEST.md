@@ -7,7 +7,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-58 patches: 54 installable, 2 undeclared (files not declared), 2 with a row missing.
+59 patches: 55 installable, 2 undeclared (files not declared), 2 with a row missing.
 
 Undeclared: opencore-generic, opencore-mbp92.
 
@@ -18,6 +18,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
 | dev-diagnostics | r10 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
+| dev-session | r1 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | dev_session_config 8786bcbc session.conf |
 | golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
 | golden-gate-av1-encoder-x86 | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (hao-patcher 177dc8a1) |
@@ -95,6 +96,11 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **dev-keepawake** r3
   - `Library/LaunchDaemons/dev.hao.keepawake.plist`: from hao
   - `Library/LaunchDaemons/dev.hao.power.plist`: from hao
+- **dev-session** r1
+  - `usr/local/libexec/dev-session`: from hao
+  - `Library/LaunchDaemons/dev.hao.session.plist`: from hao
+  - `private/var/db/hao-dev/session.conf`: from hao (row dev_session_config)
+  - `private/var/db/.AppleSetupDone`: from hao
 - **golden-gate-appstore-slices** r6
   - `usr/local/libexec/hao-slice-guard`: from hao (row appstore_slice_guard)
   - `Library/LaunchDaemons/org.hao.slice-guard.plist`: from hao

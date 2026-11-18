@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-56 of 58 patches declare their files so far.
+57 of 59 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -73,6 +73,15 @@ Revision r3, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
 - `Library/LaunchDaemons/dev.hao.keepawake.plist`: whole file from hao. Data volume; src/dev.hao.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644.
 - `Library/LaunchDaemons/dev.hao.power.plist`: whole file from hao. Data volume; src/dev.hao.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644.
+
+## dev-session
+
+Revision r1, status dev. [Recipe](../patches/dev-session/README.md)
+
+- `usr/local/libexec/dev-session`: whole file from hao. Data volume; src/dev-session.zsh, root:wheel 0755: makes the test account (random password, root-only), automatic login, Setup panes seen, screen lock off, GUI helper TCC grants.
+- `Library/LaunchDaemons/dev.hao.session.plist`: whole file from hao. Data volume; runs dev-session at every boot (idempotent); root:wheel 0644.
+- `private/var/db/hao-dev/session.conf`: whole file from hao (row dev_session_config). Data volume; the account name and the GUI helper's path and identifier (private input), root:wheel 0600.
+- `private/var/db/.AppleSetupDone`: whole file from hao. Data volume; empty marker, root:wheel 0644: the dev image skips Setup Assistant (the script makes the account).
 
 ## golden-gate-appstore-slices
 
