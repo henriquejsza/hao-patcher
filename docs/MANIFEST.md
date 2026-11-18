@@ -50,7 +50,7 @@ Undeclared: opencore-generic.
 | hao-opencore | r81 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 788389cd payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
 | hao-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 788389cd payload |
 | hao-runtime-fold | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold | hao_runtime_fold 059bebad payload |
-| metal-compiler-compat | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
+| metal-compiler-compat | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat e4780509 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors c9d748d7 metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
 | opencore-generic | r5 | experiment | post | undeclared | generic | qemu_reference_efi 57e3f1c3 qemu-reference-efi-20261117; oclp_source ff509df0 oclp-source.tar |
@@ -283,9 +283,10 @@ Undeclared: opencore-generic.
   - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime_fold)
   - `usr/lib/dyld`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/install.json`: from hao
-- **metal-compiler-compat** r10
+- **metal-compiler-compat** r11
   - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: from hao (row metal_compiler_compat)
   - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib`: from hao (row metal_compiler_compat)
+  - `System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib`: edited (1 edit) from OCLP · GPUCompiler 31001
 - **metal-metalold** r4
   - `System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`: edited (1 edit) from Apple macOS 13 · macOS 13.2.1 (22D68) Metal 306.3.5 (row metalold_22d68)
 - **metalold-selectors** r9
@@ -511,7 +512,7 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - hao-opencore r81 is newer than every image built with it (newest r65).
 - hao-runtime r90 is newer than every image built with it (newest r82).
 - hao-runtime-fold r9 is newer than every image built with it (newest r4).
-- metal-compiler-compat r10 is newer than every image built with it (newest r8).
+- metal-compiler-compat r11 is newer than every image built with it (newest r8).
 - metalold-selectors r9 is newer than every image built with it (newest r7).
 - row hao_runtime 788389cd is in no image yet (images have 0d579f6d, 4f9784a2, d4f8aab6, e29b10e5).
 - row hao_runtime_fold 059bebad is in no image yet (images have 3e4feeb7).

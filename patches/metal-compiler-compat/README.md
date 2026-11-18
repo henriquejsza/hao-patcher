@@ -50,6 +50,7 @@ NEEDS VALIDATION. Host tests pass. The same edit (from the 26A428 build of the s
 yet built into an image or booted with 26B131.
 
 ## Revisions
+- r11 2026-11-17 OCLP's GPUCompiler 31001 `libLLVM.dylib` names `libLLVM_helper.dylib` by an absolute path (`edits/libllvm-31001.json`, `src/llvm_helper_path.py`, re-signed ad hoc as `libLLVM`). Reason (S18): MTLCompilerService runs hardened (code-signing flags 0x22010801), dyld refuses OCLP's relative helper path there ("relative path not allowed in hardened program"), so its dlopen of the 31001 MTLCompiler failed and the service called a null pointer on every 31001 request (Setup's shader effects vanished, 17+ crashes per boot). Evidence (2026-11-17, MacBookPro9,2 running these bytes): a restricted dlopen probe fails before and loads after, no crash after the swap, and the services hold the 31001 and 3802 compilers.
 - r10 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r9 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r8 2026-11-16 Row `metal_compiler_compat` is the f479d6c7 build, reproducible from source with Xcode 27.2: compat.dylib linked with a fixed install name (code identical), build.json holds content hashes only.

@@ -588,10 +588,13 @@ Revision r9, status product. [Recipe](../patches/hao-runtime-fold/README.md)
 
 ## metal-compiler-compat
 
-Revision r10, status product. [Recipe](../patches/metal-compiler-compat/README.md)
+Revision r11, status product. [Recipe](../patches/metal-compiler-compat/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: whole file from hao (row metal_compiler_compat). OCLP's legacy MTLCompilerService with a load command for libhaoMetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib`: whole file from hao (row metal_compiler_compat). New file: the shader repair library the service loads at startup. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib`: from OCLP · GPUCompiler 31001; 1 edit, applied by the installer, then signed: ad hoc, once, identifier libLLVM. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `llvm-helper-absolute`: literal at 0x780, 104 bytes, `53 79 73 74 65 6D 2F 4C 69 62 72 61 72 79 2F 50 72 69 76 61 74 65 46 72 61 6D 65 77 6F 72 6B 73 2F 47 50 55 43 6F 6D 70 69 6C 65 72 2E 66 72 61 6D 65 77 6F 72 6B 2F 56 65 72 73 69 6F 6E 73 2F 33 31 30 30 31 2F 4C 69 62 72 61 72 69 65 73 2F 6C 69 62 4C 4C 56 4D 5F 68 65 6C 70 65 72 2E 64 79 6C 69 62 00 00 00 00` → `2F 53 79 73 74 65 6D 2F 4C 69 62 72 61 72 79 2F 50 72 69 76 61 74 65 46 72 61 6D 65 77 6F 72 6B 73 2F 47 50 55 43 6F 6D 70 69 6C 65 72 2E 66 72 61 6D 65 77 6F 72 6B 2F 56 65 72 73 69 6F 6E 73 2F 33 31 30 30 31 2F 4C 69 62 72 61 72 69 65 73 2F 6C 69 62 4C 4C 56 4D 5F 68 65 6C 70 65 72 2E 64 79 6C 69 62 00 00 00`.
+     Metal shaders that need the 31001 compiler build: MTLCompilerService runs hardened and dyld refuses the relative helper path, so the service crashed on every such request (Setup's shader effects vanished).
 
 ## metal-metalold
 
