@@ -25,7 +25,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-launchd-warm | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-live-text-service | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; r |
 | golden-gate-live-text-shared | r13 | oclp-hook | product |  | x |  |  |  | **needs** | r13 2026-11-17 Row `live_text_framework` (26B131) is the ec5fe76b build: before the first TextRecognition comp |
-| golden-gate-metal-argbuf | r9 | oclp-hook | product |  | x |  |  |  | **needs** | r9 2026-11-17 Row `metal_argbuf` is a full make at fe579412: the iCBE wrapper reads no path from the environme |
+| golden-gate-metal-argbuf | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 Row `metal_argbuf` is a full make at the stack commit (tools/metal-argbuf as d977ced2). libargb |
 | golden-gate-metal-framebuffer | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-17 Row `metal_framebuffer`: lowering always uses the stack's own libLLVM (no environment override) |
 | golden-gate-metal-libraries | r23 | oclp-hook | product |  | x | x |  |  | **needs** | r23 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
 | golden-gate-metal27 | r6 | oclp-hook | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |

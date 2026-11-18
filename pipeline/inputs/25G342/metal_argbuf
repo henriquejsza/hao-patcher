@@ -8,5 +8,7 @@
 # (textures and pipelines were never freed). Only libargbuf changes; tools at d9fa28e7.
 # fe579412: the wrapper reads no path from the environment (dump/replace switches only in a make --diagnostics build); a full
 # make at fe579412, whose libargbuf is the d9fa28e7 bytes (60ca7435), so only iCBE.dylib changes.
+# 546fe915: libargbuf emulates placement and shared-storage heaps (RealityKit, diag#0019) and reports ASTC formats; a full
+# make at 546fe915 (tools/metal-argbuf as d977ced2); iCBE.dylib and iCBE-real are the fe579412 bytes.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)
-d58767059a403da8a858e379768ad0ef549febee567d81a22add992210c59306 store/artifacts/metal-argbuf-26B131-20261117-fe579412
+144f8ca355111ad4b1b488eeb3a870793fbc1b875fcc4006b946605a4e70051a store/artifacts/metal-argbuf-26B131-20261117-546fe915
