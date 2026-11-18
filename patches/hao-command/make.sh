@@ -21,7 +21,7 @@ else
 fi
 # release.json is not source (the user downloads it) and is signed: it goes with its signature, which hao checks
 # whenever it reads it; a candidate build's candidate key (release-cut --candidate) goes too
-for f in release.json release.json.sig data/candidate-keys.pub; do
+for f in release.json release.json.sig SHA256SUMS data/candidate-keys.pub; do
     [ ! -f "$TOP/tools/hao/$f" ] || cp "$TOP/tools/hao/$f" "$OUT/hao/tools/hao/$f"
 done
 # the commit staged, for hao's version where there is no checkout and no release.json (a dev image)

@@ -296,6 +296,9 @@ class Commands(unittest.TestCase):
             rel.write_text(json.dumps({'version': 'v0.0.1', 'downloads': [
                 {'name': 'a.bin', 'url': 'file:///nonexistent', 'size': 1, 'sha256': '0' * 64}]}))
             r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
+            self.assertEqual(r.returncode, 4, r.stdout + r.stderr)            # no SHA256SUMS beside it: refused
+            (Path(d) / 'SHA256SUMS').write_text('%s  release.json\n' % hashlib.sha256(rel.read_bytes()).hexdigest())
+            r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
             self.assertNotEqual(r.returncode, 4, r.stdout + r.stderr)        # past the signature; the fake URL fails
             self.assertIn('UNSIGNED release', r.stdout + r.stderr)
             rel.write_text(rel.read_text().replace('v0.0.1', 'v0.0.2'))       # not waived: refused

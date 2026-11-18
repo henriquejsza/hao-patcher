@@ -407,11 +407,14 @@ def release_version(data):
 
 
 def check_sums(path, data):
-    """When SHA256SUMS lies beside PATH, PATH's DATA must be the file it lists (SignatureError otherwise)."""
+    """SHA256SUMS beside PATH: its bytes, after checking that PATH's DATA is the file it lists. An unsigned release
+    needs it (owner: SHA256SUMS stays required): SignatureError when it is missing or does not list DATA."""
     sums = Path(path).parent / 'SHA256SUMS'
     if not os.path.lexists(sums):
-        return False
-    text = _read(sums, 1 << 20, 'SHA256SUMS').decode('utf-8', errors='replace')
+        raise SignatureError('this unsigned release has no SHA256SUMS beside %s: download it with release.json'
+                             % Path(path).name)
+    raw = _read(sums, 1 << 20, 'SHA256SUMS')
+    text = raw.decode('utf-8', errors='replace')
     want = None
     for line in text.splitlines():
         parts = line.split()
@@ -421,7 +424,7 @@ def check_sums(path, data):
         raise SignatureError('SHA256SUMS beside %s does not list it' % Path(path).name)
     if hashlib.sha256(data).hexdigest() != want:
         raise SignatureError('%s is not the file SHA256SUMS lists (changed or damaged)' % Path(path).name)
-    return True
+    return raw
 
 
 def verified_release(path, keys=None):
@@ -441,8 +444,8 @@ def verified_release(path, keys=None):
             import shutil
             atexit.register(shutil.rmtree, str(folder), True)
             copy = SAFE.create(folder / path.name, data, 0o644)
-            return copy, '%s (owner waiver: %s)' % (UNSIGNED, reason), 'sha256 checked against SHA256SUMS' if sums \
-                else 'no SHA256SUMS beside it'
+            SAFE.create(folder / 'SHA256SUMS', sums, 0o644)      # the checked list goes with the copy (the drive)
+            return copy, '%s (owner waiver: %s)' % (UNSIGNED, reason), 'sha256 checked against SHA256SUMS'
     sig = _read(signature_of(path), SIG_LIMIT, 'signature beside %s (%s.sig)' % (path.name, path.name))
     kid, hashed = verify(data, sig.decode('utf-8', errors='replace'), load_keys() if keys is None else keys)
     import safety as SAFE

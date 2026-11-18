@@ -23,6 +23,7 @@ On the installed Mac: `hao`, `hao status`, `hao --help`.
 NEEDS VALIDATION: not yet run in an image build, a QEMU install or on a laptop.
 
 ## Revisions
+- r11 2026-11-18 SHA256SUMS staged with release.json (an unsigned release, v0.0.1, is checked against it)
 - r10 2026-11-17 a candidate build's tools/hao/data/candidate-keys.pub is staged with hao (never tracked; release-cut --candidate writes it)
 - r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r8 2026-11-17 the new launcher is made by mktemp; every folder from usr to bin must be root's and loses its ACLs; a link at its name (to a file or a folder) is removed, a folder refused; release.json.sig staged with release.json

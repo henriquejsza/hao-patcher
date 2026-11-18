@@ -97,6 +97,10 @@ def signed(folder, name, keys, tag=None):
                 data = SIGN._read(path, SIGN.RELEASE_LIMIT, name)
             except SIGN.SignatureError as x:
                 return None, check('signature', 'FAIL', '%s: %s' % (name, x), file=name)
+            if name == 'release.json' and not any(os.path.lexists(Path(folder) / x) for x in
+                                                  ('SHA256SUMS', 'assets/SHA256SUMS')):
+                return None, check('signature', 'FAIL', 'release.json: an unsigned release needs the SHA256SUMS '
+                                   'published with it, and there is none here', file=name)
             return data, check('signature', 'SKIP', '%s: UNSIGNED release %s (%s): its checksums decide' % (
                 name, version, reason), file=name, key='%s %s' % (SIGN.UNSIGNED, version))
     try:

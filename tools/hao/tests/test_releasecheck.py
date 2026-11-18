@@ -352,6 +352,14 @@ class Unsigned(unittest.TestCase):
         self.assertTrue(SIGN.is_unsigned(kid))
         self.assertIn('Ship v0.0.1 as unsigned', kid)
         self.assertEqual(how, 'sha256 checked against SHA256SUMS')
+        self.assertTrue((copy.parent / 'SHA256SUMS').is_file())            # it goes with the copy, onto the drive
+
+    def test_without_sha256sums_it_is_refused(self):
+        f = self.folder()
+        (f / 'SHA256SUMS').unlink()
+        with self.assertRaises(SIGN.SignatureError):
+            SIGN.verified_release(f / 'release.json', KEYS)
+        self.assertIn(('signature', 'FAIL'), states(RC.check_folder(f, KEYS, offline=True)))
 
     def test_a_checksum_mismatch_is_still_refused(self):
         f = self.folder()

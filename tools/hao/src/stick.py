@@ -630,6 +630,9 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
         sig = Path(str(release) + '.sig')          # its signature, checked again by hao install
         if sig.is_file():
             shutil.copyfile(sig, mount / 'release.json.sig')
+        sums = Path(release).parent / 'SHA256SUMS'  # an unsigned release (v0.0.1) is checked against it
+        if sums.is_file():
+            shutil.copyfile(sums, mount / 'SHA256SUMS')
     rec = dict(record or {})
     rec.update(schema=1, kit_json_sha256=sha256(kit / 'kit.json'), kit_bytes=kit_bytes(mount / 'kit'),
                hard_links=[[str(Path(a).relative_to(mount)), str(Path(b).relative_to(mount))] for a, b in linked],
