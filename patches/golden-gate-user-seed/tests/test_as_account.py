@@ -147,6 +147,21 @@ class AsAccount(unittest.TestCase):
         self.assertIn('bad answer', r.stdout)
         self.assertIn('unknown tree /etc', r.stdout)
 
+    def test_store_name_comes_from_the_payload(self):
+        ls = self.seed / 'ls'
+        for f in ls.iterdir():
+            f.unlink()
+        (ls / 'SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore').write_text('s')
+        r = self.run_zsh('ls_name; print -r -- "NAME0 [$REPLY]"')
+        self.assertIn('NAME0 []', r.stdout)
+        (ls / 'com.apple.LaunchServices-35651614-v2.csstore').write_text('u')
+        r = self.run_zsh('ls_name; print -r -- "NAME1 [$REPLY]"')
+        self.assertIn('NAME1 [com.apple.LaunchServices-35651614-v2.csstore]', r.stdout)
+        (ls / 'com.apple.LaunchServices-20971545-v2.csstore').write_text('t')
+        r = self.run_zsh('ls_name; print -r -- "NAME2 [$REPLY]"')
+        self.assertIn('NAME2 []', r.stdout)   # two stores: which one lsd reads is unknown, so none is placed
+        self.assertNotIn('20971545', re.sub(r'#.*', '', SCRIPT))   # no store number in the code
+
     def test_refuses_system_uids(self):
         r = self.run_zsh('asuser 0 is_place_as root %s/ && exit 7; exit 0' % self.C)
         self.assertIn("refused uid '0'", r.stdout)

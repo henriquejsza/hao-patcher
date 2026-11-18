@@ -88,7 +88,8 @@ NEWAGE=600      # s: an account whose creationTime is older than this is not new
 WAIT=90         # s: how long one account may stay "not ready" (no gid / user dirs / creationTime) in one run
 LINGER=30       # s: keep rescanning until the users dir has been unchanged this long and nothing is pending
 MAXRUN=600      # s: hard cap for one run
-LSN=com.apple.LaunchServices-20971545-v2.csstore
+LSN=            # the user LaunchServices store's name, from the payload (ls_name below): lsd's store number differs per OS
+                # (Tahoe com.apple.LaunchServices-20971545-v2.csstore, 26B131 -35651614-)
 CHUNK=8         # Metal trees per cp after the first-use group (users dir rescanned between chunks)
 FIRSTUSE=(com.apple.iconservicesagent com.apple.notificationcenterui com.apple.SetupAssistant com.apple.loginwindow
           com.apple.dock.extra com.apple.Spotlight com.apple.controlcenter)
@@ -188,6 +189,9 @@ ef_final() {   # end of a run: never leave it disabled while an account >= 501 e
     [[ $EFST == wait ]] || return 0
     if (( ${#NAME} )); then ef_enable "$1"; else log "efilogin-helper left disabled: no account with uid >= 501 yet ($1)"; fi
 }
+
+ls_name() { local -a f; f=("$SEED"/ls/com.apple.LaunchServices-<->-v2.csstore(N)); REPLY=; (( $#f == 1 )) && REPLY=${f[1]:t} }   # the payload's one user store
+ls_name; LSN=$REPLY
 
 typeset -A NAME   # uid -> short name, accounts with uid >= 501 (filled by ls_pass)
 mkdir -p $DONE && chmod 700 $DONE
@@ -390,8 +394,8 @@ try_ls() {
     place_wp "$u" "$uid"
     D=$(sudo -u "$u" /usr/bin/getconf DARWIN_USER_DIR 2>/dev/null); C=$(sudo -u "$u" /usr/bin/getconf DARWIN_USER_CACHE_DIR 2>/dev/null)
     [[ $D == /var/folders/*/ && $C == /var/folders/*/ && -d $D && -d $C ]] || { note $uid dirs "$u ($uid): user dirs not ready (D=$D C=$C)"; return 1 }
-    if [[ -s "$SEED/ls/$LSN" ]]; then place_ls "$u" "$uid" "$gid" "$D" || return 1
-    else LSAT[$uid]=$EPOCHREALTIME; log "$u: no LS store in the payload (BETA7: empty); LS step skipped"; fi
+    if [[ -n $LSN && -s "$SEED/ls/$LSN" ]]; then place_ls "$u" "$uid" "$gid" "$D" || return 1
+    else LSAT[$uid]=$EPOCHREALTIME; log "$u: no LS store in the payload (not exactly one ls/com.apple.LaunchServices-<n>-v2.csstore); LS step skipped"; fi
     if [[ -s "$SEED/is/store.index" && -s "$SEED/is/__cache_info__" ]]; then
         asuser $uid is_place_as "$u" "$C"
     else

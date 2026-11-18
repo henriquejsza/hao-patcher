@@ -7,6 +7,7 @@
 #   the shared icon store          Library/Caches/com.apple.iconservices.store/
 #   every account's icon index     private/var/folders/*/*/C/com.apple.iconservices/
 #   every account's font registry  private/var/folders/*/*/C/com.apple.FontRegistry/ (with -wal/-shm as they are)
+#   every account's LS stores      private/var/folders/*/*/0/com.apple.LaunchServices.dv/ (make launchservices)
 #   diag/                          what the boot-2 storm hypotheses need (plan.md section 3), written to a temp folder
 # Nothing on the laptop is changed except that temp folder, which is removed at exit.
 set -u
@@ -23,6 +24,8 @@ find private/var/folders -maxdepth 8 -type d \( -name com.apple.metal -o -name c
     2>/dev/null > "$T/metal.txt"
 find private/var/folders -maxdepth 4 -type d \( -name com.apple.iconservices -o -name com.apple.FontRegistry \) \
     -path '*/C/*' -prune -print 2>/dev/null > "$T/other.txt"
+find private/var/folders -maxdepth 4 -type d -name com.apple.LaunchServices.dv -path '*/0/*' -prune -print \
+    2>/dev/null >> "$T/other.txt"
 [ -d Library/Caches/com.apple.iconservices.store ] && echo Library/Caches/com.apple.iconservices.store >> "$T/other.txt"
 cat "$T/metal.txt" "$T/other.txt" > "$T/paths.txt"
 

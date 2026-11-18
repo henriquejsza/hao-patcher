@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-56 of 58 patches declare their files so far.
+57 of 59 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -344,7 +344,7 @@ Revision r3, status product. [Recipe](../patches/golden-gate-update-policy/READM
 
 ## golden-gate-user-seed
 
-Revision r14, status product. [Recipe](../patches/golden-gate-user-seed/README.md)
+Revision r15, status product. [Recipe](../patches/golden-gate-user-seed/README.md)
 
 - `Library/LaunchDaemons/local.peruser-seed.plist`: whole file from hao. Launchd daemon made at install by src/plist.sh, which escapes src/seed.zsh into the plist (root 644): places the seeded caches into each new account.
 - `Library/Application Support/PerUserSeed/build`: whole file from hao. The System's ProductBuildVersion written at install (root 644): seed.zsh places nothing on another build.
@@ -512,6 +512,13 @@ Revision r90, status product. [Recipe](../patches/golden-gate-userspace/README.m
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
   1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+
+## golden-gate-wallpaper-export
+
+Revision r1, status product. [Recipe](../patches/golden-gate-wallpaper-export/README.md)
+
+- `Library/Application Support/PerUserSeed/wallpaper/Metadata.plist`: whole file from hao (row wallpaper_export_golden_gate). WallpaperAgent's export metadata of the default wallpaper (root 644); golden-gate-user-seed's seed.zsh places it first.
+- `Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png`: whole file from hao (row wallpaper_export_golden_gate). WallpaperAgent's export of the default wallpaper, 3840x2160 (root 644); golden-gate-user-seed's seed.zsh places it after the metadata.
 
 ## golden-gate-wifi-compat
 
