@@ -41,6 +41,7 @@ golden-gate-icon-caches            # IconServices store and root/Setup indexes h
 golden-gate-root-launchservices    # root's LaunchServices seed (in no current set): with the other posts that seed caches
 golden-gate-update-policy          # Background Security Improvements (splats) and macOS updates never install on their own: SoftwareUpdate prefs on Data, any post before hao-command
 golden-gate-deep-sleep-off         # deep sleep (standby, autopoweroff, hibernation) off by default, diag#79: a one-time pmset daemon on Data, any post before hao-command
+golden-gate-unsupported-daemons    # Apple services this hardware cannot run (Apple Intelligence: modelmanagerd, modelcatalogd) disabled by launchd override on Data, diag#19, any post before hao-command
 golden-gate-appstore-slices        # App Store slice guard: logs each Mach-O without x86_64 in a universal App Store app after install or update (Data: tool + LaunchDaemon)
 rec-install-volume                 # the image's own Recovery volume gets this repository's Recovery (in no current set): after the posts that change System
 dev-access                         # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
