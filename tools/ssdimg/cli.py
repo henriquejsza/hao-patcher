@@ -774,6 +774,8 @@ def cmd_deploy(a):
     if missing:
         die(f"{len(missing)} objects missing from store")
     size, cs, sector = meta["size"], meta["chunk_size"], meta["sector_size"]
+    if cs % sector or size % sector:   # raw-device reads and writes are whole sectors only (EINVAL otherwise)
+        die(f"image chunk size {cs} / size {size} is not a whole number of {sector}-byte sectors")
     wipe = getattr(a, "wipe", False)
 
     if is_file:
@@ -987,7 +989,80 @@ def cmd_check(a):
         run_bootcheck(repo, a.rev, a.name)
 
 
+def raw_source(a):
+    """push/verify --image FILE: a RawSource over the file (no repository); present chunks as `capture` keeps them
+    (MBR and both GPTs, non-APFS partitions whole, allocated APFS blocks)."""
+    if a.rev:
+        die("--image and --rev exclude each other")
+    cs = a.chunk_size
+    if cs % 4096 or not 4096 <= cs <= 1 << 24:
+        die(f"--chunk-size {cs}: a multiple of 4096 up to 16 MiB")
+    size = os.path.getsize(a.image)
+    if size % 512:
+        die(f"{a.image}: {size} bytes is not a whole number of 512-byte sectors")
+    t0 = time.time()
+    read = disk.Reader(a.image, align=4096, size=size)
+    try:
+        _g, keep = keep_ranges(read, size, 512)
+    finally:
+        read.close()
+    src = push.RawSource(a.image, cs, set(chunk_masks(keep, size, cs)))
+    print(f"image: {a.image}  {human(size)} raw, {len(src.present)} present chunks of {human(cs)} "
+          f"({len(src.man)} not zero) hashed in {time.time() - t0:.1f}s")
+    return src
+
+
+def disk_source(a):
+    """push --from-disk SOURCE: the other laptop's disk, read-only through its agent; present chunks as `pull` finds
+    them (GPT, non-APFS partitions whole, allocated APFS blocks), hashed on the source."""
+    if a.rev or a.image:
+        die("--from-disk excludes --rev and --image")
+    cs = a.chunk_size
+    if cs % 4096 or not 4096 <= cs <= 1 << 24:
+        die(f"--chunk-size {cs}: a multiple of 4096 up to 16 MiB")
+    t0 = time.time()
+    kind, host, path, link = push.disk_source_open(a.from_disk, a.target, cs)
+    try:
+        if link.bsize != 512:
+            die(f"{a.from_disk} has {link.bsize}-byte sectors; ssdimg images are tied to 512-byte sectors")
+        read = push.RemoteReader(link, link.size)
+        _g, keep = keep_ranges(read, link.size, 512)
+        src = push.RemoteDiskSource(link, cs, set(chunk_masks(keep, link.size, cs)))
+    except BaseException:
+        link.abort()
+        raise
+    a.src_host, a.src_path = host, path
+    print(f"source disk: {a.from_disk}  {human(src.size)}, {len(src.present)} present chunks of {human(cs)} "
+          f"({len(src.man)} not zero) hashed on the source in {time.time() - t0:.1f}s")
+    return src
+
+
 def cmd_push(a):
+    if a.from_disk:
+        src = None
+        try:
+            src = disk_source(a)
+            push.push(src, a)
+        except (push.PushError, ValueError, OSError) as e:
+            die(str(e))
+        finally:
+            if src is not None:
+                try:
+                    src.link.close()
+                except push.PushError as e:
+                    print(f"note: source agent: {e}", file=sys.stderr)
+        return
+    if a.image:
+        if a.rev:
+            die("--image and --rev exclude each other")
+        if not a.no_check:
+            _check_boot_image(a.image, a.name, a.image)
+        src = raw_source(a)
+        try:
+            push.push(src, a)
+        except (push.PushError, ValueError, OSError) as e:
+            die(str(e))
+        return
     repo = Repo.find(a.repo)
     # Check and transfer the same immutable commit, even when a branch or tag moves meanwhile.
     try:
@@ -1003,12 +1078,18 @@ def cmd_push(a):
     _g, keep = keep_ranges(repo.reader(man, size), size, sector)
     present = set(man) | set(chunk_masks(keep, size, cs))
     try:
-        push.push(repo, man, meta, present, a)
+        push.push(push.RepoSource(repo, man, meta, present), a)
     except (push.PushError, ValueError, OSError) as e:
         die(str(e))
 
 
 def cmd_verify(a):
+    if a.image:
+        try:
+            push.verify(raw_source(a), a)
+        except push.PushError as e:
+            die(str(e))
+        return
     repo = Repo.find(a.repo)
     man, meta, label = _commit_manifest(repo, a.rev)
     size, cs, sector = meta["size"], meta["chunk_size"], meta["sector_size"]
@@ -1016,7 +1097,7 @@ def cmd_verify(a):
     _g, keep = keep_ranges(repo.reader(man, size), size, sector)
     present = set(man) | set(chunk_masks(keep, size, cs))
     try:
-        push.verify(repo, man, meta, present, a)
+        push.verify(push.RepoSource(repo, man, meta, present), a)
     except push.PushError as e:
         die(str(e))
 
@@ -1135,13 +1216,9 @@ def main(argv=None):
     s.add_argument("name", help="repository directory created by `ssdimg image`")
     s.add_argument("disk", help="external whole disk to overwrite, e.g. disk12 or /dev/disk12")
     s.add_argument("--rev", help="commit or tag to write (default: HEAD)")
-    s.add_argument("--no-verify", action="store_true", help="skip the read-back comparison")
-    s.add_argument("--no-trim", action="store_true",
-                   help="write all-zero chunks as zeros (default: TRIM them; the drive reads zeros after TRIM, "
-                        "and the verify pass checks that)")
-    s.add_argument("--verify", choices=["inline", "end"],
-                   help="end (default): write everything, then re-read every written chunk from the target and "
-                        "hash-check it against the image; inline: read each batch back right after writing it")
+    s.add_argument("--no-verify", action="store_true",
+                   help="skip the read-back comparison (default: after writing, re-read every written chunk and "
+                        "compare it with the image; zero chunks are written as zeros, never TRIMmed)")
     s.add_argument("--wipe", action="store_true", help="also write zeros over the target's free space")
     s.set_defaults(fn=cmd_write)
 
@@ -1246,6 +1323,22 @@ def main(argv=None):
                         "Dock tiles)")
     s.add_argument("--no-grow", action="store_true",
                    help="leave the APFS container at the image's size (default: grow it to the disk)")
+    s.add_argument("--usb", metavar="IDENTITY",
+                   help="write an external drive of the laptop instead of its internal disk: IDENTITY = "
+                        "'media=MEDIA NAME,size=BYTES,lun=N|-' (diskutil MediaName, byte size, SCSI LUN in the "
+                        "enclosure) must match the target exactly; everything else, the internal disk included, is "
+                        "refused. Partition tables are zeroed first and the primary GPT written last; zero chunks "
+                        "are written, not TRIMmed; launcher and container size are left alone")
+    s.add_argument("--image", metavar="FILE",
+                   help="push a raw disk image file instead of a repository commit (no -C, no --rev): present "
+                        "chunks are found and hashed from the file; same delta, full and verify logic")
+    s.add_argument("--chunk-size", type=int, default=256 << 10,
+                   help="with --image or --from-disk: chunk size in bytes, a multiple of 4096 (default 262144, the "
+                        "repository default)")
+    s.add_argument("--from-disk", metavar="SOURCE",
+                   help="laptop to laptop: push another laptop's internal disk (rec@ADDR:/dev/diskN, in its NetBoot "
+                        "Recovery; read-only) instead of a commit. The source hashes its chunks and sends the "
+                        "changed ones straight to the target; the host only orchestrates. No -C, --rev or --image")
     s.set_defaults(fn=cmd_push)
 
     s = sub.add_parser("check", help="read-only: would the target Mac boot this image as intended, and does nothing in it "
@@ -1260,6 +1353,9 @@ def main(argv=None):
                                       "hash every chunk)")
     s.add_argument("target", help="rec@ADDR:/dev/diskN or local:/path/file")
     s.add_argument("--rev", help="commit or tag (default: HEAD)")
+    s.add_argument("--usb", metavar="IDENTITY", help="the target is that external drive (as push --usb)")
+    s.add_argument("--image", metavar="FILE", help="check a raw disk image file instead of a commit (as push --image)")
+    s.add_argument("--chunk-size", type=int, default=256 << 10, help="with --image: chunk size (default 262144)")
     s.set_defaults(fn=cmd_verify)
 
     s = sub.add_parser("pull", help="capture the target Mac's internal disk into the working image (over ssh)")

@@ -60,6 +60,10 @@ class Repo:
 
     @classmethod
     def init(cls, root, chunk_size=DEFAULT_CHUNK):
+        # Every read of a raw device (/dev/rdiskN) must be whole sectors, or macOS refuses it (EINVAL; dd then reads 0
+        # bytes). Chunks are the read unit of deploy, push and verify, so they are whole 4096-byte blocks.
+        if not isinstance(chunk_size, int) or chunk_size < 4096 or chunk_size % 4096 or chunk_size > 1 << 24:
+            raise StoreError(f"chunk size {chunk_size}: a multiple of 4096 up to 16 MiB")
         r = cls(root)
         os.makedirs(r.objects, exist_ok=True)
         os.makedirs(os.path.dirname(r.work), exist_ok=True)
