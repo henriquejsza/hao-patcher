@@ -69,7 +69,7 @@
   "libhelloblur": {
    "class": "ours",
    "publish": "file",
-   "reason": "x86_64 dylib compiled from patches/golden-gate-hello/build (our source; identifier local.libhelloblur); the stored bytes are published, a rebuild differs only by the linker version stamp"
+   "reason": "x86_64 dylib compiled from patches/golden-gate-hello/build (our source; identifier local.libhelloblur); make.sh with Xcode 27.2 (27B52) gives these bytes"
   },
   "metalold_selectors": {
    "class": "ours",

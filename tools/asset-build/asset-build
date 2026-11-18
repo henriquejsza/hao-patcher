@@ -11,6 +11,7 @@ clones upstream OCLP from GitHub unless --oclp-upstream names a clone.
 """
 import argparse
 import glob
+import json
 import os
 from pathlib import Path
 import runpy
@@ -87,6 +88,51 @@ def codeid(tmp, out, args):
     return out
 
 
+def helloblur(tmp, out, args):
+    run('sh', 'patches/golden-gate-hello/build/make.sh', tmp)
+    return Path(tmp)/'libhelloblur.dylib'
+
+
+
+def framebuffer(tmp, out, args):
+    run(*PY, 'patches/golden-gate-metal-framebuffer/build/metal-framebuffer', 'build', Path(tmp)/'fb')
+    out.mkdir()
+    shutil.copy(Path(tmp)/'fb/libmetal-framebuffer.dylib', out/'libmetal-framebuffer.dylib')
+    return out
+
+
+# The wrapper re-exports Apple's iCBE but imports nothing from it: linking against an empty stub with that library's
+# install name and versions gives the same iCBE.dylib. iCBE-real.dylib itself is made on the Mac (release-classes.json).
+ICBE_NAME = '/Library/Caches/com.apple.xbs/Binaries/GPUDriversIntel/install/Symbols/Release-ivb/iCBE.dylib'
+
+
+def argbuf(tmp, out, args):
+    stub = Path(tmp)/'stub'
+    stub.mkdir()
+    (stub/'empty.c').write_text('\n')
+    run('xcrun', 'clang', '-arch', 'x86_64', '-mmacosx-version-min=11.7', '-dynamiclib', stub/'empty.c', '-install_name',
+        ICBE_NAME, '-current_version', '0', '-compatibility_version', '0', '-o', stub/'iCBE.dylib')
+    run('tools/metal-argbuf/make', Path(tmp)/'a', '--icbe', stub/'iCBE.dylib')
+    out.mkdir()
+    for n in ('iCBE.dylib', 'libargbuf.dylib'):
+        shutil.copy(Path(tmp)/'a'/n, out/n)
+    return out
+
+
+def live_text(sub):
+    """tools/live-text build from the Apple inputs folder `live-text inputs` makes (--live-text-inputs)."""
+    def build(tmp, out, args):
+        if not args.live_text_inputs:
+            sys.exit('asset-build: %s needs --live-text-inputs DIR (tools/live-text/live-text inputs)' % sub)
+        blur = Path(tmp)/'blur'
+        run('sh', 'patches/golden-gate-hello/build/make.sh', blur)
+        run(*PY, 'tools/live-text/live-text', 'build', '--inputs', args.live_text_inputs, '--startup-library',
+            blur/'libhelloblur.dylib', '--output', Path(tmp)/'lt')
+        shutil.copytree(Path(tmp)/'lt'/sub, out, symlinks=True)
+        return out
+    return build
+
+
 def tool(*argv, name):
     """A pipeline/unpack producer that writes NEW_DIR/NAME and its build.json."""
     def build(tmp, out, args):
@@ -112,6 +158,11 @@ ASSETS = {
     'ripatch': tool('pipeline/unpack/build-tools', 'ripatch', name='ripatch'),
     'oclp_source': tool('pipeline/unpack/build-tools', 'oclp-source-rebuild', name='oclp-source.tar'),
     'hd4000_planes': hd4000,
+    'libhelloblur': helloblur,
+    'metal_framebuffer': framebuffer,
+    'metal_argbuf': argbuf,
+    'metal_compiler_compat': live_text('compiler-service'),
+    'live_text_framework': live_text('framework'),
 }
 
 
@@ -128,6 +179,7 @@ def main(argv=None):
     p.add_argument('out', type=Path, nargs='?')
     p.add_argument('--hao-runtime', type=Path)
     p.add_argument('--oclp-upstream', help='oclp_source: an OCLP clone or URL instead of GitHub')
+    p.add_argument('--live-text-inputs', type=Path, help='metal_compiler_compat, live_text_framework: the folder `tools/live-text/live-text inputs` made')
     args = p.parse_args(argv)
     if args.row == 'list':
         print('\n'.join(ASSETS))
@@ -146,6 +198,22 @@ def main(argv=None):
             out.mkdir(parents=True)
             shutil.copyfile(built, out/os.path.basename(path))
             built = out/os.path.basename(path)
+    entry = json.load(open(TOP/'pipeline/release-classes.json'))['rows'].get(args.row) or {}
+    if entry.get('made_on_mac_files'):
+        # The row's hash also covers files a user's Mac makes from Apple's (not built here): compare the published
+        # files with the row's copies when the store has them; otherwise the release asset is the comparison.
+        names = entry['include']
+        mine = {n: L['sha256'](str(built/n)) for n in names}
+        for n in names:
+            print('%s %s/%s' % (mine[n], args.row, n))
+        path = str(TOP/path)
+        if not os.path.isdir(path):
+            print('asset-build: %s has made-on-Mac files; no store copy here, compare the release asset' % args.row)
+            return 0
+        bad = [n for n in names if L['sha256'](os.path.join(path, n)) != mine[n]]
+        for n in bad:
+            print('asset-build: %s/%s differs from the row\'s copy' % (args.row, n), file=sys.stderr)
+        return 1 if bad else 0
     got = L['row_hash'](lock, args.row, str(built))
     print('%s %s' % (got, args.row))
     if got != want:
