@@ -76,8 +76,11 @@ tonight" line. The same is true after a reboot.
 
 ## Validation
 
-NEEDS VALIDATION: host-tested only (apply.sh on a stand-in Data tree); not built into an image or booted yet.
+Laptop 2026-11-18, a MacBookPro9,2 with a fresh install of the v0.0.1 candidate C2 (26B131): SplatEnabled and
+AutomaticallyInstallMacOSUpdates were off with no hand edits; softwareupdated logged "Splat is disabled" on both boots,
+queued nothing and set no product keys; the settings held across a reboot, and Preboot's cryptex was unchanged.
 
 ## Revisions
+- r3 2026-11-18 Validated r2 on hardware (Validation); nothing it installs changes.
 - r2 2026-11-18 AutomaticallyInstallMacOSUpdates off too (owner), so no macOS update installs on its own either.
 - r1 2026-11-18 New: SplatEnabled off and the Install Tonight queue cleared, so no Background Security Improvement installs on its own.
