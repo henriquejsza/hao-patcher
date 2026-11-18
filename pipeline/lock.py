@@ -262,12 +262,13 @@ def names_on_the_way(p, limit=40):
 
 
 def source_check(lock, name, p):
-    """Stop when a name on the way to row NAME's source P (links followed hop by hop: names_on_the_way) is another
-    user's: such a user could point it elsewhere. Its bytes are checked on the copy anyway (take, take-tree, stage)."""
-    mine = {0, 99, os.geteuid()} | ({int(os.environ['SUDO_UID'])} if os.environ.get('SUDO_UID', '').isdigit() else set())
-    for q in names_on_the_way(p):                      # 99: a volume mounted without owners (the USB installer)
+    """Stop when a name on the way to row NAME's source P (links followed one at a time: names_on_the_way) belongs to
+    someone other than root, this user or the user who ran sudo. Its bytes are checked on the copy as well."""
+    mine = {0, os.geteuid()} | ({int(os.environ['SUDO_UID'])} if os.environ.get('SUDO_UID', '').isdigit() else set())
+    for q in names_on_the_way(p):
         st = os.lstat(q)
-        if st.st_uid not in mine:
+        # a volume mounted without ownership reports uid 99 for every entry; accepted there
+        if st.st_uid not in mine and not (st.st_uid == UNKNOWN_UID and ignores_owners(q)):
             sys.exit('%s: %s belongs to another user (uid %d) (%s)' % (lock, q, st.st_uid, name))
 
 
