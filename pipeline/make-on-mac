@@ -143,7 +143,15 @@ def sudo_user(environ):
                      'SUDO_UID: run make-on-mac as an ordinary user, or with sudo from that user\'s account')
     import pwd
     entry = pwd.getpwuid(int(uid))
-    return int(uid), int(gid), os.getgrouplist(entry.pw_name, int(gid)), entry.pw_name, entry.pw_dir
+    return int(uid), int(gid), user_groups(entry.pw_name, int(gid)), entry.pw_name, entry.pw_dir
+
+
+def user_groups(name, gid, grouplist=os.getgrouplist, limit=None):
+    """The user's groups for setgroups: their primary group first, at most NGROUPS_MAX (16 on macOS; an admin user
+    has more, and setgroups refuses a longer list). macOS's initgroups keeps the first 16 the same way; membership
+    beyond them is still answered by the directory service."""
+    limit = limit or os.sysconf('SC_NGROUPS_MAX')
+    return list(dict.fromkeys([gid] + list(grouplist(name, gid))))[:limit]
 
 
 def hand_over(top, uid, gid, readable=False):

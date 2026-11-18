@@ -78,6 +78,15 @@ class RuntimeTool(unittest.TestCase):
         self.assertEqual((kw['user'], kw['group'], kw['extra_groups']), (502, 20, [20, 12]))
         self.assertEqual(kw['env']['TMPDIR'], '/t')
 
+    def test_an_admin_users_groups_fit_setgroups(self):
+        many = [20, 12, 61, 79, 80, 81, 701, 702, 33, 98, 100, 204, 250, 395, 398, 399, 400]   # an admin, 17
+        groups = M['user_groups']('tester', 20, grouplist=lambda name, gid: many, limit=16)
+        self.assertEqual(len(groups), 16)
+        self.assertEqual(groups[0], 20)
+        self.assertEqual(M['user_groups']('u', 20, grouplist=lambda n, g: [12, 20]), [20, 12])
+        self.assertLessEqual(len(M['sudo_user']({'SUDO_UID': str(os.getuid()), 'SUDO_GID': str(os.getgid())})[2]),
+                             os.sysconf('SC_NGROUPS_MAX'))
+
     def test_work_folder_lets_only_that_user_through(self):
         import pwd
         name = pwd.getpwuid(os.getuid()).pw_name
