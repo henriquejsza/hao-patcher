@@ -193,6 +193,25 @@ class Lock(unittest.TestCase):
         p = Path(L.private_dir(str(parent)))
         self.assertEqual((p.stat().st_mode & 0o777, self.acl(p)), (0o700, []))
 
+    def test_a_staging_folder_reading_as_uid_99_needs_a_volume_without_owners(self):
+        # a USB installer drive mounted without ownership reports every owner as 99 (SEC4 K1, known for v0.0.1): the
+        # fresh-Mac run of 84914da3 stopped at "the staging folder is not private" there
+        sys.path.insert(0, str(TOP / 'pipeline'))
+        import lock as L
+        from unittest import mock
+        real = os.lstat
+        def as_99(p, *a, **k):
+            st = real(p, *a, **k)
+            if '.stage-' not in str(p):
+                return st
+            return os.stat_result((st.st_mode, st.st_ino, st.st_dev, st.st_nlink, L.UNKNOWN_UID) + tuple(st)[5:10])
+        parent = self.d / 'drive'; parent.mkdir()
+        with mock.patch.object(L.os, 'lstat', as_99):
+            with mock.patch.object(L, 'ignores_owners', return_value=True):
+                self.assertTrue(Path(L.private_dir(str(parent))).is_dir())
+            with mock.patch.object(L, 'ignores_owners', return_value=False), self.assertRaises(SystemExit):
+                L.private_dir(str(parent))
+
     def test_lock_folder_one_file_per_row(self):
         d = self.d / 'lockdir'; d.mkdir()
         (d / 'kdk').write_text('# a comment\n%s %s   # note\n' % (self.sha, self.f))

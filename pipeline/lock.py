@@ -272,9 +272,31 @@ def private_dir(parent):
     d = tempfile.mkdtemp(prefix='.stage-', dir=parent)
     _no_acl(d)
     st = os.lstat(d)
-    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid() or stat.S_IMODE(st.st_mode) != 0o700 or _has_acl(d):
+    # On a volume mounted without ownership (a USB installer drive) every entry reads as uid 99 and owner bits protect
+    # nothing: accepted as known for v0.0.1 (owner, DECISIONS 2026-11-18, SEC4 K1); everywhere else it must be ours.
+    owner_ok = st.st_uid == os.geteuid() or (st.st_uid == UNKNOWN_UID and ignores_owners(d))
+    if not stat.S_ISDIR(st.st_mode) or not owner_ok or stat.S_IMODE(st.st_mode) != 0o700 or _has_acl(d):
         sys.exit('%s: the staging folder is not private' % d)
     return d
+
+
+UNKNOWN_UID = 99    # what a volume mounted without ownership reports as every entry's owner
+
+
+def ignores_owners(path):
+    """True when PATH is on a volume mounted with ownership ignored (mount(8) lists it as noowners)."""
+    import subprocess
+    df = subprocess.run(['/bin/df', '-P', path], capture_output=True, text=True)
+    lines = df.stdout.strip().splitlines()
+    if df.returncode or len(lines) < 2:
+        return False
+    mountpoint = lines[-1].split(None, 5)[-1]
+    for line in subprocess.run(['/sbin/mount'], capture_output=True, text=True).stdout.splitlines():
+        device, _, rest = line.partition(' on ')
+        point, _, flags = rest.rpartition(' (')
+        if point == mountpoint:
+            return 'noowners' in flags
+    return False
 
 
 def own(path):
