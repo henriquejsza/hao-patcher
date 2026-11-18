@@ -272,8 +272,8 @@ def private_dir(parent):
     d = tempfile.mkdtemp(prefix='.stage-', dir=parent)
     _no_acl(d)
     st = os.lstat(d)
-    # On a volume mounted without ownership (a USB installer drive) every entry reads as uid 99 and owner bits protect
-    # nothing: accepted as known for v0.0.1 (owner, DECISIONS 2026-11-18, SEC4 K1); everywhere else it must be ours.
+    # A volume mounted without ownership (a USB installer drive) reports every entry's owner as uid 99; accepted
+    # there. Everywhere else the folder must be this user's.
     owner_ok = st.st_uid == os.geteuid() or (st.st_uid == UNKNOWN_UID and ignores_owners(d))
     if not stat.S_ISDIR(st.st_mode) or not owner_ok or stat.S_IMODE(st.st_mode) != 0o700 or _has_acl(d):
         sys.exit('%s: the staging folder is not private' % d)

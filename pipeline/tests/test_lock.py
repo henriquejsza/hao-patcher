@@ -194,8 +194,8 @@ class Lock(unittest.TestCase):
         self.assertEqual((p.stat().st_mode & 0o777, self.acl(p)), (0o700, []))
 
     def test_a_staging_folder_reading_as_uid_99_needs_a_volume_without_owners(self):
-        # a USB installer drive mounted without ownership reports every owner as 99 (SEC4 K1, known for v0.0.1): the
-        # fresh-Mac run of 84914da3 stopped at "the staging folder is not private" there
+        # a volume mounted without ownership (a USB installer drive) reports every owner as uid 99; a folder there
+        # is accepted, and uid 99 elsewhere is not
         sys.path.insert(0, str(TOP / 'pipeline'))
         import lock as L
         from unittest import mock
