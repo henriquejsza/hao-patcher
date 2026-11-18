@@ -1,5 +1,5 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "dev",
  "stage": "post",
  "inputs": [
@@ -46,7 +46,7 @@
    "origin": {
     "kind": "hao",
     "row": "hao_capture_plist",
-    "note": "Data volume; root job: at load (first run after 300 s), then every 1800 s, Background, low-priority I/O; root:wheel 0644"
+    "note": "Data volume; root job: at load (first run after 1200 s, past the timed first-login settle), then every 1800 s, Background, low-priority I/O; root:wheel 0644"
    },
    "install": {
     "mode": "0644",

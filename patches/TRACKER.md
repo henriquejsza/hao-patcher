@@ -11,7 +11,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | darwin27-kernel | r14 | oclp-hook | product |  | x | x |  |  | **needs** | r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only. |
 | darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
 | dev-access | r8 | post | dev |  |  |  |  |  | **needs** | r8 2026-11-17 Every path in apply.sh is quoted: the user's install runs posts from the installer volume ("/Vol |
-| dev-capture | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-18 The metadata recorder: a root launchd job and its two scripts, from three private store rows. |
+| dev-capture | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-18 Recorder payload 40309773dd00: its first run waits 1200 s instead of 300 s, so it does not load  |
 | dev-diagnostics | r10 | post | dev |  |  |  |  |  | **needs** | r10 2026-11-17 The dev boot-args follow hao-opencore r80: no `-nokcmismatchpanic`, no `-pmap_pcid_disable`. |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | dev-session | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-18 The test account's Setup Assistant record is complete, so the per-user Setup Assistant does not  |

@@ -16,7 +16,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 | darwin27-kernel | r14 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
 | darwin27-sandbox-disk-space | r5 | experiment | oclp-hook | yes | golden-gate | - |
 | dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
-| dev-capture | r2 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | hao_capture_job e57b5f97 hao-capture; hao_capture_inventory 786b5c50 inventory.sh; hao_capture_plist 1fa1d9e3 local.hao.capture.plist |
+| dev-capture | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | hao_capture_job 514c46e1 hao-capture; hao_capture_inventory 786b5c50 inventory.sh; hao_capture_plist 1fa1d9e3 local.hao.capture.plist |
 | dev-diagnostics | r10 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
 | dev-session | r2 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | dev_session_config 8786bcbc session.conf |
@@ -92,7 +92,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `Library/LaunchDaemons/local.testssh.plist`: from hao
   - `private/var/root/.testssh/screensharing-users`: from hao (row screensharing_users)
   - `Library/LaunchDaemons/dev.hao.screensharing.plist`: from hao
-- **dev-capture** r2
+- **dev-capture** r3
   - `Library/Preferences/Logging/Subsystems/com.hao.plist`: from hao
   - `usr/local/libexec/hao-capture/hao-capture`: from hao (row hao_capture_job)
   - `usr/local/libexec/hao-capture/inventory.sh`: from hao (row hao_capture_inventory)
