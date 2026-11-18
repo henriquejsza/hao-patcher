@@ -36,7 +36,14 @@ P=$1; B=$2; V=$3; [ -f "$P" ] || plutil -create xml1 "$P"
 for k in DidSeeCloudSetup DidSeePrivacy DidSeeSiriSetup DidSeeScreenTime DidSeeAppearanceSetup DidSeeAccessibility \
   DidSeeApplePaySetup DidSeeTouchIDSetup DidSeeActivationLock DidSeeIntelligence DidSeeSyncSetup DidSeeSyncSetup2 \
   DidSeeTermsOfAddress DidSeeLockdownMode DidSeeiCloudLoginForStorageServices DidSeeAvatarSetup DidSeeWallpaper \
-  DidSeeUpdateSettings DidSeeFileVault DidSeeAnalytics SkipFirstLoginOptimization; do plutil -replace "$k" -bool YES "$P"; done
+  DidSeeUpdateSettings DidSeeFileVault DidSeeAnalytics DidSeeAppStore DidSeeTrueTonePrivacy DidSeeUniversalControl \
+  SkipFirstLoginOptimization; do plutil -replace "$k" -bool YES "$P"; done
+# the per-user Setup Assistant counts as done only with these too; while it is pending, bookdatastored quits at every
+# start and launchd restarts it every 10 s (laptop, 2026-11-18)
+for k in Siri Intelligence Diagnostics iCloudStorageServices AgeRangeSelection GlassTintUpsell; do
+  plutil -replace "LastSeen${k}ProductVersion" -string "$V" "$P"; done
+plutil -replace InitialSetupBuildVersion -string "$B" "$P"; plutil -replace InitialSetupProductVersion -string "$V" "$P"
+plutil -replace InitialAccountSetupDate -date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$P"
 plutil -replace LastSeenBuddyBuildVersion -string "$B" "$P"; plutil -replace LastSeenCloudProductVersion -string "$V" "$P"
 plutil -replace LastPreLoginTasksPerformedBuild -string "$B" "$P"; plutil -replace LastPreLoginTasksPerformedVersion -string "$V" "$P"
 plutil -replace LastPrivacyBundleVersion -integer 9999 "$P"; touch "$HOME/.skipbuddy"

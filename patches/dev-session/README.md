@@ -35,4 +35,6 @@ after every push and reboot. Release profiles refuse dev recipes, so no user ima
 NEEDS VALIDATION: host tests only.
 
 ## Revisions
+- r2 2026-11-18 The test account's Setup Assistant record is complete, so the per-user Setup Assistant does not stay
+  pending (bookdatastored restarted every 10 s while it was).
 - r1 2026-11-18 New (owner: dev images come up unlocked and drivable).
