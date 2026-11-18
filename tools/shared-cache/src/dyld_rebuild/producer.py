@@ -33,7 +33,62 @@ def write(path, value):
     return pin(path)
 
 
-def serialize(helper, manifest, collection, directory, *, programs=False, cached=None):
+def x86_64_uuid(path):
+    """LC_UUID of the x86_64 slice of a Mach-O file (thin or fat), or None."""
+    import struct
+    data = Path(path).read_bytes()
+    off = None
+    magic, = struct.unpack_from('>I', data, 0)
+    if magic in (0xcafebabe, 0xcafebabf):
+        count, = struct.unpack_from('>I', data, 4)
+        for i in range(min(count, 64)):
+            if magic == 0xcafebabe:
+                cpu, _, o, _, _ = struct.unpack_from('>IIIII', data, 8 + i * 20)
+            else:
+                cpu, _, o, _, _, _ = struct.unpack_from('>IIQQII', data, 8 + i * 32)
+            if cpu == 0x01000007:
+                off = o
+    elif struct.unpack_from('<II', data, 0) == (0xfeedfacf, 0x01000007):
+        off = 0
+    if off is None:
+        return None
+    _, _, _, ncmds, _, _ = struct.unpack_from('<IiiIII', data, off + 4)
+    at = off + 32
+    for _ in range(ncmds):
+        cmd, size = struct.unpack_from('<II', data, at)
+        if cmd == 0x1b:
+            return data[at + 8:at + 24].hex()
+        at += size
+    return None
+
+
+def clear_same_uuid_overrides(blob, views, images):
+    """27's cached loaders are all isOverridable with no file validation, so any on-disk file at a cached path counts as
+    a root and drops every dependent to JIT loaders. 27's x86_64 OS cryptex ships libsystem_kernel/platform/pthread as
+    files with the cache images' own UUIDs, so stock's set is never used either. A cached loader stays overridable unless
+    every on-disk copy (System, OS and App cryptex views) carries the cache image's x86_64 LC_UUID; a real root still wins."""
+    data = bytearray(Path(blob).read_bytes())
+    cleared = []
+    for row in read_set(bytes(data), images, app=False)['loaders']:
+        copies = [views.roots[v] / row['path'].lstrip('/') for v in ('system', 'os', 'app') if views.roots.get(v) is not None]
+        copies = [c for c in copies if c.is_file()]
+        if not copies:
+            continue
+        try:
+            uuids = {x86_64_uuid(c) for c in copies}
+        except Exception:   # unreadable or not Mach-O: keep it overridable
+            continue
+        if uuids == {row['uuid']}:
+            at = row['offset'] + 0x2c
+            bits = int.from_bytes(data[at:at + 2], 'little')
+            if bits & 2:
+                data[at:at + 2] = (bits & ~2).to_bytes(2, 'little')
+                cleared.append(row['path'])
+    Path(blob).write_bytes(bytes(data))
+    return cleared
+
+
+def serialize(helper, manifest, collection, directory, *, programs=False, cached=None, views=None):
     directory.mkdir()
     main, count, images, inputs = cache_manifest(manifest)
     files, paths = load_root_manifest(collection['root']['path'])
@@ -43,7 +98,10 @@ def serialize(helper, manifest, collection, directory, *, programs=False, cached
     if not programs:
         blob = directory / 'cached-dylibs.pbl'
         subprocess.run([*command, str(blob), 'cached', str(images), str(count), str(mapping), '-'], check=True)
-        return write(directory / 'result.json', dict(mode='cached', cache_inputs=inputs,
+        cleared = clear_same_uuid_overrides(blob, views, images) if views is not None else []
+        if cleared:
+            print('cached loaders not overridable (on-disk copies are the cache images): ' + ', '.join(cleared), flush=True)
+        return write(directory / 'result.json', dict(mode='cached', cache_inputs=inputs, not_overridable=cleared,
                      cached_set=dict(file=blob.name, size=blob.stat().st_size, sha256=sha(blob))))
     batch = directory / 'batch.tsv'
     batch.write_text(''.join(f'{path}\t{directory}/program-{i:04d}.pbl\t{directory}/program-{i:04d}.log\n'
@@ -91,7 +149,7 @@ def _loaders(system, os_root, app, data, program_files, intake, assembly, meta, 
                                         views, work / 'program-inputs')
     print('Build host loader serializer', flush=True)
     helper = loader(work / 'loader')
-    cached = serialize(helper, assembly['path'], collection, work / 'cached')
+    cached = serialize(helper, assembly['path'], collection, work / 'cached', views=views)
     md = read(meta)
     allocation = md['outputs']['metadata-layout.json']
     layout = read(allocation)
@@ -114,7 +172,7 @@ def _loaders(system, os_root, app, data, program_files, intake, assembly, meta, 
          '--header-report', work / 'headers/report.json', '--pbl-report', cached['path'], '--output', work / 'cached-family')
     cached_manifest = work / 'cached-family/build-report.json'
     final_collection = collect_program_inputs(source['path'], cached_manifest, views, work / 'final-program-inputs')
-    serialize(helper, cached_manifest, final_collection, work / 'cached-final')
+    serialize(helper, cached_manifest, final_collection, work / 'cached-final', views=views)
     programs = serialize(helper, cached_manifest, final_collection, work / 'programs', programs=True,
                          cached=work / 'cached-final/cached-dylibs.pbl')
     _run(work, 'program-finalize', 'tools/finalize-program-loaders.py', '--cache-manifest', cached_manifest,
