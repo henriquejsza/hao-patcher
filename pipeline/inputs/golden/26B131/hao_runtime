@@ -1,5 +1,5 @@
-# hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime 373d1ea
-# (256dd30 plus the JIT arena and the Maps, Weather, Font Book, System Settings and WebContent fixes; libhao 35AEEEEF, units-input (1896), AOT format 8, cpu baseline).
+# hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime 5ae87be
+# (256dd30 plus the Maps, Weather, Font Book, System Settings and WebContent fixes, without the JIT arena; libhao 465DCD69, units-input (1896), AOT format 8, cpu baseline).
 # hash: without root/usr/lib/hao/aot  # made on the user's Mac after the first boot (made_on_mac_files)
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=bc5dec51d810369374ad2e379aaa16842e99327377d483df2073d5faf9f2d790
-1db631590101733ee9cf0c75c25dff80bb8c5d4050997cca0ed3a11c5be183d6 store/artifacts/hao-runtime-26B131-20261119-373d1ea-stock/payload
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=90328d0ccc465f413769c0177c8aec5f3e9f199241ea4a71517cd3469dc15f70
+a11987bcf10e5c18a943d2f03c61ea211583fddd06f7b018e3d172174648e045 store/artifacts/hao-runtime-26B131-20261119-5ae87be-stock/payload
