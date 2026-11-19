@@ -12,14 +12,14 @@
     "row": "hao_runtime",
     "identifier": "com.apple.Safari.History",
     "stub": "stubs/c952a44e30aa76cea6f23d7e.stub",
-    "stub_sha256": "7b47b8c7b07aba27177342a5d2720a4ae3a48f8e24df2745ecdf6c2ab85a2a78",
+    "stub_sha256": "c540f8a079ca42cb28f0e9fb4e46c3b6e05401e8d437bedc0454ed9d6c16021b",
     "source_sha256": "2b7fac62f8b753f761035356e2fbf4a07b68d2a433e5e02b4718dc9fb7bacf45",
-    "result_sha256": "4ebaf927d5e9b5d667c402b47356793fd847a92e1c5a0c320263d86217607330",
+    "result_sha256": "3cf18793811835d6ee1f01e188ddc487b17e616624b0a57a6dd7d79e0f782c49",
     "bound": [{"slot": -1, "sha256": "e8b0062c5194f755b8dfc7558b28b2716c4601e9cb84d116924369c214f819a4", "section": "__TEXT,__info_plist"}]
    },
    "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail)"
   }
  ],
  "sign": null,
- "expect": {"2b7fac62f8b753f761035356e2fbf4a07b68d2a433e5e02b4718dc9fb7bacf45": "4ebaf927d5e9b5d667c402b47356793fd847a92e1c5a0c320263d86217607330"}
+ "expect": {"2b7fac62f8b753f761035356e2fbf4a07b68d2a433e5e02b4718dc9fb7bacf45": "3cf18793811835d6ee1f01e188ddc487b17e616624b0a57a6dd7d79e0f782c49"}
 }

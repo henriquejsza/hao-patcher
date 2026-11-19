@@ -1,5 +1,5 @@
 {
- "revision": 91,
+ "revision": 92,
  "pack": "base",
  "stage": "oclp-hook",
  "status": "product",
@@ -232,5 +232,17 @@
    "edits": "edits/embed-os-com-apple-webkit-webcontent-ios.json"
   }
  ],
- "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": "any", "firmware": "any"}
+ "requires": {
+  "os": [
+   "26A428",
+   "26B131"
+  ],
+  "donor": [
+   "25G332",
+   "25G342"
+  ],
+  "cpu": "any",
+  "gpu": "any",
+  "firmware": "any"
+ }
 }

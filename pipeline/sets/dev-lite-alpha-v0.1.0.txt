@@ -32,5 +32,6 @@ golden-gate-deep-sleep-off
 golden-gate-unsupported-daemons
 dev-access
 dev-keepawake
+dev-capture
 dev-session
 hao-command

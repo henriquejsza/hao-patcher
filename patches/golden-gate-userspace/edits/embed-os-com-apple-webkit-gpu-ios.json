@@ -12,9 +12,9 @@
     "row": "hao_runtime",
     "identifier": "com.apple.WebKit.GPU",
     "stub": "stubs/0131718a06d0d130fa90c73a.stub",
-    "stub_sha256": "f1c2cb5cc367ce2d366a19fc115ceafb7fcee546bfd13b972f18f8cd92091bab",
+    "stub_sha256": "078604abd25d97fe398a514a9f95755f0c5561535cb52f342506f2a0c2f768b4",
     "source_sha256": "c4a57fb9efa49fb4d3c0e56339b5e66319e7aeb5f63006235b33de61c3e865e4",
-    "result_sha256": "07955cc581940c2a9edb0463c1c12997bc5543484b16faac73241d061b6f1003",
+    "result_sha256": "c69e6bf26eb589c33afa277a08427888ce9a1b72d0b6e68f5c3a78741061b613",
     "bound": [
      {"slot": -1, "sha256": "d862decebda21cf4eeada0dd7e63b243226b0a6f246ca9b30fcfb434fc9c1430", "file": "System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/Info.plist"},
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/_CodeSignature/CodeResources"}
@@ -24,5 +24,5 @@
   }
  ],
  "sign": null,
- "expect": {"c4a57fb9efa49fb4d3c0e56339b5e66319e7aeb5f63006235b33de61c3e865e4": "07955cc581940c2a9edb0463c1c12997bc5543484b16faac73241d061b6f1003"}
+ "expect": {"c4a57fb9efa49fb4d3c0e56339b5e66319e7aeb5f63006235b33de61c3e865e4": "c69e6bf26eb589c33afa277a08427888ce9a1b72d0b6e68f5c3a78741061b613"}
 }

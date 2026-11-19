@@ -12,14 +12,14 @@
     "row": "hao_runtime",
     "identifier": "com.apple.jsc",
     "stub": "stubs/6aa7c059d34a0e5c677b5678.stub",
-    "stub_sha256": "923286cc3d948629deb0b2aefbe820404bc3ae8968cc705f1a36a7b5bb64960c",
+    "stub_sha256": "10397540f0929f0e4a5135230ed481e0d65bf7e853ee036a0ea8018113c7a7cf",
     "source_sha256": "e3d116e189b53e49620b82e610a478f41132044399a55ff2507af9563df34579",
-    "result_sha256": "0020819e3c5b654a2d52eac713bcbd036dca56f2ad130bd7b82cf3e02f6937de",
+    "result_sha256": "1083b63a9a0630a553777c2741a357f4e9b0af412b681f4e37d1d0e63fcd41bf",
     "bound": []
    },
    "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail)"
   }
  ],
  "sign": null,
- "expect": {"e3d116e189b53e49620b82e610a478f41132044399a55ff2507af9563df34579": "0020819e3c5b654a2d52eac713bcbd036dca56f2ad130bd7b82cf3e02f6937de"}
+ "expect": {"e3d116e189b53e49620b82e610a478f41132044399a55ff2507af9563df34579": "1083b63a9a0630a553777c2741a357f4e9b0af412b681f4e37d1d0e63fcd41bf"}
 }

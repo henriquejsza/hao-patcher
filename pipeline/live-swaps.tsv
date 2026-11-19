@@ -94,3 +94,4 @@ ea3504452482697ee1f7a89cd8dc07ccfc516fd59a5b2930ffa975a886ed42f1	/usr/lib/hao/li
 8306113b45236371eb49921bfd5c603bc2671a6f306e0b93fdadfe35aff8b752	/usr/lib/hao/libhao.dylib	dropped: a diagnostic libhao for the ControlCenter crash, reverted to the previous libhao right after
 8009cb5c3fba5e0b0a0071e854511f49a2f89e4bd1e4b92dde1837739dd40e0a	/usr/lib/hao/libhao.dylib	dropped: a diagnostic libhao for the ControlCenter crash, reverted right after
 ce2c606294c894ccc2afdf2254fa90cb0b7761757edae26a7da03c88b5771c20	/usr/lib/hao/libhao.dylib	dropped: a second diagnostic libhao for the ControlCenter crash, reverted right after
+f3072c3cc86e03ca9cc68521021091681168896d0814e40a51765ca9791b241a	/usr/lib/hao/libhao.dylib	row hao_runtime: hao-runtime 256dd30 on 0dee681 (Control Center opens: buffer copies in a value scope and a native callback-call contract); ships in the payload built from it
