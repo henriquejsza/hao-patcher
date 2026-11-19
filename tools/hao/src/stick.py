@@ -663,10 +663,24 @@ def partition(host, disk, boot_size_mb, expect=None):
                             expect.get('minimum', 0), expect.get('sources', ()))
         if why:
             raise StickError('/dev/%s was not erased: %s' % (disk, why))
-    host.run(['diskutil', 'unmountDisk', 'force', '/dev/' + disk], check=False)
-    host.run(['diskutil', 'partitionDisk', '/dev/' + disk, 'GPT',
-              'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
-    return mounted_parts(host, disk, 'after partitioning %s' % disk)
+    admin = as_admin(host)
+    host.run(admin + ['diskutil', 'unmountDisk', 'force', '/dev/' + disk], check=False)
+    host.run(admin + ['diskutil', 'partitionDisk', '/dev/' + disk, 'GPT',
+                      'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
+    parts = mounted_parts(host, disk, 'after partitioning %s' % disk)
+    if admin:
+        # made by root: HAO is handed to the user running hao, who writes everything else on the drive
+        for name, part in parts.items():
+            if part[1] and not os.access(part[1], os.W_OK):
+                host.run(admin + ['chown', str(os.getuid()), part[1]])
+    return parts
+
+
+def as_admin(host):
+    """The prefix for the few commands that need an administrator (erasing the drive): none as root, else sudo -n,
+    which uses the password create-installer asked for (installer.administrator) just before."""
+    euid = getattr(host, 'euid', None)
+    return [] if euid is None or euid() == 0 else ['sudo', '-n']
 
 
 def check_mounts(host, disk, parts):

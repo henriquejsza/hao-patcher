@@ -349,8 +349,8 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
     out = check_python(where, p, version)
     if where != 'build':
         return out
-    if purpose == 'create-installer' and version is None:
-        out += check_interpreter()
+    if purpose == 'create-installer' and version is None and os.geteuid() == 0:
+        out += check_interpreter()      # only a root run starts Python as root (as a user, sudo runs diskutil alone)
     if purpose in ('ci', 'release'):
         out += check_shebangs(p, run=run)
     out += check_xcode(purpose, p, run) + check_macos(p, mac)

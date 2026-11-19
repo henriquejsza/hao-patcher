@@ -18,7 +18,7 @@ THERE = {'build': 'any Mac on its own macOS (the build Mac)', 'installer': 'the 
          'installed': 'a Mac running macOS 27 with hao'}
 # name, where it runs, one line. Developer commands are listed by `hao help --all` only.
 COMMANDS = (
-    ('create-installer', ('build',), 'make the USB installer for an Intel Mac (sudo)'),
+    ('create-installer', ('build',), 'make the USB installer for an Intel Mac'),
     ('install', ('installer',), 'install macOS 27 on this Mac'),
     ('verify', ('installed',), 'check every installed file against its manifest'),
     ('verify-release', ('build', 'installer', 'installed'), 'check a release yourself: signatures, files, tag'),

@@ -471,7 +471,8 @@ class CreateInstallerTest(unittest.TestCase):
         with self.assertRaises(CON.Stopped) as x:
             INST.create_installer(ns(), c, FakeMac())
         self.assertIn('got none', x.exception.what)
-        self.assertIn('sudo ./hao create-installer', x.exception.options[0])
+        self.assertIn('./hao create-installer', x.exception.options[0])
+        self.assertNotIn('sudo', x.exception.options[0])
 
     def test_refuses_internal_system_image_and_small_disks(self):
         for disk, words in (('/dev/disk0', "this Mac's internal disk"), ('disk1', 'disk image'),
@@ -508,16 +509,31 @@ class CreateInstallerTest(unittest.TestCase):
             INST.create_installer(ns(model='MacBookPro9,2'), c, host)
         self.assertIn('it holds this hao folder or its downloads', out.getvalue())
 
-    def test_needs_root_and_a_release(self):
+    def test_needs_a_release_not_root(self):
         c, _, asked = console([])
-        with self.assertRaises(CON.Stopped) as x:
-            INST.create_installer(ns(dry_run=False), c, FakeMac())
-        self.assertIn('administrator', x.exception.what)
+        with self.assertRaises(CON.Stopped) as x:          # as a user: no refusal for that; a release is still needed
+            INST.create_installer(ns(dry_run=False, release='/nonexistent/release.json'), c, FakeMac())
+        self.assertIn('no release.json', x.exception.what)
         self.assertEqual(asked, [])                       # stopped before any question
         c, _, _ = console([])
         with self.assertRaises(CON.Stopped) as x:
             INST.create_installer(ns(dry_run=False, release='/nonexistent/release.json'), c, FakeMac(uid=0))
         self.assertIn('no release.json', x.exception.what)
+
+    def test_a_user_is_asked_for_the_password_once_just_to_erase(self):
+        import subprocess as sp
+        asked = []
+        ok = lambda argv: asked.append(argv) or sp.CompletedProcess(argv, 0)
+        c, out, _ = console([])
+        INST.administrator(c, FakeMac(), 'disk4', run=ok)
+        self.assertEqual(len(asked), 1)
+        self.assertEqual(asked[0][:2], ['sudo', '-v'])
+        self.assertIn('/dev/disk4', asked[0][-1])
+        INST.administrator(c, FakeMac(uid=0), 'disk4', run=ok)      # as root: nothing asked
+        self.assertEqual(len(asked), 1)
+        with self.assertRaises(CON.Stopped) as x:
+            INST.administrator(c, FakeMac(), 'disk4', run=lambda argv: sp.CompletedProcess(argv, 1))
+        self.assertIn('not erased', x.exception.what)
 
     def test_confirmation_is_the_disk_name(self):
         host = FakeMac(uid=0)
