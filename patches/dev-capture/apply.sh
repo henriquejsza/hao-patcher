@@ -10,3 +10,21 @@ install -o root -g wheel -m 755 "$P/inputs/hao_capture_job" "$DATA/usr/local/lib
 install -o root -g wheel -m 755 "$P/inputs/hao_capture_inventory" "$DATA/usr/local/libexec/hao-capture/inventory.sh"
 install -o root -g wheel -m 644 "$P/inputs/hao_capture_plist" "$DATA/Library/LaunchDaemons/local.hao.capture.plist"
 plutil -lint "$DATA/Library/LaunchDaemons/local.hao.capture.plist"
+# hao's crash lines and task-for-pid, for every dev image including dev-lite (which has no dev-diagnostics): boot-arg
+# hao_crash=1 (hao-runtime writes each crashed program's reason to its console log) and SIP bit 0x4 (the recorder's
+# swift-inspect attaches to processes). dev-diagnostics, later in the set, adds the same only if missing.
+PY=${OCLP_PYTHON:-/private/var/ssdshare/py/bin/python3.12}
+"$PY" - "$ESP/EFI/OC/config.plist" <<'PYCONFIG'
+import plistlib,sys
+p=sys.argv[1]
+with open(p,'rb') as f:d=plistlib.load(f)
+n=d['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
+args=n.get('boot-args','').split()
+if 'hao_crash=1' not in args:
+    args.insert(args.index('auxKCAtBoot=false') if 'auxKCAtBoot=false' in args else len(args),'hao_crash=1')
+n['boot-args']=' '.join(args)
+c=int.from_bytes(n.get('csr-active-config',b'\x03\x08\x00\x00'),'little')|0x4
+n['csr-active-config']=c.to_bytes(4,'little')
+with open(p,'wb') as f:plistlib.dump(d,f)
+PYCONFIG
+plutil -lint "$ESP/EFI/OC/config.plist"

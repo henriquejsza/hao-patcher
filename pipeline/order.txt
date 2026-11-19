@@ -46,8 +46,8 @@ golden-gate-unsupported-daemons    # Apple services this hardware cannot run (Ap
 golden-gate-appstore-slices        # App Store slice guard: logs each Mach-O without x86_64 in a universal App Store app after install or update (Data: tool + LaunchDaemon)
 rec-install-volume                 # the image's own Recovery volume gets this repository's Recovery (in no current set): after the posts that change System
 dev-access                         # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
+dev-capture                        # dev only: hao_crash=1, SIP 0x4, com.hao Info lines, the metadata recorder (always capture; before dev-diagnostics)
 dev-diagnostics                    # dev only: hao-runtime measurement boot-args and the OpenCore file log (after hao-opencore)
 dev-keepawake                      # dev only: never sleeps, from the first boot on (system LaunchDaemons: caffeinate, power settings)
-dev-capture                        # dev only: com.hao Info lines persisted; the capture folder (always capture)
 dev-session                        # dev only: the test account logged in with no lock screen or password prompts, GUI helper pre-granted (owner 2026-11-18)
 hao-command                        # the hao command on the Mac (bundled CPython + tools/hao): last, as in every set
