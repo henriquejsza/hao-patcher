@@ -40,8 +40,8 @@ golden-gate-deep-sleep-off        # deep sleep (standby, autopoweroff, hibernati
 golden-gate-unsupported-daemons   # Apple services this hardware cannot run (Apple Intelligence: modelmanagerd, modelcatalogd) disabled by launchd override on Data, diag#19
 golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
+dev-capture                       # dev only: com.hao Info lines persisted; the capture folder (always capture)
 dev-diagnostics                   # dev only: hao-runtime measurement boot-args and the OpenCore file log (after hao-opencore)
 dev-keepawake                     # dev only: never sleeps, from the first boot on (system LaunchDaemons: caffeinate, power settings)
-dev-capture                       # dev only: com.hao Info lines persisted; the capture folder (always capture)
 dev-session                       # dev only: the test account logged in with no lock screen or password prompts, GUI helper pre-granted (owner 2026-11-18)
 hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao
