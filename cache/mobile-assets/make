@@ -76,7 +76,7 @@ def main():
     else:
         work.rename(final)
     print(f"{kept} entries kept, {dropped} dropped, {xattrs} provenance xattrs removed -> {final}")
-    print(f"row pipeline/inputs/golden/{build}/mobile_assets:\n{h}  store/artifacts/{final.name}/mobile-assets.tar")
+    print(f"row pipeline/inputs/golden/{build}/mobile_assets:\n-  store/artifacts/{final.name}")
 
 
 if __name__ == "__main__":

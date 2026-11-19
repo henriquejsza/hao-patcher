@@ -67,8 +67,8 @@ class Make(unittest.TestCase):
 
     def test_prints_the_row(self):
         _, _, out = self.run_make([A + 'com_apple_MobileAsset_DictionaryServices/a'])
-        self.assertRegex(out, r'row pipeline/inputs/golden/26B131/mobile_assets:\n[0-9a-f]{64}  store/artifacts/'
-                              r'mobile-assets-26B131-[0-9a-f]{12}/mobile-assets.tar')
+        self.assertRegex(out, r'row pipeline/inputs/golden/26B131/mobile_assets:\n-  store/artifacts/'
+                              r'mobile-assets-26B131-[0-9a-f]{12}$')
 
 
 if __name__ == '__main__':
