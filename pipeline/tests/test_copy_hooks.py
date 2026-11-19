@@ -30,3 +30,29 @@ class CopyHooksTest(unittest.TestCase):
             self.assertFalse((target/'02-test/inputs/native').is_symlink())
             self.assertEqual((target/'02-test/inputs/native/kext').read_bytes(), b'owned payload')
             self.assertEqual((target/'02-test/kc-hook.sh').read_text(), 'recipe')
+
+
+class PostAndDeclarations(unittest.TestCase):
+    TOP = Path(__file__).resolve().parents[2]
+
+    def test_post_recipes_are_copied_as_hooks_are(self):
+        text = (self.TOP / 'pipeline/stages/golden-assemble.sh').read_text()
+        self.assertIn('copy-hooks.py" "$G/post" "$W/post" --owner "$OWNER"', text)
+        self.assertNotIn('(cd "$G/post" && tar', text)
+
+    def test_the_big_read_only_inputs_are_read_in_the_kit(self):
+        for decl, row in (('hao-runtime/src', 'hao_runtime'), ('hao-opencore', 'hao_runtime'),
+                          ('golden-gate-icon-caches', 'icon_caches_golden_gate')):
+            lines = [l.split('#', 1)[0].strip() for l in
+                     (self.TOP / 'patches' / decl / 'read-from-share.txt').read_text().splitlines()]
+            self.assertIn(row, lines, decl)
+
+    def test_a_declaration_does_not_change_what_a_recipe_installs(self):
+        import runpy, tempfile, shutil
+        P = runpy.run_path(str(self.TOP / 'pipeline/patches.py'))
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            shutil.copytree(self.TOP / 'patches/golden-gate-icon-caches', root / 'golden-gate-icon-caches')
+            before = P['recipe_digest']('golden-gate-icon-caches', str(root))
+            (root / 'golden-gate-icon-caches/read-from-share.txt').write_text('other\n')
+            self.assertEqual(before, P['recipe_digest']('golden-gate-icon-caches', str(root)))

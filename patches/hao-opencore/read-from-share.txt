@@ -1,0 +1,2 @@
+# read where it is in the kit, never written: HaoExec.kext is copied to the ESP and stamp_identity.py run from it
+hao_runtime

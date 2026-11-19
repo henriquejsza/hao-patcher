@@ -94,8 +94,9 @@ bootstrap() {
     done
     (cd "$G/site" && tar -cf - .) | (cd "$W/site" && tar -xf -) || return $?
     "$W/py/bin/python3.12" -I -B "$W/source/copy-hooks.py" "$G/hooks" "$W/hooks" --owner "$OWNER" || return $?
-    (cd "$G/post" && tar -cf - .) | (cd "$W/post" && tar -xf -) || return $?
-    chown -R "$OWNER" "$W/source" "$W/py" "$W/site" "$W/post" || return $?
+    # post recipes as hooks: an input a recipe declares read-only (read-from-share.txt) is read where it is in the kit
+    "$W/py/bin/python3.12" -I -B "$W/source/copy-hooks.py" "$G/post" "$W/post" --owner "$OWNER" || return $?
+    chown -R "$OWNER" "$W/source" "$W/py" "$W/site" || return $?
 }
 bootstrap || exit $?
 export PYTHONDONTWRITEBYTECODE=1    # and for any other Python a hook starts without -I
