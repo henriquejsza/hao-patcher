@@ -181,8 +181,11 @@ class Archive(unittest.TestCase):
 class Reproductions(unittest.TestCase):
     def test_entries_name_their_artifact_and_a_known_commit(self):
         data = json.loads((TOP / 'pipeline/reproductions.json').read_text())
+        classes = json.loads((TOP / 'pipeline/release-classes.json').read_text())
         for row, e in data['rows'].items():
-            self.assertIn(e['result'], ('identical', 'except'), row)
+            # a harvested row is never rebuilt: its entry only names the commit of the tool or recipe that produced it
+            allowed = ('identical', 'except', 'harvested') if classes['rows'].get(row, {}).get('class') == 'harvested' else ('identical', 'except')
+            self.assertIn(e['result'], allowed, row)
             self.assertTrue(e['result'] != 'except' or e.get('except'), row)
             self.assertTrue(R['commit_known'](e['commit']), '%s: commit %s not found' % (row, e['commit']))
 

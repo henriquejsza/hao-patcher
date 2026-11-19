@@ -129,6 +129,20 @@
    "result": "identical",
    "command": "patches/golden-gate-metal-framebuffer/build/metal-framebuffer build OUT",
    "toolchain": "Xcode 27.2 (27B52), python3.14 -I"
+  },
+  "wallpaper_export_golden_gate": {
+   "artifact": "wallpaper-export-26B131-20261118-f6d4cd4409b6",
+   "repo": "hao-patcher",
+   "commit": "e876cc8c",
+   "result": "harvested",
+   "note": "not a rebuild: copied from a first login (build.json); commit is the recipe that added the export"
+  },
+  "mobile_assets": {
+   "artifact": "mobile-assets-26B131-9940eab52729",
+   "repo": "hao-patcher",
+   "commit": "9327e059",
+   "result": "harvested",
+   "note": "not a rebuild: cut from a first-login harvest by cache/mobile-assets/make at this commit (INFO)"
   }
  }
 }
