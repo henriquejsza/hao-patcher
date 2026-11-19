@@ -280,7 +280,7 @@ Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 ## golden-gate-mobile-assets
 
-Revision r2, status product. [Recipe](../patches/golden-gate-mobile-assets/README.md)
+Revision r3, status product. [Recipe](../patches/golden-gate-mobile-assets/README.md)
 
 - `System/Library/AssetsV2`: whole file from every file under it from hao (row mobile_assets). Data volume; mobile-assets.tar cut by cache/mobile-assets/make from a harvest of this build after an online first login; extracted with its owners, modes and xattrs, then chflags -R restricted as on a stock Mac.
 
@@ -549,7 +549,7 @@ Revision r92, status product. [Recipe](../patches/golden-gate-userspace/README.m
 
 ## golden-gate-wallpaper-export
 
-Revision r1, status product. [Recipe](../patches/golden-gate-wallpaper-export/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-wallpaper-export/README.md)
 
 - `Library/Application Support/PerUserSeed/wallpaper/Metadata.plist`: whole file from hao (row wallpaper_export_golden_gate). WallpaperAgent's export metadata of the default wallpaper (root 644); golden-gate-user-seed's seed.zsh places it first.
 - `Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png`: whole file from hao (row wallpaper_export_golden_gate). WallpaperAgent's export of the default wallpaper, 3840x2160 (root 644); golden-gate-user-seed's seed.zsh places it after the metadata.

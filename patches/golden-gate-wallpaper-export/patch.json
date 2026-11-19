@@ -1,6 +1,6 @@
 {
- "revision": 1,
- "pack": "base",
+ "revision": 2,
+ "pack": "os-extras",
  "stage": "post",
  "inputs": [
   "wallpaper_export_golden_gate"

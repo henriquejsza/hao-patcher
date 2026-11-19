@@ -6,6 +6,8 @@
   "metal27-trial"
  ],
  "recipes": [
+  "golden-gate-wallpaper-export",
+  "golden-gate-mobile-assets",
   "golden-gate-appstore-slices"
  ]
 }

@@ -32,7 +32,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-framebuffer | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-17 Row `metal_framebuffer`: lowering always uses the stack's own libLLVM (no environment override) |
 | golden-gate-metal-libraries | r23 | oclp-hook | product |  | x | x |  |  | **needs** | r23 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
 | golden-gate-metal27 | r6 | oclp-hook | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
-| golden-gate-mobile-assets | r2 | post | product | caches | x |  |  |  | **needs** | r2 2026-11-18 Row mobile_assets carries the folder's content sha256; golden builds refuse a row without one. |
+| golden-gate-mobile-assets | r3 | post | product | caches |  |  |  |  | **needs** | r3 2026-11-19 Pack os-extras: dev profiles name it, release profiles leave it out (Apple-derived; returns when |
 | golden-gate-model-gates-mbp92 | r1 | oclp-hook | product |  | x |  |  |  | **needs** | r1 2026-11-17 New (GEN1): golden-gate-userspace's model-gates edit, declared for pack mbp92; the 9,2 and its n |
 | golden-gate-native-identities | r12 | oclp-hook | product |  | x | x |  |  | **needs** | r12 2026-11-18 appstored and appstoreagent insert the store policy library under its new path (golden-gate-sto |
 | golden-gate-root-launchservices | r5 | post | experiment | boot-seeds |  |  |  |  | **needs** | r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes. |
@@ -45,7 +45,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-user-seed | r15 | post | product | caches | x |  |  |  | **needs** | r15 2026-11-18 seed.zsh takes the LaunchServices store's name from the payload instead of Tahoe's hard-coded ` |
 | golden-gate-user-template | r11 | post | product | caches | x |  |  |  | **needs** | r11 2026-11-17 Leaves out Mail's containers (8 of 336), fixes #47: a schema-0 Mail container was migrated unde |
 | golden-gate-userspace | r92 | oclp-hook | product |  | x | x |  |  | **needs** | r92 2026-11-18 The 26 cryptex embed specs carry the stub and result hashes of hao-runtime 256dd30 (row hao_run |
-| golden-gate-wallpaper-export | r1 | post | product | caches | x |  |  |  | **needs** | r1 2026-11-18 New: the default wallpaper's export for 26B131, so each new account skips WallpaperAgent's 64 s  |
+| golden-gate-wallpaper-export | r2 | post | product | caches |  |  |  |  | **needs** | r2 2026-11-19 Pack os-extras: dev profiles name it, release profiles leave it out (Apple-derived; returns when |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r12 | post | product |  | x |  |  |  | **needs** | r12 2026-11-18 Makes hao's log folder /private/var/log/hao root:wheel 755 on Data. launchd created it 744 for  |

@@ -273,6 +273,7 @@ class DevPack(unittest.TestCase):
         dev = patches.load_packs()['dev']
         self.assertTrue(dev['opt_in'])
         diagnostic = ('golden-gate-appstore-slices',)          # reports only: bench sets keep it, releases do not
+        diagnostic += ('golden-gate-wallpaper-export', 'golden-gate-mobile-assets')  # Apple-derived: dev only until made on the Mac
         for bench, end_user, extra in (('dev-bs-test', 'golden-gate-26B131', diagnostic),
                                        ('dev-metal27', 'golden-gate-26B131', ('golden-gate-metal27',) + diagnostic)):
             b, e = patches.names(sets / (bench + '.txt')), patches.names(sets / (end_user + '.txt'))

@@ -1,6 +1,6 @@
 {
- "revision": 2,
- "pack": "base",
+ "revision": 3,
+ "pack": "os-extras",
  "stage": "post",
  "inputs": [
   "mobile_assets"

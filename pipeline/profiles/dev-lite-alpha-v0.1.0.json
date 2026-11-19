@@ -2,6 +2,8 @@
  "comment": "dev-lite-alpha-v0.1.0: the alpha set plus SSH and keep-awake only (dev-access, dev-keepawake, dev-capture), for a bench's one install and one boot; no dev-diagnostics (OpenCore file log, SIP flags, runtime counters).",
  "target": "mbp92",
  "recipes": [
+  "golden-gate-wallpaper-export",
+  "golden-gate-mobile-assets",
   "golden-gate-store",
   "dev-access",
   "dev-keepawake",

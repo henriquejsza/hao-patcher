@@ -33,8 +33,9 @@ the build check). On a laptop after a new account's first login:
 - WallpaperAgent does not log "exporting default wallpaper".
 
 ## Validation
-NEEDS VALIDATION (r1): a first login on an image with r1 shows both log lines above, and the desktop shows the
+NEEDS VALIDATION (r2): a first login on an image with r2 shows both log lines above, and the desktop shows the
 default wallpaper.
 
 ## Revisions
+- r2 2026-11-19 Pack os-extras: dev profiles name it, release profiles leave it out (Apple-derived; returns when made on the user's Mac).
 - r1 2026-11-18 New: the default wallpaper's export for 26B131, so each new account skips WallpaperAgent's 64 s export at first login.

@@ -340,7 +340,8 @@ class GoldenRun(unittest.TestCase):
                     if l.split('#',1)[0].strip()]
         def dev(name):
             return json.loads((TOP/'patches'/name/'patch.json').read_text()).get('status') in ('dev','diagnostic')
-        self.assertEqual([n for n in names('dev-bs-test') if not dev(n)],names('golden-gate-26B131'))
+        apple_derived=('golden-gate-wallpaper-export','golden-gate-mobile-assets')   # dev profiles only (pack os-extras)
+        self.assertEqual([n for n in names('dev-bs-test') if not dev(n) and n not in apple_derived],names('golden-gate-26B131'))
         assembly=json.loads((TOP/'pipeline/assemblies/mbp92-26B131.json').read_text())
         developer=json.loads((TOP/'pipeline/assemblies/dev-26B131.json').read_text())
         self.assertEqual('golden-gate-26B131',assembly.pop('patch_set'));developer.pop('patch_set')
