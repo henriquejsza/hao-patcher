@@ -53,6 +53,7 @@ class Make(unittest.TestCase):
             A + 'persisted/HealthReport/state',
             A + 'persisted/AutoStagerTargetLookupResults/r',
             A + 'persisted/AutoAssetSets/s',
+            A + 'PreinstalledAssetsV2/InstallWithOs/x', A + 'history/h', A + 'staging/s', A + 'downloadDir/d',
             (A + 'locks/l', b'x', {'SCHILY.xattr.com.apple.provenance': 'p', 'SCHILY.xattr.szmodtime': 't'})])
         self.assertEqual(sorted(names), sorted([A + 'com_apple_MobileAsset_DictionaryServices/a.asset/x',
                                                 A + 'persisted/AutoAssetSets/s', A + 'locks/l']))

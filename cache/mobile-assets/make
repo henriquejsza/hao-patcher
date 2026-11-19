@@ -16,6 +16,8 @@ Dropped (patches/mobile-assets/README.md, "The pack"):
                                         at its next start (finishPartiallyPurgedAssets)
   persisted/HealthReport/               the harvest machine's first-run date and LastKnownBuildVersion
   persisted/AutoStagerTargetLookupResults/   the harvest session's OS-update target lookup
+  PreinstalledAssetsV2/                 laid down by the OS install itself (27)
+  history/ analytics/ staging/ downloadDir/ SplunkRecords/   mobileassetd's session state (27)
   xattr com.apple.provenance            provenance tag of the Mac that wrote the files (not on stock assets)
   asset types in exclude.txt            assets for services this image disables (golden-gate-unsupported-daemons)
 """
@@ -25,7 +27,13 @@ import sys
 import tarfile
 from pathlib import Path
 
-DROP_DIRS = ("System/Library/AssetsV2/persisted/HealthReport", "System/Library/AssetsV2/persisted/AutoStagerTargetLookupResults")
+A = "System/Library/AssetsV2/"
+DROP_DIRS = tuple(A + d for d in (
+    "persisted/HealthReport", "persisted/AutoStagerTargetLookupResults",
+    # 27 (26B131): the OS install already lays PreinstalledAssetsV2 down (InstallWithOs, RequiredByOs; dated the image
+    # build on a test Mac), and the rest is mobileassetd's session state: download history, analytics, in-flight
+    # staging and download folders, upload records.
+    "PreinstalledAssetsV2", "history", "analytics", "staging", "downloadDir", "SplunkRecords"))
 DROP_XATTRS = ("com.apple.provenance",)
 EXCLUDE = tuple(l.split("#")[0].strip() for l in (Path(__file__).resolve().parent / "exclude.txt").read_text().splitlines()
                 if l.split("#")[0].strip())

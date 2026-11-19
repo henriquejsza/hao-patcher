@@ -1,0 +1,19 @@
+{
+ "revision": 1,
+ "pack": "base",
+ "stage": "post",
+ "inputs": [
+  "mobile_assets"
+ ],
+ "status": "product",
+ "validated": false,
+ "optional": "caches",
+ "files": [
+  {
+   "path": "System/Library/AssetsV2",
+   "tree": true,
+   "origin": {"kind": "hao", "row": "mobile_assets", "note": "Data volume; mobile-assets.tar cut by cache/mobile-assets/make from a harvest of this build after an online first login; extracted with its owners, modes and xattrs, then chflags -R restricted as on a stock Mac"}
+  }
+ ],
+ "requires": {"os": ["26B131"], "donor": "any", "cpu": "any", "gpu": "any", "firmware": "any"}
+}

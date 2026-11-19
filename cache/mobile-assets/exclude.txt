@@ -1,2 +1,3 @@
 # Asset type folders (System/Library/AssetsV2/<type>) make drops: assets for services this image disables, each
 # with its reason. One prefix per line.
+com_apple_MobileAsset_UAF_FM_Overrides   # Apple Intelligence foundation-model overrides: modelmanagerd and modelcatalogd are disabled on Intel (golden-gate-unsupported-daemons)
