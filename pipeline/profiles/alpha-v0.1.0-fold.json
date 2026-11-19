@@ -1,9 +1,7 @@
 {
  "comment": "alpha-v0.1.0-fold: dev-beta-candidate-fold without dev-access, golden-gate-appstore-slices and golden-gate-ids (v0.1.0 alpha).",
  "target": "mbp92",
- "recipes": [
-  "golden-gate-store"
- ],
+ "recipes": [],
  "variants": [
   "cache-fold"
  ],

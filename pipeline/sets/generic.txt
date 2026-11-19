@@ -5,7 +5,6 @@ golden-gate-dyld-internal
 golden-gate-launchd-warm
 golden-gate-windowserver-filter
 golden-gate-corespotlight-compat
-golden-gate-store
 golden-gate-native-identities
 opencore-generic
 hao-opencore

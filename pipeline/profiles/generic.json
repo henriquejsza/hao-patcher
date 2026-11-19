@@ -4,8 +4,6 @@
  "packs": [
   "generic"
  ],
- "recipes": [
-  "golden-gate-store"
- ],
+ "recipes": [],
  "release": true
 }

@@ -399,7 +399,7 @@ class ImageProfileTest(unittest.TestCase):
         self.assertEqual((banner['assembly'], banner['model'], banner['packs']), ('generic-26B131', 'iMac20,1', ['base']))
         for platform in ('intel-hd4000', 'metal-3802', 'wifi-broadcom-modern', 'audio-modern', 'opencore-mbp92'):
             self.assertNotIn(platform, text)
-        self.assertIn('os-extras              1 recipes', text)     # golden-gate-store, as in the 9,2 alpha image
+        self.assertNotIn('os-extras', text)     # release profiles name no opt-in OS recipe (golden-gate-store is dev only)
 
     def test_build_image_profile_of_the_9_2(self):
         with GenericTree():

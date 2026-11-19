@@ -34,7 +34,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal27 | r6 | oclp-hook | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | golden-gate-mobile-assets | r3 | post | product | caches |  |  |  |  | **needs** | r3 2026-11-19 Pack os-extras: dev profiles name it, release profiles leave it out (Apple-derived; returns when |
 | golden-gate-model-gates-mbp92 | r1 | oclp-hook | product |  | x |  |  |  | **needs** | r1 2026-11-17 New (GEN1): golden-gate-userspace's model-gates edit, declared for pack mbp92; the 9,2 and its n |
-| golden-gate-native-identities | r12 | oclp-hook | product |  | x | x |  |  | **needs** | r12 2026-11-18 appstored and appstoreagent insert the store policy library under its new path (golden-gate-sto |
+| golden-gate-native-identities | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-19 A programs.txt line whose inserted libraries are not installed (its recipe is not in the set, e |
 | golden-gate-root-launchservices | r5 | post | experiment | boot-seeds |  |  |  |  | **needs** | r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes. |
 | golden-gate-shader-caches | r17 | post | product | caches | x |  |  |  | **needs** | r17 2026-11-17 The system accounts' Metal cache files (46, under private/var/folders) are declared `"content": |
 | golden-gate-shared-cache | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261118-5aacad92 (cache UUID 31C0215A), from |

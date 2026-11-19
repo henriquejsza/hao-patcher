@@ -314,7 +314,7 @@ class Recipe(unittest.TestCase):
                  'dev-beta-candidate-fold.txt': 'golden-gate-shared-cache',
                  'alpha-v0.1.0-fold.txt': 'golden-gate-shared-cache'}
         extra = {'dev-beta-candidate-fold.txt': ['golden-gate-ids', 'golden-gate-store'],
-                 'alpha-v0.1.0-fold.txt': ['golden-gate-store']}
+                 'alpha-v0.1.0-fold.txt': []}
         apple_derived = ['golden-gate-wallpaper-export', 'golden-gate-mobile-assets']   # dev profiles only
         dropped = {'dev-beta-candidate-fold.txt': ['dev-diagnostics', 'dev-keepawake', 'dev-capture', 'dev-session'] + apple_derived,
                    'alpha-v0.1.0-fold.txt': ['dev-diagnostics', 'dev-keepawake', 'dev-capture', 'dev-session', 'dev-access',
