@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-57 of 59 patches declare their files so far.
+58 of 60 patches declare their files so far.
 
 ## darwin27-kernel
 
