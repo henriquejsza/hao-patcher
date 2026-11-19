@@ -185,6 +185,25 @@ class Redaction(unittest.TestCase):
             self.assertNotIn(secret, text)
 
 
+class DanglingLinks(unittest.TestCase):
+    def test_a_dangling_link_in_a_tree_is_checked_not_a_crash(self):
+        # a framework's Versions/Current that points at a version the payload does not carry
+        with tempfile.TemporaryDirectory() as d:
+            os.chmod(d, 0o755)
+            fw = Path(d) / 'kit' / 'X.framework'; (fw / 'Versions' / 'A').mkdir(parents=True)
+            os.symlink('Current/X', fw / 'X'); os.symlink('B', fw / 'Versions' / 'Current')
+            self.assertIsNone(SAFE.others_can_change_tree(Path(d) / 'kit', owners=False))
+            self.assertIsNone(SAFE.others_can_change(fw / 'X', owners=False))
+
+    def test_a_dangling_link_into_a_folder_others_can_change_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.chmod(d, 0o755)
+            open_ = Path(d) / 'open'; open_.mkdir(); os.chmod(open_, 0o777)
+            kit = Path(d) / 'kit'; kit.mkdir(); os.symlink(open_ / 'missing', kit / 'l')
+            why = SAFE.others_can_change_tree(kit, owners=False)
+            self.assertIn('can be written by others', why or '')
+
+
 OTHER_PYTHON = '/opt/homebrew/bin/python3.14'      # not SAFE.ROOT_PYTHON, whichever Python runs these tests
 
 
