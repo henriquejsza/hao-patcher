@@ -1,0 +1,2 @@
+# Asset type folders (System/Library/AssetsV2/<type>) make drops: assets for services this image disables, each
+# with its reason. One prefix per line.

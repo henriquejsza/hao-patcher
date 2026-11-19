@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""make RAW: turn a raw MobileAssets harvest (harvest.sh) into the artifact golden-gate-mobile-assets installs.
+
+RAW is store/artifacts/mobile-assets-<build>-raw-<...>/ (mobile-assets.tar, INFO) as harvest.sh wrote it.
+Writes store/artifacts/mobile-assets-<build>-<sha12 of the new tar>/ (mobile-assets.tar, INFO, SHA256SUMS) and
+prints the row (pipeline/inputs/golden/<build>/mobile_assets). Ported from the Tahoe images' cache/mobile-assets.
+
+Kept: every asset type folder (assets + catalogs) and mobileassetd's persisted/ and locks/ (the record of which
+auto-asset sets and instances are installed and locked; without it the shipped UAF/Siri assets are unknown to
+mobileassetd). A full dump of persisted/ and locks/ (25G332, 2026-10-29) holds no account, device or session
+identifiers: asset versions, Apple CDN URLs, catalog set IDs, per-asset archive keys from Apple's catalog, and
+mobileassetd's own random instance UUIDs.
+Dropped (patches/mobile-assets/README.md, "The pack"):
+  ._*                                   AppleDouble copies of xattrs a Mac-made tar adds (the pax headers carry them)
+  *.xml.purged                          catalogs mobileassetd moved aside before writing a new one; it deletes them
+                                        at its next start (finishPartiallyPurgedAssets)
+  persisted/HealthReport/               the harvest machine's first-run date and LastKnownBuildVersion
+  persisted/AutoStagerTargetLookupResults/   the harvest session's OS-update target lookup
+  xattr com.apple.provenance            provenance tag of the Mac that wrote the files (not on stock assets)
+  asset types in exclude.txt            assets for services this image disables (golden-gate-unsupported-daemons)
+"""
+import hashlib
+import shutil
+import sys
+import tarfile
+from pathlib import Path
+
+DROP_DIRS = ("System/Library/AssetsV2/persisted/HealthReport", "System/Library/AssetsV2/persisted/AutoStagerTargetLookupResults")
+DROP_XATTRS = ("com.apple.provenance",)
+EXCLUDE = tuple(l.split("#")[0].strip() for l in (Path(__file__).resolve().parent / "exclude.txt").read_text().splitlines()
+                if l.split("#")[0].strip())
+
+
+def drop(name):
+    parts = name.rstrip("/").split("/")
+    return (any(p.startswith("._") for p in parts) or parts[-1].endswith(".xml.purged")
+            or any(name == d or name.startswith(d + "/") for d in DROP_DIRS)
+            or (len(parts) > 3 and any(parts[3].startswith(x) for x in EXCLUDE)))
+
+
+def clean(src, dst):
+    kept, dropped, xattrs = 0, 0, 0
+    with tarfile.open(src) as tin, tarfile.open(dst, "w", format=tarfile.PAX_FORMAT) as tout:
+        for m in tin:
+            if drop(m.name):
+                dropped += 1
+                continue
+            for k in [k for k in m.pax_headers if any(k.endswith(".xattr." + x) for x in DROP_XATTRS)]:
+                del m.pax_headers[k]
+                xattrs += 1
+            tout.addfile(m, tin.extractfile(m) if m.isfile() else None)
+            kept += 1
+    return kept, dropped, xattrs
+
+
+def main():
+    raw = Path(sys.argv[1]).resolve()
+    info = dict(line.split(" ", 1) for line in (raw / "INFO").read_text().splitlines() if " " in line)
+    build = info["build"].strip()
+    work = raw.parent / f".mobile-assets-{build}.tmp"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir()
+    kept, dropped, xattrs = clean(raw / "mobile-assets.tar", work / "mobile-assets.tar")
+    with tarfile.open(work / "mobile-assets.tar") as t:
+        names = t.getnames()
+    assets = sorted({n.split("/")[3] for n in names if n.count("/") >= 3 and "MobileAsset_" in n})
+    (work / "INFO").write_text(f"build {build}\nfrom {raw.name}\nentries {kept}\ndropped {dropped} entries, "
+                               f"{xattrs} provenance xattrs\nassets {len(assets)}\n" + "\n".join(assets) + "\n")
+    with open(work / "mobile-assets.tar", "rb") as f:
+        h = hashlib.file_digest(f, "sha256").hexdigest()
+    (work / "SHA256SUMS").write_text(f"{h}  mobile-assets.tar\n"
+                                     f"{hashlib.sha256((work / 'INFO').read_bytes()).hexdigest()}  INFO\n")
+    final = raw.parent / f"mobile-assets-{build}-{h[:12]}"
+    if final.exists():
+        shutil.rmtree(work)
+    else:
+        work.rename(final)
+    print(f"{kept} entries kept, {dropped} dropped, {xattrs} provenance xattrs removed -> {final}")
+    print(f"row pipeline/inputs/golden/{build}/mobile_assets:\n{h}  store/artifacts/{final.name}/mobile-assets.tar")
+
+
+if __name__ == "__main__":
+    main()
