@@ -132,6 +132,12 @@ class StickTest(unittest.TestCase):
             host.euid = lambda: 0
             STICK.partition(host, 'disk4', 1900)
             self.assertFalse([x for x in host.calls if x[0] == 'sudo'])      # as root: no sudo
+            from unittest import mock
+            host = FakeHost(d + '/image'); Path(d + '/image').mkdir()
+            host.euid = lambda: 501
+            with mock.patch.object(STICK, 'own_device', lambda disk: True):   # an image this user attached
+                STICK.partition(host, 'disk4', 1900)
+            self.assertFalse([x for x in host.calls if x[0] == 'sudo'])      # its own device: no sudo
 
     def test_writes_both_partitions(self):
         host = FakeHost(self.mnt)

@@ -663,7 +663,7 @@ def partition(host, disk, boot_size_mb, expect=None):
                             expect.get('minimum', 0), expect.get('sources', ()))
         if why:
             raise StickError('/dev/%s was not erased: %s' % (disk, why))
-    admin = as_admin(host)
+    admin = as_admin(host, disk)
     host.run(admin + ['diskutil', 'unmountDisk', 'force', '/dev/' + disk], check=False)
     host.run(admin + ['diskutil', 'partitionDisk', '/dev/' + disk, 'GPT',
                       'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
@@ -676,11 +676,19 @@ def partition(host, disk, boot_size_mb, expect=None):
     return parts
 
 
-def as_admin(host):
-    """The prefix for the few commands that need an administrator (erasing the drive): none as root, else sudo -n,
-    which uses the password create-installer asked for (installer.administrator) just before."""
+def as_admin(host, disk):
+    """The prefix for the few commands that need an administrator (erasing the drive): none as root or for a device this
+    user can write already (a disk image it attached: --image), else sudo -n, which uses the password create-installer
+    asked for (installer.administrator) just before."""
     euid = getattr(host, 'euid', None)
-    return [] if euid is None or euid() == 0 else ['sudo', '-n']
+    if euid is None or euid() == 0 or own_device(disk):
+        return []
+    return ['sudo', '-n']
+
+
+def own_device(disk):
+    """Whether this user can read and write /dev/DISK (macOS gives an attached disk image's device to who attached it)."""
+    return os.access('/dev/' + disk, os.R_OK | os.W_OK)
 
 
 def check_mounts(host, disk, parts):

@@ -544,7 +544,7 @@ def create_installer(a, c, host, acquire=None):
         if image:
             disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
             c.item('USB installer image %s attached as /dev/%s' % (image, disk), 'files')
-        if not image:
+        if not image and not STICK.own_device(disk):
             administrator(c, host, disk)
         try:
             parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
