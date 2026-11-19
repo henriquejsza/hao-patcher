@@ -35,6 +35,7 @@ golden-gate-font-registry         # fontd registries of this build: Setup's in p
 golden-gate-shader-caches         # HD 4000 Metal caches harvested from this build: system accounts in place, user trees into PerUserSeed/metal
 golden-gate-icon-caches           # IconServices store and root/Setup indexes harvested from this build; user index into PerUserSeed/is
 golden-gate-wallpaper-export      # WallpaperAgent's export of this build's default wallpaper into PerUserSeed/wallpaper; seed.zsh places it for each new account
+golden-gate-mobile-assets         # Apple's MobileAssets from a first-login harvest (no first-login download)
 golden-gate-update-policy         # Background Security Improvements (splats) and macOS updates never install on their own: SoftwareUpdate prefs on Data
 golden-gate-deep-sleep-off        # deep sleep (standby, autopoweroff, hibernation) off by default, diag#79: a one-time pmset daemon on Data
 golden-gate-unsupported-daemons   # Apple services this hardware cannot run (Apple Intelligence: modelmanagerd, modelcatalogd) disabled by launchd override on Data, diag#19

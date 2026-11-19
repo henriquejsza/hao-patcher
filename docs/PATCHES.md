@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-59 of 61 patches declare their files so far.
+60 of 62 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -277,6 +277,12 @@ Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: whole file from hao (row metal27_installed). New file: tools/metal-adapter's shim, installed build (ivar offsets, descriptor layouts for the HD 4000 driver, the in-process compiler switch). Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: whole file from hao (row metal27_installed). 27.2.1's own x86_64 Metal cut from the 26B131 cache with LC_REEXPORT_DYLIB of the shim (the laptop bundle's file byte for byte); replaces OCLP's wrapper and golden-gate-hello's edits to it. Installed mode 0755, owner root:wheel, flags restricted.
+
+## golden-gate-mobile-assets
+
+Revision r1, status product. [Recipe](../patches/golden-gate-mobile-assets/README.md)
+
+- `System/Library/AssetsV2`: whole file from every file under it from hao (row mobile_assets). Data volume; mobile-assets.tar cut by cache/mobile-assets/make from a harvest of this build after an online first login; extracted with its owners, modes and xattrs, then chflags -R restricted as on a stock Mac.
 
 ## golden-gate-model-gates-mbp92
 

@@ -532,6 +532,7 @@
    "class": "harvested",
    "reason": "icon caches harvested from the running laptop"
   },
+  "mobile_assets": {"class": "harvested", "reason": "Apple's MobileAssets copied from the running laptop after a first login, cut by cache/mobile-assets/make"},
   "wallpaper_export_golden_gate": {
    "class": "harvested",
    "reason": "WallpaperAgent's export of the default wallpaper, copied from the running laptop"

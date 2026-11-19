@@ -32,6 +32,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-metal-framebuffer | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-17 Row `metal_framebuffer`: lowering always uses the stack's own libLLVM (no environment override) |
 | golden-gate-metal-libraries | r23 | oclp-hook | product |  | x | x |  |  | **needs** | r23 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
 | golden-gate-metal27 | r6 | oclp-hook | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
+| golden-gate-mobile-assets | r1 | post | product | caches | x |  |  |  | **needs** | r1 2026-11-18 New: the 26B131 MobileAssets pack (752 MB, harvested after a first login; Tahoe recipe ported). |
 | golden-gate-model-gates-mbp92 | r1 | oclp-hook | product |  | x |  |  |  | **needs** | r1 2026-11-17 New (GEN1): golden-gate-userspace's model-gates edit, declared for pack mbp92; the 9,2 and its n |
 | golden-gate-native-identities | r12 | oclp-hook | product |  | x | x |  |  | **needs** | r12 2026-11-18 appstored and appstoreagent insert the store policy library under its new path (golden-gate-sto |
 | golden-gate-root-launchservices | r5 | post | experiment | boot-seeds |  |  |  |  | **needs** | r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes. |
