@@ -11,6 +11,7 @@ the inputs the seed patches install, so the next image starts with them:
 | `icon-caches-<build>-*` (`icon_caches_golden_gate`) | `patches/golden-gate-icon-caches` |
 | `font-registry-<build>-*` (`font_registry_golden_gate`) | `patches/golden-gate-font-registry` |
 | `user-template-<build>-*` (`user_template_golden_gate`), from `collect-template.sh` + `template` | `patches/golden-gate-user-template` |
+| `launchservices-<build>-*` (`launchservices_seed_golden_gate`), from `make launchservices` | no recipe yet (no clean harvest; below) |
 
 The per-user parts go to `Library/Application Support/PerUserSeed/`, which `patches/golden-gate-user-seed`'s
 seed.zsh copies into each new account.
@@ -53,6 +54,19 @@ each index header and `__cache_info__`), `hao.txt` (`/private/var/db/hao`), `ps.
 Each gets `build.json` (inputs, counts, index geometry, registry versions, source commit) and `SHA256SUMS`; the folder
 name ends in the first 12 hex of SHA256SUMS' hash. An existing folder is never overwritten.
 
+## The user's LaunchServices store (`make launchservices`)
+`collect.sh` also takes every account's `0/com.apple.LaunchServices.dv/`. `make launchservices HARVEST.tar [--uid UID]`
+copies the user's `com.apple.LaunchServices-<n>-v2.csstore` and its `SystemDataOnly-` twin into `ls/` byte for byte;
+seed.zsh takes the store's name from that folder. lsd's binary store is never edited, so `make` refuses a store that
+names something a shipped image does not have:
+- an account's home or short name;
+- any file a `dev` pack recipe installs (the last two parts of each path in its `patch.json` `files`, e.g.
+  `LaunchDaemons/local.testssh.plist`).
+
+The store also records the file IDs of the image it was built on. So harvest it from the first login of the image it
+is for, an image without the dev pack. Without SSH, run `collect.sh` from the Recovery with `SEED_ROOT` set to the
+mounted Data volume. A 26B131 test account's store (2026-11-18) is refused: it names the dev pack's four launchd plists.
+
 ## User Template (`collect-template.sh`, `template`)
 The account's own Library at its first login (containers, chronod's widget descriptor cache, remindd's stores) is not
 a cache folder seed.zsh can fill: macOS copies `/Library/User Template/Non_localized` into the new home when the
@@ -94,5 +108,6 @@ python3.14 -I cache/seeds/template store/artifacts/template-harvest-<build>-<ima
 
 ## Verify
 `python3.14 -I -B -m unittest discover -s cache/seeds/tests`: collect.sh on a fixture tree; make on a synthetic
-harvest (owners, ancestors, user-tree normalisation, index checks, the font placeholder, compare);
+harvest (owners, ancestors, user-tree normalisation, index checks, the font placeholder, compare, the LaunchServices
+store and its refusals);
 collect-template.sh on a fixture home and template on its harvest (the rule, the account-trace refusal).

@@ -26,6 +26,15 @@ font-registry: setup.tar (the Setup account's (248) com.apple.FontRegistry folde
   user/fontregistry.user (the user's registry, its user-font-folder row reset to /var/empty/Library/Fonts; seed.zsh
   writes the new account's home into it) for patches/golden-gate-font-registry.
 Each artifact gets build.json and SHA256SUMS; nothing existing is overwritten.
+
+    make launchservices HARVEST.tar [--uid UID] [--out DIR]
+                                                 -> DIR/launchservices-<build>-<date>-<hash12>/ and its row
+launchservices: ls/ (the user's com.apple.LaunchServices-<n>-v2.csstore and its SystemDataOnly- twin, from
+  <DARWIN_USER_DIR>/com.apple.LaunchServices.dv) for patches/golden-gate-launchservices-seed; seed.zsh places them
+  into each new account. The store is copied byte for byte (lsd's binary store is never edited), so make refuses a
+  harvest whose store names what a shipped image does not have: an account's home or short name, or any file a
+  `dev` pack recipe installs (patches/*/patch.json, e.g. its launchd plists). Harvest it from the first login of the
+  image the store is for, without the dev pack.
 """
 import argparse
 import datetime
@@ -42,7 +51,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-UNIT, REVISION = 'cache/seeds', 3
+UNIT, REVISION = 'cache/seeds', 4
 SEED = 'Library/Application Support/PerUserSeed'
 STORE = 'Library/Caches/com.apple.iconservices.store'
 METAL = ('com.apple.metal', 'com.apple.metalfe')
@@ -350,6 +359,55 @@ def font_members(h, work):
     return tar, user_db, report
 
 
+LS_DIR = 'com.apple.LaunchServices.dv'
+LS_STORE = re.compile(r'^(SystemDataOnly-)?com\.apple\.LaunchServices-(\d+)-v2\.csstore$')
+
+
+def dev_names(top):
+    """The last two path parts of every file a dev pack recipe installs (e.g. LaunchDaemons/local.testssh.plist):
+    a store that names one was harvested on an image that differs from the shipped one."""
+    out = set()
+    for pj in sorted((top / 'patches').glob('*/patch.json')):
+        j = json.loads(pj.read_text())
+        if j.get('pack') != 'dev':
+            continue
+        for f in j.get('files', []):
+            parts = f['path'].split('/')
+            if parts[0] != 'EFI' and len(parts) >= 2:
+                out.add('/'.join(parts[-2:]))
+    return sorted(out)
+
+
+def accounts(h):
+    """Short names of the harvest's accounts with uid >= 501 (diag/system.txt '## accounts')."""
+    text = h.text('diag/system.txt').split('## accounts', 1)
+    return sorted({l.split()[0] for l in (text[1] if len(text) > 1 else '').splitlines()
+                   if len(l.split()) == 2 and l.split()[1].isdigit() and int(l.split()[1]) >= 501})
+
+
+def ls_members(h, top):
+    """{file name: bytes} of the user's LaunchServices stores, and the record; refuses a contaminated store."""
+    folder = next((c[:-2] for c, u in h.cache_uid.items() if u == h.uid), None)
+    want = '%s/0/%s/' % (folder, LS_DIR)
+    files = {m.name[len(want):]: h.data(m) for m in h.members if m.isfile() and m.name.startswith(want)}
+    stores = {n: d for n, d in files.items() if LS_STORE.match(n)}
+    user = [n for n in stores if not n.startswith('SystemDataOnly-')]
+    if len(user) != 1:
+        raise SystemExit('make: uid %d has %d user LaunchServices stores in %s (want 1): %s'
+                         % (h.uid, len(user), want, sorted(files)))
+    number = LS_STORE.match(user[0]).group(2)
+    stores = {n: d for n, d in stores.items() if LS_STORE.match(n).group(2) == number}
+    needles = ['/Users/%s' % a for a in accounts(h)] + ['/%s/' % a for a in accounts(h)] + dev_names(top)
+    found = sorted({x for x in needles for d in stores.values()
+                    if x.encode() in d or x.encode('utf-16-le') in d})
+    if found:
+        raise SystemExit('make: the LaunchServices store names what a shipped image lacks: %s (harvest the first '
+                         'login of the image it is for, without the dev pack)' % found)
+    record = {'store_number': int(number), 'stores': {n: {'bytes': len(d), 'sha256': sha(d)} for n, d in stores.items()},
+              'refused_names_checked': len(needles), 'left_out': sorted(set(files) - set(stores))}
+    return stores, record
+
+
 def commit():
     here = Path(__file__).resolve().parent
     rev = subprocess.run(['git', '-C', str(here), 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
@@ -443,7 +501,28 @@ def compare(args):
     return 1 if trees else 0
 
 
+def launchservices(args):
+    h = Harvest(args.harvest, args.uid)
+    out_dir = Path(args.out or h.path.parent).resolve()
+    top = Path(__file__).resolve().parents[2]
+    stores, record = ls_members(h, top)
+    with tempfile.TemporaryDirectory(dir=out_dir) as tmp:
+        w = Path(tmp) / 'ls'; (w / 'ls').mkdir(parents=True)
+        for n, d in stores.items():
+            (w / 'ls' / n).write_bytes(d)
+        final = finish(w, out_dir, 'launchservices', h, record)
+    store = (top / 'store').resolve()
+    rel = Path('store') / final.relative_to(store) if final.is_relative_to(store) else final
+    print('pipeline/inputs/golden/%s/launchservices_seed_golden_gate:' % h.build)
+    print('  # made by %s r%d from %s' % (UNIT, REVISION, h.path.name))
+    print('  - %s' % rel)
+
+
 def main(argv):
+    if argv[:1] == ['launchservices']:
+        p = argparse.ArgumentParser(prog='make launchservices')
+        p.add_argument('harvest'); p.add_argument('--uid', type=int); p.add_argument('--out')
+        return launchservices(p.parse_args(argv[1:]))
     if argv[:1] == ['compare']:
         p = argparse.ArgumentParser(prog='make compare')
         p.add_argument('pack'); p.add_argument('harvest'); p.add_argument('--uid', type=int)

@@ -48,7 +48,7 @@ def registry(path, home_fonts):
 class Fixture:
     """A harvest tar as collect.sh writes it."""
 
-    def __init__(self, d, build='26B131', user_index_build='26B131', system_pcm_path=None):
+    def __init__(self, d, build='26B131', user_index_build='26B131', system_pcm_path=None, ls=None):
         self.path = Path(d) / 'harvest.tar'
         self.folders = []
         members = []
@@ -107,8 +107,12 @@ class Fixture:
         for c, uid, data in ((SETUP_C, 248, setup), (USER_C, 501, user)):
             add(c + '/com.apple.FontRegistry', uid=uid, gid=uid, mode=0o700)
             add(c + '/com.apple.FontRegistry/fontregistry.user', data, uid, uid)
+        # the user's LaunchServices stores (DARWIN_USER_DIR = the folder's 0/)
+        for name, data in (ls or {}).items():
+            add(USER_C[:-2] + '/0/com.apple.LaunchServices.dv/' + name, data, 501, 20, 0o600)
         diag = {
-            'diag/system.txt': 'ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t%s\n' % build,
+            'diag/system.txt': 'ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t%s\n'
+                               '\n## accounts\nroot 0\nHARVEST 501\n' % build,
             'diag/cache-dirs.tsv': '501\t%s\n0\t%s\n248\t%s\n' % (USER_C, ROOT_C, SETUP_C),
             'diag/folders.txt': '\n'.join(sorted(set(self.folders))) + '\n',
         }
@@ -226,6 +230,50 @@ class MakeTest(unittest.TestCase):
         self.assertIn('changed functions.data', diff.stdout)
 
 
+LSN = 'com.apple.LaunchServices-35651614-v2.csstore'
+
+
+class LaunchServicesTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.d = Path(self.tmp.name)
+        (self.d / 'out').mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make(self, ls):
+        h = Fixture(self.d, ls=ls)
+        return run('launchservices', h.path, '--out', self.d / 'out')
+
+    def test_clean_store(self):
+        r = self.make({LSN: b'store /Applications/Safari.app', 'SystemDataOnly-' + LSN: b'sys', 'other': b'x'})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('launchservices_seed_golden_gate', r.stdout)
+        a, = self.d.glob('out/launchservices-26B131-*')
+        self.assertEqual(sorted(x.name for x in (a / 'ls').iterdir()), sorted([LSN, 'SystemDataOnly-' + LSN]))
+        self.assertEqual((a / 'ls' / LSN).read_bytes(), b'store /Applications/Safari.app')   # byte for byte
+        b = json.loads((a / 'build.json').read_text())
+        self.assertEqual((b['store_number'], b['left_out']), (35651614, ['other']))
+
+    def test_dev_pack_file_refused(self):
+        # the dev pack's sshd plist (patches/dev-access) in the string pool: harvested on a dev image
+        r = self.make({LSN: b'..LaunchDaemons/local.testssh.plist..'})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('LaunchDaemons/local.testssh.plist', r.stderr)
+        self.assertFalse(list(self.d.glob('out/launchservices-*')))
+
+    def test_account_home_refused(self):
+        r = self.make({LSN: '/Users/HARVEST/Downloads'.encode('utf-16-le')})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('/Users/HARVEST', r.stderr)
+
+    def test_one_user_store(self):
+        r = self.make({'SystemDataOnly-' + LSN: b'sys'})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('0 user LaunchServices stores', r.stderr)
+
+
 class CollectTest(unittest.TestCase):
     def test_fixture_tree(self):
         with tempfile.TemporaryDirectory() as d:
@@ -237,6 +285,8 @@ class CollectTest(unittest.TestCase):
             (root / USER_C / 'com.apple.iconservices/store.index').write_bytes(index(1))
             (root / STORE).mkdir(parents=True)
             (root / STORE / 'a.isdata').write_bytes(b'u')
+            (root / USER_C[:-2] / '0/com.apple.LaunchServices.dv').mkdir(parents=True)
+            (root / USER_C[:-2] / '0/com.apple.LaunchServices.dv' / LSN).write_bytes(b'ls')
             out = Path(d) / 'h.tar'
             with open(out, 'wb') as f:
                 r = subprocess.run(['sh', str(COLLECT)], stdout=f, stderr=subprocess.PIPE, text=True,
@@ -249,6 +299,7 @@ class CollectTest(unittest.TestCase):
             self.assertIn(SETUP_C + '/WindowServer/com.apple.WindowServer/com.apple.metal/0_0/functions.data', names)
             self.assertIn(USER_C + '/com.apple.iconservices/store.index', names)
             self.assertIn(STORE + '/a.isdata', names)
+            self.assertIn(USER_C[:-2] + '/0/com.apple.LaunchServices.dv/' + LSN, names)
             self.assertIn(' %s/WindowServer/com.apple.WindowServer\n' % SETUP_C, folders)
             self.assertIn('\t%s\n' % USER_C, dirs)
             for f in ('system.txt', 'metal-files.txt', 'icons.txt', 'hao.txt', 'ps.txt'):

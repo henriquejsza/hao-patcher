@@ -33,11 +33,17 @@ stand-in and refuses a root-side function that writes.
 | `is/` | `DARWIN_USER_CACHE_DIR/com.apple.iconservices` (711/600) | golden-gate-icon-caches |
 | `metal/<bundle>/` | `DARWIN_USER_CACHE_DIR/<bundle>/`, never over a tree the app already made, without any `com.apple.metalfe` (path-bound module caches) | golden-gate-shader-caches |
 | `fonts/fontregistry.user` | `DARWIN_USER_CACHE_DIR/com.apple.FontRegistry/`, with `<home>/Library/Fonts` written into it | golden-gate-font-registry |
+| `wallpaper/{Metadata.plist,Wallpaper.png}` | root's `/private/var/db/Wallpapers/<GeneratedUID>/` (root:wheel, metadata first), never over a folder WallpaperAgent made | golden-gate-wallpaper-export |
+| `ls/com.apple.LaunchServices-<n>-v2.csstore` (and its `SystemDataOnly-` twin) | `DARWIN_USER_DIR/com.apple.LaunchServices.dv/` | none yet: `cache/seeds/make launchservices` cuts it from a clean harvest |
 The account's own Library (containers, chronod, Reminders) is not seeded here: macOS copies it from the User
 Template at account creation (`golden-gate-user-template`), the other half of the same method.
 The LaunchServices store (`ls/`), the wallpaper, the passd kick and the efilogin re-enable are seed.zsh steps that
-are skipped when their payload or flag is absent; this patch ships none of them (the LaunchServices store names the
-harvest user's home; the wallpaper was Tahoe's; the efilogin deferral is a separate decision).
+are skipped when their payload or flag is absent; this patch ships none of them. The store's name is taken from the
+payload: the one `ls/com.apple.LaunchServices-<n>-v2.csstore` (lsd's store number differs per OS: Tahoe 20971545,
+26B131 35651614); with none or more than one, the step is skipped. No store ships yet: the one harvested from a test
+account names the dev pack's launchd plists, so a clean one has to come from the first login of an image without the
+dev pack (`cache/seeds/README.md`). The passd kick needs a reason on this OS first, and the efilogin deferral is a
+separate decision.
 
 ## History
 r1-r3 (2026-11-05 to 11-09, 26A428) shipped the same runtime plus the font registry and Tahoe's efilogin-helper
@@ -59,6 +65,9 @@ account: `/private/var/log/peruser-seed.log` shows the icon index, the Metal tre
 the new uid before its desktop started.
 
 ## Validation
+NEEDS VALIDATION (r15): with a LaunchServices payload, a new account's first login logs "LS store placed" in
+/private/var/log/peruser-seed.log, and the account's lsd does not log "Seeding database". Without one it logs "no LS
+store in the payload".
 NEEDS VALIDATION (r11): on an image with r11, a new account's first login shows these in /private/var/log/peruser-seed.log:
 "icon index placed", the font registry, "metal: N bundle trees placed" and "seeded". The placed folders are the
 account's (`ls -ln` in its `getconf DARWIN_USER_CACHE_DIR`), and the times are within the r5 laptop run's (account seen 2.3 s after
@@ -71,6 +80,7 @@ placed trees (owner sessions 2026-11-06), not re-checked on 26B131.
 r5 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r4's, so the result above stands.
 
 ## Revisions
+- r15 2026-11-18 seed.zsh takes the LaunchServices store's name from the payload instead of Tahoe's hard-coded `com.apple.LaunchServices-20971545-v2.csstore`, so a 26B131 store (`-35651614-`) is placed. No store ships yet, so a new account gets the same files as with r14. `tests/test_as_account.py` checks the name.
 - r14 2026-11-17 Declares its scope (`requires`, docs/requires.md): the seed runtime and the payload layout of 26B131's caches. Nothing it installs changes.
 - r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r12 2026-11-17 seed.zsh writes into an account's folders only as that account (`asuser`: `sudo -u #uid`), never as root; PerUserSeed is 755 so the account can read it. `tests/test_as_account.py` runs that path and refuses root-side writes.
