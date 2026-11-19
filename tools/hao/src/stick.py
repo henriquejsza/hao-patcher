@@ -72,6 +72,8 @@ def generic_args(c):
 
 
 IDENTITY_ALPHABET = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+SERIAL_YEARS = 'CDFGHJKLMNPQRSTVWXYZ'          # 4th character of a 12-character serial
+SERIAL_WEEKS = '123456789CDFGHJKLMNPQRTVWXY'   # 5th
 
 
 def generic_identity(c):
@@ -84,8 +86,11 @@ def generic_identity(c):
     g = c.setdefault('PlatformInfo', {}).setdefault('Generic', {})
     if g.get('SystemSerialNumber') and g.get('SystemUUID'):
         return None
-    pick = lambda n: ''.join(secrets.choice(IDENTITY_ALPHABET) for _ in range(n))
-    g.update(SystemSerialNumber=pick(12), MLB=pick(17), SystemUUID=str(uuid.uuid4()).upper(), ROM=secrets.token_bytes(6))
+    pick = lambda n, alphabet=IDENTITY_ALPHABET: ''.join(secrets.choice(alphabet) for _ in range(n))
+    # laid out as Apple's 12-character serials are (plant, year, week, unit, model): macOS reads the year and week from
+    # it, and a serial whose year or week is not one of them left the Recovery's CPU power management stalled (QEMU)
+    serial = pick(3) + pick(1, SERIAL_YEARS) + pick(1, SERIAL_WEEKS) + pick(7)
+    g.update(SystemSerialNumber=serial, MLB=pick(17), SystemUUID=str(uuid.uuid4()).upper(), ROM=secrets.token_bytes(6))
     return g
 
 

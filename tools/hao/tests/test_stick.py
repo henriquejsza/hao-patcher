@@ -410,6 +410,17 @@ class StickTest(unittest.TestCase):
         self.assertIn('ditto "$PY" "$M"', text)
         self.assertLess(text.index('PY=$M'), text.index('exec "$PY/bin/python3.12"'))
 
+    def test_the_generic_serial_has_a_year_and_week_macos_reads(self):
+        from unittest import mock
+        for _ in range(200):
+            c = {'PlatformInfo': {'Generic': {}}}
+            with mock.patch.object(STICK, 'is_generic_config', lambda c: True):
+                g = STICK.generic_identity(c)
+            s = g['SystemSerialNumber']
+            self.assertEqual(len(s), 12)
+            self.assertIn(s[3], STICK.SERIAL_YEARS)
+            self.assertIn(s[4], STICK.SERIAL_WEEKS)
+
     def test_generic_esp_layout_without_coreservices(self):
         generic = self.d / 'generic-esp.tar'
         with tarfile.open(generic, 'w') as t:
