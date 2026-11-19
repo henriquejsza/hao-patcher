@@ -35,6 +35,10 @@ letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neu
 - An edit spec with `"when_target": KEY` applies only on a target whose `platform_data` has KEY and is skipped
   elsewhere ([tools/edit-engine](../tools/edit-engine/README.md)).
 
+Keys in use: `model_gates` (golden-gate-userspace), `opencore_reasons` and `kext_provenance` (the reasons and
+provenance of the model's own OpenCore elements, merged by hao-opencore's `config_reasons.py`), `opencore_generic`
+(the generic image's config may carry the generic-only elements).
+
 `patches.py check` refuses a `platform_data` that is not an object or has a key of another form.
 
 ## Target ESP base

@@ -46,8 +46,54 @@ class Elements(unittest.TestCase):
         reasons = {e: 'r' for e in CR['elements'](cfg)}
         reasons['kext:VirtualSMC.kext'] = CR['GENERIC_ONLY'] + ': an SMC for non-Apple firmware'
         self.assertEqual(CR['missing'](cfg, reasons), ['kext:VirtualSMC.kext'])          # a Mac image: refused
-        cfg['PlatformInfo'] = {'UpdateSMBIOSMode': 'Create', 'Generic': {'SystemProductName': 'iMac20,1'}}
-        self.assertEqual(CR['missing'](cfg, reasons), [])                                 # the generic image
+        cfg['PlatformInfo'] = {'UpdateSMBIOSMode': 'Create', 'Generic': {'SystemProductName': 'Any1,1'}}
+        self.assertEqual(CR['missing'](cfg, reasons), ['kext:VirtualSMC.kext'])          # no generic target: refused
+        generic = {'opencore_generic': True}
+        self.assertEqual(CR['missing'](cfg, reasons, generic), [])                       # the generic image
+        cfg['PlatformInfo'] = {}
+        self.assertEqual(CR['missing'](cfg, reasons, generic), ['kext:VirtualSMC.kext'])  # SMBIOS not created
+
+    def test_the_os_layer_files_name_no_model(self):
+        """S15: a model's reasons and generated kexts are its target's (platform_data), not this recipe's."""
+        import re
+        model = re.compile(r'(?:MacBook(?:Air|Pro)?|iMac(?:Pro)?|Macmini|MacPro)\d+,\d+|Mac-[0-9A-F]{16}')
+        for name in ('src/config-reasons.json', 'src/kext-provenance.json', 'src/config_reasons.py'):
+            self.assertIsNone(model.search((PATCH / name).read_text()), name)
+
+    def test_the_targets_reasons_and_provenance_count(self):
+        """A model's elements are explained in its target's platform_data (HAO_TARGET_DATA), not in this file."""
+        import hashlib
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            path, data = d / 'config.plist', d / 'target-data.json'
+            cfg = config()
+            cfg['Kernel']['Patch'] = []
+            cfg['Kernel']['Add'] = [{'BundlePath': 'Model.kext', 'Enabled': True}]
+            path.write_bytes(plistlib.dumps(cfg))
+            (d / 'reasons.json').write_text(json.dumps({e: 'r' for e in CR['elements'](cfg) if e != 'kext:Model.kext'}))
+            (d / 'Kexts/Model.kext/Contents').mkdir(parents=True)
+            (d / 'Kexts/Model.kext/Contents/Info.plist').write_bytes(b'p')
+            (d / 'prov.json').write_text('{}')
+            env = {k: v for k, v in os.environ.items() if k != 'HAO_TARGET_DATA'}
+            run = lambda *a, **more: subprocess.run(
+                [sys.executable, '-I', str(PATCH / 'src/config_reasons.py'), 'check', str(path), '--reasons',
+                 str(d / 'reasons.json'), '--kexts', str(d / 'Kexts'), '--provenance', str(d / 'prov.json'), *a],
+                capture_output=True, text=True, env=dict(env, **more))
+            self.assertEqual(run().returncode, 1)                                   # no reason for Model.kext
+            data.write_text(json.dumps({'opencore_reasons': {'kext:Model.kext': 'the model needs it'}}))
+            r = run('--target-data', str(data))
+            self.assertEqual(r.returncode, 1)                                       # a reason, but no provenance
+            self.assertIn('Model.kext: no provenance', r.stderr)
+            data.write_text(json.dumps({'opencore_reasons': {'kext:Model.kext': 'the model needs it'},
+                                        'kext_provenance': {'Model.kext': {'kind': 'oclp-generated', 'source': 'u',
+                                            'files': {'Contents/Info.plist': hashlib.sha256(b'p').hexdigest()}}}}))
+            self.assertEqual(run(HAO_TARGET_DATA=str(data)).returncode, 0)          # from the environment, as in a build
+
+    def test_mbp92_target_explains_its_generated_kexts(self):
+        data = json.loads((PATCH.parent.parent / 'pipeline/targets/mbp92.json').read_text())['platform_data']
+        for name in ('ECM-Override.kext', 'USB-Map.kext', 'USB-Map-Tahoe.kext'):
+            self.assertEqual(data['kext_provenance'][name]['kind'], 'oclp-generated', name)
+            self.assertTrue(data['opencore_reasons']['kext:' + name], name)
 
     def test_reasons_file(self):
         reasons = CR['load_reasons']()
@@ -111,7 +157,8 @@ class Elements(unittest.TestCase):
     @unittest.skipUnless(os.environ.get('HAO_OPENCORE_IMAGE_CONFIG'), 'set HAO_OPENCORE_IMAGE_CONFIG')
     def test_real_config(self):
         with open(os.environ['HAO_OPENCORE_IMAGE_CONFIG'], 'rb') as f:
-            self.assertEqual(CR['missing'](plistlib.load(f), CR['load_reasons']()), [])
+            data = CR['target_data']()
+            self.assertEqual(CR['missing'](plistlib.load(f), CR['load_reasons'](data=data), data), [])
 
 
 if __name__ == '__main__':

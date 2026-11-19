@@ -18,5 +18,8 @@
     "x2APIC", "POPCNT", "AES", "XSAVE", "OSXSAVE", "TSCTMR", "AVX1.0", "RDRAND", "F16C"
    ]
   }
+ },
+ "platform_data": {
+  "opencore_generic": true
  }
 }

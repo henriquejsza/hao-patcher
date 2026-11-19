@@ -1,6 +1,7 @@
 """src/generic.py on a fixture ESP and the real qemu_reference_efi row when the store has it."""
 from pathlib import Path
 import io
+import json
 import os
 import plistlib
 import sys
@@ -90,7 +91,7 @@ class Generic(unittest.TestCase):
         g = c['PlatformInfo']['Generic']
         self.assertEqual((g['SystemProductName'], c['PlatformInfo']['UpdateSMBIOSMode']), ('iMac20,1', 'Create'))
         self.assertEqual((len(g['SystemSerialNumber']), len(g['MLB']), len(g['ROM'])), (12, 17, 6))
-        self.assertTrue(CR['is_generic'](c))
+        self.assertTrue(CR['is_generic'](c, json.loads((TOP/'pipeline/targets/generic.json').read_text())['platform_data']))
 
     def test_identity_is_generated_once_and_kept(self):
         first = self.run_it()['PlatformInfo']['Generic']

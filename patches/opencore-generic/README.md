@@ -37,6 +37,7 @@ a config that isn't this one (SMBIOS iMac20,1, created).
 NEEDS VALIDATION: host tests only; no generic image is built or booted yet.
 
 ## Revisions
+- r6 2026-11-18 Test only: hao-opencore knows the generic config from the generic target's `platform_data` (`opencore_generic`), not from its SMBIOS model. Nothing it installs changes.
 - r5 2026-11-17 Row qemu_reference_efi is now made by pipeline/unpack/qemu-reference from its downloads: the same tree, with OCLP's Lilu 1.7.2 and a config without a machine identity. What this recipe writes is unchanged.
 - r4 2026-11-17 boot-args gets `-crypt_force_avx`: CryptexFixup is inert on AVX2 CPUs without it, and most machines this pack is for have AVX2.
 - r3 2026-11-17 Lilu is OCLP's pinned 1.7.2 RELEASE (from row oclp_source), not the reference's build: the provenance check refused the reference's.

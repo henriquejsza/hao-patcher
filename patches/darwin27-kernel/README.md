@@ -1,6 +1,6 @@
 # darwin27-kernel
 
-Boots the MacBookPro9,2 on Apple's own macOS 27 x86_64 kernel: 27.0 (26A428) or 27.2.1 (26B131), whichever build the
+Boots the Intel Mac or PC on Apple's own macOS 27 x86_64 kernel: 27.0 (26A428) or 27.2.1 (26B131), whichever build the
 assembly selects. The 27.x IPSWs still ship `System/Library/Kernels/kernel` for Intel (26A428: Darwin 27.0.0,
 xnu-13432.1.9~1/RELEASE_X86_64, UUID 8f0fa4f8-8dc2-3768-a7eb-04e58c6d1b88), but no x86_64 kexts, so the image links
 it with Tahoe's Intel drivers.
@@ -41,8 +41,8 @@ Host tests: `python3.14 -I -B -m unittest discover -s patches/darwin27-kernel/te
 On the built image, `System/Library/Kernels/kernel` has the `darwin27_kernel` row's sha256, and the BootKC is the same
 file in System and Preboot. A BootKC from the builder VM has the `darwin27_boot_kc` row's sha256; one linked on an
 Intel host with Tahoe's builder differs, and hao-opencore binds its repairs from that BootKC (`kc_bind.py`). On
-the Mac, `uname -v` reports the build's Darwin 27 version and `kmutil showloaded` lists the Ethernet and HD 4000
-drivers.
+the Mac, `uname -v` reports the build's Darwin 27 version and `kmutil showloaded` lists the model's Ethernet and
+display drivers.
 
 ## Validation
 NEEDS VALIDATION: r8's Intel-host path (Tahoe's builder) linked this image's BootKC on the MBP9,2 running a hao image (029c216f..., 67 MB; it differs from the VM's, so hao-opencore binds its repairs from it), but no image built that way has booted. The builder VM path is unchanged.
@@ -53,6 +53,7 @@ Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 
 (kernel file no longer copied by the hook) has not been built.
 
 ## Revisions
+- r15 2026-11-18 README names no model or GPU (S15). Nothing it installs changes.
 - r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only.
 - r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r12 2026-11-17 Declares its scope (`requires`, docs/requires.md): its rows are the 26A428 (25G332) and 26B131 (25G342) kernel collections. Nothing it installs changes.
