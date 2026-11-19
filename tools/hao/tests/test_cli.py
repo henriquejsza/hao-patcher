@@ -944,6 +944,25 @@ class BuilderTest(unittest.TestCase):
             STICK.write_kit(mount2, kit, top, record={'assembly': 'a1', 'unproven': []})
             self.assertNotIn('--unproven', (mount2 / 'install').read_text())
 
+    def test_a_fresh_stick_passes_the_installs_own_check(self):
+        # a new JHFS+ volume's root is group-writable (drwxrwxr-x); the Recovery's hao install refuses it
+        sys.path.insert(0, str(TOOL / 'src'))
+        import stick as STICK
+        import safety as SAFE
+        with tempfile.TemporaryDirectory() as d:
+            os.chmod(d, 0o700)
+            kit = Path(d) / 'kit'; (kit / 'sub').mkdir(parents=True); (kit / 'kit.json').write_text('{}')
+            (kit / 'sub' / 'f').write_text('x'); os.chmod(kit / 'sub' / 'f', 0o664); os.chmod(kit / 'sub', 0o775)
+            top = Path(d) / 'top'; (top / 'tools/hao').mkdir(parents=True); (top / 'tools/hao/hao').write_text('')
+            mount = Path(d) / 'HAO'; mount.mkdir(); os.chmod(mount, 0o775)
+            os.symlink('/tmp', mount / 'link')                   # links are left alone, never followed
+            STICK.write_kit(mount, kit, top)
+            self.assertEqual(oct(mount.stat().st_mode & 0o777), '0o755')
+            self.assertIsNone(SAFE.others_can_change(mount, owners=False))
+            self.assertIsNone(SAFE.others_can_change_tree(mount / 'kit', owners=False))
+            self.assertTrue((mount / 'link').is_symlink())
+            self.assertEqual(STICK.check_manifest(mount), [])   # the manifest records the closed modes
+
     def test_report_is_written_new_never_through_a_link(self):
         import report as REP
         with tempfile.TemporaryDirectory() as d:

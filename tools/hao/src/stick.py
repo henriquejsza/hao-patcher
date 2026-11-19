@@ -28,6 +28,7 @@ from pathlib import Path
 import plistlib
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -648,8 +649,23 @@ def write_kit(mount, kit, hao_top, release=None, record=None):
         dict(source='prelinked', key=json.loads(prelinked[0].read_text()).get('key')) if prelinked else
         dict(source='linked by hao install on the target, as root (Tahoe kmutil + its x86_64 collection builder)'))
     write_new(mount / 'stick.json', (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
+    close_tree(mount)
     write_manifest(mount)
     return rec
+
+
+def close_tree(top):
+    """TOP (the HAO volume) and everything in it, links not followed: not writable by group or others. A new JHFS+
+    volume's root is drwxrwxr-x, which the host shows as the user's (owners ignored) but the Recovery, with owners on,
+    shows as root:wheel group-writable; hao install refuses a kit others can change (safety.others_can_change_tree)."""
+    top = Path(top)
+    os.chmod(top, 0o755)
+    for here, dirs, files in os.walk(top):
+        for name in dirs + files:
+            p = os.path.join(here, name)
+            st = os.lstat(p)
+            if not stat.S_ISLNK(st.st_mode) and st.st_mode & 0o022:
+                os.chmod(p, st.st_mode & 0o7755)
 
 
 # -- the disk
