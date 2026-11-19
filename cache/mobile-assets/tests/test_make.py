@@ -28,9 +28,11 @@ def add(tar, name, data=b'x', pax=None):
 class Make(unittest.TestCase):
     def run_make(self, members, exclude=''):
         with tempfile.TemporaryDirectory() as d:
-            tool = Path(d) / 'tool'
-            tool.mkdir()
+            tool = Path(d) / 'cache/mobile-assets'
+            tool.mkdir(parents=True)
             (tool / 'make').write_text((HERE / 'make').read_text())
+            (Path(d) / 'pipeline').mkdir()
+            (Path(d) / 'pipeline/lock.py').write_text((HERE.parents[1] / 'pipeline/lock.py').read_text())
             (tool / 'exclude.txt').write_text(exclude)
             raw = Path(d) / 'artifacts' / 'mobile-assets-26B131-raw-test'
             raw.mkdir(parents=True)
@@ -68,7 +70,7 @@ class Make(unittest.TestCase):
 
     def test_prints_the_row(self):
         _, _, out = self.run_make([A + 'com_apple_MobileAsset_DictionaryServices/a'])
-        self.assertRegex(out, r'row pipeline/inputs/golden/26B131/mobile_assets:\n-  store/artifacts/'
+        self.assertRegex(out, r'row pipeline/inputs/golden/26B131/mobile_assets:\n[0-9a-f]{64}  store/artifacts/'
                               r'mobile-assets-26B131-[0-9a-f]{12}$')
 
 

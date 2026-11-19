@@ -280,7 +280,7 @@ Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 ## golden-gate-mobile-assets
 
-Revision r1, status product. [Recipe](../patches/golden-gate-mobile-assets/README.md)
+Revision r2, status product. [Recipe](../patches/golden-gate-mobile-assets/README.md)
 
 - `System/Library/AssetsV2`: whole file from every file under it from hao (row mobile_assets). Data volume; mobile-assets.tar cut by cache/mobile-assets/make from a harvest of this build after an online first login; extracted with its owners, modes and xattrs, then chflags -R restricted as on a stock Mac.
 

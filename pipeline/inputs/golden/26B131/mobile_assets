@@ -1,2 +1,3 @@
-# MobileAssets pack for 26B131: cache/mobile-assets/make from a harvest after a first login (Apple bytes; store only)
--  store/artifacts/mobile-assets-26B131-9940eab52729
+# MobileAssets pack for 26B131: cache/mobile-assets/make from a harvest after a first login (Apple bytes; store only).
+# Folder row: the sha256 is the folder's content hash (lock.py content_sha256), as inputs.sh requires.
+b52693548ed2267ad2a273b6ab0903c4fe0a235a2cbae083f569f6792508a7d1  store/artifacts/mobile-assets-26B131-9940eab52729

@@ -84,7 +84,10 @@ def main():
     else:
         work.rename(final)
     print(f"{kept} entries kept, {dropped} dropped, {xattrs} provenance xattrs removed -> {final}")
-    print(f"row pipeline/inputs/golden/{build}/mobile_assets:\n-  store/artifacts/{final.name}")
+    # golden rows need a sha256: a folder row's is its content hash (pipeline/lock.py content_sha256)
+    import runpy
+    lock = runpy.run_path(str(Path(__file__).resolve().parents[2] / "pipeline/lock.py"), run_name="lock")
+    print(f"row pipeline/inputs/golden/{build}/mobile_assets:\n{lock['content_sha256'](str(final))}  store/artifacts/{final.name}")
 
 
 if __name__ == "__main__":

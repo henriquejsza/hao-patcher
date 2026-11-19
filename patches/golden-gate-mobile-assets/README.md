@@ -33,4 +33,5 @@ recognition 40 MB, and catalogs) between 2 and 10 minutes after Setup, inside th
 NEEDS VALIDATION: host-tested only; not yet in a built image.
 
 ## Revisions
+- r2 2026-11-18 Row mobile_assets carries the folder's content sha256; golden builds refuse a row without one.
 - r1 2026-11-18 New: the 26B131 MobileAssets pack (752 MB, harvested after a first login; Tahoe recipe ported).
