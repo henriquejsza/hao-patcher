@@ -57,6 +57,21 @@ class MetadataTests(unittest.TestCase):
         layout['swift_runtime_code']['address']=layout['mappings'][0]['address']
         with self.assertRaisesRegex(Refusal,'image lists'):validate(layout,self.family,plan)
 
+    def test_program_pool_reserve_is_twice_the_pool_plus_4k_per_class_plan(self):
+        # 64 KiB per (provider, class plan) reserved ~196 MB at 66,118 records and pushed the fresh region out of
+        # legacy_objc_root's +-2 GiB; the final pool measured 17.9 MB. build_pool refuses a pool past the reserve.
+        plan=copy.deepcopy(self.plan)
+        plan['base_layout']=dict(required_main_text_growth=0)
+        plan['main_updates']=dict(final_cache_file_count=len(self.family.files))
+        for provider in plan['providers']:provider['import_inventory']={}
+        baseline=dict(tables={name:dict(size=4096,entries=[]) for name in ('selector','class','protocol')},
+                      selector_base=self.layout['selector_base'],legacy_objc_root=self.layout['legacy_objc_root'])
+        inventory=dict(selectors=[],classes=[],protocols=[dict(name='NewProtocol')],method_lists=[],categories=[])
+        plans=[{} for _ in range(100)]
+        layout,_=allocate_metadata(plan,baseline,inventory,dict(incoming=[],class_plans=plans),program_pool_size=1<<20,
+            cached_size=4096,patch_size=4096,atlas_size=4096)
+        self.assertEqual(layout['program_pbl']['reserve'],(2<<20)+len(plan['providers'])*len(plans)*4096)
+
     def test_mapping_collision_and_slot_overlap_refused(self):
         changed=copy.deepcopy(self.layout)
         changed['mappings'][0]['address']=self.plan['original_mapping_records'][0]['address']

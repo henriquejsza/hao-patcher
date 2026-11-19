@@ -51,7 +51,10 @@ def allocate_metadata(plan, baseline, inventory, transfer, *, program_pool_size,
         'path_trie':align(max(65536,sum(len(p.encode())+16 for p in images)*4)),
         'patch_table':align(max(65536,patch_size*2+sum(p['import_inventory'].get('records',0) if type(p['import_inventory'].get('records',0)) is int else 0 for p in plan['providers'])*64)),
         'cached_pbl':align(cached_size*2+len(plan['providers'])*65536),
-        'program_pbl':align(program_pool_size*2+len(plan['providers'])*len(transfer.get('class_plans',[]))*65536),
+        # Twice the source pool plus 4 KiB per provider class plan. build_pool refuses a pool that outgrows it; the measured
+        # final pool is 17.9 MB (46,562-record catalog) against the 196 MB that 64 KiB per plan reserved at 66,118 records,
+        # which pushed the fresh region out of legacy_objc_root's +-2 GiB.
+        'program_pbl':align(program_pool_size*2+len(plan['providers'])*len(transfer.get('class_plans',[]))*4096),
         'program_trie':align(max(65536,program_pool_size//8)),
         'atlas':align(max(65536,atlas_size*2)),
     }
