@@ -12,9 +12,9 @@
     "row": "hao_runtime",
     "identifier": "com.apple.AuthenticationServices.Helper",
     "stub": "stubs/9b08c5f62e5bb555f357f2d3.stub",
-    "stub_sha256": "2e630e22a3c5c4d1872a6d0dd044252d4e0330f2a03f6cfcc700f22a3929ec13",
+    "stub_sha256": "30ad96de907814616e363675331d7861cee9a9b9501ecb47fd5c764daa4c30a0",
     "source_sha256": "e6ee0d34bf13a46ac74c34b02584a9356d7f0a1b2ba545e5989af2368b32d87d",
-    "result_sha256": "4cbab2eb094926aad1e0f7ec05b5ae7b8ff35b30b358f9723c5448dc8958bce1",
+    "result_sha256": "0226865b89dd8b16ebdbd840581abd17ea3c780716285db80d25599001d95a16",
     "bound": [
      {"slot": -1, "sha256": "03b17bb5baeb492fd4df114944b7f8144cf323b573e6dfbe1cc6d4c9b86dc79e", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/AuthenticationServices.framework/Versions/A/XPCServices/com.apple.AuthenticationServices.Helper.xpc/Contents/Info.plist"},
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/AuthenticationServices.framework/Versions/A/XPCServices/com.apple.AuthenticationServices.Helper.xpc/Contents/_CodeSignature/CodeResources"}
@@ -24,5 +24,5 @@
   }
  ],
  "sign": null,
- "expect": {"e6ee0d34bf13a46ac74c34b02584a9356d7f0a1b2ba545e5989af2368b32d87d": "4cbab2eb094926aad1e0f7ec05b5ae7b8ff35b30b358f9723c5448dc8958bce1"}
+ "expect": {"e6ee0d34bf13a46ac74c34b02584a9356d7f0a1b2ba545e5989af2368b32d87d": "0226865b89dd8b16ebdbd840581abd17ea3c780716285db80d25599001d95a16"}
 }

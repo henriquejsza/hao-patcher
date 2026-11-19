@@ -12,9 +12,9 @@
     "row": "hao_runtime",
     "identifier": "com.apple.SafariShared.SafariConfigurationSubscriber",
     "stub": "stubs/8a0f604f410f71012d7d1614.stub",
-    "stub_sha256": "82da78ce91ee56080d697ac3410d0e8c95830ed773a413211d7cdab23193eccb",
+    "stub_sha256": "a8319c58324d00b560efb59395fca273d0d5749fb31c7de853619ddd1f60d9a8",
     "source_sha256": "afd2650b0a625f6cdf72fd3a4028dd2ac447a252784f05fa623792d3c1f7ba52",
-    "result_sha256": "fbd85c7a7cb4a07a0e28ee630f299efe8d26802dab8c5c703f30b22f42e9e004",
+    "result_sha256": "94cdb5b49f23d0baa039eb25628050af22155270691f50419e63c971fae3951d",
     "bound": [
      {"slot": -1, "sha256": "d08a8e24cbccf0af510f3599c8a3dbd200819bfd83002e664e8112b2b4709a16", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariFoundation.framework/Versions/A/XPCServices/SafariConfigurationSubscriber.xpc/Contents/Info.plist"},
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariFoundation.framework/Versions/A/XPCServices/SafariConfigurationSubscriber.xpc/Contents/_CodeSignature/CodeResources"}
@@ -24,5 +24,5 @@
   }
  ],
  "sign": null,
- "expect": {"afd2650b0a625f6cdf72fd3a4028dd2ac447a252784f05fa623792d3c1f7ba52": "fbd85c7a7cb4a07a0e28ee630f299efe8d26802dab8c5c703f30b22f42e9e004"}
+ "expect": {"afd2650b0a625f6cdf72fd3a4028dd2ac447a252784f05fa623792d3c1f7ba52": "94cdb5b49f23d0baa039eb25628050af22155270691f50419e63c971fae3951d"}
 }

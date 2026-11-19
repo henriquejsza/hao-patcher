@@ -1,6 +1,6 @@
-# hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime b182303
-# (v0.0.1 option C4: 50f6412 plus the per-site callback marking): libhao CFFC4529, units-input (1896), AOT format 8,
-# cpu baseline.
+# hao runtime payload for the unfolded 26B131 x86_64 cache (A family, 262FA161), from hao-runtime 4b021c3
+# (v0.0.1 option C5: b182303 plus a guest-conformance existential treated as uncertified, and x8-reading callees
+# take rax from Swift-image callers): libhao AD2E376A, units-input, AOT format 8, cpu baseline.
 # hash: without root/usr/lib/hao/aot  # made on the user's Mac after the first boot (made_on_mac_files)
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=bfb99e0847efdab00add04cdfc37867792f8427967335d2b356544e0ee37e143
-388bc582a87ba1cb4685dd40337da08d7978c50beffd6c58ffa3d9a5fe6dfc7f store/artifacts/hao-runtime-26B131-20261118-candC4/payload
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=9045941d0240f77b8c51df3dc6f0d0beb034b2dfaff54c7882b6c3b23196b731
+396d0d9a18c37a480e87bd0a6facda64d213c16059f83e65670010af4faf2a01 store/artifacts/hao-runtime-26B131-20261118-candC5/payload

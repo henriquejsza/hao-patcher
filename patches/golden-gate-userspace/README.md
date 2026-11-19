@@ -394,6 +394,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r91 2026-11-18 The 26 cryptex embed specs carry the stub and result hashes of hao-runtime 4b021c3 (row hao_runtime repinned to C5).
 - r90 2026-11-17 The prespecialization gate refuses only a Swift-bearing image the overridden set gains. One it loses (a generic image has no Wi-Fi pack, so WiFiPeerToPeer is not overridden) keeps its descriptor slots nulled while the cache copy loads: the ordinary path, correct and slower. It is recorded (`gone_null_slots`). The cache edits are unchanged, so the 9,2 image is byte-identical.
 - r89 2026-11-17 Row `codeid_carrier` -> codeid-carrier-20261117-002baf5f2e03-ae09c83d: the same objects (same row hash), with build.json naming the commit that produced it (ae09c83d), which release-cut's provenance check requires. Nothing installed changes.
 - r88 2026-11-17 Model-neutral (GEN1, S15): the model gates rename the target's model, read from HAO_TARGET_MODEL and HAO_TARGET_DATA's `model_gates` (none for a target without it, such as the generic image); `src/model-gates.json` names no Mac, the 9,2's edit is declared by golden-gate-model-gates-mbp92, and the target is part of the cryptex cache key. The MPSMatrix reason names the GPU family, not a product. The 9,2's bytes are unchanged.

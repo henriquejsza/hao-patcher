@@ -12,9 +12,9 @@
     "row": "hao_runtime",
     "identifier": "com.apple.WebDriver.HTTPService",
     "stub": "stubs/ccf2ae450dff568122a55bc9.stub",
-    "stub_sha256": "59021dd244ff62f66b92345dde5450eab4ea3a02eac03f3bcdd8ac5c2e81d398",
+    "stub_sha256": "794d278f506816087f2c3e9798f442643ba5b42b30d07e7977e95479b2c64ed2",
     "source_sha256": "7a593ed716c0ec6cea30b6e1d1390293e797b46a06929006984e8cb0c24bc793",
-    "result_sha256": "5cebcba2f0ef5b7ab188ff2190ba9e5899021b073bc04ee0151b612a4b897dad",
+    "result_sha256": "e7e8526e5f0a5b6050e4923e0e28ff6cd94853b8f000ac255abcede3c92cb382",
     "bound": [
      {"slot": -1, "sha256": "3a6d6f23fafe5e83efd4109578d16666af9ffc0dffd81e054b8fa59c41a50869", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.HTTPService.xpc/Contents/Info.plist"},
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.HTTPService.xpc/Contents/_CodeSignature/CodeResources"}
@@ -24,5 +24,5 @@
   }
  ],
  "sign": null,
- "expect": {"7a593ed716c0ec6cea30b6e1d1390293e797b46a06929006984e8cb0c24bc793": "5cebcba2f0ef5b7ab188ff2190ba9e5899021b073bc04ee0151b612a4b897dad"}
+ "expect": {"7a593ed716c0ec6cea30b6e1d1390293e797b46a06929006984e8cb0c24bc793": "e7e8526e5f0a5b6050e4923e0e28ff6cd94853b8f000ac255abcede3c92cb382"}
 }

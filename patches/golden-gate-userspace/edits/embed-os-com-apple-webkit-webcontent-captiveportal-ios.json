@@ -12,9 +12,9 @@
     "row": "hao_runtime",
     "identifier": "com.apple.WebKit.WebContent.CaptivePortal",
     "stub": "stubs/6efa808ed174769dedce7871.stub",
-    "stub_sha256": "1c79cdb5bdc7a155eb59e3cdd5574bd35b66dc132cb2f396dc98a8fd1cf6b140",
+    "stub_sha256": "60d0b1f8cf0c0524433577f0d1f32689b87e6c173f88ebf95f7870a296fa6878",
     "source_sha256": "a48ff0ed2f22778bad96310dc2e44e05a48453a36e44714b8a2281dc9c4bb256",
-    "result_sha256": "de05a04becd176abfb43db7a98f326a0c0d8ca344c237d4eadd62e6731b4a4ca",
+    "result_sha256": "8278716c56394116964fd65bee9a680800bacacd820dfc5b09729e989acfbd13",
     "bound": [
      {"slot": -1, "sha256": "d04f181bc73e1f7506597a2dd05ed5decb03b0f592eff69b0bab1938919d7fcb", "file": "System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/Info.plist"},
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/_CodeSignature/CodeResources"}
@@ -24,5 +24,5 @@
   }
  ],
  "sign": null,
- "expect": {"a48ff0ed2f22778bad96310dc2e44e05a48453a36e44714b8a2281dc9c4bb256": "de05a04becd176abfb43db7a98f326a0c0d8ca344c237d4eadd62e6731b4a4ca"}
+ "expect": {"a48ff0ed2f22778bad96310dc2e44e05a48453a36e44714b8a2281dc9c4bb256": "8278716c56394116964fd65bee9a680800bacacd820dfc5b09729e989acfbd13"}
 }

@@ -43,7 +43,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-update-policy | r3 | post | product |  | x |  |  |  | ok (r2) | r3 2026-11-18 Validated r2 on hardware (Validation); nothing it installs changes. |
 | golden-gate-user-seed | r14 | post | product | caches | x |  |  |  | **needs** | r14 2026-11-17 Declares its scope (`requires`, docs/requires.md): the seed runtime and the payload layout of 2 |
 | golden-gate-user-template | r11 | post | product | caches | x |  |  |  | **needs** | r11 2026-11-17 Leaves out Mail's containers (8 of 336), fixes #47: a schema-0 Mail container was migrated unde |
-| golden-gate-userspace | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 The prespecialization gate refuses only a Swift-bearing image the overridden set gains. One it  |
+| golden-gate-userspace | r91 | oclp-hook | product |  | x | x |  |  | **needs** | r91 2026-11-18 The 26 cryptex embed specs carry the stub and result hashes of hao-runtime 4b021c3 (row hao_run |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | hao-command | r12 | post | product |  | x |  |  |  | **needs** | r12 2026-11-18 Makes hao's log folder /private/var/log/hao root:wheel 755 on Data. launchd created it 744 for  |
