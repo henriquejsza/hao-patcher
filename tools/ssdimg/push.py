@@ -1,7 +1,8 @@
-"""Stream images to / from a target Mac's internal disk through ssdpush-agent, from a Recovery it loads over the network.
+"""Stream images to / from a target Mac's disks through ssdpush-agent, from a Recovery it loads over the network.
 
-    ssdimg push TARGET [--rev R] [--delta | --full] [--no-verify] [--yes]
-    ssdimg verify TARGET [--rev R]
+    ssdimg push TARGET [--rev R | --image FILE [--chunk-size N]] [--delta | --full] [--no-verify] [--usb IDENTITY]
+                [--yes]
+    ssdimg verify TARGET [--rev R | --image FILE [--chunk-size N]] [--usb IDENTITY]
     ssdimg pull TARGET [--force]
 
 TARGET is `rec@ADDR:/dev/diskN`: a macOS Recovery on the target Mac answering root SSH at ADDR, and the target's
@@ -10,11 +11,34 @@ against a pre-sized file (tests).
 
 push sends each data chunk exactly as stored (zstd) with its BLAKE2b hash; the agent decompresses, checks the hash,
 writes, and reads back to verify. Unallocated space is skipped; allocated all-zero chunks are sent as zero frames
-(TRIM). By default the agent first hashes what the target already holds and only differing chunks are sent. Every
-allocated chunk and the relocated GPT are verified after writing, including skipped chunks. --full sends all
-allocated chunks without the initial comparison. Afterwards OpenCore's launcher is set Disabled, so the firmware's
-default (NetBoot) stays first, and the APFS container is grown to the disk.
+(TRIM). --full sends all allocated chunks without the initial comparison. Afterwards OpenCore's launcher is set
+Disabled, so the firmware's default (NetBoot) stays first, and the APFS container is grown to the disk.
 
+S25 ("write only what changed; verify everything; fall back to a full write on any mismatch"). There is no host-side
+record of what a disk holds (the drive's own writes and macOS journals change it), only on-target hashes:
+  - delta (default): if the target's primary GPT (MBR, header, entries) is not the one this push leaves, or more than
+    half of the present chunks differ from the image, "target does not match the image: full write" and every present
+    chunk is written (the GPT check comes first and skips the hash query); otherwise only the differing chunks;
+  - every present chunk and the relocated GPT are then re-read and hash-checked; a failure after a delta write falls
+    back once to a full write and a second verify; a failure after any full write is an error (exit 1, first bad
+    offsets named);
+  - one line per push: "push summary: mode=... queried=... matched=... written=... bytes=... fallback=0|1 seconds:
+    gpt-check= query= write= verify= [fallback-write= fallback-verify=]".
+--image FILE pushes a raw disk image without a repository: present chunks (MBR and GPTs, non-APFS partitions whole,
+allocated APFS blocks) are hashed from the file, chunk size --chunk-size (default 256 KiB), same logic.
+--usb IDENTITY writes an external drive of the laptop instead (see guard_usb, usb_guard): IDENTITY =
+'media=MEDIA NAME,size=BYTES,lun=N|-' must match exactly; partition tables are zeroed first and the MBR and primary
+GPT written last; zero chunks are written, not TRIMmed; the launcher and the container size are left alone.
+Tests: SSDPUSH_TEST_FAULT (agent.c) flips a byte of a file target after a write phase; SSDPUSH_LOCAL_AGENT names the
+agent `local:` targets run.
+
+--from-disk SOURCE (laptop to laptop): the image is another laptop's internal disk, both laptops in their NetBoot
+Recovery (SOURCE = rec@ADDR:/dev/diskN; local:path in tests). The source disk is opened read-only by its own agent
+(--read-only): its GPT and APFS allocation are read as `pull` reads them, and its agent hashes every present chunk
+('H'). The target is then reached THROUGH the source's agent (--relay): the host sends 'S' frames (a chunk index and
+its hash) and the source reads, checks and compresses that chunk and sends it straight to the target agent, so the
+data never passes through the host. Delta, verify and the full-write fallback are as above (S25); the source's
+volumes are unmounted first so it cannot change meanwhile, and a chunk that changed since it was hashed stops the push.
 pull is `capture` over the link: the allocation map is read remotely, then only the allocated chunks are copied into
 the working image (commit afterwards as usual).
 """
@@ -25,12 +49,12 @@ import struct
 import subprocess
 import time
 
-from . import gpt
+from . import disk, gpt
 from .store import Progress, human, chunk_hash
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SSDPUSH = os.path.join(os.path.dirname(HERE), "ssdpush")       # tools/ssdpush: source + build.sh (binaries untracked)
-LOCAL_AGENT = os.path.join(SSDPUSH, "ssdpush-agent-macos")
+LOCAL_AGENT = os.environ.get("SSDPUSH_LOCAL_AGENT") or os.path.join(SSDPUSH, "ssdpush-agent-macos")   # tests: a temp build
 REC_AGENT = os.path.join(SSDPUSH, "ssdpush-agent-macos-x86_64")
 REC_TOOLS = "/usr/local/ssdtools/bin"              # the Recovery's tools: ssdpush-agent, oc-launcher
 REC_BUILTIN_AGENT = REC_TOOLS + "/ssdpush-agent"
@@ -46,6 +70,14 @@ MAX_READ = 8 << 20
 
 class PushError(Exception):
     pass
+
+
+class VerifyFailed(PushError):
+    """verify_pass found chunks (`bad`, indexes) or other ranges (`bad_extra`, offsets) that differ."""
+
+    def __init__(self, msg, bad, bad_extra):
+        super().__init__(msg)
+        self.bad, self.bad_extra = bad, bad_extra
 
 
 def parse_target(spec):
@@ -119,15 +151,16 @@ def rec_agent(addr):
 class Link:
     """One agent session: ssh to the Recovery (or a local process) speaking the frame protocol."""
 
-    def __init__(self, kind, host, path, image_size, chunk_size, verify, trim=False):
+    def __init__(self, kind, host, path, image_size, chunk_size, verify, trim=False, read_only=False):
         self.sock = None
         self.p = None
         self.r = self.w = None
+        self.flags = " --read-only" if read_only else ""
         try:
             if kind == "local":
                 if not os.path.exists(LOCAL_AGENT):
                     raise PushError(f"{LOCAL_AGENT} missing; run tools/ssdpush/build.sh")
-                cmd = [LOCAL_AGENT, path]
+                cmd = [LOCAL_AGENT, path] + self.flags.split()
             else:
                 argv, name, agent = ["ssh", *REC_SSH, f"root@{host}"], host, rec_agent(host)
                 path = path.replace("/dev/disk", "/dev/rdisk", 1)   # raw device: uncached, no buffer cache copy
@@ -136,7 +169,7 @@ class Link:
                         self._open_tcp(argv, name, agent, path)
                     except (PushError, OSError) as e:
                         print(f"note: no TCP data channel ({e}); using the ssh session")
-                cmd = argv + [f"{agent} {shlex.quote(path)}"]
+                cmd = argv + [f"{agent} {shlex.quote(path)}{self.flags}"]
             if not self.sock:
                 self.p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
                 self.w = self.p.stdin
@@ -186,7 +219,7 @@ class Link:
         import secrets
         import socket
         token = secrets.token_hex(32)
-        p = subprocess.Popen(argv + [f"{agent} {shlex.quote(path)} --tcp"],
+        p = subprocess.Popen(argv + [f"{agent} {shlex.quote(path)} --tcp{self.flags}"],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
         try:
             p.stdin.write(token.encode() + b"\n")
@@ -345,26 +378,260 @@ class RemoteReader:
         pass
 
 
+def start_listener(kind, host, path):
+    """Start a target agent with --tcp; -> (process, token, port). Its ssh session is its lifeline."""
+    import secrets
+    token = secrets.token_hex(32)
+    if kind == "local":
+        if not os.path.exists(LOCAL_AGENT):
+            raise PushError(f"{LOCAL_AGENT} missing; run tools/ssdpush/build.sh")
+        cmd = [LOCAL_AGENT, path, "--tcp"]
+    else:
+        cmd = ["ssh", *REC_SSH, f"root@{host}",
+               f"{rec_agent(host)} {shlex.quote(path.replace('/dev/disk', '/dev/rdisk', 1))} --tcp"]
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
+    try:
+        p.stdin.write(token.encode() + b"\n")
+        p.stdin.flush()
+        line = b""
+        while not line.endswith(b"\n"):
+            c = p.stdout.read(1)
+            if not c:
+                raise PushError(f"target agent exited (status {p.wait()})")
+            line += c
+        line = line.decode().strip()
+        if not line.startswith("LISTEN "):
+            raise PushError(f"target agent: {line}")
+        return p, token, int(line.split()[1])
+    except BaseException:
+        p.kill()
+        p.wait()
+        raise
+
+
+class RelayLink(Link):
+    """A Link to the target agent through the source laptop's agent (--relay): frames written here go to the source,
+    which forwards them to the target (expanding 'S' frames from its own disk); the target's answers come back the
+    same way. Same interface as Link."""
+
+    def __init__(self, kind, host, path, src_host, src_path, image_size, chunk_size, verify, trim=False):
+        self.sock = None
+        self.p = self.tp = None
+        self.r = self.w = None
+        try:
+            self.tp, token, port = start_listener(kind, host, path)
+            if kind == "local":
+                cmd = [LOCAL_AGENT, src_path, "--relay", "127.0.0.1", str(port)]
+            else:
+                agent = rec_agent(src_host)
+                cmd = ["ssh", *REC_SSH, f"root@{src_host}",
+                       f"{agent} {shlex.quote(src_path.replace('/dev/disk', '/dev/rdisk', 1))} --relay "
+                       f"{shlex.quote(host)} {port}"]
+            self.p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
+            self.w, self.r = self.p.stdin, self.p.stdout
+            self.w.write(token.encode() + b"\n")
+            self.send(b"SSDPUSH1" + struct.pack("<QII", image_size, chunk_size, (1 if verify else 0) | (2 if trim else 0)))
+            line = self.line()
+            if not line.startswith("READY"):
+                self.fail(line)
+            f = dict(kv.split("=") for kv in line.split()[1:])
+            self.size, self.bsize = int(f["size"]), int(f["bsize"])
+            self.trim = f.get("trim") == "1"
+        except BaseException:
+            self.abort()
+            raise
+
+    def abort(self):
+        for p in (self.p, self.tp):
+            if p is None:
+                continue
+            for stream in (p.stdin, p.stdout):
+                try:
+                    stream.close()
+                except (OSError, ValueError):
+                    pass
+            if p.poll() is None:
+                p.terminate()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.wait()
+
+    def close(self):
+        try:
+            self.send(b"X")
+            self.w.close()
+        except (BrokenPipeError, OSError, PushError):
+            pass
+        rc = self.p.wait()                     # the relay exits once the target has answered everything
+        trc = self.tp.wait(timeout=30)         # the target agent exits after X; with it, its ssh session
+        self.tp.stdin.close()
+        if rc or trc:
+            raise PushError(f"agent exited with status {rc or trc} ({'relay' if rc else 'target'})")
+
+
+class RemoteDiskSource:
+    """Another laptop's internal disk as the image (push --from-disk): the same interface as RepoSource, read through
+    `link` (its agent, --read-only). `present` as `pull` finds them (the caller passes them); the hashes come from the
+    source's agent ('H'), so nothing but the GPT and allocation metadata crosses to the host. `relay`: send_chunks
+    sends 'S' frames, which the source's relay agent turns into data frames."""
+
+    relay = True
+
+    def __init__(self, link, cs, present):
+        self.link, self.cs, self.sector = link, cs, link.bsize
+        self.size = link.size
+        self.present = set(present)
+        self.read = RemoteReader(link, link.size)
+        self.man = {}
+        idx = sorted(self.present)
+        prog = Progress("hash (on the source)")
+        zero = {}
+        for k in range(0, len(idx), 4096):
+            batch = idx[k:k + 4096]
+            body = bytearray(b"H" + struct.pack("<I", len(batch)))
+            for i in batch:
+                body += struct.pack("<QI", i * cs, min(cs, self.size - i * cs))
+            link.send(bytes(body))
+            got = link.exact(20 * len(batch))
+            for j, i in enumerate(batch):
+                n = min(cs, self.size - i * cs)
+                if n not in zero:
+                    zero[n] = bytes.fromhex(chunk_hash(bytes(n)))
+                h = got[20 * j:20 * j + 20]
+                if h != zero[n]:
+                    self.man[i] = h.hex()
+            prog(min(k + 4096, len(idx)), len(idx))
+
+    def blob(self, i):
+        raise PushError("a disk source sends S frames, not blobs")
+
+
+
 def _confirm(text, want):
     ans = input(f"type {want!r} to continue: ").strip()
     if ans != want:
         raise PushError("aborted")
 
 
-def guard(kind, host, path):
-    """Print what is about to be overwritten / read; refuse anything but the target's internal physical disk."""
+def guard(kind, host, path, usb=None):
+    """Print what is about to be overwritten / read; refuse anything but the target's internal physical disk, or with
+    `usb` (an IDENTITY, see parse_identity) anything but that external drive."""
     if kind == "local":
+        if usb:
+            raise PushError("--usb needs a rec@ADDR:/dev/diskN target")
         print(f"target: local file {path}  {human(os.path.getsize(path))}")
         return path
+    if usb:
+        return guard_usb(host, path, parse_identity(usb))
     return guard_rec(host, path)
 
 
-def guard_rec(addr, path):
+# ---------------------------------------------------------------- --usb: an external drive on the laptop
+# IDENTITY = "media=MEDIA NAME,size=BYTES,lun=N" names exactly one drive: diskutil's MediaName (vendor and product as
+# the drive reports them), its byte size, and the SCSI logical unit number in its USB enclosure ("-" when it has
+# none). The LUN is hao-accept's notion (tools/hao-accept USB_LIST): a two-bay enclosure reports no per-drive serial
+# and its bays are the size of the internal disk, so the LUN is what tells them apart.
+USB_KEYS = ("media", "size", "lun")
+USB_ZERO_HEAD = 4 << 20                # zeroed before a USB write: the MBR, the primary GPT and what follows
+USB_ZERO_TAIL = 8192 * 512             # and the end of the drive (the backup GPT), as hao-accept's unboot_usb
+LUN_CMD = ("ioreg -l -w0 -p IOService 2>/dev/null | "
+           "grep -E '\"SCSI Logical Unit Number\" ?=|\"BSD Name\" = \"disk[0-9]+\"$'")
+
+
+def parse_identity(text):
+    """"media=...,size=...,lun=..." -> {media, size, lun} (strings); every key exactly once."""
+    out = {}
+    for part in text.split(","):
+        k, sep, v = part.partition("=")
+        k = k.strip()
+        if not sep or k not in USB_KEYS or k in out:
+            raise PushError(f"--usb {text!r}: expected media=NAME,size=BYTES,lun=N|- (each once)")
+        out[k] = v.strip()
+    missing = [k for k in USB_KEYS if k not in out]
+    if missing or not out["size"].isdigit() or not (out["lun"] == "-" or out["lun"].isdigit()) or not out["media"]:
+        raise PushError(f"--usb {text!r}: expected media=NAME,size=BYTES,lun=N|- (missing or bad: "
+                        f"{', '.join(missing) or 'a value'})")
+    return out
+
+
+def lun_of(text, name):
+    """SCSI logical unit number of BSD disk `name` from the lines LUN_CMD prints ("-" when none): the last LUN
+    listed before its "BSD Name" line, as hao-accept's USB_LIST reads it."""
+    import re
+    lun = None
+    for line in text.splitlines():
+        m = re.search(r'"SCSI Logical Unit Number" ?= ?(\d+)', line)
+        if m:
+            lun = m[1]
+            continue
+        m = re.search(r'"BSD Name" = "(disk\d+)"$', line.strip())
+        if m and m[1] == name:
+            return lun or "-"
+    return "-"
+
+
+def usb_guard(info, lun, ident, dev="disk"):
+    """--usb target check on `diskutil info -plist` facts (a dict) and the drive's LUN: a physical, external whole
+    disk whose media name, byte size and LUN equal `ident` exactly. -> a one-line description; PushError otherwise
+    (the internal disk, a partition, a disk image or RAM disk, another drive)."""
+    bus = info.get("BusProtocol", "?")
+    removable = any(info.get(k) for k in ("Removable", "RemovableMedia", "Ejectable"))
+    why = []
+    if not info.get("WholeDisk"):
+        why.append("a partition, not a whole disk")
+    if info.get("VirtualOrPhysical") != "Physical":
+        why.append(f"not a physical disk ({info.get('VirtualOrPhysical', '?')}: a disk image or RAM disk?)")
+    if info.get("Internal") is not False:
+        why.append("an internal disk" if info.get("Internal") else "not reported as external")
+    if bus not in disk.EXTERNAL_BUSES and not removable:
+        why.append(f"on the {bus} bus and not removable")
+    if why:
+        raise PushError(f"--usb: {dev} refused: " + "; ".join(why))
+    got = {"media": str(info.get("MediaName") or "").strip(), "size": str(info.get("TotalSize") or info.get("Size")),
+           "lun": lun}
+    diff = [f"{k} {got[k]!r} (expected {ident[k]!r})" for k in USB_KEYS if got[k] != ident[k]]
+    if diff:
+        raise PushError(f"--usb: {dev} is not the expected drive: " + "; ".join(diff))
+    return f"{got['media']}  {human(int(got['size']))} ({got['size']} bytes)  LUN {lun}  {bus}"
+
+
+def guard_usb(addr, path, ident):
+    """Recovery target with --usb: exactly the drive `ident` names (usb_guard); its volumes are unmounted first."""
+    import plistlib
+    info = plistlib.loads(rec_ssh(addr, f"diskutil info -plist {shlex.quote(path)}").encode())
+    lun = lun_of(rec_ssh(addr, LUN_CMD, check=False), info.get("DeviceIdentifier", ""))
+    what = usb_guard(info, lun, ident, path)
+    print(f"target: Recovery {addr}:{path}  USB drive {what}  {info.get('DeviceBlockSize')}-byte sectors")
+    i = rec_disk_info(addr, path)
+    if i["mounts"]:
+        print(f"unmounting {len(i['mounts'])} volume(s) on the USB drive: {', '.join(i['mounts'])}")
+        rec_ssh(addr, f"diskutil unmountDisk force {shlex.quote(path)}", check=False)
+        i = rec_disk_info(addr, path)
+        if i["mounts"]:
+            raise PushError(f"{path} still has mounted volumes: {', '.join(i['mounts'])}")
+    return i["NAME"]
+
+
+def usb_zero_ranges(target_size):
+    """[(off, len)] zeroed before a USB write so macOS finds no partition table on a half-written drive."""
+    head = min(USB_ZERO_HEAD, target_size)
+    tail = max(head, target_size - USB_ZERO_TAIL)
+    return [(0, head)] + ([(tail, target_size - tail)] if tail < target_size else [])
+
+
+def usb_rewrite(present, target_size, cs):
+    """Present chunks inside the zeroed ranges: written whatever the delta check found."""
+    return {i for i in present for off, n in usb_zero_ranges(target_size) if i * cs < off + n and (i + 1) * cs > off}
+
+
+def guard_rec(addr, path, role="target"):
     """Recovery target: a physical, internal, non-removable whole disk (never a USB disk, a disk image or the RAM
     disk the Recovery runs from). The Recovery mounts the internal volumes at boot, so they are unmounted first
     (`diskutil unmountDisk`); anything still mounted afterwards is refused."""
     i = rec_disk_info(addr, path)
-    print(f"target: Recovery {addr}:{path}  {i['MODEL']}  {human(int(i['SIZE']))}  {i['TRAN']}  "
+    print(f"{role}: Recovery {addr}:{path}  {i['MODEL']}  {human(int(i['SIZE']))}  {i['TRAN']}  "
           f"{i['LOG-SEC']}-byte sectors")
     if i["TYPE"] != "disk":
         raise PushError(f"{path} is a partition, not a whole disk")
@@ -382,8 +649,65 @@ def guard_rec(addr, path):
 
 # ---------------------------------------------------------------- push
 
-def delta_chunks(link, man, present, cs, size):
-    """Compare target bytes (agent 'Q'); -> the chunks that differ."""
+class RepoSource:
+    """The chunks of one commit of an image repository: `man` = chunk index -> BLAKE2b hex of every non-zero chunk,
+    `present` = every chunk the image puts on the target (data + allocated zero chunks), `blob(i)` = the stored zstd
+    frame of chunk i."""
+
+    def __init__(self, repo, man, meta, present):
+        self.repo, self.man, self.present = repo, man, set(present)
+        self.size, self.cs, self.sector = meta["size"], meta["chunk_size"], meta["sector_size"]
+        if self.cs % self.sector or self.size % self.sector:   # the agent reads the target in whole sectors only
+            raise PushError(f"image chunk size {self.cs} / size {self.size} is not a whole number of "
+                            f"{self.sector}-byte sectors")
+        self.read = repo.reader(man, self.size)
+
+    def blob(self, i):
+        with open(self.repo.obj_path(self.man[i]), "rb") as f:
+            return f.read()
+
+
+class RawSource:
+    """A raw disk image file pushed without a repository (`push --image`): the same interface as RepoSource. Every
+    present chunk is read and hashed up front (the delta query needs the hashes) and compressed again when sent; a
+    partial last chunk is hashed zero-padded, as the store does."""
+
+    def __init__(self, path, cs, present, sector=512):
+        from concurrent.futures import ThreadPoolExecutor
+        self.path, self.cs, self.sector = path, cs, sector
+        self.size = os.path.getsize(path)
+        self.present = set(present)
+        self.fd = os.open(path, os.O_RDONLY)
+        self.read = disk.Reader(path, align=4096, size=self.size)
+        zero = bytes(cs)
+
+        def work(batch):
+            return [(i, chunk_hash(d)) for i in batch if (d := self.chunk(i)) != zero]
+        idx = sorted(self.present)
+        prog, self.man = Progress("hash"), {}
+        with ThreadPoolExecutor(min(8, os.cpu_count() or 4)) as ex:
+            for k, part in enumerate(ex.map(work, [idx[j:j + 64] for j in range(0, len(idx), 64)])):
+                self.man.update(part)
+                prog(min((k + 1) * 64, len(idx)), len(idx))
+
+    def chunk(self, i):
+        return os.pread(self.fd, self.cs, i * self.cs).ljust(self.cs, b"\0")
+
+    def blob(self, i):
+        from compression import zstd
+        return zstd.compress(self.chunk(i), level=1)
+
+
+def overlay_hashes(present, cs, overlay, read):
+    """chunk -> BLAKE2b of what a present chunk holds after the relocated GPT writes (`overlay`) went over it"""
+    return {i: bytes.fromhex(chunk_hash(_overlay(i * cs, read(i * cs, cs), overlay))) for i in sorted(present)
+            if any(po < (i + 1) * cs and po + len(pd) > i * cs for po, pd in overlay)}
+
+
+def delta_chunks(link, man, present, cs, size, expect=None):
+    """Compare target bytes (agent 'Q'); -> the chunks that differ. `expect`: chunk -> hash overriding the
+    manifest's (chunks the relocated GPT goes over)."""
+    expect = expect or {}
     zero_hash = bytes.fromhex(chunk_hash(bytes(cs)))
     tail = (size + cs - 1) // cs - 1 if size % cs else None
     q = [i for i in sorted(present) if i != tail]
@@ -393,7 +717,7 @@ def delta_chunks(link, man, present, cs, size):
         body = bytearray(b"Q" + struct.pack("<I", len(batch)))
         for i in batch:
             body += struct.pack("<QI", i * cs, cs)
-            body += bytes.fromhex(man[i]) if i in man else zero_hash
+            body += expect.get(i) or (bytes.fromhex(man[i]) if i in man else zero_hash)
         link.send(bytes(body))
         count = struct.unpack("<I", link.exact(4))[0]
         if count > len(batch):
@@ -405,20 +729,138 @@ def delta_chunks(link, man, present, cs, size):
     return sorted(differ)
 
 
-def push(repo, man, meta, present, a):
-    """`present`: required image chunks (data + allocated zero chunks)."""
+def plan_delta(link, src, raw, st):
+    """S25 "write only what changed": -> the chunks to write. A target that does not look like an earlier write of
+    this image family gets a full write: its primary GPT (MBR, header, entries as the push would leave them) differs
+    from the image's, or more than half of the present chunks differ (then the 'Q' answers are not re-asked)."""
+    t0 = time.time()
+    head = src.sector * gpt.GPT(src.read, src.sector).first_usable
+    gpt_same = all(link.read_at(off, len(data)) == data for off, data in raw if off < head)
+    st["seconds"]["gpt-check"] = round(time.time() - t0, 2)
+    every = sorted(src.present)
+    if not gpt_same:
+        print("target does not match the image (its primary GPT differs): full write")
+        st["mode"] = "full (target does not match)"
+        return every
+    t0 = time.time()
+    print(f"delta: asking the agent to hash {len(src.present)} allocated chunks already on the target ...")
+    todo = delta_chunks(link, src.man, src.present, src.cs, src.size,
+                        expect=overlay_hashes(src.present, src.cs, raw, src.read))
+    tail = (src.size + src.cs - 1) // src.cs - 1 if src.size % src.cs else None
+    st["queried"] = len(src.present) - (tail in src.present)
+    st["matched"] = len(src.present) - len(todo)
+    st["seconds"]["query"] = round(time.time() - t0, 2)
+    print(f"delta: {len(todo)} of {len(src.present)} chunks differ ({st['seconds']['query']:.0f}s)")
+    if 2 * (len(todo) - (tail in src.present)) > st["queried"]:
+        print(f"target does not match the image ({len(todo)} of {len(src.present)} chunks differ): full write")
+        st["mode"] = "full (target does not match)"
+        return every
+    st["mode"] = "delta"
+    return todo
+
+
+def send_chunks(link, src, chunks, label="push"):
+    """D frames (zstd chunk + hash) or Z frames (allocated all-zero chunk); -> (bytes written, bytes on the wire)"""
+    sent = wire = 0
+    prog = Progress(label)
+    for n, i in enumerate(chunks):
+        off = i * src.cs
+        wlen = min(src.cs, src.size - off)
+        if i in src.man and getattr(src, "relay", False):
+            frame = b"S" + struct.pack("<QI", off, wlen) + bytes.fromhex(src.man[i])
+        elif i in src.man:
+            blob = src.blob(i)
+            frame = (b"D" + struct.pack("<QI", off, wlen) + bytes.fromhex(src.man[i]) + struct.pack("<I", len(blob))
+                     + blob)
+        else:
+            frame = b"Z" + struct.pack("<QI", off, wlen)
+        link.send(frame)
+        sent += wlen
+        wire += len(frame)
+        if n % 256 == 0:
+            prog(n, len(chunks))
+    prog(len(chunks), len(chunks))
+    return sent, wire
+
+
+def flush(link):
+    link.send(b"F")
+    ok = link.line()
+    if not ok.startswith("OK"):
+        link.fail(ok)
+    return ok
+
+
+def send_raw(link, pieces):
+    for off, data in pieces:
+        link.send(b"R" + struct.pack("<QI", off, len(data)) + data)
+
+
+def write_pass(link, src, todo, raw, st, phase="write", usb=False):
+    """Write `todo` chunks, then the relocated GPT (`raw`), and flush. usb: in hao-accept's order, so macOS never
+    mounts a half-written drive: zero the partition tables (usb_zero_ranges) and flush, write everything but the
+    chunks and pieces before the first usable LBA, flush, then those (the MBR and primary GPT) last."""
+    t0 = time.time()
+    if not usb:
+        sent, wire = send_chunks(link, src, todo)
+        send_raw(link, raw)
+    else:
+        head = src.sector * gpt.GPT(src.read, src.sector).first_usable
+        zeros = bytes(4 << 20)
+        for off, n in usb_zero_ranges(link.size):
+            send_raw(link, [(o, zeros[:min(len(zeros), off + n - o)]) for o in range(off, off + n, len(zeros))])
+        flush(link)
+        print(f"usb: partition tables zeroed ({', '.join(f'{human(n)} at {off}' for off, n in usb_zero_ranges(link.size))})")
+        todo = sorted(set(todo) | usb_rewrite(src.present, link.size, src.cs))
+        sent, wire = send_chunks(link, src, [i for i in todo if i * src.cs >= head])
+        send_raw(link, [(off, data) for off, data in raw if off >= head])
+        flush(link)
+        s2, w2 = send_chunks(link, src, [i for i in todo if i * src.cs < head], label="push (primary GPT last)")
+        send_raw(link, [(off, data) for off, data in raw if off < head])
+        sent, wire = sent + s2, wire + w2
+    ok = flush(link)
+    dt = time.time() - t0
+    st["written"] += len(todo)
+    st["bytes"] += sent
+    st["seconds"][phase] = round(dt, 2)
+    print(f"pushed {human(sent)} ({len(todo)} chunks, {human(wire)} on the wire) in {dt:.0f}s "
+          f"({human(sent / max(dt, 1e-3))}/s); agent: {ok[3:]}")
+
+
+def summary(st):
+    """One line per push with the S25 counts and the seconds of each phase."""
+    secs = " ".join(f"{k}={v}" for k, v in st["seconds"].items())
+    print(f"push summary: mode={st['mode']!r} queried={st['queried']} matched={st['matched']} "
+          f"written={st['written']} bytes={st['bytes']} fallback={st['fallback']} seconds: {secs}")
+
+
+def push(src, a):
+    """Write `src` (RepoSource or RawSource) to a.target. S25: in delta mode (default) only the chunks that differ
+    are written, unless the target does not look like an earlier write of the image (plan_delta: full write);
+    every present chunk is verified afterwards, and a failed verify after a delta write falls back once to a full
+    write and a second verify. A failed verify after a full write is an error."""
     delta = getattr(a, "delta", True)
     if delta and a.no_verify:
         raise PushError("delta push requires full readback; --no-verify is only available with --full")
     kind, host, path = parse_target(a.target)
-    size, cs, sector = meta["size"], meta["chunk_size"], meta["sector_size"]
-    pin = guard(kind, host, path)
+    size, cs, sector = src.size, src.cs, src.sector
+    usb = getattr(a, "usb", None)
+    pin = guard(kind, host, path, usb)
     if not a.yes:
         print(f"\nALL DATA ON {a.target} WILL BE DESTROYED.")
         _confirm(a.target, pin)
 
     mode = "none" if a.no_verify else getattr(a, "verify", None) or "end"
-    link = Link(kind, host, path, size, cs, verify=mode == "inline", trim=not getattr(a, "no_trim", False))
+    # --usb: zero chunks are written, not TRIMmed (a USB bridge need not read zeros after UNMAP)
+    trim = not (getattr(a, "no_trim", False) or usb)
+    if getattr(src, "relay", False):
+        if usb:
+            raise PushError("--from-disk and --usb exclude each other")
+        link = RelayLink(kind, host, path, a.src_host, a.src_path, size, cs, verify=mode == "inline", trim=trim)
+    else:
+        link = Link(kind, host, path, size, cs, verify=mode == "inline", trim=trim)
+    st = {"mode": "delta" if delta else "full", "queried": 0, "matched": 0, "written": 0, "bytes": 0,
+          "fallback": 0, "seconds": {}}
     try:
         print(f"agent ready: target {human(link.size)}, {link.bsize}-byte sectors; verify: {mode}; "
               f"zero chunks: {'TRIM' if link.trim else 'written'}")
@@ -426,59 +868,45 @@ def push(repo, man, meta, present, a):
             raise PushError(f"target sector size {link.bsize} != image sector size {sector}")
         nchunks = (size + cs - 1) // cs
         tail = nchunks - 1 if size % cs else None
+        # Backup GPT at the end of the target, primary header updated to match.
+        raw = list(gpt.GPT(src.read, sector).relocated(link.size // sector))
 
         t_start = time.time()
-        todo = sorted(present)
-        if delta:
-            t0 = time.time()
-            print(f"delta: asking the agent to hash {len(present)} allocated chunks already on the target ...")
-            todo = delta_chunks(link, man, present, cs, size)
-            print(f"delta: {len(todo)} of {len(present)} chunks need writing ({time.time() - t0:.0f}s)")
-
-        sent = wire = 0
-        prog = Progress("push")
-        t0 = time.time()
-        for n, i in enumerate(todo):
-            off = i * cs
-            wlen = min(cs, size - off)
-            if i in man:
-                h = man[i]
-                with open(repo.obj_path(h), "rb") as f:
-                    blob = f.read()
-                frame = b"D" + struct.pack("<QI", off, wlen) + bytes.fromhex(h) + struct.pack("<I", len(blob)) + blob
-            else:
-                frame = b"Z" + struct.pack("<QI", off, wlen)
-            link.send(frame)
-            sent += wlen
-            wire += len(frame)
-            if n % 256 == 0:
-                prog(n, len(todo))
-        prog(len(todo), len(todo))
-
-        # Backup GPT at the end of the target, primary header updated to match.
-        g = gpt.GPT(repo.reader(man, size), sector)
-        raw = g.relocated(link.size // sector)
-        for off, data in raw:
-            link.send(b"R" + struct.pack("<QI", off, len(data)) + data)
-        link.send(b"F")
-        ok = link.line()
-        if not ok.startswith("OK"):
-            link.fail(ok)
-        dt = time.time() - t0
-        print(f"pushed {human(sent)} ({len(todo)} chunks, {human(wire)} on the wire) in {dt:.0f}s "
-              f"({human(sent / max(dt, 1e-3))}/s); agent: {ok[3:]}")
+        todo = plan_delta(link, src, raw, st) if delta else sorted(src.present)
+        write_pass(link, src, todo, raw, st, usb=bool(usb))
         if mode == "inline" and not delta:
             print("verify: every chunk hash-checked and read back from the target right after writing: OK")
         elif mode == "end" or delta:
-            read = repo.reader(man, size)
-            extra = list(raw) + ([(tail * cs, read(tail * cs, size - tail * cs))]
-                                 if tail is not None and tail in present else [])
-            # Recheck skipped chunks after writes too: initial equality is not final readback.
-            verify_pass(link, man, present, cs, size, extra, overlay=raw, read=read)
+            extra = raw + ([(tail * cs, src.read(tail * cs, size - tail * cs))]
+                           if tail is not None and tail in src.present else [])
+            t0 = time.time()
+            try:
+                # Recheck skipped chunks after writes too: initial equality is not final readback.
+                verify_pass(link, src.man, src.present, cs, size, extra, overlay=raw, read=src.read)
+            except VerifyFailed as e:
+                st["seconds"]["verify"] = round(time.time() - t0, 2)
+                if st["mode"] != "delta":
+                    raise
+                print(f"{e}\nverify failed after the delta write: full write of all {len(src.present)} present "
+                      "chunks, then verify again")
+                st["fallback"] = 1
+                write_pass(link, src, sorted(src.present), raw, st, phase="fallback-write", usb=bool(usb))
+                t0 = time.time()
+                try:
+                    verify_pass(link, src.man, src.present, cs, size, extra, overlay=raw, read=src.read)
+                finally:
+                    st["seconds"]["fallback-verify"] = round(time.time() - t0, 2)
+            else:
+                st["seconds"]["verify"] = round(time.time() - t0, 2)
             print(f"push + verify: {time.time() - t_start:.0f}s in total{' (with the delta check)' if delta else ''}")
     finally:
+        summary(st)
         link.close()
     if kind != "rec":
+        return
+    if usb:
+        # the laptop's internal disk is not touched: its launcher stays as it is; the drive keeps the image's size
+        print("usb: written and verified; OpenCore launcher of the internal disk and APFS container size left as they are")
         return
     if not getattr(a, "keep_launcher", False):
         # OCLP's LauncherOption=Full makes OpenCore the firmware's first boot entry on every boot, so restarts would
@@ -537,10 +965,7 @@ def verify_pass(link, man, present, cs, size, extra=(), overlay=(), read=None):
     zero_hash = bytes.fromhex(chunk_hash(bytes(cs)))
     tail = (size + cs - 1) // cs - 1 if size % cs else None
     q = [i for i in sorted(present) if i != tail]
-    expect = {}                                           # chunk -> hash after the GPT overlay
-    for i in q:
-        if any(po < (i + 1) * cs and po + len(pd) > i * cs for po, pd in overlay):
-            expect[i] = bytes.fromhex(chunk_hash(_overlay(i * cs, read(i * cs, cs), overlay)))
+    expect = overlay_hashes(q, cs, overlay, read)         # chunk -> hash after the GPT overlay
     extra = [(off, _overlay(off, data, overlay)) for off, data in extra]
     B = 4096
     batches = [q[k:k + B] for k in range(0, len(q), B)]
@@ -569,30 +994,48 @@ def verify_pass(link, man, present, cs, size, extra=(), overlay=(), read=None):
     dt = time.time() - t0
     if bad or bad_extra:
         where = ", ".join(f"chunk {i} (offset {i * cs})" for i in bad[:5]) or ", ".join(map(str, bad_extra[:5]))
-        raise PushError(f"VERIFY FAILED: {len(bad)} chunks and {len(bad_extra)} other ranges differ from the image "
-                        f"(first: {where})")
+        raise VerifyFailed(f"VERIFY FAILED: {len(bad)} chunks and {len(bad_extra)} other ranges differ from the image "
+                           f"(first: {where})", bad, bad_extra)
     print(f"verify: {len(q)} chunks ({human(len(q) * cs)}) re-read from the target and hash-checked, "
           f"{len(extra)} other ranges compared, in {dt:.0f}s ({human(len(q) * cs / max(dt, 1e-3))}/s): all match")
 
 
-def verify(repo, man, meta, present, a):
-    """`ssdimg verify`: read-only check that the target holds the commit."""
+def verify(src, a):
+    """`ssdimg verify`: read-only check that the target holds the image (RepoSource or RawSource)."""
     kind, host, path = parse_target(a.target)
-    size, cs, sector = meta["size"], meta["chunk_size"], meta["sector_size"]
-    guard(kind, host, path)
+    size, cs, sector = src.size, src.cs, src.sector
+    guard(kind, host, path, getattr(a, "usb", None))
     link = Link(kind, host, path, 0, cs, verify=False)
     if link.size < size:
         raise PushError(f"target ({human(link.size)}) is smaller than the image ({human(size)})")
-    read = repo.reader(man, size)
+    read = src.read
     g = gpt.GPT(read, sector)
     tail = (size + cs - 1) // cs - 1 if size % cs else None
     raw = list(g.relocated(link.size // sector))
-    extra = raw + ([(tail * cs, read(tail * cs, size - tail * cs))] if tail is not None and tail in present else [])
-    verify_pass(link, man, present, cs, size, extra, overlay=raw, read=read)
+    extra = raw + ([(tail * cs, read(tail * cs, size - tail * cs))] if tail is not None and tail in src.present else [])
+    verify_pass(link, src.man, src.present, cs, size, extra, overlay=raw, read=read)
     link.close()
 
 
-# ---------------------------------------------------------------- pull
+# ---------------------------------------------------------------- pull, --from-disk
+
+def disk_source_open(spec, target_spec, cs):
+    """push --from-disk: (kind, host, path, read-only Link) of the source laptop's disk. The same guard as a target
+    (a physical internal whole disk; the Recovery's mounts are unmounted, so it cannot change during the push)."""
+    kind, host, path = parse_target(spec)
+    tkind, thost, tpath = parse_target(target_spec)
+    if kind != tkind:
+        raise PushError("--from-disk and the target must both be rec@ (or both local: in tests)")
+    if (host, path) == (thost, tpath) or (kind == "rec" and host == thost):
+        raise PushError("--from-disk names the target itself")
+    if kind == "local":
+        print(f"source: local file {path}  {human(os.path.getsize(path))}")
+    else:
+        guard_rec(host, path, role="source")
+    link = Link(kind, host, path, 0, cs, verify=False, read_only=True)
+    print(f"source agent ready (read-only): {human(link.size)}, {link.bsize}-byte sectors")
+    return kind, host, path, link
+
 
 def pull_open(a):
     kind, host, path = parse_target(a.target)

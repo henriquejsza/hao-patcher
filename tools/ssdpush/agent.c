@@ -2,7 +2,8 @@
  * ssdpush-agent: receiving end of `ssdimg push`. Runs on the target Mac (as root for a raw disk),
  * reads a frame stream on stdin and writes it to a raw disk or a file.
  *
- *   ssdpush-agent <target> [--workers N] [--tcp]
+ *   ssdpush-agent <target> [--workers N] [--tcp] [--read-only]
+ *   ssdpush-agent <source> --relay ADDR PORT          (laptop-to-laptop push; see "--relay" below)
  *
  * --tcp: the frame stream runs over a TCP connection instead of stdin/stdout, which then only
  * carry the setup (the host's ssh session): the agent reads a one-time token line from stdin, listens
@@ -25,12 +26,34 @@
  *   'R' u64 off u32 len <len bytes>                            raw bytes (partition table)
  *   'Q' u32 n { u64 off u32 len u8 hash[20] } * n              which ranges differ from hash?
  *   'P' u64 off u32 len                                        read len bytes back (capture; may be pipelined)
+ *   'H' u32 n { u64 off u32 len } * n                          BLAKE2b-160 of each range (a source's hashes)
  *   'F'                                                        drain, fsync, report
  *   'X'                                                        exit
  * Agent -> host: text lines "READY ...", "OK ...", "ERR ..."; 'Q' answers u32 m { u32 index } * m;
- * 'P' answers exactly len raw bytes.
+ * 'P' answers exactly len raw bytes; 'H' answers n * 20 bytes.
+ *
+ * --read-only opens the disk read-only and refuses D, Z and R: a source disk (pull, or the hash pass of a
+ * laptop-to-laptop push) is never written.
+ *
+ * --relay ADDR PORT (laptop-to-laptop push): this agent runs on the SOURCE laptop and opens its disk read-only.
+ * It reads the target agent's one-time token as the first line on stdin, connects to the target agent's --tcp
+ * port at ADDR and sends the token. After that it forwards the host's frame stream from stdin to the target
+ * unchanged, frame by frame, and the target's answers from the connection to stdout unchanged, except for:
+ *   'S' u64 off u32 wlen u8 hash[20]                           send this range of MY disk: read wlen bytes at
+ *                                                              off, check their BLAKE2b-160 is hash (the source
+ *                                                              must not have changed since the host hashed it),
+ *                                                              and forward them as a 'D' frame (zstd level 1),
+ *                                                              or a 'Z' frame when they are all zero.
+ * S frames are read, hashed and compressed by worker threads; the order of all frames sent to the target is the
+ * order the host sent them in. The data goes laptop to laptop; the host only sends S frames and reads answers.
  *
  * Builds for macOS (raw /dev/rdiskN) and Linux (/dev/sdX, static musl via `zig cc`).
+ *
+ * Test fault (tests only): SSDPUSH_TEST_FAULT="OFFSET" or "OFFSET:sticky" in the environment makes the agent
+ * flip one byte (XOR 0xff) of the target at byte OFFSET when a 'Q' frame arrives after at least one write
+ * frame (D, Z or R) since the previous 'Q', i.e. after a write phase and before the host's verify pass reads
+ * it. Without ":sticky" it fires once per agent run; with it, after every write phase. It is honoured ONLY
+ * when the target is a regular file: on a device the variable is ignored (with a note on stderr).
  */
 #ifdef __linux__
 #define _GNU_SOURCE
@@ -95,6 +118,17 @@ typedef struct job {
 static int fd = -1, wfd = -1, vfd = -1, verify = 0, trim = 0, workers = 3;   /* wfd: writes, vfd: reads (both uncached on Linux) */
 static uint64_t image_size, target_size; static uint32_t chunk_size;
 static uint8_t *zeros;
+static long long fault_off = -1; static int fault_sticky, fault_fired, wrote_since_q;   /* SSDPUSH_TEST_FAULT */
+
+static void test_fault(void) {   /* flip the byte at fault_off (regular-file targets only; see the header) */
+    uint8_t b;
+    if (pread(wfd, &b, 1, (off_t)fault_off) != 1) die("test fault: read at %lld: %s", fault_off, strerror(errno));
+    b ^= 0xff;
+    if (pwrite(wfd, &b, 1, (off_t)fault_off) != 1) die("test fault: write at %lld: %s", fault_off, strerror(errno));
+    fsync(wfd);
+    fault_fired = 1;
+    fprintf(stderr, "ssdpush-agent: SSDPUSH_TEST_FAULT: flipped the byte at %lld%s\n", fault_off, fault_sticky ? " (sticky)" : "");
+}
 
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cv_work = PTHREAD_COND_INITIALIZER, cv_done = PTHREAD_COND_INITIALIZER,
@@ -310,7 +344,7 @@ static void drain(void) {
  * Used by --delta and by the verify pass after a push: QTHREADS threads each take the next entry, read
  * it from the device (uncached) and hash it, so several reads are in flight and hashing uses every core. */
 #define QTHREADS 4
-typedef struct { uint64_t off; uint32_t len; uint8_t want[20]; int bad; } qent;
+typedef struct { uint64_t off; uint32_t len; uint8_t want[20], got[20]; int bad; } qent;
 static qent *qv; static uint32_t qn, qnext;
 static pthread_mutex_t qmu = PTHREAD_MUTEX_INITIALIZER;
 
@@ -327,6 +361,7 @@ static void *q_worker(void *arg) {
         if (e->off + e->len > target_size) { e->bad = 1; continue; }
         pread_all(buf, e->len, e->off);
         blake2b(h, 20, buf, e->len);
+        memcpy(e->got, h, 20);
         e->bad = memcmp(h, e->want, 20) != 0;
     }
     free(buf);
@@ -474,20 +509,264 @@ static void tcp_setup(void) {
 
 /* ---------------------------------------------------------------- main */
 
+/* ---------------------------------------------------------------- --relay (laptop-to-laptop; see the header) */
+#include <netdb.h>
+#include "zstd.h"
+#define RING 64
+#define RWORKERS 3
+typedef struct {
+    int s;                                   /* 1: an S frame for a worker; 0: pass-through bytes */
+    uint64_t off; uint32_t wlen; uint8_t hash[20];
+    uint8_t *frame; size_t flen;             /* bytes to send (filled by the reader, or by a worker) */
+    int ready;
+} rslot;
+static rslot rring[RING];
+static uint64_t r_in, r_out, r_next_work; /* slots filled / sent / handed to a worker */
+static pthread_mutex_t rmu = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t rcv = PTHREAD_COND_INITIALIZER;
+static int rsock = -1, rsrc = -1;
+static uint64_t r_size; static uint32_t r_cs;
+static uint64_t r_sframes, r_zframes, r_read, r_sent;
+
+static void send_all(const uint8_t *p, size_t n) {
+    while (n) {
+        ssize_t w = send(rsock, p, n, 0);
+        if (w < 0 && errno == EINTR) continue;
+        if (w <= 0) die("relay: send to the target: %s", strerror(errno));
+        p += w; n -= (size_t)w;
+    }
+}
+
+static void put32(uint8_t *p, uint32_t v) { for (int i = 0; i < 4; i++) p[i] = (uint8_t)(v >> 8 * i); }
+static void put64(uint8_t *p, uint64_t v) { for (int i = 0; i < 8; i++) p[i] = (uint8_t)(v >> 8 * i); }
+
+static void *r_worker(void *arg) {
+    (void)arg;
+    ZSTD_CCtx *cctx = ZSTD_createCCtx();
+    uint8_t *buf, h[20];
+    size_t cap = ZSTD_compressBound(r_cs);
+    if (posix_memalign((void **)&buf, 4096, r_cs)) die("out of memory");
+    for (;;) {
+        pthread_mutex_lock(&rmu);
+        for (;;) {   /* the next S slot not yet taken; slots before r_out are sent (and may be reused) */
+            if (r_next_work < r_out) r_next_work = r_out;
+            while (r_next_work < r_in && !rring[r_next_work % RING].s) r_next_work++;
+            if (r_next_work < r_in) break;
+            pthread_cond_wait(&rcv, &rmu);
+        }
+        rslot *e = &rring[r_next_work++ % RING];
+        pthread_mutex_unlock(&rmu);
+
+        if (e->off + e->wlen > r_size || e->wlen > r_cs || e->wlen % 512)
+            die("relay: bad S range %llu+%u", (unsigned long long)e->off, e->wlen);
+        for (size_t got = 0; got < e->wlen; ) {
+            ssize_t r = pread(rsrc, buf + got, e->wlen - got, (off_t)(e->off + got));
+            if (r < 0 && errno == EINTR) continue;
+            if (r <= 0) die("relay: read source at %llu: %s", (unsigned long long)(e->off + got), r ? strerror(errno) : "end of disk");
+            got += (size_t)r;
+        }
+        blake2b(h, 20, buf, e->wlen);
+        if (memcmp(h, e->hash, 20)) die("relay: source chunk at %llu changed since it was hashed", (unsigned long long)e->off);
+        int zero = 1;
+        for (uint32_t i = 0; i < e->wlen && zero; i += 8) zero = !*(uint64_t *)(buf + i);
+        uint8_t *f;
+        size_t n;
+        if (zero) {
+            f = malloc(13); f[0] = 'Z'; put64(f + 1, e->off); put32(f + 9, e->wlen); n = 13;
+        } else {
+            f = malloc(37 + cap);
+            size_t c = ZSTD_compressCCtx(cctx, f + 37, cap, buf, e->wlen, 1);
+            if (ZSTD_isError(c)) die("relay: zstd: %s", ZSTD_getErrorName(c));
+            f[0] = 'D'; put64(f + 1, e->off); put32(f + 9, e->wlen); memcpy(f + 13, h, 20); put32(f + 33, (uint32_t)c);
+            n = 37 + c;
+        }
+        pthread_mutex_lock(&rmu);
+        e->frame = f; e->flen = n; e->ready = 1;
+        r_read += e->wlen; if (zero) r_zframes++;
+        pthread_cond_broadcast(&rcv);
+        pthread_mutex_unlock(&rmu);
+    }
+    return NULL;
+}
+
+static void *r_sender(void *arg) {   /* frames to the target in the host's order */
+    (void)arg;
+    for (;;) {
+        pthread_mutex_lock(&rmu);
+        while (!(r_out < r_in && rring[r_out % RING].ready)) pthread_cond_wait(&rcv, &rmu);
+        rslot *e = &rring[r_out % RING];
+        pthread_mutex_unlock(&rmu);
+        send_all(e->frame, e->flen);
+        pthread_mutex_lock(&rmu);
+        r_sent += e->flen;
+        free(e->frame); e->frame = NULL; e->ready = 0; e->s = 0;
+        r_out++;
+        pthread_cond_broadcast(&rcv);
+        pthread_mutex_unlock(&rmu);
+    }
+    return NULL;
+}
+
+static void *r_upstream(void *arg) {   /* the target's answers to the host, unchanged */
+    (void)arg;
+    static uint8_t b[1 << 16];
+    for (;;) {
+        ssize_t r = recv(rsock, b, sizeof b, 0);
+        if (r < 0 && errno == EINTR) continue;
+        if (r <= 0) break;
+        for (ssize_t o = 0; o < r; ) {
+            ssize_t w = write(1, b + o, (size_t)(r - o));
+            if (w < 0 && errno == EINTR) continue;
+            if (w <= 0) _exit(3);
+            o += w;
+        }
+    }
+    return NULL;
+}
+
+static rslot *r_slot(void) {   /* the next free slot (waits while RING frames are in flight) */
+    pthread_mutex_lock(&rmu);
+    while (r_in - r_out >= RING) pthread_cond_wait(&rcv, &rmu);
+    rslot *e = &rring[r_in % RING];
+    pthread_mutex_unlock(&rmu);
+    return e;
+}
+
+static void r_commit(void) {
+    pthread_mutex_lock(&rmu);
+    r_in++;
+    pthread_cond_broadcast(&rcv);
+    pthread_mutex_unlock(&rmu);
+}
+
+static void r_pass(const uint8_t *head, size_t hn, size_t body) {   /* forward head + body bytes from stdin */
+    rslot *e = r_slot();
+    e->s = 0; e->flen = hn + body; e->frame = malloc(e->flen ? e->flen : 1);
+    memcpy(e->frame, head, hn);
+    rd(e->frame + hn, body);
+    e->ready = 1;
+    r_commit();
+}
+
+static int relay_main(const char *src, const char *addr, const char *port) {
+    char tok[65] = {0};
+    for (int n = 0; n < 65; ) {                 /* token line, unbuffered */
+        ssize_t r = read(0, tok + n, 1);
+        if (r <= 0) die("--relay: no token on stdin");
+        if (tok[n] == '\n') { tok[n] = 0; break; }
+        if (++n == 65) die("--relay: token too long");
+    }
+    if (strlen(tok) != 64) die("--relay: bad token");
+    rsrc = open(src, O_RDONLY);
+    if (rsrc < 0) die("open %s: %s", src, strerror(errno));
+    struct stat st; fstat(rsrc, &st);
+    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+#ifdef __APPLE__
+        uint32_t bs = 512; uint64_t count = 0;
+        if (ioctl(rsrc, DKIOCGETBLOCKSIZE, &bs) || ioctl(rsrc, DKIOCGETBLOCKCOUNT, &count)) die("ioctl: %s", strerror(errno));
+        r_size = count * bs;
+#else
+        if (ioctl(rsrc, BLKGETSIZE64, &r_size)) die("ioctl: %s", strerror(errno));
+#endif
+    } else {
+        r_size = (uint64_t)st.st_size;
+#ifdef __APPLE__
+        fcntl(rsrc, F_NOCACHE, 1);
+#endif
+    }
+#ifdef __APPLE__
+    IOPMAssertionID noidle = 0;
+    IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep, kIOPMAssertionLevelOn,
+                                CFSTR("ssdpush-agent relay"), &noidle);
+#endif
+    struct addrinfo hints = { .ai_socktype = SOCK_STREAM }, *ai, *a;
+    int e = getaddrinfo(addr, port, &hints, &ai);
+    if (e) die("--relay: %s: %s", addr, gai_strerror(e));
+    for (a = ai; a; a = a->ai_next) {
+        rsock = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+        if (rsock < 0) continue;
+        if (!connect(rsock, a->ai_addr, a->ai_addrlen)) break;
+        close(rsock); rsock = -1;
+    }
+    freeaddrinfo(ai);
+    if (rsock < 0) die("--relay: cannot connect to %s port %s: %s", addr, port, strerror(errno));
+    int one = 1, big = 4 << 20;
+    setsockopt(rsock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
+    setsockopt(rsock, SOL_SOCKET, SO_SNDBUF, &big, sizeof big);
+    setsockopt(rsock, SOL_SOCKET, SO_RCVBUF, &big, sizeof big);
+    send_all((const uint8_t *)tok, 64);
+
+    static char inbuf[1 << 20];
+    setvbuf(stdin, inbuf, _IOFBF, sizeof inbuf);
+    uint8_t h[40];
+    rd(h, 24);                                /* "SSDPUSH1" u64 image_size u32 chunk_size u32 flags */
+    if (memcmp(h, "SSDPUSH1", 8)) die("relay: bad handshake");
+    r_cs = h[16] | h[17] << 8 | h[18] << 16 | (uint32_t)h[19] << 24;
+    if (!r_cs || r_cs > (1u << 24)) die("relay: bad chunk size %u", r_cs);
+    pthread_t t, up;
+    for (int i = 0; i < RWORKERS; i++) pthread_create(&t, NULL, r_worker, NULL);
+    pthread_create(&t, NULL, r_sender, NULL);
+    pthread_create(&up, NULL, r_upstream, NULL);
+    r_pass(h, 24, 0);
+
+    double t0 = now();
+    for (;;) {
+        int c = fgetc(stdin);
+        if (c == EOF) die("relay: input closed without exit frame");
+        h[0] = (uint8_t)c;
+        switch (c) {
+        case 'S': {
+            rd(h + 1, 32);
+            rslot *e = r_slot();
+            e->s = 1; e->ready = 0; e->frame = NULL;
+            e->off = 0; for (int i = 7; i >= 0; i--) e->off = e->off << 8 | h[1 + i];
+            e->wlen = h[9] | h[10] << 8 | h[11] << 16 | (uint32_t)h[12] << 24;
+            memcpy(e->hash, h + 13, 20);
+            r_sframes++;
+            r_commit();
+            break;
+        }
+        case 'D': { rd(h + 1, 32); uint32_t cl = h[33] | h[34] << 8 | h[35] << 16 | (uint32_t)h[36] << 24;
+                    if (cl > (1u << 26)) die("frame too large"); r_pass(h, 37, cl); break; }
+        case 'Z': case 'P': rd(h + 1, 12); r_pass(h, 13, 0); break;
+        case 'R': { rd(h + 1, 12); uint32_t l = h[9] | h[10] << 8 | h[11] << 16 | (uint32_t)h[12] << 24;
+                    if (l > COALESCE) die("raw frame too large"); r_pass(h, 13, l); break; }
+        case 'Q': case 'H': { rd(h + 1, 4); uint32_t n = h[1] | h[2] << 8 | h[3] << 16 | (uint32_t)h[4] << 24;
+                    if (n > (1u << 20)) die("query too large"); r_pass(h, 5, (size_t)n * (c == 'Q' ? 32 : 12)); break; }
+        case 'F': r_pass(h, 1, 0); break;
+        case 'X': {
+            r_pass(h, 1, 0);
+            pthread_mutex_lock(&rmu);
+            while (r_out < r_in) pthread_cond_wait(&rcv, &rmu);
+            pthread_mutex_unlock(&rmu);
+            shutdown(rsock, SHUT_WR);
+            pthread_join(up, NULL);             /* the target exits after X: its last answers reach the host */
+            fprintf(stderr, "ssdpush-agent relay: %llu S frames (%llu zero), %llu bytes read, %llu bytes sent, %.1f s\n",
+                    (unsigned long long)r_sframes, (unsigned long long)r_zframes, (unsigned long long)r_read,
+                    (unsigned long long)r_sent, now() - t0);
+            return 0;
+        }
+        default: die("relay: unknown frame type 0x%02x", c);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
-    if (argc < 2) { fprintf(stderr, "usage: %s <target> [--workers N] [--tcp]\n", argv[0]); return 2; }
-    int tcp = 0;
+    if (argc < 2) { fprintf(stderr, "usage: %s <target> [--workers N] [--tcp] [--read-only] | <source> --relay ADDR PORT\n", argv[0]); return 2; }
+    int tcp = 0, ro = 0;
     for (int i = 2; i < argc; i++) {
         if (!strcmp(argv[i], "--workers") && i + 1 < argc) workers = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--tcp")) tcp = 1;
+        else if (!strcmp(argv[i], "--read-only")) ro = 1;
+        else if (!strcmp(argv[i], "--relay") && i + 2 < argc) return relay_main(argv[1], argv[i + 1], argv[i + 2]);
     }
     if (workers < 1) workers = 1;
     if (tcp) tcp_setup();
     static char inbuf[1 << 20];
     setvbuf(stdin, inbuf, _IOFBF, sizeof inbuf);
 
-    fd = open(argv[1], O_RDWR);
+    fd = open(argv[1], ro ? O_RDONLY : O_RDWR);
     if (fd < 0) die("open %s: %s", argv[1], strerror(errno));
 #ifdef __APPLE__
     /* no system sleep while this agent writes the disk (recoveryOS on battery sleeps after 20 min, the display
@@ -523,9 +802,18 @@ int main(int argc, char **argv) {
     if (vfd < 0) die("open %s (O_DIRECT): %s", argv[1], strerror(errno));
     /* writes bypass it too: no copy into the page cache, and no forced flush when the read-back of a
      * just-written range is uncached (stage buffers are 4096-aligned, lengths/offsets sector multiples) */
-    wfd = is_dev ? open(argv[1], O_RDWR | O_DIRECT) : fd;
+    wfd = is_dev && !ro ? open(argv[1], O_RDWR | O_DIRECT) : fd;
     if (wfd < 0) die("open %s (O_DIRECT, write): %s", argv[1], strerror(errno));
 #endif
+
+    const char *fault = getenv("SSDPUSH_TEST_FAULT");
+    if (fault && *fault) {
+        char *end;
+        long long o = strtoll(fault, &end, 0);
+        if (!S_ISREG(st.st_mode)) fprintf(stderr, "ssdpush-agent: SSDPUSH_TEST_FAULT ignored: the target is not a regular file\n");
+        else if (end == fault || o < 0 || (*end && strcmp(end, ":sticky"))) die("bad SSDPUSH_TEST_FAULT %s", fault);
+        else { fault_off = o; fault_sticky = *end != 0; }
+    }
 
     char magic[8]; rd(magic, 8);
     if (memcmp(magic, "SSDPUSH1", 8)) die("bad handshake");
@@ -551,6 +839,7 @@ int main(int argc, char **argv) {
         int c = fgetc(stdin);
         if (c == EOF) die("input closed without exit frame");
         if (c == 'D' || c == 'Z' || c == 'R') {
+            if (ro) die("read-only: refusing a '%c' frame", c);
             p_flush();                          /* never reorder a write before an earlier read */
             job *j = calloc(1, sizeof *j);
             j->type = (char)c; j->off = rd64(); j->wlen = rd32();
@@ -565,13 +854,18 @@ int main(int argc, char **argv) {
             } else if (j->wlen > chunk_size) die("zero length %u > chunk size", j->wlen);
             if (j->off % bsize || j->wlen % bsize) die("unaligned write at %llu len %u", (unsigned long long)j->off, j->wlen);
             submit(j);
+            wrote_since_q = 1;
         } else if (c == 'Q') {
             drain(); p_flush();
+            if (fault_off >= 0 && wrote_since_q && (fault_sticky || !fault_fired)) test_fault();
+            wrote_since_q = 0;
             uint32_t n = rd32();
             qent *q = malloc((size_t)n * sizeof *q + 1);
             for (uint32_t i = 0; i < n; i++) {
                 q[i].off = rd64(); q[i].len = rd32(); rd(q[i].want, 20);
                 if (q[i].len > chunk_size) die("query length too large");
+                if (q[i].off % bsize || q[i].len % bsize)   /* a raw device refuses (EINVAL) any read not in whole sectors */
+                    die("unaligned query %llu+%u (sector %u)", (unsigned long long)q[i].off, q[i].len, bsize);
             }
             uint32_t m = query(q, n);
             uint8_t b4[4] = { m, m >> 8, m >> 16, m >> 24 };
@@ -580,14 +874,29 @@ int main(int argc, char **argv) {
                 if (q[i].bad) { uint8_t x[4] = { i, i >> 8, i >> 16, i >> 24 }; fwrite(x, 1, 4, stdout); }
             fflush(stdout);
             free(q);
+        } else if (c == 'H') {
+            drain(); p_flush();
+            uint32_t n = rd32();
+            qent *q = calloc((size_t)n + 1, sizeof *q);
+            for (uint32_t i = 0; i < n; i++) {
+                q[i].off = rd64(); q[i].len = rd32();
+                if (q[i].len > chunk_size || q[i].off + q[i].len > target_size) die("bad hash range");
+                if (q[i].off % bsize || q[i].len % bsize)
+                    die("unaligned hash range %llu+%u (sector %u)", (unsigned long long)q[i].off, q[i].len, bsize);
+            }
+            query(q, n);
+            for (uint32_t i = 0; i < n; i++) fwrite(q[i].got, 1, 20, stdout);
+            fflush(stdout);
+            free(q);
         } else if (c == 'P') {
             drain();
             uint64_t off = rd64(); uint32_t len = rd32();
             if (len > COALESCE || off + len > target_size) die("bad read request %llu+%u", (unsigned long long)off, len);
+            if (off % bsize || len % bsize) die("unaligned read request %llu+%u (sector %u)", (unsigned long long)off, len, bsize);
             p_submit(off, len);
         } else if (c == 'F') {
             drain(); p_flush();
-            if (fsync(wfd) && errno != ENOTSUP && errno != EINVAL) die("fsync: %s", strerror(errno));
+            if (!ro && fsync(wfd) && errno != ENOTSUP && errno != EINVAL) die("fsync: %s", strerror(errno));
 #ifdef __APPLE__
             if (is_dev) ioctl(fd, DKIOCSYNCHRONIZECACHE);
 #endif
