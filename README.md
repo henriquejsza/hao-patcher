@@ -74,6 +74,8 @@ curl -fsSL https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.
 ```
 
 Choose the target Mac and USB drive, confirm, and enter your password when asked.
+Making the installer takes about 25 minutes after the downloads (more than 20 GB). This first preview is not signed:
+`hao` says so and checks every file against the release's checksums.
 Boot the MacBook Pro from **EFI Boot**, then run `/Volumes/HAO/install` in Recovery's
 Terminal. For a problem, run `hao report` on the installed Mac or `sh hao report`
 on the build Mac. [Requirements and steps](docs/install.md).
