@@ -17,6 +17,9 @@ work="$PWD/hao-$release"
 mkdir -p "$work"
 [ "$(stat -f %u "$work")" = "$(id -u)" ] || fail 'work folder belongs to another account'
 chmod 700 "$work"
+# The work folder keeps others out. Inside it files get their usual permissions: an input's checksum covers its
+# permission bits, so a kit unpacked with a private mask makes inputs that never match the release.
+umask 022
 cd "$work"
 for managed in kit runtime metal downloads store; do
     [ ! -L "$managed" ] || fail "managed folder is a symbolic link: $managed"

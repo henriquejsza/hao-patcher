@@ -77,6 +77,15 @@ class BootstrapTests(unittest.TestCase):
         second = self.run_bootstrap()
         self.assertEqual(second.returncode, 0, second.stderr)
 
+    def test_kit_files_keep_their_usual_permissions(self):
+        # input rows are checked by content and permission bits: the kit must not be unpacked with a private mask
+        self.assertEqual(self.run_bootstrap().returncode, 0)
+        work = self.root / 'hao-fixture'
+        self.assertEqual(work.stat().st_mode & 0o777, 0o700)                     # others stay out of the folder
+        self.assertEqual((work / 'kit/tools/hao/hao').stat().st_mode & 0o777, 0o755)
+        self.assertEqual((work / 'kit/tools').stat().st_mode & 0o777, 0o755)
+        self.assertEqual((work / 'kit/tools/hao/release.json').stat().st_mode & 0o777, 0o644)
+
     def test_bad_signature(self):
         (self.mirror / 'release.json').write_text('{}')
         result = self.run_bootstrap()
