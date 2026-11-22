@@ -53,6 +53,29 @@ class ReleaseCut(unittest.TestCase):
             self.assertIn(want, rows)
         self.assertEqual(len(rows), len(set(rows)))
 
+    def test_install_profile_uses_inputs_not_a_prebuilt_apple_cache(self):
+        assembly=TOP/'pipeline/assemblies/mbp92-26B131-beta-v0.0.1.json'
+        rows=dict(R['release_rows'](assembly))
+        for row in ('shared_cache_builder','swift_metadata_catalog','hao_runtime_fold_catalog'):
+            self.assertIn(row,rows);self.assertEqual(R['classes']()[row]['class'],'ours')
+        self.assertNotIn('rebuilt_cache_catalog',rows)
+        # Userspace cryptex stubs and OpenCore still consume the stock payload's shared files.
+        self.assertIn('hao_runtime',rows)
+        recipes=(TOP/'pipeline/sets/beta-v0.0.1.txt').read_text().splitlines()
+        self.assertIn('hao-runtime-fold-catalog',recipes)
+        self.assertNotIn('hao-runtime',recipes)
+
+    def test_cache_rebuild_is_an_explicit_post_install_input(self):
+        config = R['cache_rebuild_config'](ALPHA_ASSEMBLY)
+        rows = dict(R['release_rows'](ALPHA_ASSEMBLY))
+        self.assertEqual(config['build'], '26B131')
+        self.assertEqual(len(config['files']), 36)
+        for row in config['rows'].values():
+            self.assertIn(row, rows)
+            self.assertEqual(R['classes']()[row]['class'], 'ours')
+        self.assertNotIn('rebuilt_cache_catalog', config['rows'].values())
+        self.assertIsNone(R['cache_rebuild_config'](ASSEMBLY))
+
     @unittest.skipUnless(STORE, 'needs the store')
     def test_dry_run_on_the_real_store(self):
         r = subprocess.run([sys.executable, '-I', str(TOP / 'pipeline/release-cut'), '--dry-run', str(ASSEMBLY),
@@ -155,6 +178,16 @@ class Archive(unittest.TestCase):
         hit = (TOP, ('0' * 64, str(d / 'b.dylib')))
         bad = R['make_asset']('x', hit, {'publish': 'file'})[3]
         self.assertTrue(any('pinned' in b for b in bad), bad)
+
+    def test_public_archive_can_have_a_distinct_variant_filename(self):
+        d = self.folder(); source=d/'b.dylib'
+        hit=(TOP,(R['sha256_file'](source),str(source)))
+        entry={'publish':'file','file':'runtime-fold.tar.gz'}
+        name,size,digest,bad=R['make_asset']('fold',hit,entry)
+        self.assertEqual(name,'runtime-fold.tar.gz');self.assertEqual(bad,[])
+        self.assertEqual(digest,R['sha256_file'](source))
+        for name in ('../escape','/absolute','a/b',''):
+            self.assertTrue(R['make_asset']('fold',hit,dict(entry,file=name))[3])
 
     def test_check_stage(self):
         stage = Path(tempfile.mkdtemp())
@@ -454,6 +487,16 @@ def two_profiles():
 class Profiles(unittest.TestCase):
     """One release, several profiles (the 9,2 image and the generic one), cut from one commit."""
 
+    def test_cache_rebuild_survives_merge_and_conflicts_refuse(self):
+        cuts = two_profiles()
+        config = R['cache_rebuild_config'](ALPHA_ASSEMBLY)
+        cuts[1][0]['cache_rebuild'] = config
+        result, _ = R['merge_releases'](cuts)
+        self.assertEqual(result['cache_rebuild'], config)
+        cuts[0][0]['cache_rebuild'] = dict(config, cache_uuid='different')
+        with self.assertRaisesRegex(ValueError, 'different cache rebuild'):
+            R['merge_releases'](cuts)
+
     def test_shared_assets_once_each_profile_says_its_rows(self):
         rel, problems = R['merge_releases'](two_profiles())
         self.assertEqual(problems, [])
@@ -501,6 +544,8 @@ class Profiles(unittest.TestCase):
     def test_written_staged_and_summed_once(self):
         g = R['main'].__globals__
         saved = g['build_release']
+        infrastructure = g['add_builder_assets']
+        g['add_builder_assets'] = lambda rel, stage: None  # this test isolates profile merging
         cuts = dict(zip(('mbp92', 'generic'), two_profiles()))
 
         def fake(assembly, name, stage=None, **kw):
@@ -525,6 +570,7 @@ class Profiles(unittest.TestCase):
                 self.assertEqual(R['check_stage'](rel, stage), [])
         finally:
             g['build_release'] = saved
+            g['add_builder_assets'] = infrastructure
 
 
 if __name__ == '__main__':

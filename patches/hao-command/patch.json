@@ -1,5 +1,5 @@
 {
- "revision": 13,
+ "revision": 16,
  "pack": "base",
  "stage": "post",
  "inputs": [
@@ -7,8 +7,8 @@
  ],
  "status": "product",
  "validated": true,
- "validated_revision": 12,
- "validated_digest": "1c7f0cbc60f9424fc53a6b90cdb63971841424548fccccac7245c20e0cd97033",
+ "validated_revision": 15,
+ "validated_digest": "681c3cf973127fcda6fa763fc7ecad2ccfbc4143fe6a0852c518fa12b5de286d",
  "files": [
   {
    "path": "usr/local/bin/hao",

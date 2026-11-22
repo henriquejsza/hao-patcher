@@ -1,5 +1,5 @@
 {
- "revision": 14,
+ "revision": 16,
  "pack": "base",
  "stage": "oclp-hook",
  "inputs": [
@@ -7,8 +7,8 @@
  ],
  "status": "product",
  "validated": true,
- "validated_revision": 13,
- "validated_digest": "82481de8fc6bca7dfa672b9b1206b9db77643d1ea5d862eaf965cdba4b5e4159",
+ "validated_revision": 15,
+ "validated_digest": "53efe42dff0db73ae7549cc225e2b3133a09ed6ed93822d926c5ca474b0650d3",
  "files": [
   {
    "path": "usr/lib/hao/native-identities",

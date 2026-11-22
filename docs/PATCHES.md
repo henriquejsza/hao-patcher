@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its
 attributes, not its bytes.
 
-60 of 62 patches declare their files so far.
+62 of 64 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -47,36 +47,34 @@ Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-capture
 
-Revision r4, status dev. [Recipe](../patches/dev-capture/README.md)
+Revision r5, status dev. [Recipe](../patches/dev-capture/README.md)
 
 - `Library/Preferences/Logging/Subsystems/com.hao.plist`: whole file from hao. Data volume; src/com.hao.plist: the com.hao subsystem's messages persist at Info; root:wheel 0644.
 - `usr/local/libexec/hao-capture/hao-capture`: whole file from hao (row hao_capture_job). Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/hao-capture/<boot>/ (capped at 1 GB); root:wheel 0755. Installed mode 0755, owner root:wheel.
 - `usr/local/libexec/hao-capture/inventory.sh`: whole file from hao (row hao_capture_inventory). Data volume; runs swift-inspect dump-generic-metadata on each process; root:wheel 0755. Installed mode 0755, owner root:wheel.
 - `Library/LaunchDaemons/local.hao.capture.plist`: whole file from hao (row hao_capture_plist). Data volume; root job: at load (first run after 1200 s, past the timed first-login settle), then every 1800 s, Background, low-priority I/O; root:wheel 0644. Installed mode 0644, owner root:wheel.
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist, after hao-opencore (and golden-gate-live-text-service); 1 edit, applied by the installer.
-  1. `hao-crash-lines`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 auxKCAtBoot=false".
-     Hao-runtime's crash lines on every dev image (owner 2026-11-18: always capture crashes); dev-lite images have no dev-diagnostics.
+  1. `hao-crash-lines`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false".
+     Hao-opencore's boot-args unchanged on dev images: hao_crash=1 left out: with it a dev image's first boot stalls before sandboxd (QEMU, ab855d51; without it the same image boots in 537 s); hao-runtime's fix is parked until after beta.1.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
      - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
-     - `hao_crash=1`: dev only: hao-runtime writes each crashed translated program's reason to its console log (/private/var/log/hao).
      - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
 
 ## dev-diagnostics
 
-Revision r10, status dev. [Recipe](../patches/dev-diagnostics/README.md)
+Revision r11, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
-  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
-     Hao-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
+  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
+     Hao-runtime's measurement switches (no hao_crash=1 since r11: it stalls a dev image's first boot): hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
      - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
-     - `hao_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
      - `hao_nx_stats=1`: dev only: hao-runtime's NX fault tables; costs time on every translated native call.
      - `hao_bridge_stats=1`: dev only: hao-runtime's bridge statistics; costs time on every translated native call.
      - `hao_diag_time=1`: dev only: hao-runtime's phase lines and usage counters, which boot-gantt reads.
@@ -161,7 +159,7 @@ Revision r8, status product. [Recipe](../patches/golden-gate-hd4000-planes/READM
 
 ## golden-gate-hello
 
-Revision r12, status product. [Recipe](../patches/golden-gate-hello/README.md)
+Revision r13, status product. [Recipe](../patches/golden-gate-hello/README.md)
 
 - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from OCLP · Metal 3802 Common; 3 edits, applied by the installer, then signed: ad hoc, once, identifier Metal. Installed mode 0755, owner root:wheel, flags restricted.
   1. `hello-not-skipped`: literal near _fake_LCAUtilities_shouldSkipHello (within 64 bytes), 11 bytes, `B0 01 0F BE C0 48 83 C4 10 5D C3` → `B0 00 0F BE C0 48 83 C4 10 5D C3` (`mov al,1` → `mov al,0`).
@@ -192,7 +190,7 @@ Revision r3, status product. [Recipe](../patches/golden-gate-ids/README.md)
 
 ## golden-gate-launchd-warm
 
-Revision r6, status product. [Recipe](../patches/golden-gate-launchd-warm/README.md)
+Revision r7, status product. [Recipe](../patches/golden-gate-launchd-warm/README.md)
 
 - `System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist`: from Apple · Golden Gate System volume; 2 edits, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `helper-run-at-load`: plist.set RunAtLoad = true.
@@ -245,7 +243,7 @@ Revision r14, status product. [Recipe](../patches/golden-gate-live-text-shared/R
 
 ## golden-gate-metal-argbuf
 
-Revision r11, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
+Revision r12, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
@@ -263,9 +261,17 @@ Revision r14, status product. [Recipe](../patches/golden-gate-metal-framebuffer/
      The driver loads the framebuffer-read adapter, so RenderBox symbols (Wi-Fi, Control Center) draw on the HD 4000; weak, so the driver still loads without the library.
 - `usr/lib/libmetal-framebuffer.dylib`: whole file from hao (row metal_framebuffer). New file: framebuffer-read adapter built by build/metal-framebuffer. Installed mode 0755, owner root:wheel, flags restricted.
 
+## golden-gate-metal-gva
+
+Revision r2, status product. [Recipe](../patches/golden-gate-metal-gva/README.md)
+
+- `System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA`: from OCLP · Big Sur GVA; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `jpeg-decode-unavailable`: literal near _AVFJPG_GetJPEGDecodeAvailability (within 16 bytes), 8 bytes, `55 48 89 E5 41 57 41 56` → `31 C0 C3 E5 41 57 41 56` (`push rbp; mov rbp,rsp` → `xor eax,eax; ret`).
+     Intel hardware JPEG decode reported unavailable (the function's own 'unsupported' answer), so JPEG decodes in software: on the HD 4000 GVA's JPEG path shows incomplete surfaces (Photos zoom strip).
+
 ## golden-gate-metal-libraries
 
-Revision r23, status product. [Recipe](../patches/golden-gate-metal-libraries/README.md)
+Revision r25, status product. [Recipe](../patches/golden-gate-metal-libraries/README.md)
 
 - 11 whole files from hao (row metallib_repairs_golden_gate), under `System/` (for example `Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/Resources/default.metallib`). The build's own library, already rewritten by cache/metallib (profiles/metallib-repairs-golden-gate.txt) so the HD 4000 compiler accepts it; installed whole, and only over the System library its SOURCES line names (or OCLP's copy on the same build). Listed by `patches.py explain golden-gate-metal-libraries`.
 - `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: whole file from hao (row metal_quad_runtime_golden_gate). OCLP's Intel shader runtime extended with the SIMD and quad helpers MPS and MetalFX kernels call (cache/metallib make runtime-build); installed whole.
@@ -296,7 +302,7 @@ Revision r1, status product. [Recipe](../patches/golden-gate-model-gates-mbp92/R
 
 ## golden-gate-native-identities
 
-Revision r14, status product. [Recipe](../patches/golden-gate-native-identities/README.md)
+Revision r16, status product. [Recipe](../patches/golden-gate-native-identities/README.md)
 
 - `usr/lib/hao/native-identities`: whole file from hao. Generated by src/native_identities.py install from the finished System: one row per re-signed native program (observed cdhash, Apple original's cdhash, x86_64, original's path); root:wheel 0644. Made after every overlay file installed first.
 - `System/Library/CoreServices/golden-gate-native-identities.json`: whole file from hao. Build record written by src/native_identities.py install: the rows, the programs skipped with the reason, the source roots and the list's sha256; root:wheel 0644. Made after every overlay file installed first.
@@ -316,7 +322,7 @@ Revision r5, status experiment. [Recipe](../patches/golden-gate-root-launchservi
 
 ## golden-gate-shader-caches
 
-Revision r17, status product. [Recipe](../patches/golden-gate-shader-caches/README.md)
+Revision r18, status product. [Recipe](../patches/golden-gate-shader-caches/README.md)
 
 - 72 whole files from hao (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
 - 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Seed (macOS changes it after install): Metal appends to this shader cache on first GPU use. Listed by `patches.py explain golden-gate-shader-caches`.
@@ -333,13 +339,20 @@ Revision r11, status product. [Recipe](../patches/golden-gate-shared-cache/READM
 
 ## golden-gate-shared-cache-catalog
 
-Revision r7, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
+Revision r9, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
 
 - 33 whole files from hao (row rebuilt_cache_catalog), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache-catalog`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
 - `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+
+## golden-gate-shared-cache-install
+
+Revision r2, status product. [Recipe](../patches/golden-gate-shared-cache-install/README.md)
+
+- 36 whole files from hao, under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64`). Generated and verified during installation from the target System and pinned cache inputs; installed by the shared-cache fold recipe. Listed by `patches.py explain golden-gate-shared-cache-install`.
+- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. Generated and verified during installation from the target System and pinned cache inputs; installed by the shared-cache fold recipe. Installed mode 0644, owner root:wheel.
 
 ## golden-gate-store
 
@@ -395,7 +408,7 @@ Revision r11, status product. [Recipe](../patches/golden-gate-user-template/READ
 
 ## golden-gate-userspace
 
-Revision r96, status product. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r98, status product. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from hao (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -580,7 +593,7 @@ Revision r10, status product. [Recipe](../patches/golden-gate-windowserver-filte
 
 ## hao-command
 
-Revision r13, status product. [Recipe](../patches/hao-command/README.md)
+Revision r16, status product. [Recipe](../patches/hao-command/README.md)
 
 - `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython.
 - `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
@@ -589,7 +602,7 @@ Revision r13, status product. [Recipe](../patches/hao-command/README.md)
 
 ## hao-opencore
 
-Revision r86, status product. [Recipe](../patches/hao-opencore/README.md)
+Revision r88, status product. [Recipe](../patches/hao-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -616,7 +629,7 @@ Revision r86, status product. [Recipe](../patches/hao-opencore/README.md)
 
 ## hao-runtime
 
-Revision r92, status product. [Recipe](../patches/hao-runtime/README.md)
+Revision r95, status product. [Recipe](../patches/hao-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -650,7 +663,7 @@ Revision r10, status product. [Recipe](../patches/hao-runtime-fold/README.md)
 
 ## hao-runtime-fold-catalog
 
-Revision r2, status experiment. [Recipe](../patches/hao-runtime-fold-catalog/README.md)
+Revision r7, status product. [Recipe](../patches/hao-runtime-fold-catalog/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime_fold_catalog). The hao launcher (B+catalog payload) that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold_catalog). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
