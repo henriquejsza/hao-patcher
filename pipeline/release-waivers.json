@@ -34,6 +34,13 @@
       "revision": 13,
       "reason": "owner 2026-11-22: waived for beta.1. Its one metallib (Setup Assistant hello animation) is built by the same pinned LLVM 15 tools as the eleven metal-libraries ones, which render on the HD 4000 (r25 validation); the hello animation itself runs only during first Setup and was not rerun with it. Known issue: the hello animation with the LLVM-built library is not yet seen on hardware.",
       "decided": "2026-11-22"
+    },
+    {
+      "profile": "beta-v0.0.1",
+      "recipe": "golden-gate-live-text-shared",
+      "revision": 15,
+      "reason": "owner 2026-11-22: \"Yes rebuild it\", shipped in beta.1 without a hardware run. Its MPSNDArray library is built by the same pinned LLVM 15 tools as the eleven metal-libraries ones, which render on the HD 4000 (r25 validation); every other file is the r13 build validated on 2026-11-19. Known issue: Live Text with the LLVM-built MPSNDArray library is not yet seen on hardware.",
+      "decided": "2026-11-22"
     }
   ]
 }

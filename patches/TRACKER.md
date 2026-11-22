@@ -27,7 +27,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-ids | r3 | oclp-hook | product |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-launchd-warm | r7 | oclp-hook | product |  | x |  |  |  | ok (r6) | r7 2026-11-22 Validated r6 on hardware (Validation). Nothing it installs changes. |
 | golden-gate-live-text-service | r8 | post | product |  | x |  |  |  | ok (r7) | r8 2026-11-19 Validated r7 on hardware (Validation). Nothing it installs changes. |
-| golden-gate-live-text-shared | r14 | oclp-hook | product |  | x |  |  |  | ok (r13) | r14 2026-11-19 Validated r13 on hardware (Validation). Nothing it installs changes. |
+| golden-gate-live-text-shared | r15 | oclp-hook | product |  | x |  |  |  | **needs** | r15 2026-11-22 Row `live_text_framework` (26B131) is built with the release's pinned LLVM 15.0.7 Metal tools i |
 | golden-gate-metal-argbuf | r12 | oclp-hook | product |  | x |  |  |  | ok | r12 2026-11-20 Row metal_argbuf from f60029d7: the wrapper reads constant pointers through the inline constant |
 | golden-gate-metal-framebuffer | r14 | oclp-hook | product |  | x | x |  |  | ok (r13) | r14 2026-11-19 Validated r13 on hardware (Validation). Nothing it installs changes. |
 | golden-gate-metal-gva | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-20 Current recipe format: kc-hook.sh, pack metal-3802-extras (opt-in), 26B131 requires; overlaps no |
