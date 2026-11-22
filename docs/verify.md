@@ -59,5 +59,6 @@ tar -xOf hao-<RELEASE>.tar hao-kit-<RELEASE>.tar.gz | shasum -a 256
 plutil -extract assets json -o - release.json | grep -B4 -A4 hao-kit
 ```
 
-The older unsigned v0.0.1 exception is not accepted by the bootstrap. Four
+v0.0.1-beta.1, the first preview, is not signed: its page has no `.sig` files, `hao` says so when it
+runs, and the checksums are the only check (skip the two `ssh-keygen -Y verify` lines). Later releases are signed. Four
 harvested caches remain covered by the existing [reproduction exception](reproduce.md#what-must-match).

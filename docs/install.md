@@ -14,8 +14,8 @@ For installing hao on a MacBook Pro (13-inch, Mid 2012) from a signed release ki
 
 The release supplies its own Python and builder tools. Use a release that contains
 `hao`, `hao-<RELEASE>.tar`, `release.json`, `SHA256SUMS`, and both signatures
-([what each file is](verify.md#what-a-release-holds)). Older unsigned releases do not
-support this command.
+([what each file is](verify.md#what-a-release-holds)). The first preview, v0.0.1-beta.1, is
+not signed and has no signature files.
 
 ## Make the USB installer
 
@@ -25,7 +25,7 @@ Replace `<RELEASE>` with the exact release name from the hao-assets release page
 curl -fsSL https://github.com/lythka/hao-assets/releases/download/<RELEASE>/hao -o hao && sh hao
 ```
 
-hao verifies the signed release and its downloads, then asks which Mac and which
+hao verifies the release and its downloads, then asks which Mac and which
 USB drive to use. Confirm the drive by name. Your password is requested once to
 write it. Keep the work folder; running the same command again reuses verified downloads.
 

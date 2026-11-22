@@ -7,6 +7,8 @@ umask 077
 fail() { echo "hao: $*" >&2; exit 4; }
 release='@RELEASE@'
 candidate='@CANDIDATE@'
+# true only for a release cut while tools/hao/data/unsigned-releases.json names its version
+unsigned='@UNSIGNED@'
 base='https://github.com/lythka/hao-assets/releases/download/@RELEASE@'
 [ "$(id -u)" != 0 ] || fail 'run hao as your normal account; it asks for a password when needed'
 case "$(uname -m)" in arm64) arch=arm64;; x86_64) arch=x86_64;; *) fail 'unsupported host architecture';; esac
@@ -39,8 +41,10 @@ fetch() {
     fi
     curl --fail --location --proto '=https' --tlsv1.2 --retry 3 "$1" -o "$2" || fail "download interrupted: $1; run the same command again"
 }
+[ "$unsigned" != true ] || echo 'hao: this release is not signed; its files are checked against SHA256SUMS and release.json only' >&2
 for name in release.json SHA256SUMS; do
     fetch "$base/$name" "$scratch/$name"
+    [ "$unsigned" != true ] || continue
     fetch "$base/$name.sig" "$scratch/$name.sig"
     ssh-keygen -Y verify -f "$scratch/allowed" -I hao-release -n hao-release -s "$scratch/$name.sig" < "$scratch/$name" >/dev/null 2>&1 || fail "bad signature: $name"
 done
@@ -135,7 +139,8 @@ if [ -n "$bundle" ]; then
     HAO_BUNDLE="$bundle"
     export HAO_BUNDLE
 fi
-cp "$scratch/release.json" "$scratch/release.json.sig" "$scratch/SHA256SUMS" "$scratch/SHA256SUMS.sig" kit/tools/hao/
+cp "$scratch/release.json" "$scratch/SHA256SUMS" kit/tools/hao/
+[ "$unsigned" = true ] || cp "$scratch/release.json.sig" "$scratch/SHA256SUMS.sig" kit/tools/hao/
 PATH="$work/runtime/python/bin:$PATH"
 export PATH
 [ "$#" -gt 0 ] || set -- create-installer

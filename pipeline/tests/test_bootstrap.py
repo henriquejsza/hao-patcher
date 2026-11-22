@@ -32,7 +32,7 @@ class BootstrapTests(unittest.TestCase):
         # Only the test copy uses a shim PATH; published bootstraps use system tools.
         template = template.replace('PATH=/usr/bin:/bin:/usr/sbin:/sbin',
                                     'PATH=' + shlex.quote(str(self.bin)) + ':/usr/bin:/bin:/usr/sbin:/sbin')
-        self.script.write_text(template.replace('@RELEASE@', 'fixture').replace('@KEY@', self.key.with_suffix('.pub').read_text().strip()).replace('@CANDIDATE@', 'false'))
+        self.script.write_text(template.replace('@RELEASE@', 'fixture').replace('@KEY@', self.key.with_suffix('.pub').read_text().strip()).replace('@CANDIDATE@', 'false').replace('@UNSIGNED@', 'false'))
         self.shim('curl', '#!/bin/sh\nfor arg do case "$arg" in https://*) url=$arg;; esac; done\n'
                   + 'for last do :; done\ncp ' + shlex.quote(str(self.mirror)) + '/"${url##*/}" "$last"\n')
         self.shim('uname', '#!/bin/sh\necho arm64\n')
@@ -236,6 +236,26 @@ class BootstrapTests(unittest.TestCase):
         result = subprocess.run(['/bin/sh', str(self.script), 'doctor'], cwd=self.root, capture_output=True, text=True,
                                 env=dict(os.environ, HAO_BOOTSTRAP_FILES=str(self.mirror)))
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_unsigned_release_runs_without_signatures_and_says_so(self):
+        self.script.write_text(self.script.read_text().replace("unsigned='false'", "unsigned='true'"))
+        for name in ('release.json.sig', 'SHA256SUMS.sig'):
+            (self.mirror / name).unlink()
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('this release is not signed', result.stderr)
+        held = {p.name for p in (self.root / 'hao-fixture/kit/tools/hao').iterdir()}
+        self.assertEqual(held, {'hao', 'release.json', 'SHA256SUMS'})
+        # the checksum list still decides: a release.json it does not list is refused
+        (self.mirror / 'release.json').write_text(json.dumps(dict(self.manifest, extra=1)))
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn('release.json checksum mismatch', result.stderr)
+
+    def test_signed_release_without_signatures_is_refused(self):
+        (self.mirror / 'release.json.sig').unlink()
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 4, result.stderr)
 
     def test_candidate_without_staged_release_refuses_before_network(self):
         self.script.write_text(self.script.read_text().replace("candidate='false'", "candidate='true'"))

@@ -162,6 +162,15 @@ def release_assets(top, release, stage):
         if extra:
             key += '\nhao-release ' + public
         bootstrap = folder / 'hao'
-        bootstrap.write_text(template.replace('@RELEASE@', name).replace('@KEY@', key).replace('@CANDIDATE@', 'true' if release.get('candidate') else 'false'))
+        # an unsigned release: only a version the release commit's own waiver list names, never a candidate
+        waivers = json.loads(subprocess.run(
+            ['git', '-C', str(top), 'show', commit + ':tools/hao/data/unsigned-releases.json'],
+            capture_output=True, text=True).stdout or '{}').get('releases', {})
+        unsigned = not release.get('candidate') and isinstance(waivers.get(release['version']), str)
+        if unsigned:
+            release['unsigned'] = True
+        bootstrap.write_text(template.replace('@RELEASE@', name).replace('@KEY@', key)
+                             .replace('@CANDIDATE@', 'true' if release.get('candidate') else 'false')
+                             .replace('@UNSIGNED@', 'true' if unsigned else 'false'))
         bootstrap.chmod(0o755)
         release['assets'].append(entry(bootstrap, 'hao_bootstrap', 'bootstrap'))
