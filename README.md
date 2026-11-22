@@ -35,14 +35,14 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 
 | Area | What works |
 |---|---|
-| Startup | Apple logo only; screen on about 46 s after the kernel starts (about 50 s on the first start-up); Setup Assistant, account creation, automatic login |
+| Startup | Apple logo only; screen on about 35 s after the kernel starts; Setup Assistant, account creation, automatic login. The first start-up after installing stays busy for several minutes |
 | Speed | The system's shared cache is rebuilt for this Mac during installation: Maps opens in about 15–22 s instead of 60–70 s, the Control Center panel in under 2 s |
 | Desktop | Menu bar, Dock, Finder, Liquid Glass, Control Center, Spotlight indexing, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
 | Connectivity | Wi-Fi (joins from Setup Assistant and System Settings, remembered networks at startup), Ethernet, Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
 | Audio and input | Speakers, camera and microphone, brightness keys, keyboard backlight, built-in keyboard and trackpad; external USB keyboard and mouse |
 | Power and ports | Sleep and wake (including the lid), battery level and charging, USB 3 at USB 3 speed, SD card slot |
-| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather (forecasts; temperature, air-quality and wind maps), Photos, TV, Podcasts, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
+| Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather (forecasts; temperature, air-quality and wind maps), Photos, TV, Podcasts, Calendar, Preview, App Store, Chess, Books, News, Stocks, Terminal, System Settings |
 | 3D | SceneKit scenes with materials, shadows and reflections; Quick Look and Preview open SceneKit scenes |
 | Accounts | Apple Account sign-in in Setup Assistant |
 | ARM-only programs | macOS 27's ARM-only programs run on the Intel CPU through hao-runtime |
