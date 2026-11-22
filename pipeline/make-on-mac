@@ -207,12 +207,14 @@ class Run:
             raise Failed('%s exited %d (see the log)' % (Path(str(cmd[0])).name if cmd[0] not in PY else cmd[2],
                                                          r.returncode))
 
-    def mount(self, image, name, passphrase=None):
+    def mount(self, image, name, passphrase=None, owners='on'):
+        """IMAGE mounted read-only at work/mnt-NAME. OWNERS 'off' makes every file the caller's own, so an ordinary
+        user can read the files only root may read (an image is attached once at a time: unmount() the other first)."""
         if name in self.mounts:
             return self.mounts[name]
         point = self.work / ('mnt-' + name)
         point.mkdir(parents=True, exist_ok=True)
-        cmd = ['hdiutil', 'attach', '-readonly', '-nobrowse', '-owners', 'on', '-mountpoint', str(point), str(image)]
+        cmd = ['hdiutil', 'attach', '-readonly', '-nobrowse', '-owners', owners, '-mountpoint', str(point), str(image)]
         if passphrase is not None:
             cmd.insert(2, '-stdinpass')
         print('  mount %s -> %s' % (Path(image).name, point), flush=True)
@@ -223,6 +225,13 @@ class Run:
                 raise Failed('hdiutil attach %s: %s' % (image, r.stderr.decode(errors='replace').strip()))
         self.mounts[name] = point
         return point
+
+    def unmount(self, name):
+        point = self.mounts.pop(name, None)
+        if point is not None and not self.dry:
+            r = subprocess.run(['hdiutil', 'detach', str(point)], capture_output=True)
+            if r.returncode:
+                raise Failed('hdiutil detach %s: %s' % (point, r.stderr.decode(errors='replace').strip()))
 
     def unmount_all(self):
         for name, point in reversed(list(self.mounts.items())):
@@ -631,8 +640,12 @@ def steps(r, fs, a):
         view = r.work / ('root-view-' + row)
         if view.exists() or r.dry:
             return view
-        system = root()
-        cryptexes = {'OS': r.mount(userspace() / 'os.dmg', 'os'), 'App': r.mount(userspace() / 'app.dmg', 'app')}
+        # Some programs (setuid ones) are readable by root alone, and this runs as an ordinary user: the images are
+        # mounted without owners for the copy, so each file reads as the user's own. Bytes and modes are unchanged.
+        r.unmount('system')
+        system = r.mount(userspace() / 'filesystem.dmg', 'system-view', owners='off')
+        cryptexes = {'OS': r.mount(userspace() / 'os.dmg', 'os-view', owners='off'),
+                     'App': r.mount(userspace() / 'app.dmg', 'app-view', owners='off')}
         manifest = json.loads((P(row) / 'embed/manifest.json').read_text())
         rels = {'usr/lib/dyld'}
         for e in manifest['files']:
@@ -650,6 +663,8 @@ def steps(r, fs, a):
             if src.is_file():                   # bytes and mode: system flags cannot be set as a user, and
                 shutil.copyfile(src, dst)       # the programs carry their signatures inside
                 shutil.copymode(src, dst)
+        for name in ('system-view', 'os-view', 'app-view'):
+            r.unmount(name)                     # the next step that wants the System image mounts it with owners
         return view
 
     completions = [([row], lambda row=row: runtime(row))
