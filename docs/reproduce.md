@@ -25,7 +25,7 @@ libhao's `.inc` tables. Patch recipes and their build sources are in the full ha
 Each of this project's files is rebuilt on its own from a fresh clone of the tag, with nothing else from us:
 
 ```sh
-git clone --branch v0.0.1 https://github.com/lythka/hao-patcher && cd hao-patcher
+git clone --branch v0.0.1-beta.1 https://github.com/lythka/hao-patcher && cd hao-patcher
 python3.14 -I tools/asset-build/asset-build list          # the files you can rebuild
 python3.14 -I tools/asset-build/asset-build ROW OUT       # rebuild one into the new folder OUT
 ```
