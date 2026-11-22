@@ -36,6 +36,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Area | What works |
 |---|---|
 | Startup | Apple logo only; screen on about 46 s after the kernel starts (about 50 s on the first start-up); Setup Assistant, account creation, automatic login |
+| Speed | The system's shared cache is rebuilt for this Mac during installation: Maps opens in about 15–22 s instead of 60–70 s, the Control Center panel in under 2 s |
 | Desktop | Menu bar, Dock, Finder, Liquid Glass, Control Center, Spotlight indexing, login window, lock screen |
 | Graphics | Accelerated Metal on the HD 4000, argument buffers, ASTC textures, hardware video decoding (YouTube 1080p) |
 | Connectivity | Wi-Fi (joins from Setup Assistant and System Settings, remembered networks at startup), Ethernet, Bluetooth, AirDrop, AirPlay display discovery, sound on AirPlay speakers |
@@ -46,7 +47,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Accounts | Apple Account sign-in in Setup Assistant |
 | ARM-only programs | macOS 27's ARM-only programs run on the Intel CPU through hao-runtime |
 
-**Releases:** [Releases](https://github.com/lythka/hao-patcher/releases) (each lists its known issues); planned versions are the
+**Releases:** the current release is v0.0.1-beta.1; [Releases](https://github.com/lythka/hao-patcher/releases) (each lists its known issues); planned versions are the
 [milestones](https://github.com/lythka/hao-patcher/milestones). [Progress](docs/progress.md) has the detailed lists and every fix.
 
 ## Risks
@@ -65,14 +66,11 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 ## Install
 
-Use a signed builder-kit release, a Mac running macOS 13 or newer, and a USB drive of
-at least 64 GB. The release supplies Python and the build tools. Allow about 26 GB
-of free space plus the tools, and several hours for preparation and installation.
-
-Replace `<RELEASE>` with the exact hao-assets release name:
+On any Mac, Intel or Apple silicon, running macOS 13 or newer, with a USB drive of at least 64 GB and about 26 GB
+free, run one command. No clone, Xcode or Python installation is needed: the release supplies its own tools.
 
 ```sh
-curl -fsSL https://github.com/lythka/hao-assets/releases/download/<RELEASE>/hao -o hao && sh hao
+curl -fsSL https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.1/hao -o hao && sh hao
 ```
 
 Choose the target Mac and USB drive, confirm, and enter your password when asked.
