@@ -36,12 +36,22 @@
    "properties": {
     "row": {"type": "string"},
     "file": {"type": "string", "pattern": "^[^/]+$"},
-    "url": {"type": "string", "description": "https://github.com/lythka/hao-assets/releases/download/<release>/<file>"},
+    "url": {"type": "string", "description": "https://github.com/lythka/hao-assets/releases/download/<release>/<file>; for a member of the bundle, the bundle's url"},
+    "bundle": {"type": "string", "description": "the bundle's file, when this asset is a member of it (fetched from the bundle, checked by its own size and sha256)"},
     "size": {"type": "integer", "minimum": 0},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "commit": {"type": "string"},
     "format": {"enum": ["file", "tar"]},
     "harvested": {"type": "boolean", "description": "a harvested row (caches made on a running laptop) published as an asset; only for a target the checker allows (mbp92)"}}}},
+  "bundle": {"type": "object", "required": ["file", "url", "size", "sha256", "members"],
+   "description": "the one archive (an uncompressed tar of plain files, in the listed order) that holds every asset naming it; with it the release page lists only the bundle, the bootstrap, release.json, SHA256SUMS and their signatures",
+   "properties": {
+    "file": {"type": "string", "pattern": "^[^/]+$"},
+    "url": {"type": "string", "description": "https://github.com/lythka/hao-assets/releases/download/<release>/<file>"},
+    "size": {"type": "integer", "minimum": 0},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "format": {"const": "tar"},
+    "members": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[^/]+$"}}}},
   "made_on_mac": {"type": "array", "items": {
    "type": "object", "required": ["row", "producer"], "not": {"required": ["url"]},
    "properties": {

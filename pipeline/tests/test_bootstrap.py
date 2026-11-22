@@ -153,6 +153,90 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(result.returncode,4,result.stderr)
         self.assertIn('bad signature',result.stderr)
 
+    def bundled(self, members=None, listed=None):
+        """Sign a release whose kit is a member of one archive, as release-cut makes it."""
+        kit = (self.mirror / 'kit.tar.gz').read_bytes()
+        members = members if members is not None else {'kit.tar.gz': kit}
+        path = self.mirror / 'hao-fixture.tar'
+        with tarfile.open(path, 'w') as archive:
+            for name, data in members.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+        (self.mirror / 'kit.tar.gz').unlink()
+        url = 'https://fixture.invalid/hao-fixture.tar'
+        self.manifest['bundle'] = dict(file='hao-fixture.tar', url=url, size=path.stat().st_size,
+                                       sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                                       members=list(members))
+        self.manifest['bootstrap']['kit'] = dict(url=url, file=listed or 'kit.tar.gz', size=len(kit),
+                                                 sha256=hashlib.sha256(kit).hexdigest())
+        self.sign()
+
+    def test_kit_from_the_release_archive(self):
+        self.bundled()
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        work = self.root / 'hao-fixture'
+        self.assertEqual((work / 'kit/tools/hao/hao').read_bytes(), b'fixture')
+        # the checked archive stays, named by its sha256, and a second run needs no download of it
+        self.assertTrue((work / 'downloads' / self.manifest['bundle']['sha256']).is_file())
+        (self.mirror / 'hao-fixture.tar').unlink()
+        (self.mirror / 'python.tar.gz').unlink()
+        self.assertEqual(self.run_bootstrap().returncode, 0)
+
+    def test_hao_is_told_where_the_checked_archive_is(self):
+        self.python = self.archive('python.tar.gz', {
+            'python/bin/python3.12': b'#!/bin/sh\n[ "$1" = -I ] && [ "$2" = -S ] && exit 0\n'
+                                     b'printf %s "$HAO_BUNDLE" > "$PWD/seen"\n'})
+        self.manifest['bootstrap']['python_arm64'] = self.python
+        self.bundled()
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        work = self.root / 'hao-fixture'
+        self.assertEqual((work / 'seen').read_text(),
+                         str((work / 'downloads' / self.manifest['bundle']['sha256']).resolve()))
+
+    def test_damaged_release_archive_refused(self):
+        self.bundled()
+        (self.mirror / 'hao-fixture.tar').write_bytes(b'damaged')
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn('SHA256 mismatch: bundle', result.stderr)
+
+    def test_changed_member_refused(self):
+        # the archive is the pinned one, but the kit in it is not the kit release.json pins
+        self.bundled(members={'kit.tar.gz': b'another kit'})
+        self.manifest['bootstrap']['kit']['sha256'] = 'a' * 64
+        self.sign()
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn('SHA256 mismatch: kit', result.stderr)
+
+    def test_member_missing_from_the_archive_refused(self):
+        self.bundled(members={'other': b'x'})
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn('the release archive lacks kit.tar.gz', result.stderr)
+
+    def test_member_name_with_a_path_refused(self):
+        self.bundled(listed='../kit.tar.gz')
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn('invalid file name', result.stderr)
+
+    def test_candidate_takes_a_download_by_its_file_name_from_external(self):
+        # a publisher's URL may spell the name another way (%2B); a candidate's copy is staged in external/
+        self.script.write_text(self.script.read_text().replace("candidate='false'", "candidate='true'"))
+        self.shim('curl', '#!/bin/sh\nexit 99\n')
+        (self.mirror / 'external').mkdir()
+        (self.mirror / 'python.tar.gz').rename(self.mirror / 'external' / 'py+1.tar.gz')
+        self.manifest['bootstrap']['python_arm64'] = dict(self.python, url='https://fixture.invalid/py%2B1.tar.gz',
+                                                          file='py+1.tar.gz')
+        self.bundled()
+        result = subprocess.run(['/bin/sh', str(self.script), 'doctor'], cwd=self.root, capture_output=True, text=True,
+                                env=dict(os.environ, HAO_BOOTSTRAP_FILES=str(self.mirror)))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_candidate_without_staged_release_refuses_before_network(self):
         self.script.write_text(self.script.read_text().replace("candidate='false'", "candidate='true'"))
         self.shim('curl', '#!/bin/sh\necho unexpected-network >&2\nexit 99\n')

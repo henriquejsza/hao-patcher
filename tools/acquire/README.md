@@ -33,6 +33,10 @@ third-party files, its `assets` our own (each named by its `file`); both are fet
 without a URL is refused. `--assets-from DIR|URL` fetches the assets from that folder or URL prefix first (a staged
 release before upload, a mirror) and from their own URLs only when it lacks them.
 
+A release with a `bundle` publishes its assets as the members of that one archive. acquire fetches the archive once
+(or reads the copy `$HAO_BUNDLE` names, the one the bootstrap already checked), then checks each member against its
+own size and sha256 before moving it into the cache.
+
 ```json
 {"downloads": [{"name": "macos-27.2.1-26B131-installer", "url": "https://…", "size": 14812043264,
                 "sha256": "…", "mirrors": ["https://…"]}]}
@@ -70,6 +74,8 @@ python3.14 -I -B -m unittest discover -s tools/acquire/tests      # includes hos
 The tests serve files from a local HTTP server and never touch the network. They cover a fetch, then reuse
 without a request; resuming from a partial file; a server that ignores ranges; a wrong file refused and a mirror
 used; a missing URL; a duplicate manifest entry; a release's downloads and assets; assets from a staged folder
-(file:// URLs), a changed staged asset refused, an entry without a URL; the command line; and the local mirror (a
+(file:// URLs), a changed staged asset refused, an entry without a URL; assets taken from a bundle (one fetch,
+`$HAO_BUNDLE` used in place, a changed member, a missing member and a changed archive refused); the command line; and
+the local mirror (a
 hit first, a miss falling back with one line, a short copy, a strict miss writing nothing, wrong bytes refused, no
 proxy for the mirror, an IPv6 address refused).

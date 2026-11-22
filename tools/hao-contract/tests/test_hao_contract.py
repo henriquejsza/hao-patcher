@@ -227,6 +227,58 @@ class Release(unittest.TestCase):
         a['url'] = 'https://example.invalid/libhao.dylib'
         self.assertIn('asset hao_runtime url', '\n'.join(self.check()))
 
+    def bundle(self, members=None):
+        """Move the fixture's asset into one staged archive, as release-cut publishes it."""
+        import io, tarfile
+        members = members if members is not None else {'libhao.dylib': b'lib'}
+        (self.d / 'libhao.dylib').unlink(missing_ok=True)
+        path = self.d / 'hao-27.2.1-26B131.0.tar'
+        with tarfile.open(path, 'w') as tar:
+            for name, data in members.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+        url = C['URL_PREFIX'] + '/27.2.1-26B131.0/' + path.name
+        self.r['bundle'] = {'file': path.name, 'url': url, 'size': path.stat().st_size, 'sha256': sha(path.read_bytes()),
+                            'format': 'tar', 'members': ['libhao.dylib']}
+        self.r['assets'][0].update(url=url, bundle=path.name)
+
+    def test_assets_inside_the_bundle(self):
+        self.bundle()
+        self.assertEqual(self.check(), [])
+        self.assertEqual(self.check(stage=False), [])
+        (self.d / 'libhao.dylib').write_bytes(b'lib')            # a member also staged loose would be uploaded
+        self.assertIn('libhao.dylib is staged but not an asset', '\n'.join(self.check()))
+
+    def test_bundle_violations(self):
+        self.bundle()
+        a, b = self.r['assets'][0], self.r['bundle']
+        a['url'] = C['URL_PREFIX'] + '/27.2.1-26B131.0/libhao.dylib'
+        self.assertIn('its url is not the bundle\'s', '\n'.join(self.check()))
+        a['url'] = b['url']
+        b['members'] = ['libhao.dylib', 'other']
+        self.assertIn('bundle member other is not an asset that names the bundle', '\n'.join(self.check()))
+        b['members'] = []
+        self.assertIn('bundle members must be a list of distinct file names', '\n'.join(self.check()))
+        b['members'] = ['libhao.dylib']
+        b['url'] = 'https://example.invalid/' + b['file']
+        self.assertIn('bundle url', '\n'.join(self.check()))
+        del self.r['bundle']
+        self.assertIn('names a bundle that does not list libhao.dylib', '\n'.join(self.check()))
+
+    def test_staged_bundle_must_hold_the_pinned_members(self):
+        self.bundle(members={'libhao.dylib': b'LIB'})            # the archive is pinned, the member in it is not
+        self.assertIn('bundle member libhao.dylib does not match its asset entry', '\n'.join(self.check()))
+        self.bundle(members={'libhao.dylib': b'lib', 'stray': b'x'})
+        bad = '\n'.join(self.check())
+        self.assertIn('bundle member stray is not an asset', bad)
+        self.assertIn('are not release.json\'s list, in order', bad)
+        self.bundle()
+        (self.d / self.r['bundle']['file']).write_bytes(b'changed')
+        self.assertIn('is not the bundle release.json pins', '\n'.join(self.check()))
+        (self.d / self.r['bundle']['file']).unlink()
+        self.assertIn('is not staged', '\n'.join(self.check()))
+
     def test_harvested_asset_only_for_an_allowed_target(self):
         (self.d / 'icon_caches.tar').write_bytes(b'tar')
         self.r['harvested'].remove('icon_caches')

@@ -28,10 +28,13 @@ trap 'exit 4' HUP INT TERM
 cat > "$scratch/allowed" <<'KEY'
 hao-release @KEY@
 KEY
+# fetch URL DESTINATION [FILE]: FILE is the name in a candidate's staged release (default: the URL's last part).
 fetch() {
     if [ "$candidate" = true ]; then
         [ -n "${HAO_BOOTSTRAP_FILES:-}" ] || fail 'candidate requires HAO_BOOTSTRAP_FILES pointing to the staged release'
-        cp "$HAO_BOOTSTRAP_FILES/${1##*/}" "$2" || fail "local mirror miss: $1"
+        staged=${3:-${1##*/}}
+        [ -f "$HAO_BOOTSTRAP_FILES/$staged" ] || staged="external/$staged"
+        cp "$HAO_BOOTSTRAP_FILES/$staged" "$2" || fail "local mirror miss: $1"
         return
     fi
     curl --fail --location --proto '=https' --tlsv1.2 --retry 3 "$1" -o "$2" || fail "download interrupted: $1; run the same command again"
@@ -47,33 +50,58 @@ field() { plutil -extract "$1" raw -o - "$scratch/release.json" 2>/dev/null || f
 [ "$(field release)" = "$release" ] || fail 'wrong release'
 expected=$(awk '$2 == "release.json" {print $1}' "$scratch/SHA256SUMS")
 [ "$(hash "$scratch/release.json")" = "$expected" ] || fail 'release.json checksum mismatch'
-get_asset() {
-    key=$1
-    digest=$(field "bootstrap.$key.sha256")
-    url=$(field "bootstrap.$key.url")
-    size=$(field "bootstrap.$key.size")
-    case "$size" in *[!0-9]*|'') fail 'invalid asset size';; esac
-    case "$digest" in *[!0-9a-f]*|'') fail 'invalid SHA256';; esac
-    [ "${#digest}" = 64 ] || fail 'invalid SHA256 length'
-    case "$url" in https://*) ;; *) fail 'asset URL must be HTTPS';; esac
-    asset="$work/downloads/$digest"
+plain_name() {
+    case "$1" in ''|.*|-*|*/*|*[!A-Za-z0-9._+-]*) fail "invalid file name in release.json: $1";; esac
+}
+# pinned LABEL URL SIZE SHA256 [FILE]: the file in downloads/SHA256, fetched unless already there and intact.
+pinned() {
+    case "$3" in *[!0-9]*|'') fail 'invalid asset size';; esac
+    case "$4" in *[!0-9a-f]*|'') fail 'invalid SHA256';; esac
+    [ "${#4}" = 64 ] || fail 'invalid SHA256 length'
+    case "$2" in https://*) ;; *) fail 'asset URL must be HTTPS';; esac
+    asset="$work/downloads/$4"
     [ ! -L "$asset" ] || fail 'download is a symbolic link'
-    if [ ! -f "$asset" ] || [ "$(hash "$asset")" != "$digest" ]; then
-        fetch "$url" "$scratch/download"
-        [ "$(hash "$scratch/download")" = "$digest" ] || fail "SHA256 mismatch: $key"
-        [ "$(stat -f %z "$scratch/download")" = "$size" ] || fail "size mismatch: $key"
+    if [ ! -f "$asset" ] || [ "$(hash "$asset")" != "$4" ]; then
+        fetch "$2" "$scratch/download" "${5:-}"
+        [ "$(hash "$scratch/download")" = "$4" ] || fail "SHA256 mismatch: $1"
+        [ "$(stat -f %z "$scratch/download")" = "$3" ] || fail "size mismatch: $1"
         mv "$scratch/download" "$asset"
     fi
 }
-get_asset kit
+optional() { plutil -extract "$1" raw -o - "$scratch/release.json" 2>/dev/null || true; }
+get_asset() {
+    file=$(optional "bootstrap.$1.file")
+    [ -z "$file" ] || plain_name "$file"
+    pinned "$1" "$(field "bootstrap.$1.url")" "$(field "bootstrap.$1.size")" "$(field "bootstrap.$1.sha256")" "$file"
+}
+# One archive holds every file of ours. It is checked whole, then each member taken from it is checked again
+# against its own SHA256 in the signed release.json.
+bundle=
+if plutil -extract bundle json -o /dev/null "$scratch/release.json" 2>/dev/null; then
+    file=$(field bundle.file)
+    plain_name "$file"
+    pinned bundle "$(field bundle.url)" "$(field bundle.size)" "$(field bundle.sha256)" "$file"
+    bundle=$asset
+    mkdir "$scratch/members"
+fi
+member() {
+    file=$(field "bootstrap.$1.file")
+    plain_name "$file"
+    digest=$(field "bootstrap.$1.sha256")
+    tar -xf "$bundle" -C "$scratch/members" "$file" || fail "the release archive lacks $file"
+    asset="$scratch/members/$file"
+    [ -f "$asset" ] && [ ! -L "$asset" ] || fail "not a file in the release archive: $file"
+    [ "$(hash "$asset")" = "$digest" ] || fail "SHA256 mismatch: $1"
+}
+if [ -n "$bundle" ]; then member kit; else get_asset kit; fi
 kit_asset=$asset
-get_asset "python_$arch"
-python_asset=$asset
 metal_asset=
 if plutil -extract bootstrap.metal json -o /dev/null "$scratch/release.json" 2>/dev/null; then
-    get_asset metal
+    if [ -n "$bundle" ]; then member metal; else get_asset metal; fi
     metal_asset=$asset
 fi
+get_asset "python_$arch"
+python_asset=$asset
 # Re-extract verified archives; an interrupted or locally edited tree is never reused.
 mkdir "$scratch/kit" "$scratch/runtime" "$scratch/metal"
 tar -xzf "$kit_asset" -C "$scratch/kit" || fail 'cannot unpack builder kit'
@@ -101,6 +129,11 @@ mv "$scratch/metal" metal
 if [ -n "$metal_asset" ]; then
     HAO_METAL_LLVM="$work/metal"
     export HAO_METAL_LLVM
+fi
+if [ -n "$bundle" ]; then
+    # hao takes the release's other files from the archive already checked here
+    HAO_BUNDLE="$bundle"
+    export HAO_BUNDLE
 fi
 cp "$scratch/release.json" "$scratch/release.json.sig" "$scratch/SHA256SUMS" "$scratch/SHA256SUMS.sig" kit/tools/hao/
 PATH="$work/runtime/python/bin:$PATH"

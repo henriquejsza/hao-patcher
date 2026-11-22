@@ -237,6 +237,112 @@ class Acquire(unittest.TestCase):
                 if data is None:
                     (stage/'shim.tar').write_bytes(b'temporary')
 
+    def bundled(self, folder, members=None, **over):
+        """A release.json in FOLDER whose two assets are members of one archive staged beside it."""
+        import tarfile
+        files = {'kit.tar.gz': b'kit' * 700000, 'shim.dylib': b'shim' * 100}       # the first: more than one chunk
+        archive = folder / 'hao-1.tar'
+        with tarfile.open(archive, 'w') as tar:
+            for name, data in (members if members is not None else files).items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+        url = 'http://127.0.0.1:9/releases/hao-1.tar'
+        bundle = dict({'file': 'hao-1.tar', 'url': url, 'size': archive.stat().st_size,
+                       'sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'members': list(files)}, **over)
+        assets = [{'row': n.split('.')[0], 'file': n, 'url': url, 'size': len(d), 'bundle': 'hao-1.tar',
+                   'sha256': hashlib.sha256(d).hexdigest(), 'commit': '0' * 40, 'format': 'file'}
+                  for n, d in files.items()]
+        m = folder / 'release.json'
+        m.write_text(json.dumps({'downloads': [], 'assets': assets, 'bundle': bundle}))
+        return m, files
+
+    def test_assets_come_out_of_the_bundle(self):
+        stage = Path(tempfile.mkdtemp())
+        m, files = self.bundled(stage)
+        rows = A['load'](m, assets_from=stage)
+        self.assertEqual([(r['kind'], r['name']) for r in rows], [('asset', 'kit.tar.gz'), ('asset', 'shim.dylib')])
+        events = []
+        got = A['fetch'](rows, self.cache, on_event=events.append)
+        for name, data in files.items():
+            self.assertEqual(Path(got[name]).read_bytes(), data)
+        self.assertTrue(all(A['intact'](self.cache, r) for r in rows))
+        # one download (the archive), then each member checked by its own sha256
+        self.assertEqual([e['name'] for e in events if e['ev'] == 'fetch'], ['hao-1.tar'])
+        self.assertEqual([e['name'] for e in events if e['ev'] == 'ok'], ['hao-1.tar', 'kit.tar.gz', 'shim.dylib'])
+        self.assertEqual(list((self.cache / 'partial').iterdir()), [])
+        # all there: neither the archive nor a member is read again
+        (stage / 'hao-1.tar').unlink()
+        events.clear()
+        A['fetch'](rows, self.cache, on_event=events.append)
+        self.assertEqual({e['ev'] for e in events}, {'reused'})
+
+    def test_the_bootstraps_checked_archive_is_used_in_place(self):
+        stage, elsewhere = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+        m, files = self.bundled(stage)
+        (stage / 'hao-1.tar').rename(elsewhere / 'verified')
+        rows = A['load'](m)                                        # its url answers nowhere
+        with mock.patch.dict(os.environ, {'HAO_BUNDLE': str(elsewhere / 'verified')}):
+            got = A['fetch'](rows, self.cache)
+        self.assertEqual(Path(got['shim.dylib']).read_bytes(), files['shim.dylib'])
+        self.assertFalse((self.cache / 'sha256' / rows[0]['bundle']['sha256']).exists())   # not copied
+        # a file there that is not the pinned archive is ignored, and the archive is fetched as usual
+        (elsewhere / 'verified').write_bytes(b'something else')
+        other = Path(tempfile.mkdtemp())
+        with mock.patch.dict(os.environ, {'HAO_BUNDLE': str(elsewhere / 'verified')}):
+            with self.assertRaisesRegex(A['AcquireError'], 'hao-1.tar: no source gave the pinned file'):
+                A['fetch'](rows, other)
+
+    def test_a_member_that_is_not_the_pinned_file_is_refused(self):
+        stage = Path(tempfile.mkdtemp())
+        m, files = self.bundled(stage, members={'kit.tar.gz': b'kit' * 700000, 'shim.dylib': b'evil' * 100})
+        rows = A['load'](m, assets_from=stage)
+        with self.assertRaisesRegex(A['AcquireError'], 'shim.dylib: in hao-1.tar it has sha256'):
+            A['fetch'](rows, self.cache)
+        self.assertTrue(A['intact'](self.cache, rows[0]))
+        self.assertFalse(A['intact'](self.cache, rows[1]))
+        self.assertEqual(list((self.cache / 'partial').iterdir()), [])
+        stage = Path(tempfile.mkdtemp())
+        m, files = self.bundled(stage, members={'kit.tar.gz': b'kit' * 700000})
+        with self.assertRaisesRegex(A['AcquireError'], 'shim.dylib: not in hao-1.tar'):
+            A['fetch'](A['load'](m, assets_from=stage), Path(tempfile.mkdtemp()))
+
+    def test_a_changed_bundle_is_refused(self):
+        stage = Path(tempfile.mkdtemp())
+        m, _ = self.bundled(stage)
+        (stage / 'hao-1.tar').write_bytes(b'tampered')
+        with self.assertRaisesRegex(A['AcquireError'], 'hao-1.tar: no source gave the pinned file'):
+            A['fetch'](A['load'](m, assets_from=stage), self.cache)
+
+    def test_a_bundle_the_manifest_does_not_describe_is_refused(self):
+        stage = Path(tempfile.mkdtemp())
+        m, _ = self.bundled(stage, members_=None)
+        release = json.loads(m.read_text())
+        release['bundle']['members'] = ['kit.tar.gz']
+        m.write_text(json.dumps(release))
+        with self.assertRaisesRegex(A['AcquireError'], "asset 'shim.dylib' names a bundle that does not list it"):
+            A['load'](m)
+        del release['bundle']
+        m.write_text(json.dumps(release))
+        with self.assertRaisesRegex(A['AcquireError'], "asset 'kit.tar.gz' names a bundle that does not list it"):
+            A['load'](m)
+        release['bundle'] = {'file': '../hao-1.tar', 'url': 'https://example.invalid/x', 'size': 1, 'sha256': '0' * 64,
+                             'members': []}
+        m.write_text(json.dumps(release))
+        with self.assertRaisesRegex(A['AcquireError'], 'not a plain file name'):
+            A['load'](m)
+
+    def test_a_candidates_bundle_never_tries_its_release_url(self):
+        stage = Path(tempfile.mkdtemp())
+        m, files = self.bundled(stage)
+        release = json.loads(m.read_text())
+        release['candidate'] = True
+        m.write_text(json.dumps(release))
+        rows = A['load'](m)
+        self.assertTrue(rows[0]['bundle']['url'].startswith('file://'))
+        self.assertEqual(rows[0]['bundle']['mirrors'], [])
+        self.assertEqual(Path(A['fetch'](rows, self.cache)['shim.dylib']).read_bytes(), files['shim.dylib'])
+
     def test_a_staged_asset_that_differs_is_refused(self):
         stage = Path(tempfile.mkdtemp())
         m, _ = self.release(stage)

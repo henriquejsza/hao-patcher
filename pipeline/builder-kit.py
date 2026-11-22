@@ -54,6 +54,32 @@ def build(top, commit, output, extras=None):
     return sorted(entries)
 
 
+BUNDLE = 'hao-%s.tar'
+
+
+def sha256_file(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def write_bundle(output, members):
+    """A deterministic tar (POSIX pax, the given order, mtime 0, uid and gid 0, mode 0644, no compression) of
+    MEMBERS, [(name, Path)]: plain file names only."""
+    with tarfile.open(output, 'w', format=tarfile.PAX_FORMAT) as archive:
+        for name, path in members:
+            if Path(name).name != name or name.startswith(('.', '-')):
+                raise ValueError('bundle member is not a plain file name: ' + name)
+            info = tarfile.TarInfo(name)
+            info.size, info.mode, info.mtime, info.uid, info.gid, info.uname, info.gname = (
+                path.stat().st_size, 0o644, 0, 0, 0, '', '')
+            with open(path, 'rb') as f:
+                archive.addfile(info, f)
+
+
 def release_assets(top, release, stage):
     """Add the builder infrastructure assets to an already classified release."""
     import hashlib
@@ -87,12 +113,12 @@ def release_assets(top, release, stage):
                         commit=commit, repo='hao-patcher', format='file', role=role,
                         reason='Frozen release builder infrastructure')
         kit_row = entry(kit, 'hao_builder_kit', 'builder-kit')
-        pins = {'kit': {k: kit_row[k] for k in ('url', 'sha256', 'size')}}
+        pins = {}
         for arch in ('arm64', 'x86_64'):
+            # Third-party: fetched from its publisher, pinned by size and sha256. A candidate's stage keeps a copy
+            # in external/ (never uploaded) so its bootstrap runs without the network.
             row = next(x for x in release['downloads'] if x['row'] == 'python_' + arch)
-            row['upstream_url'] = row['url']
-            row['url'] = prefix + row['name']
-            if stage:
+            if stage and release.get('candidate'):
                 import shutil
                 folders = [Path(top)/'pipeline/inputs/golden'/release['golden_build'],
                            Path(top)/'pipeline/inputs'/release['donor_build'], Path(top)/'pipeline/inputs/common']
@@ -101,8 +127,9 @@ def release_assets(top, release, stage):
                 source = Path(top)/line.split(None, 1)[1]
                 if hashlib.sha256(source.read_bytes()).hexdigest() != row['sha256']:
                     raise ValueError('Python source hash mismatch')
-                shutil.copyfile(source, folder/row['name'])
-            pins[row['row']] = {k: row[k] for k in ('url', 'sha256', 'size')}
+                (folder/'external').mkdir(exist_ok=True)
+                shutil.copyfile(source, folder/'external'/row['name'])
+            pins[row['row']] = dict({k: row[k] for k in ('url', 'sha256', 'size')}, file=row['name'])
         for row in release['assets']:
             if not row['url'].startswith(prefix):
                 row['upstream_url'] = row['url']
@@ -112,8 +139,21 @@ def release_assets(top, release, stage):
         if stage and (folder/'external').is_dir() and not any((folder/'external').iterdir()):
             (folder/'external').rmdir()
         metal = next((x for x in release['assets'] if x['row'] == 'metal_llvm'), None)
+        release['assets'].append(kit_row)
+        if stage:
+            # One archive holds every file of ours; the release page lists it, the bootstrap, release.json and
+            # SHA256SUMS. Each member keeps its own size and sha256 in release.json and is checked after unpacking.
+            members = sorted((x for x in release['assets'] if x['url'].startswith(prefix)), key=lambda x: x['file'])
+            bundle = folder / (BUNDLE % name)
+            write_bundle(bundle, [(x['file'], folder/x['file']) for x in members])
+            release['bundle'] = dict(file=bundle.name, url=prefix + bundle.name, size=bundle.stat().st_size,
+                                     sha256=sha256_file(bundle), format='tar', members=[x['file'] for x in members])
+            for x in members:
+                x['url'], x['bundle'] = release['bundle']['url'], bundle.name
+                (folder/x['file']).unlink()
+        pins['kit'] = dict({k: kit_row[k] for k in ('url', 'sha256', 'size')}, file=kit_row['file'])
         if metal:
-            pins['metal'] = {k: metal[k] for k in ('url', 'sha256', 'size')}
+            pins['metal'] = dict({k: metal[k] for k in ('url', 'sha256', 'size')}, file=metal['file'])
         release['bootstrap'] = pins
         template = subprocess.check_output(['git', '-C', str(top), 'show', commit + ':pipeline/bootstrap.sh']).decode()
         key = subprocess.check_output(['git', '-C', str(top), 'show', commit + ':tools/hao/data/release-keys.pub']).decode().strip()
@@ -124,4 +164,4 @@ def release_assets(top, release, stage):
         bootstrap = folder / 'hao'
         bootstrap.write_text(template.replace('@RELEASE@', name).replace('@KEY@', key).replace('@CANDIDATE@', 'true' if release.get('candidate') else 'false'))
         bootstrap.chmod(0o755)
-        release['assets'] += [kit_row, entry(bootstrap, 'hao_bootstrap', 'bootstrap')]
+        release['assets'].append(entry(bootstrap, 'hao_bootstrap', 'bootstrap'))

@@ -103,12 +103,34 @@ class BuilderKitTests(unittest.TestCase):
                 stage.mkdir()
                 rel = copy.deepcopy(release)
                 KIT['release_assets'](top,rel,stage)
-                for entry in rel['assets']:
-                    self.assertEqual(hashlib.sha256((stage/entry['file']).read_bytes()).hexdigest(),entry['sha256'])
-                    self.assertEqual(entry['commit'],commit)
+                bundle = rel['bundle']
+                # the release page: the bootstrap and one archive; a candidate keeps its Pythons beside them
+                self.assertEqual({p.name for p in stage.iterdir()},{'hao',bundle['file'],'external'})
+                self.assertEqual(bundle['file'],'hao-27.2.1-26B131.0.tar')
+                self.assertEqual(hashlib.sha256((stage/bundle['file']).read_bytes()).hexdigest(),bundle['sha256'])
+                with tarfile.open(stage/bundle['file']) as archive:
+                    self.assertEqual(archive.getnames(),bundle['members'])
+                    for member in archive:
+                        self.assertEqual((member.uid,member.gid,member.mtime,member.mode),(0,0,0,0o644))
+                    for entry in rel['assets']:
+                        self.assertEqual(entry['commit'],commit)
+                        if entry['role'] == 'bootstrap':
+                            data = (stage/entry['file']).read_bytes()
+                            self.assertNotIn('bundle',entry)
+                        else:
+                            data = archive.extractfile(entry['file']).read()
+                            self.assertEqual((entry['bundle'],entry['url']),(bundle['file'],bundle['url']))
+                        self.assertEqual(hashlib.sha256(data).hexdigest(),entry['sha256'])
                 self.assertEqual({x['role'] for x in rel['assets']},{'bootstrap','builder-kit'})
-                self.assertTrue(all('/hao-assets/releases/download/' in x['url'] for x in rel['downloads']))
-                cuts.append({p.name:p.read_bytes() for p in stage.iterdir()})
+                # third-party Pythons come from their publisher; the bootstrap pins say which file each is
+                self.assertTrue(all(x['url'].startswith('https://example.org/') for x in rel['downloads']))
+                self.assertEqual(rel['bootstrap']['kit']['url'],bundle['url'])
+                self.assertEqual(rel['bootstrap']['python_arm64'],
+                                 dict(url='https://example.org/python-arm64.tar.gz',file='python-arm64.tar.gz',
+                                      size=downloads[0]['size'],sha256=downloads[0]['sha256']))
+                self.assertEqual({p.name for p in (stage/'external').iterdir()},
+                                 {'python-arm64.tar.gz','python-x86_64.tar.gz'})
+                cuts.append({p.name:p.read_bytes() for p in stage.iterdir() if p.is_file()})
                 if n == 1:
                     (top/'pipeline/bootstrap.sh').write_text('new development bootstrap\n')
                     git('add','pipeline/bootstrap.sh')

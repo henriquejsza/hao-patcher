@@ -11,7 +11,8 @@ For anyone checking a release's source: rebuild its files from the public tag an
   only there; the rest of the release reproduces on the build Mac.
 
 Download the source archives for the exact hao-patcher and hao-runtime release tags, or use the clones below.
-The small `hao-kit-RELEASE.tar.gz` contains installer recipes and helpers; it deliberately omits native build
+The release's files of ours are the members of `hao-RELEASE.tar`; unpack it with `tar -xf` to compare them.
+The small `hao-kit-RELEASE.tar.gz` in it contains installer recipes and helpers; it deliberately omits native build
 sources, so compiling our binaries needs the full source archives. Keep the signed release manifest and checksums
 with them. Rebuilding also needs the Apple inputs named in that manifest and the pinned upstream sources for any
 third-party tools you choose to compile, including LLVM 15.0.7.
@@ -56,7 +57,9 @@ every file is identical.
 
 ## What must match
 
-Every file in each release's `SHA256SUMS` and the `release.json`, byte for byte, except these four:
+Every file in each release's `SHA256SUMS`, every file `release.json` lists under `assets` (the members of
+`hao-RELEASE.tar`, which is itself a deterministic tar of them in the listed order) and the `release.json`, byte for
+byte, except these four, in a release that ships them:
 
 | File in hao-assets | What it is |
 |---|---|

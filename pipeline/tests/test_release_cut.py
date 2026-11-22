@@ -189,6 +189,51 @@ class Archive(unittest.TestCase):
         for name in ('../escape','/absolute','a/b',''):
             self.assertTrue(R['make_asset']('fold',hit,dict(entry,file=name))[3])
 
+    def test_check_stage_with_a_bundle(self):
+        KIT = runpy.run_path(str(TOP / 'pipeline' / 'builder-kit.py'))
+        stage = Path(tempfile.mkdtemp())
+        data = {'a.dylib': b'abc', 'b.tar': b'defg', 'hao': b'#!/bin/sh\n'}
+        for name, d in data.items():
+            (stage / name).write_bytes(d)
+        entry = lambda n: {'file': n, 'size': len(data[n]), 'sha256': R['sha256_file'](stage / n)}
+        url = R['ASSET_URL'] % ('27.2.1-26B131.0', 'hao-27.2.1-26B131.0.tar')
+        inside = [dict(entry(n), url=url, bundle='hao-27.2.1-26B131.0.tar') for n in ('a.dylib', 'b.tar')]
+        KIT['write_bundle'](stage / 'hao-27.2.1-26B131.0.tar', [(n, stage / n) for n in ('a.dylib', 'b.tar')])
+        first = (stage / 'hao-27.2.1-26B131.0.tar').read_bytes()
+        KIT['write_bundle'](stage / 'again.tar', [(n, stage / n) for n in ('a.dylib', 'b.tar')])
+        self.assertEqual((stage / 'again.tar').read_bytes(), first)          # two cuts: the same archive
+        (stage / 'again.tar').unlink()
+        bundle = {'file': 'hao-27.2.1-26B131.0.tar', 'url': url, 'size': len(first),
+                  'sha256': R['sha256_file'](stage / 'hao-27.2.1-26B131.0.tar'), 'members': ['a.dylib', 'b.tar']}
+        rel = {'assets': inside + [dict(entry('hao'), url=R['ASSET_URL'] % ('27.2.1-26B131.0', 'hao'))],
+               'bundle': bundle}
+        # a member left loose beside the archive would be uploaded: only the archive and the bootstrap are staged
+        self.assertEqual(R['check_stage'](rel, stage), ['a.dylib is staged but not an asset',
+                                                        'b.tar is staged but not an asset'])
+        (stage / 'a.dylib').unlink()
+        (stage / 'b.tar').unlink()
+        self.assertEqual(R['check_stage'](rel, stage), [])
+        R['write_sums'](stage, stage / 'release.json')
+        self.assertEqual([l.split()[1] for l in (stage / 'SHA256SUMS').read_text().splitlines()],
+                         ['hao', 'hao-27.2.1-26B131.0.tar'])
+        good, inside[1]['sha256'] = inside[1]['sha256'], '0' * 64
+        self.assertEqual(R['check_stage'](rel, stage),
+                         ['hao-27.2.1-26B131.0.tar: member b.tar is not the file release.json pins'])
+        inside[1]['sha256'] = good
+        bundle['members'] = ['b.tar', 'a.dylib']
+        self.assertIn('hao-27.2.1-26B131.0.tar: its members are not release.json\'s list, in order',
+                      R['check_stage'](rel, stage))
+        bundle['members'] = ['a.dylib', 'b.tar']
+        del inside[1]['bundle']
+        self.assertIn('hao-27.2.1-26B131.0.tar: its members are not the assets that name it',
+                      R['check_stage'](rel, stage))
+        inside[1]['bundle'] = bundle['file']
+        (stage / bundle['file']).write_bytes(first + b'x')
+        self.assertEqual(R['check_stage'](rel, stage),
+                         ['staged hao-27.2.1-26B131.0.tar is not the file release.json pins'])
+        with self.assertRaisesRegex(ValueError, 'not a plain file name'):
+            KIT['write_bundle'](stage / 'bad.tar', [('../x', stage / 'hao')])
+
     def test_check_stage(self):
         stage = Path(tempfile.mkdtemp())
         (stage / 'a.dylib').write_bytes(b'abc')

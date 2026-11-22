@@ -338,11 +338,35 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
         if entries.get('hao_builder_kit', {}).get('role') != 'builder-kit' or \
                 entries.get('hao_bootstrap', {}).get('role') != 'bootstrap':
             bad.append('release: bootstrap infrastructure assets are missing')
+    # "bundle": the one archive that holds the assets naming it (optional; a release without one publishes each
+    # asset as its own file)
+    bundle = r.get('bundle')
+    bundle_url = None
+    if bundle is not None:
+        if not isinstance(bundle, dict):
+            bad.append('release: bundle is not an object')
+            bundle = None
+        else:
+            b = pinned('bundle', dict(bundle, row=bundle.get('file')), ('file', 'url', 'size', 'sha256', 'members'))
+            members = bundle.get('members')
+            if not b and (not isinstance(members, list) or not members or
+                          not all(isinstance(m, str) for m in members) or len(set(members)) != len(members)):
+                b.append('release: bundle members must be a list of distinct file names')
+            if not b and ('/' in bundle['file'] or bundle['file'] in ('.', '..')):
+                b.append('release: bundle file %r is not a plain file name' % bundle['file'])
+            if not b and bundle['url'] != '%s/%s/%s' % (url_prefix.rstrip('/'), name, bundle['file']):
+                b.append('release: bundle url %s is not %s/%s/%s' % (bundle['url'], url_prefix.rstrip('/'), name,
+                                                                     bundle['file']))
+            bad += b
+            if b:
+                bundle = None
+            else:
+                bundle_url = bundle['url']
     rows = {}
     for e in r['downloads']:
         bad += pinned('download', e, DOWNLOAD_FIELDS)
         rows.setdefault(e.get('row'), []).append('downloads')
-    files, hosted = set(), set()
+    files, hosted, inside = set(), set(), set()
     for e in r['assets']:
         # An asset with no public producing commit is published by its sha256 alone: no repo and commit "".
         sha_only = 'repo' not in e and e.get('commit') == ''
@@ -364,12 +388,24 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
             bad.append('release: asset file %s is listed twice' % e['file'])
         files.add(e['file'])
         want = '%s/%s/%s' % (url_prefix.rstrip('/'), name, e['file'])
-        if any(e['url'].startswith(h) for h in OTHER_HOSTS):
+        if e.get('bundle') is not None:
+            # a member of the bundle: no file of its own on the release page; its url is the bundle's
+            if bundle is None or e['bundle'] != bundle['file'] or e['file'] not in bundle['members']:
+                bad.append('release: asset %s names a bundle that does not list %s' % (e['row'], e['file']))
+            elif e['url'] != bundle_url:
+                bad.append('release: asset %s is in the bundle, but its url is not the bundle\'s' % e['row'])
+            inside.add(e['file'])
+        elif any(e['url'].startswith(h) for h in OTHER_HOSTS):
             if not e['url'].endswith('/' + e['file']):
                 bad.append('release: asset %s url %s does not end in its file' % (e['row'], e['url']))
             hosted.add(e['file'])
         elif e['url'] != want:
             bad.append('release: asset %s url %s is not %s' % (e['row'], e['url'], want))
+    if bundle is not None:
+        bad += ['release: bundle member %s is not an asset that names the bundle' % m
+                for m in bundle['members'] if m not in inside]
+        if bundle['file'] in files:
+            bad.append('release: the bundle and an asset share the file name %s' % bundle['file'])
     for e in r['made_on_mac']:
         rows.setdefault(e.get('row'), []).append('made_on_mac')
         if not e.get('producer'):
@@ -391,6 +427,8 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
     if stage is not None:
         stage = Path(stage)
         for e in r['assets']:
+            if e.get('file') in inside:
+                continue
             f = (stage / 'external' if e.get('file') in hosted else stage) / str(e.get('file', ''))
             if not e.get('file') or not f.is_file():
                 bad.append('release: asset %s is not staged in %s' % (e.get('file'), stage))
@@ -399,9 +437,42 @@ def check_release_file(path, stage=None, url_prefix=URL_PREFIX):
                                                                                     e.get('size')))
             elif sha256(f) != e.get('sha256'):
                 bad.append('release: staged %s does not match its sha256' % e['file'])
-        extra = sorted(p.name for p in stage.iterdir() if p.is_file() and p.name not in files - hosted and p != path
+        if bundle is not None:
+            bad += staged_bundle(stage, bundle, {e['file']: e for e in r['assets'] if e.get('file') in inside})
+        top = (files - hosted - inside) | ({bundle['file']} if bundle is not None else set())
+        extra = sorted(p.name for p in stage.iterdir() if p.is_file() and p.name not in top and p != path
                        and p.name != path.name and not p.name.startswith('.'))
         bad += ['release: %s is staged but not an asset (it would not be uploaded)' % n for n in extra]
+    return bad
+
+
+def staged_bundle(stage, bundle, pinned):
+    """Problems of the staged BUNDLE: the pinned file, holding exactly its listed members in that order, each the
+    file its asset entry (PINNED, by file name) pins."""
+    import tarfile
+    f = Path(stage) / bundle['file']
+    if not f.is_file():
+        return ['release: bundle %s is not staged in %s' % (bundle['file'], stage)]
+    if f.stat().st_size != bundle['size'] or sha256(f) != bundle['sha256']:
+        return ['release: staged %s is not the bundle release.json pins' % bundle['file']]
+    bad, found = [], []
+    try:
+        with tarfile.open(f, 'r:') as tar:
+            for m in tar:
+                found.append(m.name)
+                e = pinned.get(m.name)
+                if e is None or not m.isfile():
+                    bad.append('release: bundle member %s is not an asset' % m.name)
+                    continue
+                h, data = hashlib.sha256(), tar.extractfile(m)
+                for block in iter(lambda: data.read(1 << 20), b''):
+                    h.update(block)
+                if m.size != e.get('size') or h.hexdigest() != e.get('sha256'):
+                    bad.append('release: bundle member %s does not match its asset entry' % m.name)
+    except tarfile.TarError as x:
+        return ['release: staged %s is not a tar archive: %s' % (bundle['file'], x)]
+    if found != list(bundle['members']):
+        bad.append('release: the members of %s are not release.json\'s list, in order' % bundle['file'])
     return bad
 
 

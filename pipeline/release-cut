@@ -36,6 +36,9 @@ in pipeline/inputs/golden/BUILD, then the donor build, then common.
 Each row has two classes. By content (pipeline/release-classes.json, with a reason per row):
   ours          our own bytes: published as a release asset, a file row as the file, a folder row as one
                 deterministic tar (sorted, mtime 0, owner 0, modes 0755/0644, no compression) of the listed files
+                Every such asset is a member of one archive, hao-RELEASE.tar (release.json "bundle": file, url,
+                size, sha256, members), the only file of ours on the release page besides the bootstrap `hao`,
+                release.json and SHA256SUMS; each member keeps its own size and sha256 in "assets"
   made-on-mac   made on the user's Mac from Apple's files or third-party downloads (producer, input rows); never
                 published
   download      Apple or third-party bytes the user's Mac fetches by url, size and sha256 (tools/acquire)
@@ -685,9 +688,13 @@ def add_builder_assets(rel, stage):
 
 def build_releases(assemblies, name, stage=None, **kw):
     """build_release for each of ASSEMBLIES (one per profile), merged into one release (merge_releases)."""
-    rel, problems = merge_releases([build_release(a, name, stage, **kw) for a in assemblies])
-    if not problems:
-        add_builder_assets(rel, stage)
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='hao-cut-') as scratch:
+        # the bundle's size and sha256 need its members' bytes: without --stage they are made in a scratch folder
+        where = stage if stage is not None else Path(scratch)
+        rel, problems = merge_releases([build_release(a, name, where, **kw) for a in assemblies])
+        if not problems:
+            add_builder_assets(rel, where)
     return rel, problems
 
 
@@ -774,21 +781,58 @@ def write_sums(stage, release_json):
         sums(Path(stage) / 'external')
 
 
-def check_stage(rel, stage):
-    """Problems: every asset staged with its size and sha256, nothing else staged but release.json, SHA256SUMS, their
-    signatures (SIGNATURES) and dotfiles."""
-    stage = Path(stage)
+def bundle_problems(rel, stage):
+    """Problems of the staged bundle: it is the file release.json pins, and its members are exactly the assets that
+    name it, in the listed order, each with its own size and sha256."""
+    import tarfile
+    b = rel.get('bundle')
+    inside = [x for x in rel['assets'] if x.get('bundle')]
+    if not b:
+        return ['%s names a bundle, and release.json has none' % x['file'] for x in inside]
+    f = Path(stage) / b['file']
+    if not f.is_file():
+        return ['%s is not staged' % b['file']]
+    if f.stat().st_size != b['size'] or sha256_file(f) != b['sha256']:
+        return ['staged %s is not the file release.json pins' % b['file']]
     bad = []
-    names = {x['file'] for x in rel['assets'] if x.get('url', ASSET_URL).startswith(ASSET_URL.split('%s')[0])}
-    hosted_downloads = [dict(x, file=x['name']) for x in rel.get('downloads', [])
-                        if x['url'].startswith(ASSET_URL.split('%s')[0])]
-    names.update(x['file'] for x in hosted_downloads)
-    for x in rel['assets'] + hosted_downloads:
+    if sorted(x['file'] for x in inside) != sorted(b['members']) or any(x['bundle'] != b['file'] for x in inside):
+        bad.append('%s: its members are not the assets that name it' % b['file'])
+    pinned = {x['file']: x for x in inside}
+    with tarfile.open(f) as tar:
+        found = []
+        for m in tar:
+            found.append(m.name)
+            x = pinned.get(m.name)
+            if x is None or not m.isfile():
+                bad.append('%s: member %s is not an asset' % (b['file'], m.name))
+                continue
+            h = hashlib.sha256()
+            data = tar.extractfile(m)
+            for block in iter(lambda: data.read(1 << 20), b''):
+                h.update(block)
+            if m.size != x['size'] or h.hexdigest() != x['sha256']:
+                bad.append('%s: member %s is not the file release.json pins' % (b['file'], m.name))
+    if found != list(b['members']):
+        bad.append('%s: its members are not release.json\'s list, in order' % b['file'])
+    return bad
+
+
+def check_stage(rel, stage):
+    """Problems: the bundle staged with every asset that names it inside (bundle_problems), every other asset staged
+    with its size and sha256, nothing else staged but release.json, SHA256SUMS, their signatures (SIGNATURES),
+    external/ and dotfiles."""
+    stage = Path(stage)
+    bad = bundle_problems(rel, stage)
+    loose = [x for x in rel['assets'] if not x.get('bundle')]
+    names = {x['file'] for x in loose if x.get('url', ASSET_URL).startswith(ASSET_URL.split('%s')[0])}
+    for x in loose:
         f = (stage if x['file'] in names else stage / 'external') / x['file']
         if not f.is_file():
             bad.append('%s is not staged' % x['file'])
         elif f.stat().st_size != x['size'] or sha256_file(f) != x['sha256']:
             bad.append('staged %s is not the file release.json pins' % x['file'])
+    if rel.get('bundle'):
+        names.add(rel['bundle']['file'])
     bad += ['%s is staged but not an asset' % p.name for p in sorted(stage.iterdir())
             if p.name not in names and p.name not in ('release.json', 'external', 'SHA256SUMS') + SIGNATURES and not p.name.startswith('.')]
     return bad
@@ -855,6 +899,8 @@ def main(argv):
                 for x in rel['assets']:
                     (stage / x['file']).unlink(missing_ok=True)
                     (stage / 'external' / x['file']).unlink(missing_ok=True)
+                if rel.get('bundle'):
+                    (stage / rel['bundle']['file']).unlink(missing_ok=True)
                 if (stage / 'external').is_dir() and not any((stage / 'external').iterdir()):
                     (stage / 'external').rmdir()
             return 1

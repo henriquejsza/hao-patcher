@@ -218,11 +218,16 @@ def prepare_share(share, release_dir, commit, repo, key, params):
     bootstrap = Path(release_dir) / 'hao'
     if bootstrap.is_file():
         release = json.loads((Path(release_dir) / 'release.json').read_text())
-        names = {'hao'} | {x['url'].rsplit('/', 1)[-1] for x in release['bootstrap'].values()}
+        # what the bootstrap reads before hao runs: the bundle (the kit and the Metal tools are members of it), or
+        # each pinned file of a release without one; a candidate's Pythons are staged in external/
+        held = (release.get('bundle') or {}).get('url')
+        names = {'hao'} | ({release['bundle']['file']} if held else set()) | {
+            x.get('file') or x['url'].rsplit('/', 1)[-1] for x in release['bootstrap'].values() if x['url'] != held}
         for name in names:
             if Path(name).name != name:
                 raise ValueError('unsafe bootstrap filename')
-            shutil.copyfile(Path(release_dir)/name, inp/'release'/name)
+            src = Path(release_dir)/name
+            shutil.copyfile(src if src.is_file() else Path(release_dir)/'external'/name, inp/'release'/name)
     else:
         bundle(repo, commit, inp / 'hao-patcher.bundle')
     (inp / 'params').write_text(''.join('%s=%s\n' % (k, shlex.quote(str(v))) for k, v in sorted(params.items())))

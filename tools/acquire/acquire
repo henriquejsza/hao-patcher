@@ -18,6 +18,12 @@ cached file is opened without following links and must be a regular file of ours
 the one moved into place. A partial is kept for resuming only when the download stopped; wrong bytes are removed. A download marked "stream" (the IPSW, the installer) is not fetched: the producers
 read only the members they need from its URL, each checked against the release's "pins" (pipeline/unpack/ranged.py).
 
+A release that has a "bundle" ({"file", "url", "size", "sha256", "members"}) publishes its assets inside that one
+archive: an asset naming it ("bundle": FILE) is taken from the archive, not from a URL of its own. The archive is
+the file $HAO_BUNDLE names when that is the pinned one (the bootstrap's verified copy), else it is fetched into the
+cache like any pinned file; each member is then checked against its own size and sha256 before it is moved into
+place, so a cached asset is the same file whichever way it came.
+
 For a candidate, hosted assets (including rehosted Python downloads) come only from --assets-from,
 HAO_BOOTSTRAP_FILES, or the manifest's folder, in that order, or the hash-addressed mirror below. Missing or corrupt
 candidate files never fall back to their unpublished release URLs. Upstream download rows keep their origins.
@@ -110,9 +116,35 @@ def load(manifest, assets_from=None):
     with open(manifest) as f:
         m = json.load(f)
     rows = [dict(r, kind='download') for r in m.get('downloads') or []]
+    bundle = None
+    if m.get('bundle') is not None:
+        b = m['bundle']
+        if not isinstance(b, dict) or not isinstance(b.get('members'), list):
+            raise AcquireError('%s: its bundle is not {file, url, size, sha256, members}' % manifest)
+        bundle = {'name': b.get('file'), 'url': b.get('url'), 'size': b.get('size'), 'sha256': b.get('sha256'),
+                  'mirrors': [], 'kind': 'bundle', 'members': list(b['members'])}
+        if assets_from and isinstance(bundle['name'], str):
+            bundle['mirrors'] = [bundle['url']] if bundle['url'] else []
+            bundle['url'] = asset_source(assets_from) + urllib.parse.quote(bundle['name'])
+        if m.get('candidate'):
+            source = assets_from or os.environ.get('HAO_BOOTSTRAP_FILES') or Path(manifest).parent
+            bundle['url'], bundle['mirrors'] = asset_source(source) + urllib.parse.quote(str(bundle['name'])), []
+        for k, t in (('name', str), ('url', str), ('size', int), ('sha256', str)):
+            if not isinstance(bundle.get(k), t) or isinstance(bundle.get(k), bool):
+                raise AcquireError('%s: its bundle needs %s' % (manifest, k))
+        problem = check_row(bundle)
+        if problem:
+            raise AcquireError('%s: bundle %r %s' % (manifest, bundle['name'], problem))
     for a in m.get('assets') or []:
         row = {'name': a.get('file'), 'url': a.get('url'), 'size': a.get('size'), 'sha256': a.get('sha256'),
                'mirrors': list(a.get('mirrors', [])), 'kind': 'asset', 'row': a.get('row')}
+        if a.get('bundle') is not None:
+            if bundle is None or a['bundle'] != bundle['name'] or row['name'] not in bundle['members']:
+                raise AcquireError('%s: asset %r names a bundle that does not list it' % (manifest, row['name']))
+            # a member has no URL of its own: it comes out of the archive (fetch), checked by its size and sha256
+            row['bundle'], row['url'] = bundle, bundle['url']
+            rows.append(row)
+            continue
         if assets_from and isinstance(row['name'], str):
             # the folder release-cut staged: our assets at its top, those another repository hosts in external/
             row['mirrors'] = [asset_source(assets_from) + 'external/' + urllib.parse.quote(row['name'])] + (
@@ -125,6 +157,8 @@ def load(manifest, assets_from=None):
         source = assets_from or os.environ.get('HAO_BOOTSTRAP_FILES') or Path(manifest).parent
         prefix = asset_source(source)
         for row in rows:
+            if row.get('bundle'):
+                continue
             if row['kind'] == 'asset' or str(row.get('url', '')).startswith(
                     'https://github.com/lythka/hao-assets/releases/download/'):
                 row['url'] = prefix + urllib.parse.quote(row['name'])
@@ -347,6 +381,70 @@ def _fetch_row(row, pdir, sdir, emit):
     return errors
 
 
+def bundle_file(bundle, cache, pdir, sdir, emit):
+    """A read FD of the pinned archive BUNDLE: the file $HAO_BUNDLE names when it is the pinned one, else the cached
+    one, fetched first if it is not there."""
+    given = os.environ.get('HAO_BUNDLE', '').strip()
+    if given:
+        try:
+            fd = os.open(given, os.O_RDONLY | os.O_CLOEXEC)
+        except OSError:
+            fd = None
+        if fd is not None:
+            if matches(fd, bundle):
+                return fd
+            os.close(fd)
+    fd = open_cached(bundle['sha256'], sdir)
+    if fd is not None:
+        if matches(fd, bundle):
+            emit({'ev': 'reused', 'name': bundle['name'], 'sha256': bundle['sha256']})
+            return fd
+        os.close(fd)
+    errors = _fetch_row(bundle, pdir, sdir, emit)
+    if errors:
+        raise AcquireError('%s: no source gave the pinned file:\n  %s' % (bundle['name'], '\n  '.join(errors)))
+    fd = open_cached(bundle['sha256'], sdir)
+    if fd is None:
+        raise AcquireError('%s: not in the cache after its fetch' % bundle['name'])
+    return fd
+
+
+def _take_member(row, archive, pdir, sdir, emit):
+    """Copy ROW's member out of the open tar ARCHIVE into partial/, check it and move that file into sha256/."""
+    name = row['sha256']
+    try:
+        info = archive.getmember(row['name'])
+    except KeyError:
+        raise AcquireError('%s: not in %s' % (row['name'], row['bundle']['name'])) from None
+    if not info.isfile() or info.size != row['size']:
+        raise WrongBytes('%s: in %s it is not a file of the pinned %d bytes' % (row['name'], row['bundle']['name'],
+                                                                              row['size']))
+    try:
+        os.unlink(name, dir_fd=pdir)          # a partial left by an earlier run: a member is never resumed
+    except FileNotFoundError:
+        pass
+    fd = os.open(name, os.O_RDWR | os.O_CREAT | os.O_EXCL | NOFOLLOW, 0o644, dir_fd=pdir)
+    try:
+        source, done = archive.extractfile(info), 0
+        for block in iter(lambda: source.read(CHUNK), b''):
+            view = memoryview(block)
+            while view:
+                n = os.pwrite(fd, view, done)
+                done += n
+                view = view[n:]
+        st = owned_file(fd, 'partial/' + name)
+        digest = sha256_fd(fd)
+        if st.st_size != row['size'] or digest != row['sha256']:
+            _drop(name, fd, pdir)
+            raise WrongBytes('%s: in %s it has sha256 %s; pinned %s' % (row['name'], row['bundle']['name'], digest,
+                                                                      row['sha256']))
+        os.fchmod(fd, 0o644)
+        os.rename(name, name, src_dir_fd=pdir, dst_dir_fd=sdir)
+        emit({'ev': 'ok', 'name': row['name'], 'sha256': digest})
+    finally:
+        os.close(fd)
+
+
 def fetch(rows, cache, *, only=None, on_event=None):
     emit = on_event or (lambda e: None)
     cache = Path(cache)
@@ -365,6 +463,7 @@ def fetch(rows, cache, *, only=None, on_event=None):
     finally:
         os.close(root)
     results = {}
+    opened = {}                                   # bundle sha256 -> (file, open tar): read once for all its members
     try:
         for row in rows:
             if only and row['name'] not in only:
@@ -382,11 +481,31 @@ def fetch(rows, cache, *, only=None, on_event=None):
                     emit({'ev': 'reused', 'name': row['name'], 'sha256': row['sha256']})
                     results[row['name']] = str(final_path(cache, row))
                     continue
+            if row.get('bundle'):
+                b = row['bundle']
+                if b['sha256'] not in opened:
+                    import tarfile
+                    stream = os.fdopen(bundle_file(b, cache, pdir, sdir, emit), 'rb')
+                    try:
+                        opened[b['sha256']] = (stream, tarfile.open(fileobj=stream, mode='r:'))
+                    except tarfile.TarError as x:
+                        stream.close()
+                        raise AcquireError('%s: not a tar archive: %s' % (b['name'], x)) from None
+                emit({'ev': 'unpack', 'name': row['name'], 'bundle': b['name'], 'size': row['size']})
+                try:
+                    _take_member(row, opened[b['sha256']][1], pdir, sdir, emit)
+                except OSError as x:
+                    raise AcquireError('%s: %s' % (row['name'], x)) from None
+                results[row['name']] = str(final_path(cache, row))
+                continue
             errors = _fetch_row(row, pdir, sdir, emit)
             if errors:
                 raise AcquireError('%s: no source gave the pinned file:\n  %s' % (row['name'], '\n  '.join(errors)))
             results[row['name']] = str(final_path(cache, row))
     finally:
+        for stream, tar in opened.values():
+            tar.close()
+            stream.close()
         os.close(sdir)
         os.close(pdir)
     return results
@@ -408,6 +527,8 @@ def printer(level):
             print('  %-40s not downloaded: read by range when the rows are made' % ev['name'])
         elif k == 'fetch':
             print('  %-40s %s' % (ev['name'], ev['url']))
+        elif k == 'unpack':
+            print('  %-40s from %s' % (ev['name'], ev['bundle']))
         elif k == 'progress':
             pct = 100 * ev['done'] // max(ev['size'], 1)
             if pct // 10 != last.get(ev['name']):

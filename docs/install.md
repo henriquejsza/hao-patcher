@@ -13,8 +13,9 @@ For installing hao on a MacBook Pro (13-inch, Mid 2012) from a signed release ki
 - Allow roughly 30–60 minutes to prepare the drive and several hours to install and rebuild the shared cache. Download speed and the target Mac affect the time.
 
 The release supplies its own Python and builder tools. Use a release that contains
-`hao`, the builder kit, `release.json`, `SHA256SUMS`, and both signatures. Older
-unsigned releases do not support this command.
+`hao`, `hao-<RELEASE>.tar`, `release.json`, `SHA256SUMS`, and both signatures
+([what each file is](verify.md#what-a-release-holds)). Older unsigned releases do not
+support this command.
 
 ## Make the USB installer
 

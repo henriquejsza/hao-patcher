@@ -392,7 +392,8 @@ def download(c, release_path, cache, acquire, dry_run, assets_from=None):
             c.item('%s %-44s %s' % (c.paint.origin(origin_of(by_name.get(ev['name'], {})), 6), ev['name'],
                                     'read by range when the rows are made'), 'files', ok=True)
         if k in ('ok', 'reused'):
-            done[ev['name']] = next(r['size'] for r in rows if r['name'] == ev['name'])
+            # the release archive is not a row: its bytes are counted through its members
+            done[ev['name']] = by_name[ev['name']]['size'] if ev['name'] in by_name else 0
             c.item('%s %-44s %s' % (c.paint.origin(origin_of(by_name.get(ev['name'], {})), 6), ev['name'],
                                     'already here' if k == 'reused' else 'sha256'), 'files', ok=True)
         elif k == 'mirror-failed':
