@@ -106,11 +106,11 @@ while read -r stage name ins; do
     # stick writer moves it into the kit on that drive.
     # The checked copy of such a row is made on that drive (clones) and linked.
     for n in ${=ins}; do
-        if [[ -n ${staged[$n]:-} && -L ${staged[$n]} ]]; then ln -s $(realpath ${staged[$n]}) $d/inputs/$n; continue; fi
+        if [[ -n ${staged[$n]:-} && -L ${staged[$n]} ]]; then ln -s "$(realpath ${staged[$n]})" $d/inputs/$n; continue; fi   # quoted: a volume name may hold a space
         if [[ -n ${staged[$n]:-} ]]; then cp -Rpc ${staged[$n]} $d/inputs/$n; continue; fi
         src=$($L where $(lock_of $n) $n)
         if [[ -n ${KIT_ON_DRIVE:-} && -e $src && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then
-            c=$(mktemp -d $KIT_ON_DRIVE/.checked.XXXXXX)/$n; stage $(lock_of $n) $n $c; ln -s $c $d/inputs/$n
+            c="$(mktemp -d $KIT_ON_DRIVE/.checked.XXXXXX)"/$n; stage "$(lock_of $n)" $n $c; ln -s $c $d/inputs/$n
         else stage $(lock_of $n) $n $d/inputs/$n; fi
         staged[$n]=$d/inputs/$n
     done
