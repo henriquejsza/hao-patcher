@@ -150,10 +150,13 @@ def main():
     ap.add_argument('--pins', help='JSON pins of the installer (toc_sha256, members); required for a URL')
     ap.add_argument('--installer-sha256', help='the whole installer\'s sha256 as the release pins it (recorded as the '
                                                'origin; needed when INSTALLER is a URL, which is never read whole)')
+    ap.add_argument('--trust-apple-url', action='store_true',
+                    help='allow streaming an unpinned https://swcdn.apple.com/ installer URL after verifying Apple RSA signature')
     a = ap.parse_args()
     remote = a.installer.startswith(('http://', 'https://'))
     if remote and not (a.pins and a.installer_sha256):
-        raise SystemExit('donor-inputs: a URL installer needs --pins and --installer-sha256')
+        if not (a.trust_apple_url and a.installer.startswith('https://swcdn.apple.com/') and a.installer_sha256):
+            raise SystemExit('donor-inputs: a URL installer needs --pins and --installer-sha256')
     origin = a.installer
     if remote:
         try:
@@ -161,7 +164,7 @@ def main():
         except OSError as x:
             raise SystemExit('donor-inputs: %s' % x)
     pins, toc_pin = inplace.load_pins(a.pins)
-    if a.pins:
+    if a.pins or a.trust_apple_url:
         print('== signature', inplace.check_signature(a.installer, toc_pin), file=sys.stderr, flush=True)
     out = os.path.abspath(a.out); os.makedirs(out, exist_ok=False)
     req = json.load(open(a.requirements)); req_dir = os.path.dirname(os.path.abspath(a.requirements))
@@ -199,7 +202,8 @@ def main():
         f.write(''.join(p + '\n' for p in include))
 
     # System payload: only entries under the needed paths
-    steps.run('payload-subset', PY + [os.path.join(HERE, 'inplace.py')] + (['--pins', a.pins] if a.pins else []) + [
+    inplace_flags = (['--pins', a.pins] if a.pins else []) + (['--trust-apple-url'] if a.trust_apple_url else [])
+    steps.run('payload-subset', PY + [os.path.join(HERE, 'inplace.py')] + inplace_flags + [
                                       'payload', a.installer,
                                       os.path.join(out, 'include-paths.txt'), os.path.join(out, 'payload.aa')])
     steps.run('aa-extract', ['/usr/bin/aa', 'extract', '-exclude-field', 'uid,gid,flg', '-i',

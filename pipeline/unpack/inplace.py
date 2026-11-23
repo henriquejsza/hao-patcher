@@ -323,11 +323,15 @@ def payload(pkg, include_list, out_aa, pins_path=None, window=None):
 def main():
     argv = sys.argv[1:]
     pins_path = None
+    trust_apple = False
     if '--pins' in argv:
         i = argv.index('--pins'); pins_path = argv[i + 1]; del argv[i:i + 2]
+    if '--trust-apple-url' in argv:
+        argv.remove('--trust-apple-url'); trust_apple = True
     cmd, pkg = argv[0], argv[1]
     if pkg.startswith(('http://', 'https://')) and not pins_path:
-        raise SystemExit('inplace.py: a URL is read only with --pins')
+        if not (trust_apple and pkg.startswith('https://swcdn.apple.com/')):
+            raise SystemExit('inplace.py: a URL is read only with --pins')
     pins, toc_pin = load_pins(pins_path)
     if cmd == 'verify':
         m = xar_member(pkg, toc_sha256=toc_pin); algo, want = m['checksum']; h = hashlib.new(algo.replace('-', ''))
