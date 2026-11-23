@@ -28,13 +28,21 @@ cc -O2 -Wall -arch x86_64 -mmacosx-version-min=12.0 \
    -o "$OUT/tools/ripatch" "$REPO/pipeline/unpack/ripatch.c"
 codesign -f -s - "$OUT/tools/ripatch"
 
-echo "== [4/9] codeid_carrier (carrier.o + libhao_codeid.a)"
+echo "== [4/9] codeid_carrier (carrier.o + libhao_codeid.a + build.json)"
 make -C "$HAO_RT" build/libhao_codeid.a
 clang -arch x86_64 -O2 -Wall -Wextra -Werror -fno-common \
    -I "$HAO_RT/include" \
    -c "$REPO/patches/golden-gate-userspace/src/codeid/carrier.c" \
    -o "$OUT/codeid_carrier/carrier.o"
 cp "$HAO_RT/build/libhao_codeid.a" "$OUT/codeid_carrier/libhao_codeid.a"
+python3 - "$OUT/codeid_carrier" <<'PYCID'
+import hashlib, json, pathlib, sys
+d = pathlib.Path(sys.argv[1])
+(d / 'build.json').write_text(json.dumps({
+    'carrier_o': hashlib.sha256((d / 'carrier.o').read_bytes()).hexdigest(),
+    'hao_runtime': {'libhao_codeid_a': hashlib.sha256((d / 'libhao_codeid.a').read_bytes()).hexdigest()},
+}, indent=2) + '\n')
+PYCID
 
 echo "== [5/9] display_state_shim (dss_shim.dylib)"
 xcrun clang -arch x86_64 -mmacosx-version-min="$MIN_OS" \
