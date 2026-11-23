@@ -25,7 +25,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-hello | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-22 Pin the portable LLVM 15.0.7 output for 26B131; the builder uses release tools without Xcode. |
 | golden-gate-icon-caches | r10 | post | product | caches | x |  |  |  | ok (r3) | r10 2026-11-19 The store.index of root's and the Setup account's IconServices caches are declared `"content":  |
 | golden-gate-ids | r3 | oclp-hook | product |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
-| golden-gate-intel-xe | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-23 Initial Intel Iris Xe acceleration hook for Golden Gate 27.2.1 (`26B131`). |
+| golden-gate-intel-xe | r2 | oclp-hook | experiment |  |  |  |  |  | **needs** | r2 2026-11-23 Re-link `SystemKernelExtensions.kc` with Tahoe `kmutil` (preserving `BootKernelExtensions.kc`) a |
 | golden-gate-launchd-warm | r7 | oclp-hook | product |  | x |  |  |  | ok (r6) | r7 2026-11-22 Validated r6 on hardware (Validation). Nothing it installs changes. |
 | golden-gate-live-text-service | r8 | post | product |  | x |  |  |  | ok (r7) | r8 2026-11-19 Validated r7 on hardware (Validation). Nothing it installs changes. |
 | golden-gate-live-text-shared | r15 | oclp-hook | product |  | x |  |  |  | **needs** | r15 2026-11-22 Row `live_text_framework` (26B131) is built with the release's pinned LLVM 15.0.7 Metal tools i |

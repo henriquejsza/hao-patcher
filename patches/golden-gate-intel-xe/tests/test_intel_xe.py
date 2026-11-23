@@ -51,6 +51,62 @@ class IntelXeHookTests(unittest.TestCase):
             self.assertTrue((sys_root / 'Library/Extensions/AppleIntelTGLGraphicsGLDriver.bundle').is_dir())
             self.assertTrue((sys_root / 'System/Library/Caches/xe.bundle/igc').is_file())
 
+    def test_relinks_system_kc_without_touching_boot_kc(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            sys_root = tmp / 'sys'
+            kc_dir = sys_root / 'System/Library/KernelCollections'
+            kc_dir.mkdir(parents=True)
+            (sys_root / 'System/Library/Kernels').mkdir(parents=True)
+            (sys_root / 'System/Library/Kernels/kernel').write_bytes(b'kern')
+            boot_kc = kc_dir / 'BootKernelExtensions.kc'
+            boot_kc.write_bytes(b'BOOT_KC_BYTES')
+            (kc_dir / 'BootKernelExtensions.kc.elides').write_text('com.apple.driver.A\n')
+            (kc_dir / 'SystemKernelExtensions.kc').write_bytes(b'OLD_SYS_KC')
+
+            bundle = tmp / 'bundle'
+            (bundle / 'Extensions/AppleIntelTGLGraphics.kext').mkdir(parents=True)
+            (bundle / 'Extensions/HookCase.kext').mkdir(parents=True)
+
+            bin_dir = tmp / 'bin'
+            bin_dir.mkdir()
+            for name, body in {
+                'ditto': '#!/bin/sh\ncp -R "$1" "$2"\n',
+                'chown': '#!/bin/sh\nexit 0\n',
+                'codesign': '#!/bin/sh\nexit 0\n',
+                'install': '#!/bin/sh\nwhile [ $# -gt 2 ]; do shift; done\ncp "$1" "$2"\n',
+                'uname': '#!/bin/sh\necho arm64\n',
+            }.items():
+                p = bin_dir / name
+                p.write_text(body)
+                p.chmod(0o755)
+
+            fake_kmutil = tmp / 'fake_kmutil'
+            fake_kmutil.write_text(
+                '#!/bin/sh\n'
+                'out=\nroot=\n'
+                'while [ $# -gt 0 ]; do\n'
+                '  case "$1" in\n'
+                '    -R) root=$2; shift 2;;\n'
+                '    -S) out=$2; shift 2;;\n'
+                '    *) shift;;\n'
+                '  esac\n'
+                'done\n'
+                'printf "NEW_SYS_KC" > "$root$out"\n'
+            )
+            fake_kmutil.chmod(0o755)
+
+            env = dict(
+                os.environ,
+                VOSTROXE_BUNDLE=str(bundle),
+                TAHOE_KMUTIL=str(fake_kmutil),
+                PATH=f'{bin_dir}:{os.environ.get("PATH", "")}',
+            )
+            r = subprocess.run(['sh', str(HOOK), str(sys_root)], env=env, capture_output=True, text=True, check=True)
+            self.assertIn('re-linked SystemKernelExtensions.kc', r.stdout)
+            self.assertEqual(boot_kc.read_bytes(), b'BOOT_KC_BYTES')
+            self.assertEqual((kc_dir / 'SystemKernelExtensions.kc').read_bytes(), b'NEW_SYS_KC')
+
 
 if __name__ == '__main__':
     unittest.main()

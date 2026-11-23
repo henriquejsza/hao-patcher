@@ -26,4 +26,5 @@ Darwin 27 bare-metal boot can be verified in safe graphics mode first.
 NEEDS VALIDATION: host tests only; bare-metal Darwin 27 (`26B131`) validation on Dell Vostro 3520 is in progress.
 
 ## Revisions
+- r2 2026-11-23 Re-link `SystemKernelExtensions.kc` with Tahoe `kmutil` (preserving `BootKernelExtensions.kc`) after installing TGL + HookCase kexts into `/System/Library/Extensions`.
 - r1 2026-11-23 Initial Intel Iris Xe acceleration hook for Golden Gate 27.2.1 (`26B131`).
