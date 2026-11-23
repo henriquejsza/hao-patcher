@@ -120,7 +120,7 @@ def applies(rule, model, build):
 
 REQUIRES = ('os', 'donor', 'cpu', 'gpu', 'firmware')
 # GPU families (requires.gpu, a target's facts.gpu): vendor-generation; add one with its first recipe or target
-GPUS = ('intel-snb', 'intel-ivb', 'intel-hsw', 'intel-bdw', 'intel-skl', 'intel-kbl', 'nvidia-tesla',
+GPUS = ('intel-snb', 'intel-ivb', 'intel-hsw', 'intel-bdw', 'intel-skl', 'intel-kbl', 'intel-xe', 'nvidia-tesla',
         'nvidia-kepler', 'amd-terascale', 'amd-gcn', 'amd-polaris', 'amd-vega', 'amd-navi')
 FIRMWARE = ('none', 't1', 't2')        # the Mac's security chip (requires.firmware, a target's facts.firmware)
 BUILD_ID = re.compile(r'\d\d[A-Z]\d{1,4}[a-z]?')

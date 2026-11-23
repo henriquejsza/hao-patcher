@@ -26,7 +26,7 @@ not a default.
 |---|---|---|---|
 | `os` | macOS 27 build ids (`26B131`) | the assembly's `golden_build` | the build is in the list |
 | `donor` | Tahoe donor build ids (`25G342`) | the assembly's `donor_build` | the build is in the list |
-| `gpu` | GPU families: `intel-snb`, `intel-ivb`, `intel-hsw`, `intel-bdw`, `intel-skl`, `intel-kbl`, `nvidia-tesla`, `nvidia-kepler`, `amd-terascale`, `amd-gcn`, `amd-polaris`, `amd-vega`, `amd-navi` | the target's `facts.gpu` | the Mac has at least one of them |
+| `gpu` | GPU families: `intel-snb`, `intel-ivb`, `intel-hsw`, `intel-bdw`, `intel-skl`, `intel-kbl`, `intel-xe`, `nvidia-tesla`, `nvidia-kepler`, `amd-terascale`, `amd-gcn`, `amd-polaris`, `amd-vega`, `amd-navi` | the target's `facts.gpu` | the Mac has at least one of them |
 | `firmware` | the security chip: `none`, `t1`, `t2` | the target's `facts.firmware` | the Mac's is in the list |
 | `cpu` | CPU features in lower case, as `machdep.cpu.features` and `leaf7_features` name them (`avx1.0`, `avx2`, `sse4.2`, `f16c`); `!NAME` for "must not have" | the target's OCLP hardware profile, `cpu.flags` and `cpu.leafs` | every feature listed is present, every `!NAME` absent |
 

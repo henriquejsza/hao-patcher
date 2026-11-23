@@ -1,0 +1,14 @@
+{
+ "format": 1,
+ "description": "Intel Iris Xe (Gen12 / Alder Lake 8086:46a8): Tiger Lake 16.0.32 GPU driver bundles, HookCase, patched Metal driver, libxedrv and shader compiler adapted from VostroXe / NootedGreen.",
+ "detect": {
+  "any_intel": true
+ },
+ "opt_in": true,
+ "oclp_patchsets": [],
+ "phase": "installer",
+ "proven_on": [],
+ "layer": "platform",
+ "kind": "gpu",
+ "platform": "generic-intel"
+}

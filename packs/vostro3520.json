@@ -1,0 +1,14 @@
+{
+ "format": 1,
+ "description": "Dell Vostro 3520 (i5-1235U Alder Lake) model pack: OpenCore EFI with SMBIOS MacBookPro16,2, VirtualSMC, CryptexFixup (-crypt_force_avx), Alder Lake CPUID emulation, ACPI SSDTs, input/network/audio kexts from VostroXe.",
+ "detect": {
+  "any_intel": true
+ },
+ "opt_in": true,
+ "oclp_patchsets": [],
+ "phase": "installer",
+ "proven_on": [],
+ "layer": "platform",
+ "kind": "model",
+ "platform": "generic-intel"
+}

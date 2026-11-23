@@ -1,0 +1,9 @@
+{
+ "schema": 1,
+ "name": "vostro3520-no-oclp-patchsets",
+ "model": "MacBookPro16,2",
+ "comment": "Dell Vostro 3520 (Alder Lake i5-1235U, Intel Iris Xe 8086:46a8): no legacy OCLP Metal 3802 root patch sets. Graphics acceleration is provided by the intel-xe pack (VostroXe / NootedGreen + Tiger Lake 16.0.32 stack).",
+ "patchset_order": [],
+ "patches": {},
+ "entries": []
+}

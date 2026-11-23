@@ -1,0 +1,29 @@
+{
+ "model": "MacBookPro16,2",
+ "generic": true,
+ "comment": "Dell Vostro 3520 (12th Gen Intel Core i5-1235U Alder Lake, Intel Iris Xe Graphics 8086:46a8, 80 EU). Uses SMBIOS MacBookPro16,2 (natively supported by Tahoe 25G342) with OpenCore base from VostroXe, Alder Lake CPUID spoofing, CryptexFixup (-crypt_force_avx), and optional Intel Iris Xe Metal 2 acceleration (pack intel-xe).",
+ "efi_build": {
+  "base": "qemu_reference",
+  "comment": "Base EFI starts from qemu_reference_efi (EFI/BOOT/BOOTx64.efi for non-Apple UEFI); opencore-vostro3520 overlays the Vostro 3520 ACPI, kexts, quirks and configs, then hao-opencore adds Darwin 27 kernel repairs, IntelCommpage and HaoExec."
+ },
+ "facts": {
+  "gpu": [
+   "intel-xe"
+  ],
+  "firmware": "none",
+  "cpu": {
+   "class": "Alder Lake",
+   "why": "Dell Vostro 3520 Core i5-1235U (2P+8E, 12 threads, AVX2, FMA, AES-NI). Spoofed as Comet Lake via OpenCore Cpuid1Data for XNU compatibility.",
+   "flags": [
+    "FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT",
+    "PSE36", "CLFSH", "MMX", "FXSR", "SSE", "SSE2", "SSE3", "PCLMULQDQ", "SSSE3", "CX16", "SSE4.1", "SSE4.2",
+    "x2APIC", "POPCNT", "AES", "XSAVE", "OSXSAVE", "TSCTMR", "AVX1.0", "AVX2", "FMA", "BMI1", "BMI2", "RDRAND", "F16C"
+   ]
+  }
+ },
+ "platform_data": {
+  "opencore_generic": true,
+  "opencore_vostro3520": true,
+  "igpu_pci_id": "8086:46a8"
+ }
+}

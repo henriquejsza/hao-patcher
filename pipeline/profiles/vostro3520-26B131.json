@@ -1,0 +1,9 @@
+{
+ "comment": "Dell Vostro 3520 (i5-1235U Alder Lake, Intel Iris Xe 8086:46a8): Golden Gate 27.2.1 OS layer (pack base) plus vostro3520 model pack and intel-xe GPU pack.",
+ "target": "vostro3520",
+ "packs": [
+  "vostro3520",
+  "intel-xe"
+ ],
+ "recipes": []
+}
