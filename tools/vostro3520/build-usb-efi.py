@@ -122,10 +122,17 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False):
     add[:] = [k for k in add if k.get('BundlePath') != 'HaoExec.kext']
     add.append(haoexec)
 
-    # Toggle NootedGreen depending on safe vs accel
+    # Toggle GPU/backlight kexts and SSDT-PNLF depending on safe (pure GOP) vs accel (Iris Xe)
     for k in add:
-        if k.get('BundlePath') == 'NootedGreen.kext':
+        bp = k.get('BundlePath')
+        if bp == 'NootedGreen.kext':
             k['Enabled'] = bool(accel)
+        elif not accel and bp in ('WhateverGreen.kext', 'BrightnessKeys.kext'):
+            k['Enabled'] = False
+    if not accel:
+        for a in cfg.get('ACPI', {}).get('Add', []):
+            if a.get('Path') == 'SSDT-PNLF.aml':
+                a['Enabled'] = False
 
     # Merge Darwin 27 Kernel.Patch entries (scoped to Darwin 27 so Tahoe Recovery stays untouched)
     patches = cfg.setdefault('Kernel', {}).setdefault('Patch', [])

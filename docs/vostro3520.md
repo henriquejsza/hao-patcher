@@ -99,13 +99,16 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
   patches, `CryptexFixup`, `IntelCommpage`, `HaoExec`, OS/App cryptex grafts, `CS8409HDA`,
   `VoodooI2C` touchpad, `VoodooPS2` keyboard, `WindowServer`, `loginwindow`, and `hao-runtime`
   ran with zero kernel panics.
-- **Display takeover (`config-safe` vs `config-accel`)**: on bare-metal `config-safe` (without
-  `NootedGreen.kext` and without `-igfxvesa`), the Alder Lake GOP framebuffer relocated above
-  4 GiB (`0x4000000000`) and `WindowServer` stayed at `gIOScreenLockState 3` (`llk 1`), while
-  booting the exact same NVMe APFS partition read-only in QEMU KVM transitioned `llk 1 -> 0`,
-  enabled `windowserver-filter`, and launched `mbsystemadministration` + `Language Chooser`.
-  `config-safe.plist` now appends `-igfxvesa`, and `config-accel.plist` (`--default-accel`)
-  activates `NootedGreen.kext` + the linked Tiger Lake Metal 2 stack for bare-metal GUI bring-up.
+- **Display takeover (`config-safe` vs `config-accel`)**:
+  - In QEMU KVM (read-only COW of `/dev/nvme0n1p3`), the image transitions `llk 1 -> 0`,
+    enables `windowserver-filter`, and launches `mbsystemadministration` + `Language Chooser`.
+  - On bare-metal, `config-accel` loaded `NootedGreen.kext` (`XeNG PM` active), but
+    `AppleIntelTGLGraphics{,Framebuffer}.kext` did not attach because `NootedGreen`'s
+    `kern_gen11.cpp` (`pathsTGLFB`/`pathsTGLHW`) matches `/Library/Extensions/...` paths,
+    leaving `IONDRVFramebuffer` active with `WhateverGreen.kext` + `SSDT-PNLF.aml` (`AppleBacklight`).
+  - `config-safe.plist` (default) now disables `WhateverGreen.kext`, `NootedGreen.kext`,
+    `BrightnessKeys.kext`, and `SSDT-PNLF.aml` (pure GOP `IONDRVFramebuffer`, matching the
+    proven QEMU configuration) to isolate and achieve bare-metal GUI takeover first.
 
 ## Status
 
