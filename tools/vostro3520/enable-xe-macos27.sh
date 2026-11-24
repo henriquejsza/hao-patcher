@@ -112,10 +112,29 @@ rm -rf "$SYS$BUILD_REL"
 echo "Creating new APFS boot snapshot..."
 bless --mount "$SYS" --bootefi --create-snapshot
 
+# Locate or auto-mount the OPENCORE EFI partition so we can switch config.plist -> config-accel.plist
+OC_VOL=""
 if [ -f "$USB_VOL/EFI/OC/config-accel.plist" ]; then
-    echo "Switching USB ESP config.plist -> config-accel.plist (config-safe.plist preserved as fallback)..."
-    cp "$USB_VOL/EFI/OC/config-accel.plist" "$USB_VOL/EFI/OC/config.plist"
+    OC_VOL="$USB_VOL"
+elif [ -f "/Volumes/OPENCORE/EFI/OC/config-accel.plist" ]; then
+    OC_VOL="/Volumes/OPENCORE"
+else
+    OC_DISK=$(diskutil list | awk '/OPENCORE/ {print $NF; exit}')
+    if [ -n "$OC_DISK" ]; then
+        echo "Mounting OpenCore ESP (/dev/$OC_DISK)..."
+        diskutil mount "$OC_DISK" >/dev/null 2>&1 || true
+        if [ -f "/Volumes/OPENCORE/EFI/OC/config-accel.plist" ]; then
+            OC_VOL="/Volumes/OPENCORE"
+        fi
+    fi
+fi
+
+if [ -n "$OC_VOL" ] && [ -f "$OC_VOL/EFI/OC/config-accel.plist" ]; then
+    echo "Switching $OC_VOL/EFI/OC/config.plist -> config-accel.plist (config-safe.plist preserved as fallback)..."
+    cp "$OC_VOL/EFI/OC/config-accel.plist" "$OC_VOL/EFI/OC/config.plist"
     sync
+else
+    echo "WARN: Could not find OPENCORE/EFI/OC/config-accel.plist automatically; swap config-accel.plist -> config.plist manually." >&2
 fi
 
 echo ""
