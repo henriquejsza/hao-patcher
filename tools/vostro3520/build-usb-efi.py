@@ -176,7 +176,17 @@ SAFE_KEEP_KEXTS = frozenset((
     'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Trackpad.kext',
     'HaoExec.kext',
 ))
-ACCEL_EXTRA_KEXTS = frozenset(('WhateverGreen.kext', 'NootedGreen.kext'))
+ACCEL_EXTRA_KEXTS = frozenset((
+    'WhateverGreen.kext',
+    'NootedGreen.kext',
+    'HoRNDIS.kext',
+    'NVMeFix.kext',
+    'RestrictEvents.kext',
+))
+ACCEL_EXTRA_ARGS = (
+    'agdpmod=ignore',
+    'ngreenhdmiaux=1',
+)
 SAFE_DISABLE_SSDTS = frozenset(('SSDT-PNLF.aml', 'SSDT-ALS0.aml'))
 
 
@@ -250,7 +260,11 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False, tgl_prelink=Fa
         for arg in ('-v', 'keepsyms=1'):
             if arg not in args:
                 args.append(arg)
-    if not accel and '-igfxvesa' not in args:
+    if accel:
+        for arg in ACCEL_EXTRA_ARGS:
+            if arg not in args:
+                args.append(arg)
+    elif '-igfxvesa' not in args:
         args.append('-igfxvesa')
     nvram['boot-args'] = ' '.join(args)
 

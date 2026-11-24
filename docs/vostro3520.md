@@ -132,10 +132,38 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
     the new SystemKC, seal a new APFS boot snapshot, and switch the USB ESP to `config-accel.plist`
     (with `SSDT-ALS0.aml` disabled).
 
+  - **Bare-metal Intel Iris Xe Metal 2 CONFIRMED (`config-accel.plist`):**
+    - Rebuilding `SystemKernelExtensions.kc` with Tahoe Recovery's native `/usr/bin/kmutil` at
+      `/Volumes/sys-rw` (with `diskutil enableOwnership` after mount, 184 clean
+      `/System/Library/Extensions/` paths, `org.smichaud.HookCase`,
+      `com.xxxxx.driver.AppleIntelTGLGraphicsFramebuffer`, and
+      `com.xxxxx.driver.AppleIntelTGLGraphics`) plus adding **`agdpmod=ignore`** (because
+      `NootedGreen`'s AGDP board-id patch does not match macOS 27's `AppleGraphicsDevicePolicy`)
+      and `ngreenhdmiaux=1` brought up the internal `1920 x 1080 @ 120.00 Hz` panel with full
+      **Intel Iris Xe Metal 2** (`1536 MB`, `Device ID: 0x9a49`, `libxedrv.dylib` v21
+      `layout=Tahoe`, 128/128 Metal pipelines compiled, 0 failures).
+    - **Cold boot required after Linux `i915`:** warm-rebooting from Linux can leave `DDI0` eDP
+      AUX timed out (`0xe2d6`); a full power-off (~5 s) initializes `DDI0` cleanly.
+    - **Black dirty-rect flicker fix (`CA_DISABLE_DIRTY_REGIONS=1`):** on macOS 27 (`26B131`),
+      `QuartzCore` partial-damage swaps left untouched pixels `#000000` black on alternating
+      backbuffers. Setting `EnvironmentVariables -> CA_DISABLE_DIRTY_REGIONS = "1"` in
+      `/System/Library/LaunchDaemons/com.apple.WindowServer.plist` eliminated the flicker 100%
+      with zero `gpuRestart` crashes (do **not** add `CA_DISABLE_OCCLUSION_CULLING` or
+      `CA_DISABLE_PARTIAL_FLATTEN`, which overload the GPU and trigger `gpuRestart`).
+    - **Verified peripherals & power management:** `HoRNDIS.kext 9.2` (Android USB Tethering on
+      `en0`), `NVMeFix.kext 1.1.4`, `RestrictEvents.kext 1.1.7`, and `NootedGreen` XE-PM
+      (`debug.xepm.pl1_set = 160` / 20 W, `epp = 0`, `cst = 1`, 12 logical CPUs).
+    - **Open performance investigation:** `WindowServer_2026-11-24-083946_MacBook-Pro.cpu_resource.diag`
+      showed `WindowServer` averaging **54% CPU** (90 s / 166 s) inside
+      `CompositorMetal -> CARenderOGLRenderDisplayWithOptions -> CA::OGL::render` due to
+      full-frame redraws under `CA_DISABLE_DIRTY_REGIONS=1` at 120 Hz. Next step: live profiling
+      on macOS 27 (`powermetrics`, `sample WindowServer`, `QuartzCore`/`libxedrv` backbuffer
+      preservation) to restore dirty-region compositing without the black-pixel glitch.
+
 ## Status
 
-Experimental (`validated: false`). Host CI checks, recipe unit tests, full Golden Gate `26B131`
-image assembly, dual-boot APFS deployment, QEMU COW verification (`WindowServer` +
-`windowserver-filter` + `mbsystemadministration` + `Language Chooser`), and bare-metal Darwin
-27.2.0 kernel + userspace boot on the Dell Vostro 3520 are complete. Bare-metal Iris Xe Metal 2
-display takeover (`config-accel.plist`) is next to test.
+Experimental (`validated: false`). Bare-metal **macOS 27.2.1 (Golden Gate, `26B131`)** Desktop
+with **Intel Iris Xe Metal 2** (`1536 MB`, `1920x1080 @ 120 Hz`), 12 threads + XE-PM 20 W,
+`HaoExec` AOT (966 binaries), and Android USB Tethering (`HoRNDIS`) is **working and verified**
+on the Dell Vostro 3520. Active work: eliminating the `CA_DISABLE_DIRTY_REGIONS=1` `WindowServer`
+CPU overhead so UI fluidity matches Tahoe.

@@ -131,6 +131,8 @@ class BuildUsbEfiTests(unittest.TestCase):
                 self.assertEqual(cfg['Misc']['Debug']['Target'], 65)
                 if want_ng:
                     self.assertNotIn('-igfxvesa', args)
+                    self.assertIn('agdpmod=ignore', args)
+                    self.assertIn('ngreenhdmiaux=1', args)
                     self.assertEqual(cfg['PlatformInfo']['Generic']['SystemProductName'], 'MacBookPro16,2')
                 else:
                     self.assertIn('-igfxvesa', args)
