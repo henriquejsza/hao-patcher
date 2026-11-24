@@ -42,9 +42,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Copy Tahoe kmutil + kcbuilder.dylib off FAT32 and ad-hoc sign locally
-cp "$KIT_DIR/kmutil" "$WORK/kmutil"
-cp "$KIT_DIR/kcbuilder.dylib" "$WORK/kcbuilder.dylib"
+# Copy Tahoe kmutil + kcbuilder.dylib without xattrs/resource forks (codesign rejects Finder detritus) and ad-hoc sign locally
+cat "$KIT_DIR/kmutil" > "$WORK/kmutil"
+cat "$KIT_DIR/kcbuilder.dylib" > "$WORK/kcbuilder.dylib"
+xattr -c "$WORK/kmutil" "$WORK/kcbuilder.dylib" 2>/dev/null || true
 chmod 755 "$WORK/kmutil"
 chmod 644 "$WORK/kcbuilder.dylib"
 codesign -s - -f "$WORK/kcbuilder.dylib"
