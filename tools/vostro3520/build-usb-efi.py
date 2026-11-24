@@ -10,7 +10,8 @@ Usage:
       [--cryptexfixup /path/to/CryptexFixup.kext] \
       [--lilu /path/to/Lilu.kext] \
       [--opencore-zip /path/to/OpenCore-1.0.5-RELEASE.zip] \
-      [--hfsplus /path/to/HfsPlus.efi]
+      [--hfsplus /path/to/HfsPlus.efi] \
+      [--apfs /path/to/apfs.efi]
 
 Produces on --out (EFI/):
   EFI/OC/config-safe.plist      Darwin 27 bare-metal safe boot (verbose, NootedGreen OFF, no GPU spoof)
@@ -163,6 +164,7 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False):
     # Ensure APFS scanning sees all partitions on NVMe (MinDate/MinVersion = -1)
     apfs = cfg.setdefault('UEFI', {}).setdefault('APFS', {})
     apfs['EnableJumpstart'] = True
+    apfs['GlobalConnect'] = True
     apfs['MinDate'] = -1
     apfs['MinVersion'] = -1
     return cfg
@@ -194,6 +196,7 @@ def main():
     ap.add_argument('--lilu', type=Path)
     ap.add_argument('--opencore-zip', type=Path)
     ap.add_argument('--hfsplus', type=Path)
+    ap.add_argument('--apfs', type=Path, help='Apple APFS standalone EFI driver (e.g. apfs.efi)')
     ap.add_argument('--default-accel', action='store_true')
     args = ap.parse_args()
 
@@ -208,6 +211,8 @@ def main():
 
     if args.hfsplus and args.hfsplus.is_file():
         shutil.copy2(args.hfsplus, drivers / 'HfsPlus.efi')
+    if args.apfs and args.apfs.is_file():
+        shutil.copy2(args.apfs, drivers / 'apfs.efi')
     if args.opencore_zip and args.opencore_zip.is_file():
         replace_oc_binaries(out, args.opencore_zip)
     if args.lilu and args.lilu.is_dir():
@@ -230,17 +235,40 @@ def main():
     safe_base = plistlib.loads((oc / 'config-install.plist').read_bytes())
     accel_base = plistlib.loads((oc / 'config.plist').read_bytes())
 
-    # Ensure HfsPlus.efi is in UEFI.Drivers if copied
+    # Ensure HfsPlus.efi and apfs.efi are enabled in UEFI.Drivers if present
     for base in (safe_base, accel_base):
         apply_smbios(base, smbios)
+        drv_list = base.setdefault('UEFI', {}).setdefault('Drivers', [])
         if (drivers / 'HfsPlus.efi').is_file():
-            drv_list = base.setdefault('UEFI', {}).setdefault('Drivers', [])
-            if not any(d.get('Path') == 'HfsPlus.efi' for d in drv_list):
-                drv_list.append(dict(Arguments='', Comment='HfsPlus', Enabled=True, LoadEarly=False, Path='HfsPlus.efi'))
+            for d in drv_list:
+                if d.get('Path') == 'HfsPlus.efi':
+                    d['Enabled'] = True
+                    break
+            else:
+                drv_list.append(dict(Arguments='', Comment='HfsPlus', Enabled=True, HideVerbose=False, LoadEarly=False, Path='HfsPlus.efi'))
+        if (drivers / 'apfs.efi').is_file():
+            for d in drv_list:
+                if d.get('Path') == 'apfs.efi':
+                    d['Enabled'] = True
+                    break
+            else:
+                drv_list.append(dict(Arguments='', Comment='Apple APFS', Enabled=True, HideVerbose=False, LoadEarly=False, Path='apfs.efi'))
 
     recovery_cfg = copy.deepcopy(safe_base)
+    apfs_rec = recovery_cfg.setdefault('UEFI', {}).setdefault('APFS', {})
+    apfs_rec['EnableJumpstart'] = True
+    apfs_rec['GlobalConnect'] = True
+    apfs_rec['MinDate'] = -1
+    apfs_rec['MinVersion'] = -1
+    recovery_cfg.setdefault('Misc', {}).setdefault('Boot', {})['ShowPicker'] = True
+    recovery_cfg['Misc']['Boot']['Timeout'] = 10
+
     safe_cfg = merge_darwin27(safe_base, hao_cfg, verbose=True, accel=False)
     accel_cfg = merge_darwin27(accel_base, hao_cfg, verbose=True, accel=True)
+
+    for c in (safe_cfg, accel_cfg, recovery_cfg):
+        dbg = c.setdefault('Misc', {}).setdefault('Debug', {})
+        dbg['Target'] = 67  # file (64) + serial (2) + screen (1)
 
     (oc / 'config-recovery.plist').write_bytes(plistlib.dumps(recovery_cfg))
     (oc / 'config-safe.plist').write_bytes(plistlib.dumps(safe_cfg))

@@ -74,11 +74,19 @@ class BuildUsbEfiTests(unittest.TestCase):
             vxe = tmp / 'vxe-efi'
             hao = tmp / 'hao-esp'
             out = tmp / 'out-efi'
+            dummy_apfs = tmp / 'apfs.efi'
+            dummy_apfs.write_bytes(b'DUMMY_APFS_EFI')
             self._make_vostroxe_efi(vxe)
             self._make_hao_esp(hao)
 
             subprocess.run(
-                [sys.executable, '-I', str(SCRIPT), '--vostroxe-efi', str(vxe), '--hao-esp', str(hao), '--out', str(out)],
+                [
+                    sys.executable, '-I', str(SCRIPT),
+                    '--vostroxe-efi', str(vxe),
+                    '--hao-esp', str(hao),
+                    '--out', str(out),
+                    '--apfs', str(dummy_apfs),
+                ],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -86,6 +94,7 @@ class BuildUsbEfiTests(unittest.TestCase):
 
             self.assertTrue((out / 'OC/Kexts/IntelCommpage.kext/marker').is_file())
             self.assertTrue((out / 'OC/Kexts/HaoExec.kext/marker').is_file())
+            self.assertTrue((out / 'OC/Drivers/apfs.efi').is_file())
 
             safe = plistlib.loads((out / 'OC/config-safe.plist').read_bytes())
             accel = plistlib.loads((out / 'OC/config-accel.plist').read_bytes())
@@ -97,6 +106,8 @@ class BuildUsbEfiTests(unittest.TestCase):
             # Recovery stays clean of Darwin 27 patches/kexts
             self.assertEqual(rec['Kernel']['Patch'], [])
             self.assertNotIn('HaoExec.kext', [k['BundlePath'] for k in rec['Kernel']['Add']])
+            self.assertTrue(rec['UEFI']['APFS']['GlobalConnect'])
+            self.assertTrue(any(d.get('Path') == 'apfs.efi' and d.get('Enabled') for d in rec['UEFI']['Drivers']))
 
             # Safe & accel carry CryptexFixup after Lilu, IntelCommpage, HaoExec, and Darwin 27 scoped patches
             for cfg, want_ng in ((safe, False), (accel, True)):
@@ -115,6 +126,9 @@ class BuildUsbEfiTests(unittest.TestCase):
                     self.assertIn(flag, args)
                 self.assertEqual(cfg['UEFI']['APFS']['MinDate'], -1)
                 self.assertEqual(cfg['UEFI']['APFS']['MinVersion'], -1)
+                self.assertTrue(cfg['UEFI']['APFS']['GlobalConnect'])
+                self.assertTrue(any(d.get('Path') == 'apfs.efi' and d.get('Enabled') for d in cfg['UEFI']['Drivers']))
+                self.assertEqual(cfg['Misc']['Debug']['Target'], 67)
 
 
 if __name__ == '__main__':

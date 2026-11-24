@@ -60,9 +60,17 @@ When assembling on a macOS 15.8.1 (`x86_64`) KVM builder VM without an Apple Sil
 - `config-recovery.plist`: boots the Tahoe Recovery `BaseSystem.dmg` without Darwin 27 kexts or
   kernel patches.
 
+### Standalone APFS EFI Driver & GlobalConnect
+
+Freshly sliced APFS containers lack an embedded JumpStart driver in the container superblock
+(`OCJS: Missing JumpStart - Unsupported`). Real Macs contain `apfs.efi` in motherboard ROM; PC
+firmware (Dell Vostro 3520) does not. Therefore, `build-usb-efi.py` installs Apple's standalone
+`apfs.efi` into `EFI/OC/Drivers/`, enables it in `UEFI.Drivers`, and sets `UEFI.APFS.GlobalConnect: true`
+so OpenCore discovers the APFS container and preboot volumes across NVMe controllers.
+
 ### Post-boot steps on the Vostro 3520
 
-1. Press **F12** at power-on → boot the USB stick (`OPENCORE`) → pick **`macOS Golden Gate`**.
+1. Press **F12** at power-on → boot the USB stick (`OPENCORE`) → pick **`macOS Golden Gate`** (not Option 3 / Tahoe Recovery).
 2. Complete Setup Assistant in safe graphics mode (`config-safe.plist`).
 3. Pre-compile ARM64 AOT caches for fast app launches: `sudo /usr/libexec/hao --aot`.
 4. To enable **Intel Iris Xe Metal 2**, swap `EFI/OC/config-accel.plist` → `EFI/OC/config.plist`
