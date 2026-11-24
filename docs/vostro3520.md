@@ -89,11 +89,28 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
 4. Write the bound OpenCore EFI onto the USB stick's FAT32 ESP with
    `tools/vostro3520/build-usb-efi.py`.
 
+### Bare-metal & QEMU Bring-Up Findings
+
+- **Never enable OpenCore serial logging (`Target` bit `0x02`) on the Vostro 3520**: the laptop
+  has no legacy `0x3F8` COM1 UART, so `Target = 67` stalls ~284 ms per debug line (~3 min
+  before reaching the picker). `build-usb-efi.py` pins `Target = 65` (file log only).
+- **Bare-metal Darwin 27.2.0 kernel & userspace confirmed**: `macOS Golden Gate` (`26B131`)
+  booted bare-metal on the i5-1235U to userspace (PID 543+): all 5 Darwin 27 kernel/AMFI
+  patches, `CryptexFixup`, `IntelCommpage`, `HaoExec`, OS/App cryptex grafts, `CS8409HDA`,
+  `VoodooI2C` touchpad, `VoodooPS2` keyboard, `WindowServer`, `loginwindow`, and `hao-runtime`
+  ran with zero kernel panics.
+- **Display takeover (`config-safe` vs `config-accel`)**: on bare-metal `config-safe` (without
+  `NootedGreen.kext` and without `-igfxvesa`), the Alder Lake GOP framebuffer relocated above
+  4 GiB (`0x4000000000`) and `WindowServer` stayed at `gIOScreenLockState 3` (`llk 1`), while
+  booting the exact same NVMe APFS partition read-only in QEMU KVM transitioned `llk 1 -> 0`,
+  enabled `windowserver-filter`, and launched `mbsystemadministration` + `Language Chooser`.
+  `config-safe.plist` now appends `-igfxvesa`, and `config-accel.plist` (`--default-accel`)
+  activates `NootedGreen.kext` + the linked Tiger Lake Metal 2 stack for bare-metal GUI bring-up.
+
 ## Status
 
-Experimental (`validated: false`). Host CI checks, recipe unit tests, macOS shim builds, Tahoe
-`25G342` KDK/Intel donor extraction, `VostroXe` Iris Xe Metal 2 bundle build, full Golden Gate
-`26B131` image assembly (`status: assembled`, BootKC + TGL/HookCase SystemKC + sealed OS/App
-cryptexes + `hao-runtime` + `IntelCommpage.kext` + `HaoExec.kext` + `amfi_dyld`), USB EFI
-generation, and dual-boot APFS partition flashing are complete. First bare-metal boot on the
-Dell Vostro 3520 is ready to test.
+Experimental (`validated: false`). Host CI checks, recipe unit tests, full Golden Gate `26B131`
+image assembly, dual-boot APFS deployment, QEMU COW verification (`WindowServer` +
+`windowserver-filter` + `mbsystemadministration` + `Language Chooser`), and bare-metal Darwin
+27.2.0 kernel + userspace boot on the Dell Vostro 3520 are complete. Bare-metal Iris Xe Metal 2
+display takeover (`config-accel.plist`) is next to test.

@@ -128,7 +128,11 @@ class BuildUsbEfiTests(unittest.TestCase):
                 self.assertEqual(cfg['UEFI']['APFS']['MinVersion'], -1)
                 self.assertTrue(cfg['UEFI']['APFS']['GlobalConnect'])
                 self.assertTrue(any(d.get('Path') == 'apfs.efi' and d.get('Enabled') for d in cfg['UEFI']['Drivers']))
-                self.assertEqual(cfg['Misc']['Debug']['Target'], 67)
+                self.assertEqual(cfg['Misc']['Debug']['Target'], 65)
+                if want_ng:
+                    self.assertNotIn('-igfxvesa', args)
+                else:
+                    self.assertIn('-igfxvesa', args)
 
 
 if __name__ == '__main__':

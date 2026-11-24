@@ -152,6 +152,8 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False):
         for arg in ('-v', 'keepsyms=1'):
             if arg not in args:
                 args.append(arg)
+    if not accel and '-igfxvesa' not in args:
+        args.append('-igfxvesa')
     nvram['boot-args'] = ' '.join(args)
 
     # Ensure SIP allows unsigned kexts + unrestricted FS + unauthenticated root (0x0A13 >= 0x0803)
@@ -178,12 +180,14 @@ def copy_bundle(src, dst):
 
 def replace_oc_binaries(efi_root, oc_zip):
     with zipfile.ZipFile(oc_zip) as zf:
-        members = set(zf.namelist())
+        by_lower = {m.lower(): m for m in zf.namelist()}
         for path in sorted(efi_root.rglob('*.efi')):
-            rel = str(path.relative_to(efi_root))
-            member = 'X64/' + rel
-            if member in members:
-                path.write_bytes(zf.read(member))
+            rel = str(path.relative_to(efi_root)).replace('\\', '/')
+            for prefix in ('X64/', 'X64/EFI/'):
+                member = by_lower.get((prefix + rel).lower())
+                if member:
+                    path.write_bytes(zf.read(member))
+                    break
 
 
 def main():
@@ -268,7 +272,7 @@ def main():
 
     for c in (safe_cfg, accel_cfg, recovery_cfg):
         dbg = c.setdefault('Misc', {}).setdefault('Debug', {})
-        dbg['Target'] = 67  # file (64) + serial (2) + screen (1)
+        dbg['Target'] = 65  # enable (1) + file (64); omit serial (2) which stalls ~284 ms/line on laptops without COM1
 
     (oc / 'config-recovery.plist').write_bytes(plistlib.dumps(recovery_cfg))
     (oc / 'config-safe.plist').write_bytes(plistlib.dumps(safe_cfg))
