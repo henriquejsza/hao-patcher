@@ -31,8 +31,10 @@ if [ -z "$SYS_DEV" ] || [ ! -b "$SYS_DEV" ]; then
 fi
 echo "Root snapshot: $ROOT_DEV -> System device: $SYS_DEV"
 
-WORK=$(mktemp -d /tmp/xe-kc-work.XXXXXX)
-SYS=/tmp/xe-sys-rw
+WORK=$(mktemp -d /private/tmp/xe-kc-work.XXXXXX)
+# MUST be a canonical real path (NOT /tmp symlink -> /private/tmp), otherwise kmutil fails to strip
+# the volume-root prefix and embeds /private/tmp/xe-sys-rw/System/Library/Extensions/... in SystemKC!
+SYS=/private/tmp/xe-sys-rw
 BUILD_REL=/.xe-kc-build
 cleanup() {
     rm -rf "$SYS$BUILD_REL" "$WORK" 2>/dev/null || true
@@ -105,6 +107,11 @@ if [ "$MISSING" -ne 0 ]; then
     echo "ERROR: One or more TGL kexts were not linked into SystemKernelExtensions.kc. Aborting without modifying snapshot." >&2
     exit 1
 fi
+if LC_ALL=C grep -a -q "xe-sys-rw" "$NEW_KC"; then
+    echo "ERROR: Mount prefix 'xe-sys-rw' leaked into SystemKernelExtensions.kc! Aborting." >&2
+    exit 1
+fi
+echo "  OK: Clean /System/Library/Extensions paths (no mount prefix leak)"
 
 echo "Installing new SystemKernelExtensions.kc (BootKernelExtensions.kc untouched)..."
 install -o root -g wheel -m 644 "$NEW_KC" "$KC/SystemKernelExtensions.kc"
@@ -113,29 +120,13 @@ rm -rf "$SYS$BUILD_REL"
 echo "Creating new APFS boot snapshot..."
 bless --mount "$SYS" --bootefi --create-snapshot
 
-# Locate or auto-mount the OPENCORE EFI partition so we can switch config.plist -> config-accel.plist
-OC_VOL=""
-if [ -f "$USB_VOL/EFI/OC/config-accel.plist" ]; then
-    OC_VOL="$USB_VOL"
-elif [ -f "/Volumes/OPENCORE/EFI/OC/config-accel.plist" ]; then
-    OC_VOL="/Volumes/OPENCORE"
-else
-    OC_DISK=$(diskutil list | awk '/OPENCORE/ {print $NF; exit}')
-    if [ -n "$OC_DISK" ]; then
-        echo "Mounting OpenCore ESP (/dev/$OC_DISK)..."
-        diskutil mount "$OC_DISK" >/dev/null 2>&1 || true
-        if [ -f "/Volumes/OPENCORE/EFI/OC/config-accel.plist" ]; then
-            OC_VOL="/Volumes/OPENCORE"
-        fi
-    fi
-fi
-
-if [ -n "$OC_VOL" ] && [ -f "$OC_VOL/EFI/OC/config-accel.plist" ]; then
-    echo "Switching $OC_VOL/EFI/OC/config.plist -> config-accel.plist (config-safe.plist preserved as fallback)..."
-    cp "$OC_VOL/EFI/OC/config-accel.plist" "$OC_VOL/EFI/OC/config.plist"
+# Only swap config-accel.plist if OPENCORE is already mounted (avoid diskutil mount on FAT32 FSKit which hangs on macOS 27)
+if [ -f "/Volumes/OPENCORE/EFI/OC/config-accel.plist" ]; then
+    echo "Switching /Volumes/OPENCORE/EFI/OC/config.plist -> config-accel.plist..."
+    cp "/Volumes/OPENCORE/EFI/OC/config-accel.plist" "/Volumes/OPENCORE/EFI/OC/config.plist"
     sync
 else
-    echo "WARN: Could not find OPENCORE/EFI/OC/config-accel.plist automatically; swap config-accel.plist -> config.plist manually." >&2
+    echo "INFO: SystemKernelExtensions.kc + snapshot prontos! Volte ao Linux para ativar config-accel.plist no pendrive."
 fi
 
 echo ""
