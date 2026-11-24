@@ -162,11 +162,21 @@ def add_kext_after(add_list, after_bundle, entry):
         add_list.append(dict(entry))
 
 
-SAFE_DISABLE_KEXTS = frozenset((
-    'WhateverGreen.kext',
-    'NootedGreen.kext',
-    'BrightnessKeys.kext',
+SAFE_KEEP_KEXTS = frozenset((
+    'Lilu.kext',
+    'CryptexFixup.kext',
+    'IntelCommpage.kext',
+    'VirtualSMC.kext',
+    'USBToolBox.kext',
+    'UTBMap.kext',
+    'XHCI-unsupported.kext',
+    'VoodooPS2Controller.kext',
+    'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Keyboard.kext',
+    'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Mouse.kext',
+    'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Trackpad.kext',
+    'HaoExec.kext',
 ))
+ACCEL_EXTRA_KEXTS = frozenset(('WhateverGreen.kext', 'NootedGreen.kext'))
 SAFE_DISABLE_SSDTS = frozenset(('SSDT-PNLF.aml', 'SSDT-ALS0.aml'))
 
 
@@ -192,12 +202,13 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False, tgl_prelink=Fa
     add[:] = [k for k in add if k.get('BundlePath') != 'HaoExec.kext']
     add.append(haoexec)
 
-    # Toggle kexts, ACPI, and SMBIOS depending on safe (pure GOP + peripherals) vs accel (Iris Xe)
+    # Keep only proven Desktop-safe kexts (re-enabling VoodooI2C/SMCBatteryManager/etc. triggered WindowServer stall)
+    allowed = SAFE_KEEP_KEXTS | (ACCEL_EXTRA_KEXTS if accel else frozenset())
     for k in add:
         bp = k.get('BundlePath')
         if bp == 'NootedGreen.kext':
             k['Enabled'] = bool(accel)
-        elif not accel and bp in SAFE_DISABLE_KEXTS:
+        elif bp not in allowed:
             k['Enabled'] = False
     for a in cfg.get('ACPI', {}).get('Add', []):
         if a.get('Path') == 'SSDT-ALS0.aml':

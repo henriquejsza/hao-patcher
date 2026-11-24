@@ -116,9 +116,13 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
     matched `IGPU` immediately at `[ PCI configuration end ]` (t=1.5 s) before `NootedGreen`
     patched it (`V52`/`stolen_size`), freezing early boot.
   - **Bare-metal Desktop CONFIRMED (`config-safe.plist`):** Switching `config-safe.plist` to
-    SMBIOS `iMac20,1` and disabling `SSDT-ALS0.aml` + `SSDT-PNLF.aml` resolved the bare-metal
-    `WindowServer` `llk 1` stall and booted **macOS 27.2.1 (Golden Gate, `26B131`)** bare-metal
-    all the way to the Desktop on the Dell Vostro 3520 (software GOP mode).
+    SMBIOS `iMac20,1`, disabling `SSDT-ALS0.aml` + `SSDT-PNLF.aml`, and keeping only the minimal
+    kext set (`Lilu`, `CryptexFixup`, `IntelCommpage`, `VirtualSMC`, USB, `VoodooPS2`, `HaoExec`)
+    booted **macOS 27.2.1 (Golden Gate, `26B131`)** bare-metal all the way to the Desktop on the
+    Dell Vostro 3520. Re-enabling the extra laptop kexts (`VoodooI2C`/`SMCBatteryManager`/etc.)
+    reproduced the `WindowServer` console stall, so both `config-safe.plist` and
+    `config-accel.plist` now keep the minimal Desktop-proven kext set (plus `WhateverGreen` +
+    `NootedGreen` in `config-accel.plist`) until Iris Xe Metal 2 is confirmed.
   - **Enabling Intel Iris Xe Metal 2 (`tools/vostro3520/enable-xe-macos27.sh`):** Both
     `patches/golden-gate-intel-xe/src/kc-hook.sh` and `tools/vostro3520/enable-xe-macos27.sh`
     now pass `--bundle-identifier` explicitly for `org.smichaud.HookCase`,
