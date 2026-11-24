@@ -131,8 +131,10 @@ class BuildUsbEfiTests(unittest.TestCase):
                 self.assertEqual(cfg['Misc']['Debug']['Target'], 65)
                 if want_ng:
                     self.assertNotIn('-igfxvesa', args)
+                    self.assertEqual(cfg['PlatformInfo']['Generic']['SystemProductName'], 'MacBookPro16,2')
                 else:
                     self.assertIn('-igfxvesa', args)
+                    self.assertEqual(cfg['PlatformInfo']['Generic']['SystemProductName'], 'iMac20,1')
 
     def test_tgl_prelink_kexts_only_in_accel(self):
         with tempfile.TemporaryDirectory() as tmp:

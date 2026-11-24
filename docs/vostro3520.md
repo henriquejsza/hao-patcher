@@ -109,13 +109,18 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
     tier -> TGL`, `stolen_size 0x8000000`), but `AppleIntelTGLGraphics{,Framebuffer}.kext` and
     `HookCase.kext` were absent from `SystemKernelExtensions.kc` (because `kmutil` refused
     third-party/unsigned kexts in SystemKC and `auxKCAtBoot=false` disables AuxKC).
-  - **Fix (`--tgl-kexts` BootKC prelink):** `build-usb-efi.py --tgl-kexts` injects the three
-    Darwin 27 SystemKC graphics dependencies (`IOGraphicsFamily.kext`, `IOAcceleratorFamily2.kext`,
-    `AppleGraphicsDeviceControl.kext`) followed by `HookCase.kext`,
-    `AppleIntelTGLGraphicsFramebuffer.kext`, and `AppleIntelTGLGraphics.kext` via OpenCore
-    `Kernel.Add` (scoped `27.0.0`–`27.99.99`, enabled only in `config-accel.plist`). Dry-run
-    verified in QEMU KVM: OpenCore 1.0.8 prelinks all 6 kexts into Darwin `27.2.0`'s
-    `BootKernelExtensions.kc` with `Success` and zero missing symbols or vtable errors.
+  - **BootKC prelink test (`--tgl-kexts`):** OpenCore 1.0.8 prelinked all 6 graphics kexts
+    (`IOGraphicsFamily`, `IOAcceleratorFamily2`, `AppleGraphicsDeviceControl`, `HookCase`,
+    `AppleIntelTGLGraphicsFramebuffer`, `AppleIntelTGLGraphics`) into Darwin `27.2.0`'s
+    `BootKernelExtensions.kc` with `Success`, but on bare-metal `AppleIntelTGLGraphicsFramebuffer`
+    matched `IGPU` immediately at `[ PCI configuration end ]` (t=1.5 s) before `NootedGreen`
+    patched it (`V52`/`stolen_size`), freezing early boot.
+  - **Minimal QEMU-parity safe bring-up (`config-safe.plist`):** To isolate the bare-metal
+    `WindowServer` `llk 1` stall (which coincided with `MacBookPro16,2` `AppleLMUController`
+    `MSLD` / `AmbientDisplayAgent` at 38.5 s), `config-safe.plist` now uses the proven QEMU
+    desktop SMBIOS (`iMac20,1`), disables `SSDT-ALS0.aml` and `SSDT-PNLF.aml`, and keeps only
+    essential kexts (`Lilu`, `CryptexFixup`, `IntelCommpage`, `VirtualSMC`, USB, `VoodooPS2`,
+    `HaoExec`).
 
 ## Status
 
