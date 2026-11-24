@@ -69,6 +69,9 @@ if [ -n "${TAHOE_KMUTIL:-}" ] && [ -f "$TAHOE_KMUTIL" ] \
     "$W/kmutil" create -n sys -a x86_64 --allow-missing-kdk -R "$SYS" \
         -k "$SYS/System/Library/Kernels/kernel" -V release \
         -B "$B/BootKernelExtensions.kc" -S "$B/SystemKernelExtensions.kc" \
+        --bundle-identifier org.smichaud.HookCase \
+        --bundle-identifier com.xxxxx.driver.AppleIntelTGLGraphicsFramebuffer \
+        --bundle-identifier com.xxxxx.driver.AppleIntelTGLGraphics \
         $(sed 's/^/--elide-identifier /' "$SYS$B/BootKernelExtensions.kc.elides")
     install -o root -g wheel -m 644 "$SYS$B/SystemKernelExtensions.kc" "$SYS/$KC/SystemKernelExtensions.kc"
     rm -rf "$SYS$B" "$W"

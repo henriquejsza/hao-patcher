@@ -115,12 +115,18 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
     `BootKernelExtensions.kc` with `Success`, but on bare-metal `AppleIntelTGLGraphicsFramebuffer`
     matched `IGPU` immediately at `[ PCI configuration end ]` (t=1.5 s) before `NootedGreen`
     patched it (`V52`/`stolen_size`), freezing early boot.
-  - **Minimal QEMU-parity safe bring-up (`config-safe.plist`):** To isolate the bare-metal
-    `WindowServer` `llk 1` stall (which coincided with `MacBookPro16,2` `AppleLMUController`
-    `MSLD` / `AmbientDisplayAgent` at 38.5 s), `config-safe.plist` now uses the proven QEMU
-    desktop SMBIOS (`iMac20,1`), disables `SSDT-ALS0.aml` and `SSDT-PNLF.aml`, and keeps only
-    essential kexts (`Lilu`, `CryptexFixup`, `IntelCommpage`, `VirtualSMC`, USB, `VoodooPS2`,
-    `HaoExec`).
+  - **Bare-metal Desktop CONFIRMED (`config-safe.plist`):** Switching `config-safe.plist` to
+    SMBIOS `iMac20,1` and disabling `SSDT-ALS0.aml` + `SSDT-PNLF.aml` resolved the bare-metal
+    `WindowServer` `llk 1` stall and booted **macOS 27.2.1 (Golden Gate, `26B131`)** bare-metal
+    all the way to the Desktop on the Dell Vostro 3520 (software GOP mode).
+  - **Enabling Intel Iris Xe Metal 2 (`tools/vostro3520/enable-xe-macos27.sh`):** Both
+    `patches/golden-gate-intel-xe/src/kc-hook.sh` and `tools/vostro3520/enable-xe-macos27.sh`
+    now pass `--bundle-identifier` explicitly for `org.smichaud.HookCase`,
+    `com.xxxxx.driver.AppleIntelTGLGraphicsFramebuffer`, and
+    `com.xxxxx.driver.AppleIntelTGLGraphics` when linking `SystemKernelExtensions.kc` with
+    Tahoe's `kmutil` + `libKernelCollectionBuilder.dylib`, verify all three IDs are present in
+    the new SystemKC, seal a new APFS boot snapshot, and switch the USB ESP to `config-accel.plist`
+    (with `SSDT-ALS0.aml` disabled).
 
 ## Status
 

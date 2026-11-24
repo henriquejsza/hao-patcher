@@ -162,19 +162,10 @@ def add_kext_after(add_list, after_bundle, entry):
         add_list.append(dict(entry))
 
 
-SAFE_KEEP_KEXTS = frozenset((
-    'Lilu.kext',
-    'CryptexFixup.kext',
-    'IntelCommpage.kext',
-    'VirtualSMC.kext',
-    'USBToolBox.kext',
-    'UTBMap.kext',
-    'XHCI-unsupported.kext',
-    'VoodooPS2Controller.kext',
-    'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Keyboard.kext',
-    'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Mouse.kext',
-    'VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Trackpad.kext',
-    'HaoExec.kext',
+SAFE_DISABLE_KEXTS = frozenset((
+    'WhateverGreen.kext',
+    'NootedGreen.kext',
+    'BrightnessKeys.kext',
 ))
 SAFE_DISABLE_SSDTS = frozenset(('SSDT-PNLF.aml', 'SSDT-ALS0.aml'))
 
@@ -201,18 +192,21 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False, tgl_prelink=Fa
     add[:] = [k for k in add if k.get('BundlePath') != 'HaoExec.kext']
     add.append(haoexec)
 
-    # Toggle kexts, ACPI, and SMBIOS depending on safe (minimal QEMU-parity GOP) vs accel (Iris Xe)
+    # Toggle kexts, ACPI, and SMBIOS depending on safe (pure GOP + peripherals) vs accel (Iris Xe)
     for k in add:
         bp = k.get('BundlePath')
         if bp == 'NootedGreen.kext':
             k['Enabled'] = bool(accel)
-        elif not accel and bp not in SAFE_KEEP_KEXTS:
+        elif not accel and bp in SAFE_DISABLE_KEXTS:
             k['Enabled'] = False
+    for a in cfg.get('ACPI', {}).get('Add', []):
+        if a.get('Path') == 'SSDT-ALS0.aml':
+            # Fake ALS0 triggers AppleLMUController (MSLD) / AmbientDisplayAgent WindowServer stall on Darwin 27
+            a['Enabled'] = False
+        elif not accel and a.get('Path') in SAFE_DISABLE_SSDTS:
+            a['Enabled'] = False
     if not accel:
-        for a in cfg.get('ACPI', {}).get('Add', []):
-            if a.get('Path') in SAFE_DISABLE_SSDTS:
-                a['Enabled'] = False
-        # Use iMac20,1 (desktop SMBIOS proven in QEMU KVM) to avoid MacBookPro16,2 lid/MSLD/AmbientDisplay stalls
+        # Use iMac20,1 (desktop SMBIOS proven bare-metal to Desktop) in pure-GOP safe mode
         cfg.setdefault('PlatformInfo', {}).setdefault('Generic', {})['SystemProductName'] = 'iMac20,1'
     elif tgl_prelink:
         anchor = 'NootedGreen.kext'
