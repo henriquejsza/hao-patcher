@@ -94,7 +94,7 @@ NEW_KC="$SYS$BUILD_REL/SystemKernelExtensions.kc"
 echo "Verifying TGL kexts inside new SystemKernelExtensions.kc..."
 MISSING=0
 for id in org.smichaud.HookCase com.xxxxx.driver.AppleIntelTGLGraphicsFramebuffer com.xxxxx.driver.AppleIntelTGLGraphics; do
-    if strings "$NEW_KC" | grep -q "$id"; then
+    if LC_ALL=C grep -a -q "$id" "$NEW_KC"; then
         echo "  OK: $id"
     else
         echo "  MISSING: $id" >&2
