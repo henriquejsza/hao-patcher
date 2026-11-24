@@ -102,13 +102,20 @@ To keep an existing Linux installation untouched on the internal NVMe drive:
 - **Display takeover (`config-safe` vs `config-accel`)**:
   - In QEMU KVM (read-only COW of `/dev/nvme0n1p3`), the image transitions `llk 1 -> 0`,
     enables `windowserver-filter`, and launches `mbsystemadministration` + `Language Chooser`.
-  - On bare-metal, `config-accel` loaded `NootedGreen.kext` (`XeNG PM` active), but
-    `AppleIntelTGLGraphics{,Framebuffer}.kext` did not attach because `NootedGreen`'s
-    `kern_gen11.cpp` (`pathsTGLFB`/`pathsTGLHW`) matches `/Library/Extensions/...` paths,
-    leaving `IONDRVFramebuffer` active with `WhateverGreen.kext` + `SSDT-PNLF.aml` (`AppleBacklight`).
-  - `config-safe.plist` (default) now disables `WhateverGreen.kext`, `NootedGreen.kext`,
-    `BrightnessKeys.kext`, and `SSDT-PNLF.aml` (pure GOP `IONDRVFramebuffer`, matching the
-    proven QEMU configuration) to isolate and achieve bare-metal GUI takeover first.
+  - On bare-metal, `IONDRVFramebuffer` (pure GOP `config-safe`, 64-bit BAR2 at `0x4000000000`)
+    stalled `WindowServer` at `IOConsoleUsers: gIOScreenLockState 3` (`llk 1`) without registering
+    `com.apple.windowserver.active`.
+  - Meanwhile, `config-accel` loaded `NootedGreen.kext` cleanly (`XeNG PM`, `Gen11::init: FB/HW
+    tier -> TGL`, `stolen_size 0x8000000`), but `AppleIntelTGLGraphics{,Framebuffer}.kext` and
+    `HookCase.kext` were absent from `SystemKernelExtensions.kc` (because `kmutil` refused
+    third-party/unsigned kexts in SystemKC and `auxKCAtBoot=false` disables AuxKC).
+  - **Fix (`--tgl-kexts` BootKC prelink):** `build-usb-efi.py --tgl-kexts` injects the three
+    Darwin 27 SystemKC graphics dependencies (`IOGraphicsFamily.kext`, `IOAcceleratorFamily2.kext`,
+    `AppleGraphicsDeviceControl.kext`) followed by `HookCase.kext`,
+    `AppleIntelTGLGraphicsFramebuffer.kext`, and `AppleIntelTGLGraphics.kext` via OpenCore
+    `Kernel.Add` (scoped `27.0.0`–`27.99.99`, enabled only in `config-accel.plist`). Dry-run
+    verified in QEMU KVM: OpenCore 1.0.8 prelinks all 6 kexts into Darwin `27.2.0`'s
+    `BootKernelExtensions.kc` with `Success` and zero missing symbols or vtable errors.
 
 ## Status
 

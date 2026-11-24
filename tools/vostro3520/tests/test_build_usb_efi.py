@@ -134,6 +134,61 @@ class BuildUsbEfiTests(unittest.TestCase):
                 else:
                     self.assertIn('-igfxvesa', args)
 
+    def test_tgl_prelink_kexts_only_in_accel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            vxe = tmp / 'vxe-efi'
+            hao = tmp / 'hao-esp'
+            tgl = tmp / 'tgl-kexts'
+            out = tmp / 'out-efi'
+            self._make_vostroxe_efi(vxe)
+            self._make_hao_esp(hao)
+            expected_tgl = [
+                'IOGraphicsFamily.kext',
+                'IOAcceleratorFamily2.kext',
+                'AppleGraphicsDeviceControl.kext',
+                'HookCase.kext',
+                'AppleIntelTGLGraphicsFramebuffer.kext',
+                'AppleIntelTGLGraphics.kext',
+            ]
+            for name in expected_tgl:
+                (tgl / name).mkdir(parents=True)
+                (tgl / name / 'marker').write_text(name)
+
+            subprocess.run(
+                [
+                    sys.executable, '-I', str(SCRIPT),
+                    '--vostroxe-efi', str(vxe),
+                    '--hao-esp', str(hao),
+                    '--tgl-kexts', str(tgl),
+                    '--default-accel',
+                    '--out', str(out),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            for name in expected_tgl:
+                self.assertTrue((out / 'OC/Kexts' / name / 'marker').is_file())
+
+            safe = plistlib.loads((out / 'OC/config-safe.plist').read_bytes())
+            accel = plistlib.loads((out / 'OC/config-accel.plist').read_bytes())
+            rec = plistlib.loads((out / 'OC/config-recovery.plist').read_bytes())
+            active = plistlib.loads((out / 'OC/config.plist').read_bytes())
+
+            self.assertEqual(active, accel)
+            accel_order = [k['BundlePath'] for k in accel['Kernel']['Add']]
+            ng_idx = accel_order.index('NootedGreen.kext')
+            self.assertEqual(accel_order[ng_idx + 1:ng_idx + 1 + len(expected_tgl)], expected_tgl)
+            for k in accel['Kernel']['Add'][ng_idx + 1:ng_idx + 1 + len(expected_tgl)]:
+                self.assertTrue(k['Enabled'])
+                self.assertEqual((k['MinKernel'], k['MaxKernel']), ('27.0.0', '27.99.99'))
+            for cfg in (safe, rec):
+                names = [k['BundlePath'] for k in cfg['Kernel']['Add']]
+                for name in expected_tgl:
+                    self.assertNotIn(name, names)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -66,6 +66,68 @@ COMMPAGE_ENTRY = dict(
     MinKernel='27.0.0',
     PlistPath='Contents/Info.plist',
 )
+TGL_PRELINK_ENTRIES = (
+    dict(
+        Arch='x86_64',
+        BundlePath='IOGraphicsFamily.kext',
+        Comment='Darwin 27 IOGraphicsFamily (SystemKC dep for TGL BootKC prelink)',
+        Enabled=True,
+        ExecutablePath='IOGraphicsFamily',
+        MaxKernel='27.99.99',
+        MinKernel='27.0.0',
+        PlistPath='Info.plist',
+    ),
+    dict(
+        Arch='x86_64',
+        BundlePath='IOAcceleratorFamily2.kext',
+        Comment='Darwin 27 IOAcceleratorFamily2 (SystemKC dep for TGL BootKC prelink)',
+        Enabled=True,
+        ExecutablePath='Contents/MacOS/IOAcceleratorFamily2',
+        MaxKernel='27.99.99',
+        MinKernel='27.0.0',
+        PlistPath='Contents/Info.plist',
+    ),
+    dict(
+        Arch='x86_64',
+        BundlePath='AppleGraphicsDeviceControl.kext',
+        Comment='Darwin 27 AppleGraphicsDeviceControl (SystemKC dep for TGL BootKC prelink)',
+        Enabled=True,
+        ExecutablePath='Contents/MacOS/AppleGraphicsDeviceControl',
+        MaxKernel='27.99.99',
+        MinKernel='27.0.0',
+        PlistPath='Contents/Info.plist',
+    ),
+    dict(
+        Arch='x86_64',
+        BundlePath='HookCase.kext',
+        Comment='HookCase (Tiger Lake 16.0.32 symbol provider)',
+        Enabled=True,
+        ExecutablePath='Contents/MacOS/HookCase',
+        MaxKernel='27.99.99',
+        MinKernel='27.0.0',
+        PlistPath='Contents/Info.plist',
+    ),
+    dict(
+        Arch='x86_64',
+        BundlePath='AppleIntelTGLGraphicsFramebuffer.kext',
+        Comment='Tiger Lake 16.0.32 Framebuffer (Iris Xe Metal 2)',
+        Enabled=True,
+        ExecutablePath='Contents/MacOS/AppleIntelTGLGraphicsFramebuffer',
+        MaxKernel='27.99.99',
+        MinKernel='27.0.0',
+        PlistPath='Contents/Info.plist',
+    ),
+    dict(
+        Arch='x86_64',
+        BundlePath='AppleIntelTGLGraphics.kext',
+        Comment='Tiger Lake 16.0.32 Accelerator (Iris Xe Metal 2)',
+        Enabled=True,
+        ExecutablePath='Contents/MacOS/AppleIntelTGLGraphics',
+        MaxKernel='27.99.99',
+        MinKernel='27.0.0',
+        PlistPath='Contents/Info.plist',
+    ),
+)
 
 
 def load_smbios(path):
@@ -100,7 +162,7 @@ def add_kext_after(add_list, after_bundle, entry):
         add_list.append(dict(entry))
 
 
-def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False):
+def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False, tgl_prelink=False):
     cfg = copy.deepcopy(base_cfg)
     add = cfg.setdefault('Kernel', {}).setdefault('Add', [])
 
@@ -133,6 +195,11 @@ def merge_darwin27(base_cfg, hao_cfg, verbose=False, accel=False):
         for a in cfg.get('ACPI', {}).get('Add', []):
             if a.get('Path') == 'SSDT-PNLF.aml':
                 a['Enabled'] = False
+    elif tgl_prelink:
+        anchor = 'NootedGreen.kext'
+        for entry in TGL_PRELINK_ENTRIES:
+            add_kext_after(add, anchor, entry)
+            anchor = entry['BundlePath']
 
     # Merge Darwin 27 Kernel.Patch entries (scoped to Darwin 27 so Tahoe Recovery stays untouched)
     patches = cfg.setdefault('Kernel', {}).setdefault('Patch', [])
@@ -208,6 +275,7 @@ def main():
     ap.add_argument('--opencore-zip', type=Path)
     ap.add_argument('--hfsplus', type=Path)
     ap.add_argument('--apfs', type=Path, help='Apple APFS standalone EFI driver (e.g. apfs.efi)')
+    ap.add_argument('--tgl-kexts', type=Path, help='Directory with Darwin 27 TGL prelink kexts (IOGraphicsFamily, IOAcceleratorFamily2, AppleGraphicsDeviceControl, HookCase, AppleIntelTGLGraphicsFramebuffer, AppleIntelTGLGraphics)')
     ap.add_argument('--default-accel', action='store_true')
     args = ap.parse_args()
 
@@ -230,6 +298,14 @@ def main():
         copy_bundle(args.lilu, kexts / 'Lilu.kext')
     if args.cryptexfixup and args.cryptexfixup.is_dir():
         copy_bundle(args.cryptexfixup, kexts / 'CryptexFixup.kext')
+    tgl_prelink = False
+    if args.tgl_kexts and args.tgl_kexts.is_dir():
+        for entry in TGL_PRELINK_ENTRIES:
+            src = args.tgl_kexts / entry['BundlePath']
+            if not src.is_dir():
+                raise SystemExit(f'build-usb-efi: missing TGL prelink kext {src}')
+            copy_bundle(src, kexts / entry['BundlePath'])
+        tgl_prelink = True
 
     hao_cfg = None
     if args.hao_esp and args.hao_esp.is_dir():
@@ -275,7 +351,7 @@ def main():
     recovery_cfg['Misc']['Boot']['Timeout'] = 10
 
     safe_cfg = merge_darwin27(safe_base, hao_cfg, verbose=True, accel=False)
-    accel_cfg = merge_darwin27(accel_base, hao_cfg, verbose=True, accel=True)
+    accel_cfg = merge_darwin27(accel_base, hao_cfg, verbose=True, accel=True, tgl_prelink=tgl_prelink)
 
     for c in (safe_cfg, accel_cfg, recovery_cfg):
         dbg = c.setdefault('Misc', {}).setdefault('Debug', {})
